@@ -45,7 +45,19 @@ export declare const INTERMEDIATE_TEX = "main_intermediate.tex";
 export type PaperTemplate = 'conference' | 'journal';
 /** 归一化模板名（未知值收敛到会议模板）。 */
 export declare function normalizeTemplate(raw?: string): PaperTemplate;
-/** 转义 LaTeX 中会引发编译问题的 Unicode 标点（旧版 `sanitize_unicode_chars`）。 */
+/**
+ * 转义 LaTeX 中会引发编译问题的 Unicode 标点与符号（旧版 `sanitize_unicode_chars`）。
+ *
+ * ⚠️ **为什么必须逐字符映射，而不是"过滤掉非 ASCII"**：
+ * LaTeX 对不认识的 Unicode 字符是**静默丢弃**的，而其中一些字符**承载语义**。
+ * 实测事故：消融表里的 `−0.207`（U+2212 减号）被丢弃后变成 `0.207`，
+ * 把"下降 0.207"渲染成"0.207"，直接反转结论方向；`≥2` 变成 `2`；
+ * `0→1e-3` 变成 `01e-3`；`Cohen's κ` 变成 `Cohen's `。
+ * 因此这里按"语义等价"映射，**绝不删除**既有信息的字符。
+ *
+ * 数学/希腊字母映射到数学模式命令（`amsmath`/`amssymb` 由模板提供）。
+ * emoji 无 LaTeX 字体支持，映射为文本标签以保留"是否达标"的判断。
+ */
 export declare function sanitizeUnicodeChars(text: string): string;
 /**
  * 纯文本安全化（旧版 `safe_text`，只用于 title / abstract）。
@@ -63,6 +75,21 @@ export declare function safeText(text: string | undefined): string;
  * 同时清掉 v2 论文里常见的占位注释与统计行。
  */
 /**
+ * 行内强调**只匹配单行**（`([^*\n]+)`）。这是刻意的，并有一次失败尝试的记录。
+ *
+ * 已知缺陷：Markdown 里**跨行**的 `**bold**` 不匹配，会以字面 `**` 落进 PDF
+ * （LaTeX 不报错，属静默版面缺陷；实测 paper-d2 曾出现 5 处、纸面 10 个星号）。
+ *
+ * 2026-10-04 曾改成允许跨单个换行（`([^*\n]+(?:\n(?!\s*\n)[^*\n]*)*)` + 斜体加
+ * lookaround），自检 114 条全过，但**在真实论文上过度配对**：斜体分隔符错位到别的跨度上
+ * （`\textit{what}` 变成 `}what\textit{`），并让 `\subsection{...}` 变成
+ * `\subsection\textit{{...}`，导致 paper-d2 **编译失败**（`Missing \endcsname`）。
+ * 因为正文已把所有跨行粗体改写成单行，回退到单行版本没有代价，故回退。
+ *
+ * 若将来要再修：**判据必须是在真实 paper.md 上 compose 后逐字节 diff + 编译通过**，
+ * 只用构造用例的自检不足以拦住这类过度配对。
+ */
+/**
  * 把**行内** Markdown 强调转成 LaTeX 命令（旧版靠上游 sanitizer 做，v2 的 paper.md 里内联强调很多）。
  *
  * `**x**` → `\textbf{x}`，`*x*` → `\textit{x}`。
@@ -71,6 +98,18 @@ export declare function safeText(text: string | undefined): string;
  * 行首的 `* 列表项` 因为不闭合，天然不会被匹配。
  */
 export declare function convertInlineEmphasis(text: string): string;
+/**
+ * 覆盖前检查：`compose` 会用 `paper.md` **重新生成** `main.tex`。若旧 `main.tex` 里含有新产物
+ * 不会再出现的**实质内容**，就把它列出来（调用方据此拒绝写盘）。
+ *
+ * 事故背景（2026-10-04）：paper-d2 的 44 条 `\bibitem` 只写在 `main.tex` 里、`paper.md` 里没有
+ * References 节，首次 compose 把书目整段抹掉；那次靠自动备份 `main_bak_*.tex` 才恢复。此检查把
+ * 「静默丢失」变成「响亮拒绝」。
+ *
+ * 只比较**名字/键**（书目键、自定义宏名、宏包名），不比较正文与逐字文本：正常重排、样板改写、
+ * 引用编号变化都不该触发，避免把检查做成噪音而被人习惯性绕过。
+ */
+export declare function detectComposeLoss(oldTex: string, newTex: string): string[];
 export declare function stripMarkdownHeaders(text: string | undefined): string;
 /**
  * 保护数学区、转义其余文本中的 LaTeX 特殊字符。
@@ -104,8 +143,11 @@ export declare function buildThebibliography(entries: readonly BibEntry[]): stri
 /**
  * 把引用占位符转成 `\cite{}`（旧版 `inject_citations` 的三层转换）。
  *
- *   1. `[key1, key2]` → `\cite{key1,key2}`
- *   2. `[alphaKey]` → `\cite{alphaKey}`（兜底，捕获 Agent 自由生成的引用）
+ *   1. `[key1, key2]` → `\cite{key1,key2}`；分隔符支持逗号或分号
+ *      （`[key1; key2; key3]`），并容忍 `arXiv:` / `doi:` 后缀注解
+ *      （`[key, arXiv:2609.02265]` → `\cite{key}`，编号已写在参考文献条目里）
+ *   2. `[alphaKey]` → `\cite{alphaKey}`（兜底；提供 knownKeys 时只转已知键，
+ *      避免 `[TBD]` / `[t]` 之类被误转）
  *   3. `[12]` / `[3-5]` → 按 numberToKey 映射 → `\cite{...}`
  *
  * 数学区（`$...$` / `$$...$$`）内不替换 —— `\cite` 不能在数学模式里用。
@@ -119,6 +161,26 @@ export interface FigureSpec {
     name: string;
     caption: string;
 }
+/**
+ * 把 Markdown 表格块转成 LaTeX `table` 环境（booktabs），并用哨兵保护正文，
+ * 避免后续 `sanitizeLatexMath` 把 `&` 分隔符转义、把 `fact_update` 包进数学区。
+ *
+ * 支持 GitHub 风格管道表格：`| a | b |` 表头行 + `|---|---|` 分隔行（可带 `:`
+ * 对齐标记）+ 数据行。表格上方紧邻的 `Table: <caption>` 行（或 `**Table N:**`）
+ * 作为题注消费掉。
+ *
+ * 列宽策略（对齐 visual-evidence-selection 的宽表规则）：
+ * - 估算各列最大视觉宽度（ASCII 1、CJK 2），总宽超过单栏阈值（约 62 字符）
+ *   或列数 ≥ 6 → `table*`（跨栏），长文本列用 `p{...}` 换行；否则单栏 `table`，
+ *   窄列用 `l` / `c` / `r`。
+ *
+ * 单元格内容按 LaTeX 转义（`& % # _ ^ $` 等），数学区（`$...$`）受保护。
+ * 返回带 `\u0000MDTABLE<i>\u0000` 哨兵的正文；用 {@link restoreMarkdownTables}
+ * 在净化/引用注入完成后还原。
+ */
+export declare function convertMarkdownTables(text: string, tables?: string[]): string;
+/** 把 `convertMarkdownTables` 留下的哨兵还原为 LaTeX 表格。 */
+export declare function restoreMarkdownTables(text: string, tables: readonly string[]): string;
 /** 从图名派生 label（旧版规则：去 .png、下划线转连字符）。 */
 export declare function figureLabel(name: string): string;
 /**

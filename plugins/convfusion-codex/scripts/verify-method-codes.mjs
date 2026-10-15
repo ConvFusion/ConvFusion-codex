@@ -4,12 +4,12 @@
  *
  * 守住两件事：
  *
- *   1. **编号体系**：9 个类别 `C01`–`C09` 按研究过程排序；50 个技能各自唯一编号；
+ *   1. **编号体系**：10 个类别 `C00`–`C09` 按研究过程排序；每个技能各自唯一编号；
  *      编号表与真实技能集合**完全一致**（不多、不少、不重、格式合法）。
  *   2. **排序按编号而非字母序**：技能库列表、设置页的类别与技能列表，
- *      都必须按 `CxxPyy` 排 —— 字母序会把实验阶段的技能排到理解问题之前。
+ *      都必须按 `CxxPyy` 排 —— 字母序会把实验阶段的技能排到理解输入之前。
  *   3. **导出**：`/research 导出研究方法` 产出的 Markdown 必须带编号锚点
- *      （`### CxxPyy`，将来按编号合并用），默认只含 6 个可定制章节，`--full` 才含历史提示词。
+ *      （`### CxxPyy`，将来按编号合并用），默认只含 7 个可定制章节，`--full` 才含历史提示词。
  *
  * 用法：node scripts/verify-method-codes.mjs
  */
@@ -52,20 +52,42 @@ function assertEq(actual, expect, label) {
 
 const docs = SKILLS.listSystemSkills()
 
-/* ── 1. 类别编号 ──────────────────────────────────────────────────── */
-console.log('\n[1] 类别编号 C01–C09')
-{
-  assertEq(CODES.CATEGORY_CODES.length, 9, '9 个类别')
-  const codes = CODES.CATEGORY_CODES.map((c) => c.code)
-  assertEq(codes.join(','), 'C01,C02,C03,C04,C05,C06,C07,C08,C09', '类别编号连续 C01–C09')
-  const orders = CODES.CATEGORY_CODES.map((c) => c.order)
-  assertEq(orders.join(','), '1,2,3,4,5,6,7,8,9', 'order 单调递增（排序依据）')
+/*
+ * 技能分两类（`kind`，见 `src/research/skills.ts`）：
+ *   - `method`：**研究方法** —— 进编号表（CxxPyy）、分类树、定制层、导出文件；
+ *   - `operation`：**操作流程**（如 `sync`：把下载下来的研究快照同步进来）——
+ *     只是"agent 可按需加载的能力"，**不进**上述四处：它不是研究方法，
+ *     研究者不需要定制它，也不该出现在"导出研究方法"里。
+ *
+ * 所以下面**所有**编号 / 分类 / 导出断言都限定在 `methodDocs` 上，
+ * 并为操作类技能单列一小段（[5]）。
+ */
+const methodDocs = docs.filter((d) => d.kind === 'method')
+const operationDocs = docs.filter((d) => d.kind === 'operation')
 
-  // 类别顺序必须与 research-process 的阶段意图一致：理解问题在最前、写作业靠后
-  assertEq(CODES.CATEGORY_CODES[0].categoryId, 'research-understanding', 'C01 = 理解问题')
-  assertEq(CODES.CATEGORY_CODES[1].categoryId, 'literature', 'C02 = 文献')
-  assertEq(CODES.CATEGORY_CODES[7].categoryId, 'academic-writing', 'C08 = 写作')
-  assertEq(CODES.CATEGORY_CODES[8].categoryId, 'research-management', 'C09 = 研究管理（横切，置末）')
+/* ── 1. 类别编号 ──────────────────────────────────────────────────── */
+console.log('\n[1] 类别编号 C00–C09')
+{
+  assertEq(CODES.CATEGORY_CODES.length, 10, '10 个类别（C00 全局能力 / C09 工作评阅都是普通类别）')
+  const codes = CODES.CATEGORY_CODES.map((c) => c.code)
+  // C00 全局能力是**跨阶段的前置**（规定这套研究怎么推进），故置首；
+  // C09 工作评阅作用于已有资产，故置末。
+  assertEq(codes.join(','), 'C00,C01,C02,C03,C04,C05,C06,C07,C08,C09', '类别编号连续 C00–C09')
+  assertEq(codes.at(0), 'C00', '全局能力排在最前（跨阶段前置）')
+  assertEq(codes.at(-1), 'C09', '评阅排在最后（横切能力，不专属某个阶段）')
+  const orders = CODES.CATEGORY_CODES.map((c) => c.order)
+  assertEq(orders.join(','), '0,1,2,3,4,5,6,7,8,9', 'order 单调递增（排序依据）')
+
+  // 类别顺序必须与 research-process 的阶段意图一致：理解输入在最前、写作靠后
+  assertEq(CODES.CATEGORY_CODES[0].categoryId, 'global-capabilities', 'C00 = 全局能力')
+  assertEq(CODES.CATEGORY_CODES[1].categoryId, 'research-understanding', 'C01 = 理解输入')
+  assertEq(CODES.CATEGORY_CODES[2].categoryId, 'literature', 'C02 = 文献')
+  assertEq(CODES.CATEGORY_CODES[4].categoryId, 'research-planning', 'C04 = 研究计划')
+  assertEq(CODES.CATEGORY_CODES[5].categoryId, 'resource-estimation', 'C05 = 资源估计')
+  assertEq(CODES.CATEGORY_CODES[6].categoryId, 'research-decision', 'C06 = 研究决策（实验前）')
+  assertEq(CODES.CATEGORY_CODES[7].categoryId, 'experiment', 'C07 = 实验验证（含仿真与结果分析）')
+  assertEq(CODES.CATEGORY_CODES[8].categoryId, 'academic-writing', 'C08 = 写作')
+  assertEq(CODES.CATEGORY_CODES[9].categoryId, 'review', 'C09 = 工作评阅（横切，置末）')
 
   // 类别名统一 4 个字（用户要求）：防止将来又混入 2 字/5 字名
   for (const c of CODES.CATEGORY_CODES) {
@@ -88,9 +110,9 @@ console.log('\n[1] 类别编号 C01–C09')
 /* ── 2. 技能编号完整性 ────────────────────────────────────────────── */
 console.log('\n[2] 技能编号 CxxPyy')
 {
-  assertEq(Object.keys(CODES.SKILL_CODES).length, docs.length, '编号条数 = 技能数')
+  assertEq(Object.keys(CODES.SKILL_CODES).length, methodDocs.length, '编号条数 = 研究方法数（操作类不编号）')
 
-  const v = CODES.validateSkillCodes(docs.map((d) => d.id))
+  const v = CODES.validateSkillCodes(methodDocs.map((d) => d.id))
   assertEq(v.unmapped.length, 0, `没有未编号的技能${v.unmapped.length ? `：${v.unmapped.join(', ')}` : ''}`)
   assertEq(v.orphans.length, 0, `没有多余编号${v.orphans.length ? `：${v.orphans.join(', ')}` : ''}`)
   assertEq(v.duplicates.length, 0, '没有重复编号')
@@ -99,13 +121,31 @@ console.log('\n[2] 技能编号 CxxPyy')
   assertEq(v.ok, true, '整体校验通过')
 
   // 编号必须落在它所属类别的 C 号上
-  for (const doc of docs) {
+  for (const doc of methodDocs) {
     const code = CODES.skillCode(doc.id)
     const info = CODES.categoryCodeInfo(doc.category)
     assert(code !== undefined, `已编号：${doc.id}`)
     if (code && info) {
       assert(code.startsWith(info.code), `${doc.id} 的编号 ${code} 属于 ${info.code}`)
     }
+  }
+
+  // C08 的 P 号顺序 = **论文从草稿到成稿的实际顺序**（v0.5.5 插入 paper-diagrams 后顺移）。
+  // 这条断言防的是"插入一个技能却忘了顺移后面几个"——那种错误编号仍然唯一、仍然连续，
+  // 只有顺序错，前面所有检查都会放过。
+  {
+    const c08 = docs
+      .filter((d) => (d.category ?? '').startsWith('academic-writing'))
+      .map((d) => CODES.skillCode(d.id))
+    assertEq(
+      c08.join(','),
+      'C08P01,C08P02,C08P03,C08P04,C08P05,C08P06,C08P07,C08P08,C08P09,C08P10,C08P11,C08P12',
+      'C08 编号连续到 P12',
+    )
+    assertEq(CODES.skillCode('visual-evidence-selection'), 'C08P06', '选图表 = C08P06')
+    assertEq(CODES.skillCode('paper-diagrams'), 'C08P07', '配图 = C08P07（在选图表之后）')
+    assertEq(CODES.skillCode('manuscript-revision'), 'C08P08', '手稿修订 = C08P08（在配图之后）')
+    assertEq(CODES.skillCode('submission-compile-and-format'), 'C08P09', '投稿编译 = C08P09')
   }
 
   // 每个类别内的 P 号从 P01 连续开始
@@ -128,14 +168,14 @@ console.log('\n[2] 技能编号 CxxPyy')
 /* ── 3. 排序按编号（不是字母序）──────────────────────────────────── */
 console.log('\n[3] 排序：技能库与设置页')
 {
-  const keys = docs.map((d) => CODES.skillSortKey(d.id))
+  const keys = methodDocs.map((d) => CODES.skillSortKey(d.id))
   const sorted = [...keys].sort()
-  assertEq(keys.join(','), sorted.join(','), 'listSystemSkills 按编号排序')
+  assertEq(keys.join(','), sorted.join(','), 'listSystemSkills 按编号排序（研究方法）')
 
-  // 字母序的反例：ablation-design 属于实验（C05），绝不能排在理解问题（C01）之前
+  // 字母序的反例：ablation-design 属于实验（C07），绝不能排在理解输入（C01）之前
   const ablationIdx = docs.findIndex((d) => d.id === 'ablation-design')
-  const topicIdx = docs.findIndex((d) => d.id === 'topic-understanding')
-  assert(topicIdx >= 0 && ablationIdx > topicIdx, '理解问题排在消融之前（字母序会反过来）')
+  const topicIdx = docs.findIndex((d) => d.id === 'input-understanding')
+  assert(topicIdx >= 0 && ablationIdx > topicIdx, '理解输入排在消融之前（字母序会反过来）')
 
   const st = RPC.buildSettingsState(
     { customizationFile: 'x.json', customizationDir: '/tmp', openalexApiKey: '' },
@@ -145,10 +185,11 @@ console.log('\n[3] 排序：技能库与设置页')
   )
   assertEq(
     st.categories.map((c) => c.code).join(','),
-    'C01,C02,C03,C04,C05,C06,C07,C08,C09',
+    'C00,C01,C02,C03,C04,C05,C06,C07,C08,C09',
     '设置页类别按研究过程排序（字母序会让写作排最前）',
   )
-  assertEq(st.categories[0].label, '理解问题', 'C01 中文名')
+  assertEq(st.categories[0].label, '全局能力', 'C00 中文名')
+  assertEq(st.categories[1].label, '理解输入', 'C01 中文名')
   for (const c of st.categories) {
     const codes = c.skills.map((s) => s.code ?? 'Z')
     assertEq(codes.join(','), [...codes].sort().join(','), `${c.code} 内技能按编号排序`)
@@ -157,29 +198,63 @@ console.log('\n[3] 排序：技能库与设置页')
   assert(st.categories.every((c) => c.skills.every((s) => typeof s.code === 'string')), '每个技能都带编号')
 }
 
+/* ── 5. 操作类技能（不是研究方法）────────────────────────────────── */
+console.log('\n[5] 操作类技能（kind: operation）')
+{
+  assert(operationDocs.length >= 1, `库里至少有一个操作类技能（实际 ${operationDocs.length}）`)
+  const sync = docs.find((d) => d.id === 'sync')
+  assert(sync !== undefined, '有 sync 技能（把下载下来的研究工作区快照同步进来）')
+  if (sync) {
+    assertEq(sync.kind, 'operation', 'sync 标为操作类（frontmatter kind: operation）')
+    assert(sync.code === undefined, '操作类技能**不编号**（不进 CxxPyy 表）')
+    assert(sync.category === undefined, '操作类技能**不进分类树**（设置页"本地研究方法"里看不到它）')
+    assertEq(sync.status, 'active', 'sync 是 active（否则技能通道不会提供它）')
+    assert(sync.body.includes('两步走'), 'sync 正文保留了"两步走"纪律')
+  }
+  // 导出里没有它（上面 [4] 已断言），定制列表里也没有它
+  const points = CUST.listCustomizationPoints('', {})
+  assert(
+    !points.some((c) => (c.points ?? []).some((p) => p.skillId === 'sync' || p.id === 'sync')),
+    '设置页定制列表里没有 sync（它不需要被定制）',
+  )
+  assert(!points.some((c) => c.categoryId === 'uncategorized'), '不再因为无类别技能多出 uncategorized 伪类别')
+}
+
 /* ── 4. 导出 ──────────────────────────────────────────────────────── */
 console.log('\n[4] 导出研究方法')
 {
   const def = EXPORT.buildMethodsExport({ now: new Date('2026-01-01T00:00:00Z') })
   const full = EXPORT.buildMethodsExport({ full: true, now: new Date('2026-01-01T00:00:00Z') })
 
-  assertEq(def.skillCount, docs.length, '导出全部技能')
-  assertEq(def.categoryCount, 9, '导出全部类别')
+  assertEq(def.skillCount, methodDocs.length, '导出全部**研究方法**（操作类不进导出）')
+  assertEq(def.categoryCount, 10, '导出全部类别')
   assertEq(def.full, false, '默认非 full')
   assert(def.markdown.includes('CxxPyy'), '头部说明编号规则')
-  assert(def.markdown.includes('## C01 · 理解问题'), '按类别分节且带编号')
-  assert(def.markdown.includes('### C01P01 · 理解问题 · 主题理解'), '技能标题行 = 编号 + 类别 + 中文名')
+  assert(def.markdown.includes('## C01 · 理解输入'), '按类别分节且带编号')
+  assert(def.markdown.includes('### C01P01 · 理解输入 · 输入理解'), '技能标题行 = 编号 + 类别 + 中文名')
   assert(CODES.skillLabel('literature-search') === '文献检索', '中文名映射')
 
-  // 编号锚点：每个技能恰好出现一次
-  for (const doc of docs) {
+  // 编号锚点：每个研究方法恰好出现一次
+  for (const doc of methodDocs) {
     const anchor = `### ${doc.code} ·`
     assertEq(def.markdown.split(anchor).length - 1, 1, `锚点唯一：${doc.code}`)
   }
+  /*
+   * 操作类技能不该混进"研究方法"导出文件。
+   *
+   * ⚠️ 不能用"文件里没有 sync 这个词"来判 —— 别的技能正文里本来就有英文词
+   * in sync / synchronous。所以按**特征文本**判：sync 技能的标题锚点与它独有的正文。
+   */
+  assert(!def.markdown.includes('### undefined ·'), '没有"无编号技能"留下的空锚点')
+  assert(!def.markdown.includes('备份目录的最终名字'), 'sync 的正文没有混进导出文件')
 
-  // 默认只含 6 个可定制章节，不含逐字历史提示词
+  // 导出含「至少一个技能有」的可定制章节锚点：Prerequisites 尚无技能声明时该节不出现
+  const presentSections = new Set()
+  for (const doc of docs) for (const s of doc.sections ?? []) presentSections.add(s.title)
   for (const section of CUST.CUSTOMIZABLE_SECTIONS) {
-    assert(def.markdown.includes(`#### ${section}`), `含可定制章节：${section}`)
+    if (presentSections.has(section)) {
+      assert(def.markdown.includes(`#### ${section}`), `含可定制章节：${section}`)
+    }
   }
   assert(!def.markdown.includes('## Source Prompts'), '默认**不含** Source Prompts（历史逐字提示词）')
   assert(full.markdown.includes('## Source Prompts'), 'full 模式含 Source Prompts')
@@ -223,14 +298,14 @@ console.log('\n[6] 定制层：编号别名与排序')
 
   // 键可以是编号（人手写时好记）—— 读取时反查成稳定的 skillId
   const p = CUSTS.parseCustomizations(
-    JSON.stringify({ C08P07: { 'Research Method': 'x' }, C02P01: { Purpose: 'y' } }),
+    JSON.stringify({ C08P09: { 'Research Method': 'x' }, C02P01: { Purpose: 'y' } }),
   )
-  assert(p['submission-compile-and-format'] !== undefined, '编号 C08P07 解析为 skillId')
+  assert(p['submission-compile-and-format'] !== undefined, '编号 C08P09 解析为 skillId')
   assert(p['literature-search'] !== undefined, '编号 C02P01 解析为 skillId')
   assertEq(
     Object.keys(p).join(','),
     'literature-search,submission-compile-and-format',
-    '键按编号排序（C02P01 在 C08P07 前）',
+    '键按编号排序（C02P01 在 C08P09 前）',
   )
 
   // 读 → 写 → 再读 必须幂等（否则每次打开设置都会产生无谓 diff）
@@ -246,6 +321,38 @@ console.log('\n[6] 定制层：编号别名与排序')
     'Purpose,Research Method',
     'id 与编号混用合并到同一技能',
   )
+
+  // ── C09 工作评阅：用户可以像定制其它研究方法一样**沉淀自己的评阅方法** ──
+  // （设计文档 §6/§17：导师的个性化来自 Private Skill，而不是一个"AI 导师人格"）
+  {
+    const c10 = CUSTS.parseCustomizations(
+      JSON.stringify({ C09P02: { 'Research Method': '先查 Claim 是否有 Evidence。' } }),
+    )
+    assert(c10['research-quality-review'] !== undefined, '编号 C09P02 解析为 research-quality-review')
+    // 每个评阅技能都要能按编号写（否则"用自己的方法评阅"就落不了地）
+    for (const [code, id] of [
+      ['C09P01', 'research-direction-review'],
+      ['C09P03', 'experimental-evidence-review'],
+      ['C09P04', 'paper-claim-review'],
+    ]) {
+      const one = CUSTS.parseCustomizations(JSON.stringify({ [code]: { Purpose: 'x' } }))
+      assert(one[id] !== undefined, `编号 ${code} 解析为 ${id}`)
+    }
+    // C09P05：编辑视角的投稿审计（另一**场合**，不是把论文评阅拆细）
+    const pre = CUSTS.parseCustomizations(JSON.stringify({ C09P05: { 'Research Method': 'x' } }))
+    assert(pre['pre-submission-review'] !== undefined, '编号 C09P05 解析为 pre-submission-review')
+    assertEq(CODES.skillCode('pre-submission-review'), 'C09P05', '投稿前评阅有编号')
+    // C09P01 是**最早**的评阅场合：手里只有一个方向时用它
+    assertEq(CODES.skillCode('research-direction-review'), 'C09P01', '选题方向评阅排在最前')
+    assertEq(CODES.skillLabel('research-direction-review'), '选题方向评阅', '选题方向评阅有中文名')
+    assertEq(CODES.skillLabel('pre-submission-review'), '投稿前评阅', '投稿前评阅有中文名')
+
+    // 编号 → 中文名/技能名可用于导出与界面
+    assertEq(CODES.skillCode('research-quality-review'), 'C09P02', '评阅技能有编号')
+    assertEq(CODES.skillLabel('research-quality-review'), '研究工作质量评阅', '评阅技能有中文名')
+    assertEq(CODES.categoryCode('review'), 'C09', 'review 类别的编号')
+    assertEq(CODES.categoryCodeInfo('review')?.label, '工作评阅', '类别中文名')
+  }
 
   // 认不出的编号保留原键：不静默丢用户写下的东西
   const bad = CUSTS.parseCustomizations(JSON.stringify({ C99P99: { Purpose: 'z' } }))

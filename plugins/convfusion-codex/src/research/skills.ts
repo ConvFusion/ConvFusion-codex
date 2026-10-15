@@ -30,7 +30,7 @@
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { SkillOrigin } from './taxonomy.js'
 import { normalizeCategoryId } from './taxonomy.js'
@@ -74,6 +74,8 @@ export interface SkillDocument {
   /** 中文名（与 `code` 同表维护）—— 界面与导出展示用。 */
   label?: string
   type: SkillType
+  /** 研究方法 / 操作流程（见 {@link SkillKind}）。 */
+  kind: SkillKind
   status: SkillStatus
   version: string
   /** 正文全部章节。 */
@@ -91,6 +93,18 @@ export interface SkillDocument {
 /** 系统 Skill Library 的目录名（包内）。 */
 export const SKILLS_DIR = 'skills'
 
+/**
+ * 技能种类。
+ *
+ * - `method`（缺省）：**研究方法** —— 进编号表（`CxxPyy`）、分类树、设置页定制层、导出文件；
+ * - `operation`：**操作流程**（如 `sync`：把下载下来的研究工作区快照同步进来）——
+ *   它以"agent 可按需加载的能力"存在，**不进**上述任何一处：
+ *   它不是研究方法，研究者既不需要定制它，也不该在导出方法文件时带上它。
+ *
+ * 由 frontmatter 的 `kind: operation` 声明（缺省 = `method`）。
+ */
+export type SkillKind = 'method' | 'operation'
+
 /* ════════════════════════════════════════════════════════════════════════
  * 章节读取（宽松匹配）
  * ════════════════════════════════════════════════════════════════════════ */
@@ -102,6 +116,11 @@ function findSection(doc: Pick<SkillDocument, 'sections'>, ...names: string[]): 
     if (hit) return hit.body
   }
   return ''
+}
+
+/** 是否是**研究方法**技能（`operation` 类不是，见 {@link SkillKind}）。 */
+export function isMethodSkill(doc: Pick<SkillDocument, 'kind'>): boolean {
+  return doc.kind === 'method'
 }
 
 /** `## Purpose` 内容。 */
@@ -175,7 +194,11 @@ export function parseSkillDocument(
   // 标题去掉 `Skill: ` 前缀（渲染器写的就是 `# Skill: X`）
   const parsed = parseSections(body)
   const skillTitle = parsed.title?.replace(/^Skill:\s*/i, '') ?? null
-  const id = (absPath.split('/').pop() ?? '').replace(/\.md$/, '')
+  // `absPath` comes from the host filesystem. Splitting only on `/` turns the
+  // entire absolute path into the skill id on Windows, which DSH rejects as an
+  // invalid skill name. Accept both platform separators so packaged skills
+  // retain the same stable id on every host.
+  const id = (absPath.split(/[\\/]/).pop() ?? '').replace(/\.md$/, '')
   const category = normalizeCategoryId(fm.category)
   const code = skillCode(id)
   const label = skillLabel(id)
@@ -185,6 +208,7 @@ export function parseSkillDocument(
   return {
     id,
     name: skillTitle || fm.name || id,
+    kind: fm.kind === 'operation' ? 'operation' : 'method',
     ...(category ? { category } : {}),
     ...(code ? { code } : {}),
     ...(label ? { label } : {}),
@@ -205,12 +229,14 @@ export function serializeSkillDocument(input: {
   name: string
   category?: string
   type?: SkillType
+  kind?: SkillKind
   status?: SkillStatus
   version?: string
   sections: Array<{ title: string; body: string }>
 }): string {
   const front = ['---', `name: ${input.name}`, `type: ${input.type ?? 'system'}`]
   if (input.category) front.push(`category: ${input.category}`)
+  if (input.kind === 'operation') front.push('kind: operation')
   front.push(`status: ${input.status ?? 'active'}`, `version: ${input.version ?? '1.0'}`, '---')
   const parts = [`# Skill: ${input.name}`, '']
   for (const s of input.sections) parts.push(`## ${s.title}`, '', s.body.trim(), '')
@@ -234,7 +260,12 @@ function listMarkdownRecursive(root: string): Array<{ abs: string; rel: string }
       if (e.name.startsWith('.')) continue
       const abs = join(dir, e.name)
       if (e.isDirectory()) walk(abs)
-      else if (e.name.endsWith('.md')) out.push({ abs, rel: abs.slice(root.length + 1) })
+      else if (e.name.endsWith('.md')) {
+        // Published metadata uses portable `/` separators even when discovery
+        // runs on Windows.
+        const rel = relative(root, abs).replace(/\\/g, '/')
+        out.push({ abs, rel })
+      }
     }
   }
   walk(root)
@@ -245,7 +276,7 @@ function listMarkdownRecursive(root: string): Array<{ abs: string; rel: string }
 export function systemSkillRoot(): string {
   const hereDir = dirname(fileURLToPath(import.meta.url))
   const candidates = [
-    join(hereDir, '..', '..', SKILLS_DIR, 'convfusion-research', 'references'), // Codex plugin layout
+    join(hereDir, '..', '..', 'skills', 'convfusion-research', 'references'), // Codex method library
     join(hereDir, '..', '..', SKILLS_DIR), // lib/research → 包根
     join(hereDir, '..', '..', '..', SKILLS_DIR), // 布局变化兜底
     join(process.cwd(), SKILLS_DIR),
@@ -268,7 +299,7 @@ export function listSystemSkills(root?: string): SkillDocument[] {
     const doc = parseSkillDocument(abs, `${SKILLS_DIR}/${rel}`, 'system')
     if (doc) docs.push({ ...doc, type: 'system', editable: false })
   }
-  // ⚠️ 按**编号排序**，不是 id 字母序：字母序会把消融（实验阶段）排到理解问题之前，
+  // ⚠️ 按**编号排序**，不是 id 字母序：字母序会把消融（实验阶段）排到理解输入之前，
   // 与研究进程无关。编号表（`skill-codes.ts`）是研究顺序的单一事实来源。
   return docs.sort((a, b) => skillSortKey(a.id).localeCompare(skillSortKey(b.id)))
 }

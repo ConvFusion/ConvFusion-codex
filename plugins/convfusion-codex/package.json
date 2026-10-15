@@ -1,6 +1,6 @@
 {
   "name": "convfusion-codex",
-  "version": "0.2.0-codex.1",
+  "version": "0.6.2-codex.1",
   "description": "ConvFusion research operating system as a Codex plugin with a native skill and bundled local MCP adapter.",
   "repository": {
     "type": "git",
@@ -30,32 +30,50 @@
     "assets",
     "lib",
     "skills",
-    "scripts/convfusion-mcp.mjs"
+    "scripts/convfusion-mcp.mjs",
+    "scripts/codex-ui-server.mjs",
+    "convfusion.env.example.json"
   ],
   "scripts": {
-    "build": "npm run build:host && npm run build:client",
+    "build": "npm run build:host && npm run build:client && npm run build:ui && npm run build:runtime",
     "build:host": "tsc -p tsconfig.json",
     "build:client": "node scripts/build-client.mjs && tsc -p tsconfig.client.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
     "version:set": "node scripts/sync-version.mjs",
     "version:check": "node scripts/sync-version.mjs --check",
     "verify:codex": "npm run version:check && node scripts/verify-codex-plugin.mjs",
-    "clean": "rm -rf lib"
+    "clean": "rm -rf lib",
+    "build:ui": "node scripts/build-codex-ui.mjs",
+    "verify:action-construction": "node scripts/verify-action-construction.mjs",
+    "verify:paper-diagrams": "node scripts/verify-paper-diagrams.mjs",
+    "verify:paper-gaps": "node scripts/verify-paper-gaps.mjs",
+    "verify:research-ir": "node scripts/verify-research-ir.mjs",
+    "verify:workspace-identity": "node scripts/verify-workspace-identity.mjs .",
+    "verify:sync-command": "node scripts/verify-sync-command.mjs .",
+    "verify:codex-ui": "node scripts/verify-codex-ui.mjs",
+    "build:runtime": "node scripts/build-codex-runtime.mjs",
+    "verify:codex-version": "node scripts/verify-codex-version.mjs",
+    "verify:codex-package": "node scripts/verify-codex-package.mjs"
   },
   "dependencies": {
-    "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-llm": "^0.1.5-rc.1",
-    "@deepseek-ai/dsh-tools": "^0.1.5-rc.1",
-    "@deepseek-ai/dsh-util-values": "^0.1.5-rc.1"
+    "@deepseek-ai/cordis": "^4.0.4",
+    "@deepseek-ai/dsh-llm": "^0.2.0-rc.1",
+    "@deepseek-ai/dsh-tools": "^0.2.0-rc.1",
+    "@deepseek-ai/dsh-util-values": "^0.2.0-rc.1",
+    "@deepseek-ai/schemastery": "^3.18.4",
+    "react-dom": "^18.3.0",
+    "@modelcontextprotocol/ext-apps": "^1.0.1"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-commands": "^0.1.5-rc.1",
-    "@deepseek-ai/dsh-system-prompt": "^0.1.5-rc.1",
+    "@deepseek-ai/dsh-commands": "^0.2.0-rc.1",
+    "@deepseek-ai/dsh-system-prompt": "^0.2.0-rc.1",
     "@types/node": "^22.10.0",
     "typescript": "^5.6.0",
     "@types/react": "^18.3.0",
     "esbuild": "^0.24.0",
-    "react": "^18.3.0"
+    "react": "^18.3.0",
+    "@deepseek-ai/dsh-client-locale": "^0.2.0-rc.1",
+    "@types/react-dom": "^18.3.0"
   },
   "license": "MIT",
   "peerDependencies": {
@@ -65,5 +83,8 @@
     "react": {
       "optional": true
     }
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

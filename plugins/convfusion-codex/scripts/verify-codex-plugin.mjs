@@ -4,9 +4,10 @@ import assert from 'node:assert/strict'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { handleRequest } from './convfusion-mcp.mjs'
 
 const temp = await mkdtemp(join(tmpdir(), 'convfusion-codex-'))
+process.env.CONVFUSION_CODEX_HOME = join(temp, 'plugin-home')
+const { handleRequest, closeUiHost } = await import('./convfusion-mcp.mjs')
 const packageInfo = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
 
 try {
@@ -21,8 +22,17 @@ try {
 
   const listed = await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
   const names = listed.result.tools.map((tool) => tool.name)
-  assert.equal(names.length, 13)
+  assert.equal(names.length, 22)
   for (const expected of [
+    'research_action_construction',
+    'research_diagram',
+    'research_schematic',
+    'research_ir',
+    'research_context',
+    'research_methods',
+    'research_sync',
+    'research_ui',
+    'research_ui_action',
     'research_workspace',
     'research_plan',
     'research_project',
@@ -37,6 +47,19 @@ try {
     'research_paper_download',
     'research_paper_latex',
   ]) assert.ok(names.includes(expected), `missing tool: ${expected}`)
+
+  const call = async (name, arguments_ = {}) => (await handleRequest({ jsonrpc: '2.0', id: 20, method: 'tools/call', params: { name, arguments: { workspace_root: temp, ...arguments_ } } })).result
+  const missing = await handleRequest({ jsonrpc: '2.0', id: 21, method: 'tools/call', params: { name: 'research_context', arguments: {} } })
+  assert.equal(missing.result.isError, true)
+  const methods = await call('research_methods')
+  assert.equal(methods.structuredContent.methods.length, 58)
+  assert.equal(methods.structuredContent.methods.filter((m) => m.kind === 'method').length, 57)
+  assert.equal((await call('research_methods', { id: 'sync' })).isError, false)
+  const resources = await handleRequest({ jsonrpc: '2.0', id: 22, method: 'resources/list' })
+  const resource = await handleRequest({ jsonrpc: '2.0', id: 23, method: 'resources/read', params: { uri: resources.result.resources[0].uri } })
+  assert.equal(resource.result.contents[0].mimeType, 'text/html;profile=mcp-app')
+  assert.ok(resource.result.contents[0].text.includes('<!doctype html>'))
+  assert.deepEqual(listed.result.tools.find((t) => t.name === 'research_ui_action')._meta.ui.visibility, ['app'])
 
   const init = await handleRequest({
     jsonrpc: '2.0',
@@ -107,7 +130,14 @@ try {
     pendingStateProposals: 0,
   })
 
+  const stateBefore = await readFile(join(temp, 'workspace/research-state.md'), 'utf8')
+  const proposal = await call('research_state_propose', { action: 'propose', changes: { Problem: 'Reviewed research direction' }, rationale: 'Codex preserves explicit review.' })
+  assert.equal(proposal.isError, false)
+  assert.equal(await readFile(join(temp, 'workspace/research-state.md'), 'utf8'), stateBefore)
+  assert.match((await call('research_context')).structuredContent.context, /Verify the Codex adapter/)
+
   console.log(`Codex adapter verification passed (${names.length} MCP tools).`)
 } finally {
+  await closeUiHost()
   await rm(temp, { recursive: true, force: true })
 }

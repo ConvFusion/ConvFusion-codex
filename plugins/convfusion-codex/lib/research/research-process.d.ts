@@ -19,7 +19,7 @@
  *
  * ## 过程定义本身是一个 Skill（用户可定制）
  *
- * 阶段列表**不再硬编码**：它来自 `research-process` 这个能力（`skills/research-management/
+ * 阶段列表**不再硬编码**：它来自 `research-process` 这个能力（`skills/research-planning/
  * research-process.md`）里的一段机器可读围栏块。用户可以在【设置】-【ConvFusion】-【本地研究方法】
  * 里覆盖该能力的 `Research Method` 章节，**规定自己的研究进展过程** —— 不同学科的过程确实不同。
  *
@@ -35,14 +35,9 @@
  * 判定信号取自**固定词表**（`STAGE_SIGNALS`）—— 用户可以改过程，但改不了判定逻辑，
  * 否则一个笔误就会让"当前阶段"永远判不出来。信号留空/写错 → 该阶段不参与判定。
  */
-/**
- * 判定信号词表。
- *
- * ⚠️ 固定词表是刻意的：用户能改**过程**，但改不了**判定逻辑**。
- * 允许任意表达式会让一个笔误把"当前阶段"永久判错，而且无法校验。
- */
-export declare const STAGE_SIGNALS: readonly ["problem-defined", "literature-evidence", "claims", "method-plan", "experiments", "settled-evidence", "decisions", "manuscript"];
-export type StageSignal = (typeof STAGE_SIGNALS)[number];
+import { type StageSignal } from './stage-signals.js';
+import { type StateDimension } from './research-data.js';
+export { STAGE_SIGNALS, buildSignalContext, judgeSignal, type StageSignal } from './stage-signals.js';
 /** 科研过程的一个阶段（与能力类别对应）。 */
 export interface ResearchStage {
     /** 阶段 id。 */
@@ -55,6 +50,21 @@ export interface ResearchStage {
     signal?: StageSignal;
     /** 这个阶段要产出什么（用于"最缺什么"的说明）。 */
     produces: string;
+    /**
+     * 本阶段的结论该写回 **Research State** 的哪些维度。
+     *
+     * 这是"自进化"那条链的落点（架构 §：`Evidence is produced → Paper evolves →
+     * Research State changes → Harness decides again`）：阶段定义了"产出什么"，
+     * 这个字段定义"产出之后状态里该出现什么"。
+     *
+     * 两件事用它：
+     *   ① 注入的上下文会把它说出来（`Current stage: … → Research State dimensions: X`），
+     *      让 Agent 知道这一步的结论要落到哪个维度；
+     *   ② `research/state-sync.ts` 的**产物汇总自动同步**按它决定维度是否需要重写。
+     *
+     * 留空 = 这个阶段没有对应的状态维度（如「资源评估」的产物是计划、「论文写作」的产物是论文）。
+     */
+    state?: readonly StateDimension[];
 }
 /**
  * 基本科研过程的阶段顺序。
@@ -66,19 +76,6 @@ export interface ResearchStage {
 export declare const DEFAULT_STAGES: readonly ResearchStage[];
 /** 过程定义能力的 id。 */
 export declare const PROCESS_SKILL_ID = "research-process";
-/**
- * 从能力正文里解析阶段列表。
- *
- * 格式（每行一个阶段）：
- *
- * ```text
- * stage: <id> | <显示名> | <能力类别> | <判定信号> | <产出说明>
- * ```
- *
- * 取**第一个**连续块：用户定制在合成时排在原文之前，因此用户的定义天然优先。
- *
- * @returns 解析出的阶段；没有可解析的块时返回 `undefined`（调用方退回默认过程）
- */
 export declare function parseStages(content: string | undefined): ResearchStage[] | undefined;
 /** 一个阶段的落地情况。 */
 export interface StageStatus {

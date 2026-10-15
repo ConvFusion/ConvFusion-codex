@@ -13,11 +13,12 @@
  */
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync, readdirSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import process from 'node:process'
 
-const PKG = resolve(process.argv[2] || 'packages/dsh-convfusion')
+// 仓库已从 monorepo 扁平化为单包（插件即仓库根），默认路径因此是 `.`。
+const PKG = resolve(process.argv[2] || '.')
 const lib = (f) => pathToFileURL(join(PKG, 'lib', f)).href
 
 const S = await import(lib('research/skills.js'))
@@ -49,13 +50,17 @@ console.log('\n[A] 系统 Skill Library（包内资产）')
   const root = S.systemSkillRoot()
   // 断言"定位到**本包**的 skills/"，不写死仓库目录名 —— 仓库已从 monorepo
   // （packages/dsh-convfusion）扁平化为单包，目录名不再含 "dsh-convfusion"。
-  assert(
-    resolve(root) === join(PKG, 'skills', 'convfusion-research', 'references'),
-    `系统库定位到 Codex 插件包内：${root}`,
-  )
+  assert(resolve(root) === join(PKG, 'skills', 'convfusion-research', 'references'), `系统库定位到包内：${root}`)
   assert(existsSync(root), '系统库目录存在')
 
   const docs = S.listSystemSkills()
+  /*
+   * 技能分两类（`kind`）：`method` = 研究方法（有编号/分类/逐字来源/可定制），
+   * `operation` = 操作流程（如 `sync`）。下面这一段（迁移完整性、分类覆盖、
+   * 逐字来源）都只对**研究方法**成立 —— 操作类技能是 v2 原生能力，
+   * 没有旧提示词可迁移，也不进分类树。
+   */
+  const methodDocs = docs.filter((d) => d.kind === 'method')
   assert(docs.length >= 5, `系统库至少有 5 个 Skill（实际 ${docs.length}）`)
   assert(docs.every((d) => d.type === 'system'), '全部 Skill type=system（我们维护）')
   assert(docs.every((d) => d.editable === false), '全部 Skill **只读**（editable=false）')
@@ -73,9 +78,20 @@ console.log('\n[A] 系统 Skill Library（包内资产）')
     'research-process',
     // 论文全文下载：v2 原生能力（旧实现没有这条），手写正文、不伪造历史出处
     'paper-fulltext-download',
+    // C10 工作评阅（`ConvFusion-dsh-Skill-Review.md`）：整个类别都是 v2 新增 ——
+    // 旧实现里没有"评阅/指导"这套提示词，正文按设计文档新写，无历史出处可引
+    'research-direction-review',
+    'research-quality-review',
+    'experimental-evidence-review',
+    'paper-claim-review',
+    // C09P05 投稿前评阅：编辑视角的投稿审计（依据出版社的两份评阅参考），同样 v2 新增
+    'pre-submission-review',
+    // C08P07 论文配图：v2 原生的**确定性绘图链路**（Diagram IR → Validator → Renderer）。
+    // 旧实现里没有任何"画论文结构图"的提示词可以迁移 —— 正文按 v0.5.5 的设计说明新写。
+    'paper-diagrams',
   ])
-  const withSources = docs.filter((d) => d.sections.some((x) => x.title.startsWith('Source Prompts')))
-  const migrated = docs.filter((d) => !V2_NATIVE.has(d.id))
+  const withSources = methodDocs.filter((d) => d.sections.some((x) => x.title.startsWith('Source Prompts')))
+  const migrated = methodDocs.filter((d) => !V2_NATIVE.has(d.id))
   assertEq(
     withSources.filter((d) => !V2_NATIVE.has(d.id)).length,
     migrated.length,
@@ -92,12 +108,61 @@ console.log('\n[A] 系统 Skill Library（包内资产）')
     const sec = d.sections.find((x) => x.title.startsWith('Source Prompts'))
     assert(/modules\//.test(sec.body), `${d.id}: 逐字来源可追溯到 modules/ 下的源文件`)
   }
-  assert(docs.every((d) => d.category !== undefined), '每个 Skill 都有 category')
-  const groups = new Set(docs.map((d) => d.category.split('/')[0]))
+  assert(methodDocs.every((d) => d.category !== undefined), '每个**研究方法**都有 category')
+  const groups = new Set(methodDocs.map((d) => d.category.split('/')[0]))
   assert(groups.size >= 4, `覆盖多个类别（${[...groups].sort().join(', ')}）`)
-  assert(docs.every((d) => TAX.SYSTEM_CATEGORIES.some((c) => c.id === d.category)), '所有 category 都在系统 taxonomy 内')
+  assert(
+    methodDocs.every((d) => TAX.SYSTEM_CATEGORIES.some((c) => c.id === d.category)),
+    '所有 category 都在系统 taxonomy 内',
+  )
+  // 操作类技能：无类别、无编号、无逐字来源 —— 都不是"漏了"，是它本来就不是研究方法
+  const ops = docs.filter((d) => d.kind === 'operation')
+  assert(ops.length >= 1, `有操作类技能（实际 ${ops.length}）`)
+  assert(ops.every((d) => d.category === undefined), '操作类技能不进分类树')
+  assert(ops.every((d) => d.code === undefined), '操作类技能不编号')
+  assert(
+    ops.every((d) => !d.sections.some((x) => x.title.startsWith('Source Prompts'))),
+    '操作类技能不伪造历史出处（v2 原生）',
+  )
 
-  assert(docs.every((d) => /^skills\/[a-z-]+\/[a-z0-9-]+\.md$/.test(d.relPath)), '路径为 skills/<category>/<id>.md')
+  /* 路径约定：研究方法 `skills/<category>/<id>.md`；操作类技能放在 `skills/` 根下
+     —— 它不属于任何方法类别，放在根上正是这个意思。 */
+  assert(
+    methodDocs.every((d) => /^skills\/[a-z-]+\/[a-z0-9-]+\.md$/.test(d.relPath)),
+    '研究方法路径为 skills/<category>/<id>.md',
+  )
+  assert(
+    ops.every((d) => /^skills\/[a-z0-9-]+\.md$/.test(d.relPath)),
+    '操作类技能放在 skills/ 根下（不属于任何方法类别）',
+  )
+
+  // ── C10 工作评阅：是**普通类别**，不是独立技能库（设计文档 §2 原则 2、§31）──
+  const review = methodDocs.filter((d) => d.category.startsWith('review/'))
+  assertEq(review.length, 5, `评阅技能 5 个（粒度按 §8 不过度拆分）：${review.map((d) => d.id).join(', ')}`)
+  assert(
+    review.every((d) => d.relPath.startsWith('skills/review/')),
+    '评阅技能就放在同一个 skills/ 库里（不存在独立的 Review Library）',
+  )
+  assert(
+    review.every((d) => d.editable === false && d.type === 'system'),
+    '评阅技能与其它系统技能同样只读（用户通过定制层沉淀自己的评阅方法）',
+  )
+  // 六个可定制章节必须齐备，否则用户在"本地研究方法"里覆盖不了评阅方法
+  for (const d of review) {
+    for (const section of d.sections) {
+      assert(section.body.trim().length > 0, `${d.id}: 章节 ${section.title} 非空`)
+    }
+    // 落盘约定写进技能正文：技能是给 agent 看的方法文本，不写清位置它就写到别处
+    const goes = d.sections.find((x) => x.title.startsWith('Where the Result Goes'))
+    assert(goes !== undefined, `${d.id}: 声明了结果落盘位置`)
+    assert(/review\/<skill-id>-<YYYY-MM-DD>\.md/.test(goes.body.replace(d.id, '<skill-id>')), `${d.id}: 落到 review/<skill-id>-<日期>.md`)
+    assert(/same level as `research\/`/.test(goes.body), `${d.id}: 说明与 research/ 平级`)
+    assert(/Do not modify the research state/.test(goes.body), `${d.id}: 不得顺手改研究状态`)
+    const titles = d.sections.map((x) => x.title)
+    for (const need of ['Purpose', 'When to Use', 'Research Method', 'Reasoning Guidance', 'Evidence Requirements', 'Expected Output']) {
+      assert(titles.includes(need), `${d.id}: 有可定制章节「${need}」`)
+    }
+  }
   assert(!readdirSync(root).some((f) => /^step|^stage|^phase/.test(f)), '系统库无 step/stage/phase 目录（§27）')
 }
 
@@ -119,6 +184,19 @@ console.log('\n[B] Skill Markdown 与 Metadata')
   writeFileSync(tmp, ['---','name: T','category: literature','---','','# Skill: T','','## Purpose','','P.','','## 我的补充','','自定义内容.'].join('\n'))
   const extra = S.parseSkillDocument(tmp, 'skills/tmp.md')
   assert(extra.sections.some((s) => s.title === '我的补充'), '用户自加章节被完整保留（宽松解析）')
+
+  // 在 POSIX CI 上也构造一个含 Windows 分隔符的文件名，防止重新出现
+  // `C:\\...\\equation-formalization` 被整体当作 skill name 的回归。
+  const windowsShaped = join(
+    cfgDir,
+    String.raw`C:\Users\Administrator\.dsh\profiles\web\node_modules\dsh-convfusion\skills\academic-writing\equation-formalization.md`,
+  )
+  writeFileSync(windowsShaped, ['# Skill: Equation Formalization', '', '## Purpose', '', 'Test.'].join('\n'))
+  const windowsDoc = S.parseSkillDocument(
+    windowsShaped,
+    String.raw`skills\academic-writing\equation-formalization.md`,
+  )
+  assertEq(windowsDoc.id, 'equation-formalization', 'Windows 绝对路径只提取文件名作为 skill id')
 }
 
 /* ── C. 可定制项 ─────────────────────────────────────────────────── */
@@ -171,7 +249,10 @@ console.log('\n[D] 用户定制存储（文件后端；设置里只有文件名�
   writeFileSync(customizationFile, JSON.stringify({ 'literature-search': { 'Research Method': '我通常先看评测设置。' } }))
 
   const settingsLike = JSON.stringify(config)
-  assert(settingsLike.length < 200, `设置里只有文件名，长度与定制量无关（${settingsLike.length} 字节）`)
+  // 意图：设置里只放**文件名**，定制正文一律不进设置文档 —— 体积不随"定制了多少内容"增长。
+  // 先钉正文不在里面（真正的属性），再钉一个宽松上限（凭据等字段让空配置也有一两百字节）。
+  assert(!settingsLike.includes('我通常先看评测'), '定制正文不写进设置文档（只记文件名）')
+  assert(settingsLike.length < 400, `设置里只有文件名与配置项，长度与定制量无关（${settingsLike.length} 字节）`)
 }
 
 /* ── E. 合成语义 ─────────────────────────────────────────────────── */
@@ -254,7 +335,7 @@ console.log('\n[G] 用户定制绝不写进系统库')
 
   const store = CUST.createFileCustomizationStore(() => customizationFile)
   store.set('experiment-design', 'Research Method', '我的实验设计方法。')
-  store.set('topic-understanding', 'Purpose', '我的目的描述。')
+  store.set('input-understanding', 'Purpose', '我的目的描述。')
   void LIB.loadSkillLibrary(ws, store)
   S.listSystemSkills()
   CUST.listCustomizationPoints(ws, store.load())
@@ -288,6 +369,7 @@ console.log('\n[H] Harness Skill Provider')
   assert(def.content.includes('我的实验设计方法。'), 'get().content 含用户定制')
   assert(def.content.includes('## Research Method'), 'get().content 含原有方法结构')
   assert(def.metadata.customizedSections >= 1, 'metadata 标注定制处数')
+  assertEq(def.resourceBase.path, dirname(def.path), 'resourceBase 使用平台原生父目录')
 
   store.set('experiment-design', 'Research Method', '改后的方法。')
   const def2 = await provider.get(c, { cwd: ws })

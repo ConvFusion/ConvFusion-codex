@@ -29,7 +29,7 @@
  * 2. **不是 DSL**：章节用宽松匹配解析，缺章节不报错。
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeCategoryId } from './taxonomy.js';
 import { parseSections } from './markdown.js';
@@ -47,6 +47,10 @@ function findSection(doc, ...names) {
             return hit.body;
     }
     return '';
+}
+/** 是否是**研究方法**技能（`operation` 类不是，见 {@link SkillKind}）。 */
+export function isMethodSkill(doc) {
+    return doc.kind === 'method';
 }
 /** `## Purpose` 内容。 */
 export function skillPurpose(doc) {
@@ -112,7 +116,11 @@ export function parseSkillDocument(absPath, relPath, typeDefault = 'system') {
     // 标题去掉 `Skill: ` 前缀（渲染器写的就是 `# Skill: X`）
     const parsed = parseSections(body);
     const skillTitle = parsed.title?.replace(/^Skill:\s*/i, '') ?? null;
-    const id = (absPath.split('/').pop() ?? '').replace(/\.md$/, '');
+    // `absPath` comes from the host filesystem. Splitting only on `/` turns the
+    // entire absolute path into the skill id on Windows, which DSH rejects as an
+    // invalid skill name. Accept both platform separators so packaged skills
+    // retain the same stable id on every host.
+    const id = (absPath.split(/[\\/]/).pop() ?? '').replace(/\.md$/, '');
     const category = normalizeCategoryId(fm.category);
     const code = skillCode(id);
     const label = skillLabel(id);
@@ -120,6 +128,7 @@ export function parseSkillDocument(absPath, relPath, typeDefault = 'system') {
     return {
         id,
         name: skillTitle || fm.name || id,
+        kind: fm.kind === 'operation' ? 'operation' : 'method',
         ...(category ? { category } : {}),
         ...(code ? { code } : {}),
         ...(label ? { label } : {}),
@@ -139,6 +148,8 @@ export function serializeSkillDocument(input) {
     const front = ['---', `name: ${input.name}`, `type: ${input.type ?? 'system'}`];
     if (input.category)
         front.push(`category: ${input.category}`);
+    if (input.kind === 'operation')
+        front.push('kind: operation');
     front.push(`status: ${input.status ?? 'active'}`, `version: ${input.version ?? '1.0'}`, '---');
     const parts = [`# Skill: ${input.name}`, ''];
     for (const s of input.sections)
@@ -164,8 +175,12 @@ function listMarkdownRecursive(root) {
             const abs = join(dir, e.name);
             if (e.isDirectory())
                 walk(abs);
-            else if (e.name.endsWith('.md'))
-                out.push({ abs, rel: abs.slice(root.length + 1) });
+            else if (e.name.endsWith('.md')) {
+                // Published metadata uses portable `/` separators even when discovery
+                // runs on Windows.
+                const rel = relative(root, abs).replace(/\\/g, '/');
+                out.push({ abs, rel });
+            }
         }
     };
     walk(root);
@@ -175,7 +190,7 @@ function listMarkdownRecursive(root) {
 export function systemSkillRoot() {
     const hereDir = dirname(fileURLToPath(import.meta.url));
     const candidates = [
-        join(hereDir, '..', '..', SKILLS_DIR, 'convfusion-research', 'references'), // Codex plugin layout
+        join(hereDir, '..', '..', 'skills', 'convfusion-research', 'references'), // Codex method library
         join(hereDir, '..', '..', SKILLS_DIR), // lib/research → 包根
         join(hereDir, '..', '..', '..', SKILLS_DIR), // 布局变化兜底
         join(process.cwd(), SKILLS_DIR),
@@ -199,7 +214,7 @@ export function listSystemSkills(root) {
         if (doc)
             docs.push({ ...doc, type: 'system', editable: false });
     }
-    // ⚠️ 按**编号排序**，不是 id 字母序：字母序会把消融（实验阶段）排到理解问题之前，
+    // ⚠️ 按**编号排序**，不是 id 字母序：字母序会把消融（实验阶段）排到理解输入之前，
     // 与研究进程无关。编号表（`skill-codes.ts`）是研究顺序的单一事实来源。
     return docs.sort((a, b) => skillSortKey(a.id).localeCompare(skillSortKey(b.id)));
 }

@@ -44,7 +44,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
 import type { SkillDocument } from './skills.js'
-import { listSkillDocuments, skillMethod, skillPurpose, skillWhenToUse } from './skills.js'
+import { isMethodSkill, listSkillDocuments, skillMethod, skillPurpose, skillWhenToUse } from './skills.js'
 import { categoryName } from './taxonomy.js'
 import { categoryCodeInfo, looksLikeSkillCode, skillIdByCode, skillSortKey } from './skill-codes.js'
 import { findSection } from './markdown.js'
@@ -90,11 +90,38 @@ export interface CustomizationPoint {
 export const CUSTOMIZABLE_SECTIONS: readonly string[] = [
   'Purpose',
   'When to Use',
+  'Prerequisites',
   'Research Method',
   'Reasoning Guidance',
   'Evidence Requirements',
   'Expected Output',
 ]
+
+/**
+ * `C00 全局能力` 类别里**真正全局生效**的可定制章节。
+ *
+ * 为什么需要它：全局能力的其余章节（Purpose / When to Use / …）只是技能正文的一部分，
+ * 要**按需加载该技能**时才被读到 —— 它们不是"全局设置"。在【全局能力】下把它们列出来，
+ * 用户会以为改了就对整项研究生效（实际不会），所以这里只列真正每轮注入的那一章：
+ * `Research Method`（既承载研究流程，也承载进展面板的机器可读 `stage:` 块）。
+ *
+ * 注：用户仍可直接编辑定制 JSON 覆盖其它章节（合成逻辑不做白名单），
+ * 只是设置界面**不把它们当作全局设置**提供。
+ */
+export const GLOBAL_CATEGORY_ID = 'global-capabilities'
+export const GLOBAL_CUSTOMIZABLE_SECTIONS: readonly string[] = ['Research Method']
+
+/**
+ * 章节的**规范序号**（= 它在 `CUSTOMIZABLE_SECTIONS` 里的下标）。
+ *
+ * 用途：设置页 ③「可定制章节」的**下拉顺序与默认项**都取自这里 ——
+ * 顺序必须与「一章一章往下写」的阅读顺序一致，否则默认项会落在一个任意的章节上。
+ * 未登记的章节（用户自定义技能可能带）排到最后，不静默丢弃。
+ */
+export function sectionOrderIndex(section: string): number {
+  const i = CUSTOMIZABLE_SECTIONS.indexOf(section)
+  return i < 0 ? CUSTOMIZABLE_SECTIONS.length : i
+}
 
 /* ════════════════════════════════════════════════════════════════════════
  * 覆盖数据
@@ -346,13 +373,21 @@ export function listCustomizationPoints(
   workspace: string,
   customizations: SkillCustomizations,
 ): CategoryCustomization[] {
-  const docs = listSkillDocuments(workspace)
+  /*
+   * 只列**研究方法**：操作类技能（`kind: 'operation'`，如 `sync`）没有类别，
+   * 会让这里多出一个 `uncategorized` 的伪类别（设置页"本地研究方法"里就多一栏空的）。
+   * 它本来就不是研究方法，不该出现在定制列表里。
+   */
+  const docs = listSkillDocuments(workspace).filter(isMethodSkill)
   const byCategory = new Map<string, CustomizationPoint[]>()
 
   for (const doc of docs) {
     const categoryId = doc.category?.split('/')[0] ?? 'uncategorized'
     const points = byCategory.get(categoryId) ?? []
-    for (const section of CUSTOMIZABLE_SECTIONS) {
+    // 全局能力类别只提供**真正全局生效**的章节（见 GLOBAL_CUSTOMIZABLE_SECTIONS）：
+    // 其余章节改了只影响技能正文、要按需加载才读到，不应当作"全局设置"呈现。
+    const sections = categoryId === GLOBAL_CATEGORY_ID ? GLOBAL_CUSTOMIZABLE_SECTIONS : CUSTOMIZABLE_SECTIONS
+    for (const section of sections) {
       const base = sectionBase(doc, section)
       // 章节不存在就不提供定制（不能给用户一个"覆盖不存在内容"的入口）
       if (!base.trim()) continue
@@ -380,10 +415,15 @@ export function listCustomizationPoints(
         categoryName: categoryName(categoryId),
         ...(info ? { categoryCode: info.code, categoryLabel: info.label } : {}),
         // ⚠️ 技能按**编号**排序（CxxPyy），不是 skillName 字母序 ——
-        // 字母序会把消融（实验阶段）排到理解问题之前，与做研究的顺序无关。
+        // 字母序会把消融（实验阶段）排到理解输入之前，与做研究的顺序无关。
+        // 技能内的章节按 `CUSTOMIZABLE_SECTIONS` 的**规范顺序**（Purpose 在前）——
+        // 曾经用 `section.localeCompare`，于是每个能力的首个章节恒为
+        // `Evidence Requirements`：设置页 ③ 的默认项对几乎所有能力都一样，切能力时
+        // 看起来"③ 没反应"。规范顺序同时决定 ③ 的下拉顺序与默认项。
         points: points.sort(
           (a, b) =>
             skillSortKey(a.skillId).localeCompare(skillSortKey(b.skillId)) ||
+            sectionOrderIndex(a.section) - sectionOrderIndex(b.section) ||
             a.section.localeCompare(b.section),
         ),
         overriddenCount: points.filter((p) => p.overridden).length,
@@ -408,6 +448,7 @@ const here = dirname(fileURLToPath(import.meta.url))
  */
 export function systemSkillRoot(): string {
   const candidates = [
+    join(here, '..', '..', 'skills', 'convfusion-research', 'references'),
     join(here, '..', '..', 'skills'),
     join(here, '..', '..', '..', 'skills'),
     join(process.cwd(), 'skills'),

@@ -38,6 +38,29 @@ export const OPENALEX_DEFAULT_PER_PAGE = 20
 /** 摘要截断长度（字符）。倒排索引重建出的全文往往很长。 */
 export const ABSTRACT_MAX_CHARS = 600
 
+/* ════════════════════════════════════════════════════════════════════════
+ * 请求调度：串行队列 + 最小间隔 + 429/5xx 重试
+ *
+ * OpenAlex 对同一来源 IP 有速率限制（无 Key 的公共池更严）：并发多路检索会
+ * 立刻撞上 HTTP 429（实测并行 4 路即触发）。因此这里把**所有** OpenAlex 请求
+ * 放进一个模块级串行队列 —— 同一时刻最多一个请求在飞、相邻请求间隔不小于
+ * `OPENALEX_MIN_INTERVAL_MS`，也就是"逐个串行检索"。429/5xx 时按
+ * `Retry-After`（缺失则指数退避）等待后自动重试，最多 `OPENALEX_MAX_RETRIES`
+ * 次，让 Agent 无需自己操心节奏。
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/** 相邻 OpenAlex 请求的最小间隔（毫秒）。公共池建议 ≤10 req/s。 */
+export const OPENALEX_MIN_INTERVAL_MS = 200
+
+/** 429/5xx 最多重试次数（不含首次请求）。 */
+export const OPENALEX_MAX_RETRIES = 3
+
+/** 指数退避基准（毫秒）：800 → 1600 → 3200 → 6400。 */
+export const OPENALEX_BACKOFF_BASE_MS = 800
+
+/** 退避/Retry-After 上限（毫秒），避免长时间卡住一个工具调用。 */
+export const OPENALEX_BACKOFF_MAX_MS = 8000
+
 /**
  * 检索字段。
  *
@@ -53,9 +76,24 @@ export const LITERATURE_FIELDS = ['any', 'title_abstract', 'title'] as const
 
 export type LiteratureField = (typeof LITERATURE_FIELDS)[number]
 
-/** 归一化检索字段（未知值收敛到 `any`）。 */
+/**
+ * 字段别名：模型可能直接写 OpenAlex 的原始 filter 名 `title_and_abstract`
+ * （而不是本工具的 `title_abstract`）。收敛到规范名，避免拼写差异把一次
+ * 受限检索静默降级成全文检索 —— 那会让"未发现"看起来比实际更可信。
+ */
+const FIELD_ALIASES: Record<string, LiteratureField> = {
+  title_and_abstract: 'title_abstract',
+}
+
+/**
+ * 归一化检索字段（未知值收敛到 `any`）。
+ *
+ * 大小写不敏感、接受别名；**未知值一律收敛到 `any`（最宽）**而不是报错，
+ * 因为报错会让 Agent 拿不到任何结果，而 `any` 至少给出可解释的覆盖度。
+ */
 export function normalizeField(field?: string): LiteratureField {
   const v = (field ?? '').trim().toLowerCase()
+  if (v in FIELD_ALIASES) return FIELD_ALIASES[v]
   return (LITERATURE_FIELDS as readonly string[]).includes(v) ? (v as LiteratureField) : 'any'
 }
 
@@ -112,16 +150,28 @@ function sortParam(sort: LiteratureQuery['sort']): string | undefined {
  */
 export function buildOpenAlexUrl(query: LiteratureQuery, apiKey?: string, mailto?: string): string {
   const p = new URLSearchParams()
-  p.set('search', query.query.trim())
   p.set('per-page', String(normalizePerPage(query.perPage)))
 
+  const field = normalizeField(query.field)
+  const text = query.query.trim()
+
   const filters: string[] = []
+
+  // 字段决定检索走哪条路：
+  // - any            → 全文 `search=`（宽、噪声大；**不能**与 filter 叠加，否则条件互相稀释）
+  // - title_abstract → `filter=title_and_abstract.search:`
+  // - title          → `filter=title.search:`
+  if (field === 'title_abstract') filters.push(`title_and_abstract.search:${text}`)
+  else if (field === 'title') filters.push(`title.search:${text}`)
+  else p.set('search', text)
+
   const from = query.yearFrom
   const to = query.yearTo
   if (typeof from === 'number' && typeof to === 'number') filters.push(`publication_year:${from}-${to}`)
   else if (typeof from === 'number') filters.push(`publication_year:>${from - 1}`)
   else if (typeof to === 'number') filters.push(`publication_year:<${to + 1}`)
   if (query.openAccessOnly) filters.push('is_oa:true')
+  // OpenAlex 的多个条件是**一个**用逗号分隔的 filter 参数
   if (filters.length > 0) p.set('filter', filters.join(','))
 
   const sort = sortParam(query.sort)
@@ -162,8 +212,10 @@ export interface LiteratureRecord {
   doi?: string
   /** 发表处（期刊/会议名）。 */
   venue?: string
-  /** 前若干位作者。 */
+  /** 前若干位作者（构建参考文献用）。 */
   authors: string[]
+  /** 作者总数 —— 大于 `authors.length` 时渲染会补 `et al.`。 */
+  authorCount?: number
   citedByCount?: number
   /**
    * 开放获取全文地址（`open_access.oa_url`，有则可直接读全文）。
@@ -239,6 +291,7 @@ export function mapWork(raw: unknown): LiteratureRecord | undefined {
     ...(typeof w.doi === 'string' && w.doi ? { doi: w.doi } : {}),
     ...(typeof venue === 'string' && venue ? { venue } : {}),
     authors: authorNames(w.authorships),
+    ...(Array.isArray(w.authorships) ? { authorCount: w.authorships.length } : {}),
     ...(typeof w.cited_by_count === 'number' ? { citedByCount: w.cited_by_count } : {}),
     ...(oaUrl ? { openAccessUrl: oaUrl } : {}),
     ...(oaStatus ? { openAccessStatus: oaStatus } : {}),
@@ -265,13 +318,26 @@ export interface LiteratureSearchResult {
   requestUrl: string
   /** 是否使用了 API Key（只记事实，不记值）。 */
   usedApiKey: boolean
+  /**
+   * 实际使用的检索字段（{@link LITERATURE_FIELDS}）。
+   *
+   * 必须记录：**没有它，"未发现"就无法被解释** —— 全文检索没命中与仅标题
+   * 没命中，可信度完全不同，而覆盖度结论正是建立在这上面。
+   */
+  field: LiteratureField
   results: LiteratureRecord[]
 }
 
 /** 把 OpenAlex 的响应体映射成 {@link LiteratureSearchResult}。 */
 export function mapOpenAlexResponse(
   body: unknown,
-  ctx: { query: string; requestUrl: string; usedApiKey: boolean; retrievedAt?: string },
+  ctx: {
+    query: string
+    requestUrl: string
+    usedApiKey: boolean
+    retrievedAt?: string
+    field?: LiteratureField
+  },
 ): LiteratureSearchResult {
   const b = (body ?? {}) as Record<string, unknown>
   const meta = (b.meta ?? {}) as Record<string, unknown>
@@ -285,6 +351,7 @@ export function mapOpenAlexResponse(
     returned: results.length,
     requestUrl: redactOpenAlexUrl(ctx.requestUrl),
     usedApiKey: ctx.usedApiKey,
+    field: normalizeField(ctx.field),
     results,
   }
 }
@@ -312,7 +379,14 @@ export function isLiteratureError(v: unknown): v is LiteratureError {
 export type FetchLike = (
   url: string,
   init?: { headers?: Record<string, string>; signal?: AbortSignal },
-) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown>; text?: () => Promise<string> }>
+) => Promise<{
+  ok: boolean
+  status: number
+  json: () => Promise<unknown>
+  text?: () => Promise<string>
+  /** 响应头（读取 `Retry-After` 用；真实 fetch Response 原生提供）。 */
+  headers?: { get(name: string): string | null }
+}>
 
 /** 检索依赖（由插件入口注入配置解析器）。 */
 export interface LiteratureDeps {
@@ -320,17 +394,121 @@ export interface LiteratureDeps {
   apiKey: () => string
   /** 公共池联络邮箱（可选）。 */
   mailto?: () => string | undefined
+  /**
+   * User-Agent 头（可选）。
+   *
+   * 不在本模块内硬编码版本号 —— 版本由装配层（插件入口）从 `package.json`
+   * 读取后注入，避免每次发版遗漏此字符串（2026-09 遗留：此处曾停留在 0.2 而
+   * 包版本已是 0.3.1）。缺省回退到 `ConvFusion (no-version)`，仅用于测试替身。
+   */
+  userAgent?: string
   /** fetch 实现（缺省用全局 fetch）。 */
   fetchImpl?: FetchLike
   /** 请求超时（毫秒）。 */
   timeoutMs?: number
+  /** 429/5xx 最多重试次数（缺省 {@link OPENALEX_MAX_RETRIES}）。 */
+  maxRetries?: number
+  /** 等待函数（缺省 setTimeout；测试可注入）。 */
+  wait?: WaitFn
 }
 
 /** 检索超时（毫秒）。学术检索偶发慢响应，必须给上限。 */
 export const OPENALEX_TIMEOUT_MS = 20000
 
+/* ── 请求调度（串行队列 + 最小间隔） ─────────────────────────────────── */
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((res) => setTimeout(res, ms))
+}
+
+/** 等待函数（便于测试注入）。 */
+export type WaitFn = (ms: number) => Promise<void>
+
+/** 上一次 OpenAlex 请求**开始**时刻（用于相邻请求最小间隔）。 */
+let openAlexLastStartedAt = 0
+/** 串行队列尾：前一个请求完成后才放行下一个。 */
+let openAlexQueueTail: Promise<void> = Promise.resolve()
+
+/**
+ * 把一次 OpenAlex 请求放进全局串行队列。
+ *
+ * - 同一时刻最多一个请求在飞（逐个串行）
+ * - 相邻请求至少间隔 `minIntervalMs`（从上次请求**开始**时刻起算）
+ * - 前一个请求抛错不会卡死队列：release 在 finally 里必定执行
+ */
+export function runOpenAlexSlot<T>(
+  task: () => Promise<T>,
+  opts?: { minIntervalMs?: number; wait?: WaitFn },
+): Promise<T> {
+  const minInterval = opts?.minIntervalMs ?? OPENALEX_MIN_INTERVAL_MS
+  const wait = opts?.wait ?? sleep
+  const prev = openAlexQueueTail
+  let release!: () => void
+  openAlexQueueTail = new Promise<void>((res) => (release = res))
+  return (async () => {
+    await prev
+    try {
+      const gap = Math.max(0, openAlexLastStartedAt + minInterval - Date.now())
+      if (gap > 0) await wait(gap)
+      openAlexLastStartedAt = Date.now()
+      return await task()
+    } finally {
+      release()
+    }
+  })()
+}
+
+/** 解析 `Retry-After` 响应头（秒 或 HTTP-date），返回等待毫秒；无法解析返回 undefined。 */
+export function parseRetryAfter(header: string | null | undefined, now = Date.now()): number | undefined {
+  if (!header) return undefined
+  const v = header.trim()
+  if (/^\d+$/.test(v)) {
+    const secs = Number(v)
+    return Number.isFinite(secs) && secs >= 0 ? Math.min(secs * 1000, OPENALEX_BACKOFF_MAX_MS) : undefined
+  }
+  const t = Date.parse(v)
+  return Number.isFinite(t) ? Math.max(0, Math.min(t - now, OPENALEX_BACKOFF_MAX_MS)) : undefined
+}
+
+/** 指数退避（attempt 从 0 开始）：base × 2^attempt，封顶 {@link OPENALEX_BACKOFF_MAX_MS}。 */
+export function openAlexBackoffMs(attempt: number): number {
+  return Math.min(OPENALEX_BACKOFF_BASE_MS * 2 ** Math.max(0, attempt), OPENALEX_BACKOFF_MAX_MS)
+}
+
+/** 是否值得自动重试的状态码：429（限流）与 5xx（服务端瞬时错误）。 */
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || (status >= 500 && status <= 599)
+}
+
+/** 带超时的单次 OpenAlex 请求。超时/网络错误直接抛，由调用方决定是否重试。 */
+async function openAlexFetchOnce(
+  doFetch: FetchLike,
+  url: string,
+  headers: Record<string, string>,
+  timeoutMs: number,
+): Promise<Awaited<ReturnType<FetchLike>>> {
+  const ac = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      doFetch(url, { headers, signal: ac.signal }),
+      new Promise<never>((_res, rej) => {
+        timer = setTimeout(() => {
+          ac.abort()
+          rej(new Error(`timeout after ${timeoutMs}ms`))
+        }, timeoutMs)
+      }),
+    ])
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+  }
+}
+
 /**
  * 执行一次 OpenAlex 检索。
+ *
+ * 请求自动进入全局串行队列（逐个发出），429/5xx 自动按 `Retry-After` 或指数
+ * 退避重试最多 `maxRetries` 次 —— 并发多路检索不再互相触发限流。
  *
  * @returns 检索结果，或<b>带原因的</b>失败（绝不返回空结果冒充"没查到"）
  */
@@ -345,53 +523,74 @@ export async function searchOpenAlex(
   const url = buildOpenAlexUrl(query, key, deps.mailto?.())
   const doFetch = deps.fetchImpl ?? (globalThis.fetch as unknown as FetchLike)
   const timeoutMs = deps.timeoutMs ?? OPENALEX_TIMEOUT_MS
+  const maxRetries = deps.maxRetries ?? OPENALEX_MAX_RETRIES
 
-  const ac = new AbortController()
-  let timedOut = false
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<never>((_res, rej) => {
-    timer = setTimeout(() => {
-      timedOut = true
-      ac.abort()
-      rej(new Error(`timeout after ${timeoutMs}ms`))
-    }, timeoutMs)
-  })
-
-  try {
-    const res = await Promise.race([
-      doFetch(url, {
-        headers: {
-          // OpenAlex 要求可识别的 UA；带 mailto 的 UA 还能进 polite pool
-          'user-agent': `ConvFusion/0.2 (${(deps.mailto?.() ?? 'no-mailto').trim() || 'no-mailto'})`,
-          accept: 'application/json',
-        },
-        signal: ac.signal,
-      }),
-      timeout,
-    ])
-
-    if (!res.ok) {
-      return {
-        error: true,
-        kind: 'http',
-        status: res.status,
-        message:
-          res.status === 401 || res.status === 403
-            ? `OpenAlex 拒绝了这次请求（HTTP ${res.status}）：API Key 可能无效或已过期。请在【设置】-【ConvFusion】-【系统设置】检查。`
-            : `OpenAlex 返回 HTTP ${res.status}。`,
-      }
-    }
-    const body = await res.json()
-    return mapOpenAlexResponse(body, { query: text, requestUrl: url, usedApiKey: Boolean(key) })
-  } catch (e) {
-    return {
-      error: true,
-      kind: timedOut ? 'network' : 'network',
-      message: timedOut
-        ? `OpenAlex 请求超时（${Math.round(timeoutMs / 1000)} 秒无响应）。`
-        : `无法连接 OpenAlex：${e instanceof Error ? e.message : String(e)}`,
-    }
-  } finally {
-    if (timer !== undefined) clearTimeout(timer)
+  const mailtoForUA = (deps.mailto?.() ?? 'no-mailto').trim() || 'no-mailto'
+  const productUA = (deps.userAgent ?? 'ConvFusion (no-version)').trim() || 'ConvFusion (no-version)'
+  const headers: Record<string, string> = {
+    // OpenAlex 要求可识别的 UA；带 mailto 的 UA 还能进 polite pool。
+    // 版本字符串由装配层注入（见 LiteratureDeps.userAgent），此处不再硬编码。
+    'user-agent': `${productUA} (${mailtoForUA})`,
+    accept: 'application/json',
   }
+
+  return runOpenAlexSlot(
+    async () => {
+      for (let attempt = 0; ; attempt++) {
+        let res: Awaited<ReturnType<FetchLike>>
+        try {
+          res = await openAlexFetchOnce(doFetch, url, headers, timeoutMs)
+        } catch (e) {
+          // 网络失败/超时：不自动重试，按原语义带原因返回（避免 20s 超时×多轮拖死工具）
+          return {
+            error: true,
+            kind: 'network',
+            message:
+              e instanceof Error && e.message.startsWith('timeout after')
+                ? `OpenAlex 请求超时（${Math.round(timeoutMs / 1000)} 秒无响应）。`
+                : `无法连接 OpenAlex：${e instanceof Error ? e.message : String(e)}`,
+          }
+        }
+
+        if (res.ok) {
+          const body = await res.json()
+          return mapOpenAlexResponse(body, {
+            query: text,
+            requestUrl: url,
+            usedApiKey: Boolean(key),
+            field: query.field,
+          })
+        }
+
+        if (isRetryableStatus(res.status) && attempt < maxRetries) {
+          const retryAfter = res.headers?.get?.('retry-after')
+          const delay = parseRetryAfter(retryAfter) ?? openAlexBackoffMs(attempt)
+          await (deps.wait ?? sleep)(delay)
+          continue
+        }
+
+        if (res.status === 429) {
+          return {
+            error: true,
+            kind: 'http',
+            status: 429,
+            message:
+              `OpenAlex 限流（HTTP 429）：已自动串行重试 ${maxRetries} 次仍被限流，请稍后再试。` +
+              `若频繁触发，可在【设置】-【ConvFusion】-【系统设置】配置 OpenAlex API Key 进入更高配额池。`,
+          }
+        }
+
+        return {
+          error: true,
+          kind: 'http',
+          status: res.status,
+          message:
+            res.status === 401 || res.status === 403
+              ? `OpenAlex 拒绝了这次请求（HTTP ${res.status}）：API Key 可能无效或已过期。请在【设置】-【ConvFusion】-【系统设置】检查。`
+              : `OpenAlex 返回 HTTP ${res.status}。`,
+        }
+      }
+    },
+    { wait: deps.wait },
+  )
 }

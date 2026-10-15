@@ -22,10 +22,12 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
+  ACTIVE_PAPER_FILE,
   DEFAULT_PAPER_ID,
   PAPERS_DIR,
   PAPER_FILES,
   PAPER_STATUSES,
+  PAPER_TYPES,
   normalizeSectionName,
   type EvolutionEvent,
   type PaperClaimEntry,
@@ -94,8 +96,11 @@ function parseMetadata(source: string | null, fallbackId: string): PaperMetadata
     ...(fm.research_project ? { researchProject: fm.research_project } : {}),
     ...(fm.research_state_version ? { researchStateVersion: fm.research_state_version } : {}),
     ...(fm.authors ? { authors: fm.authors } : {}),
+    ...(fm.affiliation ? { affiliation: fm.affiliation } : {}),
     ...(fm.target_venue ? { targetVenue: fm.target_venue } : {}),
     ...(fm.research_domain ? { researchDomain: fm.research_domain } : {}),
+    ...(fm.research_track ? { researchTrack: String(fm.research_track).toLowerCase().trim() } : {}),
+    ...(fm.paper_type ? { paperType: String(fm.paper_type).toLowerCase().trim() } : {}),
     ...(fm.created_at ? { createdAt: fm.created_at } : {}),
     ...(fm.updated_at ? { updatedAt: fm.updated_at } : {}),
   }
@@ -112,8 +117,11 @@ export function serializeMetadata(meta: PaperMetadata): string {
     research_project: meta.researchProject,
     research_state_version: meta.researchStateVersion,
     authors: meta.authors,
+    affiliation: meta.affiliation,
     target_venue: meta.targetVenue,
     research_domain: meta.researchDomain,
+    research_track: meta.researchTrack,
+    paper_type: meta.paperType,
     created_at: meta.createdAt,
     updated_at: meta.updatedAt ?? new Date().toISOString(),
   })
@@ -121,9 +129,12 @@ export function serializeMetadata(meta: PaperMetadata): string {
   lines.push(`- **Status**: ${meta.status}`)
   lines.push(`- **Version**: ${meta.version}`)
   if (meta.researchDomain) lines.push(`- **Domain**: ${meta.researchDomain}`)
+  if (meta.researchTrack) lines.push(`- **Research Track**: ${meta.researchTrack}`)
+  if (meta.paperType) lines.push(`- **Paper Type**: ${meta.paperType}`)
   if (meta.researchStateVersion) lines.push(`- **Based on research state**: v${meta.researchStateVersion}`)
   if (meta.targetVenue) lines.push(`- **Target venue**: ${meta.targetVenue}`)
   if (meta.authors) lines.push(`- **Authors**: ${meta.authors}`)
+  if (meta.affiliation) lines.push(`- **Affiliation**: ${meta.affiliation}`)
   return `${front}\n\n${lines.join('\n')}\n`
 }
 
@@ -132,6 +143,20 @@ export function serializeMetadata(meta: PaperMetadata): string {
  * ════════════════════════════════════════════════════════════════════════ */
 
 /** 列出全部 Paper id。 */
+/**
+ * 工作区里**是否已存在论文正文**（`papers/<id>/paper.md`）。
+ *
+ * 为什么单独一个函数：进度/阶段判定原先只看硬编码的 `DEFAULT_PAPER_ID`（`paper-main`），
+ * 于是**任何没有 `paper-main` 的工作区**（例如多论文工作区，论文叫 `paper-d2-method`、
+ * `paper-d-research-ir-method`）都会被判成"尚无论文正文"，进度面板与阶段判定同时出错。
+ * 语义：**先看当前激活的论文**，再看**任一**论文 —— 项目有了正文就是有了。
+ */
+export function hasManuscript(workspace: string): boolean {
+  const active = getActivePaperId(workspace)
+  if (existsSync(join(paperDir(workspace, active), 'paper.md'))) return true
+  return listPaperIds(workspace).some((id) => existsSync(join(paperDir(workspace, id), 'paper.md')))
+}
+
 export function listPaperIds(workspace: string): string[] {
   try {
     return readdirSync(join(workspace, PAPERS_DIR), { withFileTypes: true })
@@ -141,6 +166,119 @@ export function listPaperIds(workspace: string): string[] {
   } catch {
     return []
   }
+}
+
+/** 列出全部 Paper 文档（含元数据）。 */
+export function listPapers(workspace: string): PaperDocument[] {
+  return listPaperIds(workspace)
+    .map((id) => readPaper(workspace, id))
+    .filter((p): p is PaperDocument => p !== null)
+}
+
+/**
+ * 自动生成论文ID
+ * 规则：paper-<track>-<type>，同类型多篇时加-<序号>
+ */
+export function generatePaperId(
+  workspace: string,
+  track?: string,
+  type?: string,
+): string {
+  const normalizedTrack = track?.toLowerCase().trim().replace(/[^a-z0-9]/g, '-') || 'main'
+  const normalizedType = type?.toLowerCase().trim().replace(/[^a-z0-9]/g, '-') || 'paper'
+
+  const existingIds = new Set(listPaperIds(workspace))
+  const baseId = `paper-${normalizedTrack}-${normalizedType}`
+
+  if (!existingIds.has(baseId)) return baseId
+
+  // 同ID已存在，加序号
+  let seq = 2
+  while (existingIds.has(`${baseId}-${seq}`)) seq++
+  return `${baseId}-${seq}`
+}
+
+/**
+ * 模糊解析 paperId 别名
+ * 支持：
+ * - 完整ID直接匹配
+ * - 短名匹配（如 d1-benchmark → paper-d1-benchmark）
+ * - track/type 组合匹配（如 d1 + benchmark → paper-d1-benchmark）
+ * - 标题关键词匹配（如 "lifecycle" 匹配对应标题的论文）
+ * 返回匹配到的paperId，歧义或找不到返回undefined
+ */
+export function resolvePaperId(
+  workspace: string,
+  input: string,
+): string | undefined {
+  const normalizedInput = input.toLowerCase().trim()
+  if (!normalizedInput) return undefined
+
+  const papers = listPapers(workspace)
+  if (papers.length === 0) return undefined
+
+  // 1. 精确匹配ID
+  const exact = papers.find((p) => p.id.toLowerCase() === normalizedInput)
+  if (exact) return exact.id
+
+  // 2. 前缀匹配（paper-前缀可省略）
+  const prefix = normalizedInput.startsWith('paper-') ? normalizedInput : `paper-${normalizedInput}`
+  const prefixMatch = papers.find((p) => p.id.toLowerCase() === prefix)
+  if (prefixMatch) return prefixMatch.id
+
+  // 3. track/type 组合匹配
+  const parts = normalizedInput.split(/[-_\s]+/).filter(Boolean)
+  const trackMatches = papers.filter((p) => p.metadata.researchTrack && parts.includes(p.metadata.researchTrack))
+  const typeMatches = papers.filter((p) => p.metadata.paperType && parts.includes(p.metadata.paperType))
+
+  if (trackMatches.length === 1 && typeMatches.length === 1 && trackMatches[0].id === typeMatches[0].id) {
+    return trackMatches[0].id
+  }
+  if (trackMatches.length === 1 && parts.length === 1) return trackMatches[0].id
+  if (typeMatches.length === 1 && parts.length === 1) return typeMatches[0].id
+
+  // 4. 标题关键词匹配
+  const titleMatches = papers.filter((p) =>
+    p.metadata.title?.toLowerCase().includes(normalizedInput)
+  )
+  if (titleMatches.length === 1) return titleMatches[0].id
+
+  // 5. 单篇论文时直接返回
+  if (papers.length === 1) return papers[0].id
+
+  return undefined
+}
+
+/** 获取当前激活的论文ID，缺省返回 DEFAULT_PAPER_ID */
+export function getActivePaperId(workspace: string): string {
+  const activeFile = join(workspace, ACTIVE_PAPER_FILE)
+  try {
+    const id = readFileSync(activeFile, 'utf8').trim()
+    // 确认paper存在
+    if (readPaper(workspace, id)) return id
+  } catch {}
+  // 不存在时如果有paper-main就返回paper-main，否则返回第一个paper
+  const papers = listPaperIds(workspace)
+  if (papers.includes(DEFAULT_PAPER_ID)) return DEFAULT_PAPER_ID
+  return papers[0] ?? DEFAULT_PAPER_ID
+}
+
+/** 设置当前激活的论文ID */
+export function setActivePaperId(workspace: string, paperId: string): boolean {
+  const paper = readPaper(workspace, paperId)
+  if (!paper) return false
+  writeFileSync(join(workspace, ACTIVE_PAPER_FILE), paperId, 'utf8')
+  return true
+}
+
+/**
+ * 解析用户传入的paper参数，自动处理别名、缺省情况，返回最终paperId
+ * 所有paper相关工具函数都应该调用这个函数来解析入参
+ */
+export function resolvePaperParameter(workspace: string, paperParam?: string): string {
+  if (!paperParam?.trim()) return getActivePaperId(workspace)
+  const resolved = resolvePaperId(workspace, paperParam.trim())
+  return resolved ?? paperParam.trim()
 }
 
 /**
@@ -215,21 +353,32 @@ export function createPaper(
     id?: string
     title?: string
     researchDomain?: string
+    researchTrack?: string
+    paperType?: string
     targetVenue?: string
     authors?: string
     researchProject?: string
     researchStateVersion?: string
     /** 自定义正文；缺省用 {@link manuscriptTemplate}。 */
     manuscript?: string
+    /** 是否创建后设为当前激活论文，默认true */
+    setActive?: boolean
   } = {},
 ): PaperDocument | PaperWriteError {
-  const paperId = (input.id ?? DEFAULT_PAPER_ID).trim()
+  // 自动生成ID（如果未指定）
+  const paperId = input.id?.trim() ?? generatePaperId(workspace, input.researchTrack, input.paperType)
+
   if (!/^[a-z0-9][a-z0-9-]*$/.test(paperId)) {
-    return { error: `非法 Paper id：${paperId}（kebab-case，如 paper-main）` }
+    return { error: `非法 Paper id：${paperId}（kebab-case，如 paper-d1-benchmark）` }
   }
   const dir = paperDir(workspace, paperId)
   if (existsSync(filePath(workspace, paperId, PAPER_FILES.manuscript))) {
     return { error: `Paper \`${paperId}\` 已存在。` }
+  }
+
+  // 验证paperType合法
+  if (input.paperType && !PAPER_TYPES.includes(input.paperType.toLowerCase())) {
+    return { error: `非法 paper_type：${input.paperType}，可选值：${PAPER_TYPES.join(', ')}` }
   }
 
   mkdirSync(dir, { recursive: true })
@@ -251,6 +400,8 @@ export function createPaper(
       ...(input.researchProject ? { researchProject: input.researchProject } : { researchProject: 'current' }),
       ...(input.researchStateVersion ? { researchStateVersion: input.researchStateVersion } : {}),
       ...(input.researchDomain ? { researchDomain: input.researchDomain } : {}),
+      ...(input.researchTrack ? { researchTrack: input.researchTrack.toLowerCase().trim() } : {}),
+      ...(input.paperType ? { paperType: input.paperType.toLowerCase().trim() } : {}),
       ...(input.targetVenue ? { targetVenue: input.targetVenue } : {}),
       ...(input.authors ? { authors: input.authors } : {}),
       createdAt: now,
@@ -258,6 +409,11 @@ export function createPaper(
     }),
     'utf8',
   )
+
+  // 默认设为激活论文
+  if (input.setActive !== false) {
+    setActivePaperId(workspace, paperId)
+  }
 
   return mustRead(workspace, paperId, '创建 Paper')
 }
@@ -496,7 +652,8 @@ export function readClaimMap(workspace: string, paperId: string = DEFAULT_PAPER_
     //   1. claims.md      —— 论文自己的映射资产（Statement / Status / Evidence）
     //   2. 正文引用        —— **唯一**能回答"这个 Claim 出现在哪一节"的来源
     //   3. research/claims —— 证据与状态的权威事实（Stage 4）
-    const fromManuscript = deriveClaimMapFromManuscript(paper)
+    const isClaimId = manuscriptClaimIdMatcher(listClaims(workspace).map((c) => c.id))
+    const fromManuscript = deriveClaimMapFromManuscript(paper, isClaimId)
     if (entries.length > 0) {
       return mergeWithResearchClaims(entries, workspace, { derived: fromManuscript })
     }
@@ -510,7 +667,8 @@ export function readClaimMap(workspace: string, paperId: string = DEFAULT_PAPER_
   // 为什么必须合并：Claim 的证据/状态是 Stage 4 管理的事实（`research/claims/C001.md`），
   // 正文只告诉你"这个 Claim 出现在哪一节"。只靠正文推导会得到"有 Claim、无证据"的
   // 假象，进而让 Gap 检测误报 unsupported-claim。
-  return mergeWithResearchClaims([], workspace, { requireInManuscript: false, derived: deriveClaimMapFromManuscript(paper) })
+  const fallbackMatcher = manuscriptClaimIdMatcher(listClaims(workspace).map((c) => c.id))
+  return mergeWithResearchClaims([], workspace, { requireInManuscript: false, derived: deriveClaimMapFromManuscript(paper, fallbackMatcher) })
 }
 
 /** 把正文推导的章节信息与 `research/claims/` 的权威内容合并。 */
@@ -553,11 +711,48 @@ function mergeWithResearchClaims(
 }
 
 
+/**
+ * 由**已记录的 Claim id** 推导"正文里什么样的 token 才算 Claim 引用"。
+ *
+ * ## 为什么不能只写 `\bC\d{1,4}\b`
+ *
+ * 那个正则会把**决策类型的编号**当成 Claim。实测（paper-main）：论文的 taxonomy 用
+ * `C1 next action` / `C4 stopping condition` 表示"C. Planning and next action"类下的
+ * 决策类型，于是 Gap 检测报出四条
+ * "Claim C1/C2/C3/C4 appears in the manuscript with no supporting evidence"
+ * 和四条 "The manuscript cites claim C1, but no such claim is recorded"——
+ * **八条全是假阳性**，而真正的 Claim 是 `C001` 这种三位编号。
+ *
+ * 判据改成"形状"：记录里是 `C001`（C + 3 位），正文里只有同样形状的 token 才算引用。
+ * 没有任何记录时保守要求 ≥3 位（`C001` 认，`C1` 不认）——宁可漏报，
+ * 也不要制造让研究者白跑一轮的假阳性。
+ */
+export function manuscriptClaimIdMatcher(knownIds: readonly string[]): (id: string) => boolean {
+  const known = new Set(knownIds.map((x) => x.trim().toUpperCase()))
+  const shapes = new Set<string>()
+  for (const id of known) {
+    const m = /^([A-Z]+)(\d+)$/.exec(id)
+    if (m) shapes.add(`${m[1]}${(m[2] as string).length}`)
+  }
+  return (id: string): boolean => {
+    const up = id.trim().toUpperCase()
+    if (known.has(up)) return true
+    const m = /^([A-Z]+)(\d+)$/.exec(up)
+    if (!m) return false
+    const digits = (m[2] as string).length
+    if (shapes.size === 0) return digits >= 3
+    return shapes.has(`${m[1]}${digits}`)
+  }
+}
+
 /** 从正文推导 Claim → Sections（§8 的 `Paper Sections` 部分）。 */
-export function deriveClaimMapFromManuscript(paper: PaperDocument): PaperClaimEntry[] {
+export function deriveClaimMapFromManuscript(
+  paper: PaperDocument,
+  isClaimId: (id: string) => boolean = manuscriptClaimIdMatcher([]),
+): PaperClaimEntry[] {
   const byClaim = new Map<string, PaperClaimEntry>()
   for (const section of paper.sections) {
-    const ids = [...new Set((section.body.match(/\bC\d{1,4}\b/g) ?? []).map((x) => x.toUpperCase()))]
+    const ids = [...new Set((section.body.match(/\b[A-Z]\d{1,4}\b/g) ?? []).map((x) => x.toUpperCase()))].filter(isClaimId)
     for (const id of ids) {
       const entry = byClaim.get(id) ?? { id, statement: '', status: 'unknown', evidence: [], contradictions: [], sections: [] }
       entry.sections.push(section.title)

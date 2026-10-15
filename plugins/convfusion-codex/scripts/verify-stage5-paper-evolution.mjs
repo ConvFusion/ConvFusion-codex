@@ -44,7 +44,7 @@ const ws = mkdtempSync(join(tmpdir(), 'cf-stage5-'))
 console.log('\n[Task 1] Paper Entity（create / read / update / version / archive / restore）')
 {
   assertEq(P.readPaper(ws, 'paper-main'), null, '尚未创建 → null')
-  const created = P.createPaper(ws, { title: 'Cross-Modal Localization Calibration', researchDomain: 'Robotics' })
+  const created = P.createPaper(ws, { id: 'paper-main', title: 'Cross-Modal Localization Calibration', researchDomain: 'Robotics' })
   assert(!P.isPaperWriteError(created), 'createPaper 成功')
   assertEq(created.id, 'paper-main', 'Paper id')
   assertEq(created.relDir, 'papers/paper-main', '目录为 papers/<id>（不是 paper-module/）')

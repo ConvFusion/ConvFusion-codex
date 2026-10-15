@@ -21,16 +21,28 @@
  * 用户可自建 Category（如"我的研究方法 / 论文选题 / 创新判断"）。
  * 两类 Category 用 `origin` 区分，**不混在同一个可变列表里**。
  */
-/** 系统基础分类（v2-Stage2 §6 的 taxonomy，第一版不过细）。 */
+/** 系统基础分类（v2-Stage2 §6 的 taxonomy；叶子与系统技能 1:1，导航与库一致）。 */
 const SYSTEM_TAXONOMY = [
+    {
+        /*
+         * C00 全局能力：不专属任何研究阶段，作用域是**整项研究**（跨阶段的前置），
+         * 所以置首而不是置末（对比 C09 工作评阅：它作用于已有资产，故置末）。
+         * 目前只有「研究过程定义」：它规定这套研究怎么推进，也决定进展面板的阶段。
+         */
+        group: 'global-capabilities',
+        name: 'Global Capabilities',
+        leaves: [['research-process', 'Research Process']],
+    },
     {
         group: 'research-understanding',
         name: 'Research Understanding',
         leaves: [
-            ['topic-understanding', 'Topic Understanding'],
-            ['context-analysis', 'Context Analysis'],
-            ['problem-definition', 'Problem Definition'],
-            ['research-question', 'Research Question'],
+            ['input-understanding', 'Input Understanding'],
+            ['research-intent-assessment', 'Research Intent Assessment'],
+            ['research-topic-proposal', 'Research Topic Proposal'],
+            ['research-domain-profiling', 'Research Domain Profiling'],
+            ['research-foundation-assessment', 'Research Foundation Assessment'],
+            ['research-direction-steering', 'Research Direction Steering'],
         ],
     },
     {
@@ -39,10 +51,8 @@ const SYSTEM_TAXONOMY = [
         leaves: [
             ['literature-search', 'Literature Search'],
             ['literature-screening', 'Literature Screening'],
-            ['literature-review', 'Literature Review'],
-            ['literature-comparison', 'Literature Comparison'],
             ['paper-fulltext-download', 'Paper Full-Text Download'],
-            ['research-gap', 'Research Gap'],
+            ['literature-review', 'Literature Review'],
             ['research-landscape', 'Research Landscape'],
         ],
     },
@@ -50,22 +60,41 @@ const SYSTEM_TAXONOMY = [
         group: 'innovation',
         name: 'Innovation',
         leaves: [
-            ['idea-generation', 'Idea Generation'],
-            ['innovation-analysis', 'Innovation Analysis'],
-            ['novelty-assessment', 'Novelty Assessment'],
-            ['hypothesis', 'Hypothesis'],
+            ['research-theme-generation', 'Research Theme Generation'],
+            ['innovation-gap-analysis', 'Innovation Gap Analysis'],
+            ['idea-novelty-assessment', 'Idea Novelty Assessment'],
+            ['hypothesis-formulation', 'Hypothesis Formulation'],
             ['contribution-design', 'Contribution Design'],
         ],
     },
     {
-        group: 'methodology',
-        name: 'Methodology',
+        group: 'research-planning',
+        name: 'Research Planning',
         leaves: [
-            ['method-design', 'Method Design'],
-            ['model-design', 'Model Design'],
-            ['algorithm-design', 'Algorithm Design'],
-            ['system-design', 'System Design'],
-            ['theoretical-analysis', 'Theoretical Analysis'],
+            ['research-strategy-portfolio', 'Research Strategy Portfolio'],
+            ['research-method-design', 'Research Method Design'],
+            ['experiment-pipeline-design', 'Experiment Pipeline Design'],
+            ['plan-risk-assessment', 'Plan Risk Assessment'],
+            ['research-risk-assessment', 'Research Risk Assessment'],
+        ],
+    },
+    {
+        group: 'resource-estimation',
+        name: 'Resource Estimation',
+        leaves: [
+            ['resource-requirement-estimation', 'Resource Requirement Estimation'],
+            ['infrastructure-cost-selection', 'Infrastructure Cost Selection'],
+            ['feasibility-cost-and-resource-plan', 'Feasibility, Cost and Resource Plan'],
+        ],
+    },
+    {
+        group: 'research-decision',
+        name: 'Research Decision',
+        leaves: [
+            ['research-topic-ranking', 'Research Topic Ranking'],
+            ['research-direction', 'Research Direction'],
+            ['research-direction-selection', 'Research Direction Selection'],
+            ['go-no-go-decision', 'Go / No-Go Decision'],
         ],
     },
     {
@@ -73,57 +102,56 @@ const SYSTEM_TAXONOMY = [
         name: 'Experiment',
         leaves: [
             ['experiment-design', 'Experiment Design'],
+            ['simulation-baseline', 'Simulation Baseline'],
             ['dataset-selection', 'Dataset Selection'],
             ['baseline-selection', 'Baseline Selection'],
-            ['simulation', 'Simulation & Expected Results'],
-            ['evaluation', 'Evaluation'],
-            ['ablation', 'Ablation'],
-            ['reproducibility', 'Reproducibility'],
-        ],
-    },
-    {
-        group: 'analysis',
-        name: 'Analysis',
-        leaves: [
+            ['evaluation-protocol', 'Evaluation Protocol'],
+            ['ablation-design', 'Ablation Design'],
+            ['reproducible-implementation-spec', 'Reproducible Implementation Spec'],
+            ['method-implementation-spec', 'Method Implementation Specification'],
             ['result-analysis', 'Result Analysis'],
-            ['error-analysis', 'Error Analysis'],
-            ['statistical-analysis', 'Statistical Analysis'],
             ['comparative-analysis', 'Comparative Analysis'],
             ['evidence-assessment', 'Evidence Assessment'],
-        ],
-    },
-    {
-        group: 'research-decision',
-        name: 'Research Decision',
-        leaves: [
-            ['research-direction', 'Research Direction'],
-            ['method-selection', 'Method Selection'],
-            ['experiment-decision', 'Experiment Decision'],
-            ['go-no-go', 'Go / No-Go'],
-            ['risk-assessment', 'Risk Assessment'],
         ],
     },
     {
         group: 'academic-writing',
         name: 'Academic Writing',
         leaves: [
-            ['paper-structure', 'Paper Structure'],
-            ['technical-writing', 'Technical Writing'],
-            ['argumentation', 'Argumentation'],
-            ['revision', 'Revision'],
-            ['response-to-reviewers', 'Response to Reviewers'],
-            ['final-editing', 'Final Editing'],
+            ['venue-fit-decision', 'Venue Fit Decision'],
+            ['paper-architecture', 'Paper Architecture'],
+            ['research-narrative', 'Research Narrative'],
+            ['section-drafting', 'Section Drafting'],
+            ['equation-formalization', 'Equation Formalization'],
+            ['visual-evidence-selection', 'Visual Evidence Selection'],
+            ['paper-diagrams', 'Paper Diagrams'],
+            ['manuscript-revision', 'Manuscript Revision'],
+            ['submission-compile-and-format', 'Submission Compile and Format'],
+            ['technical-report-writing', 'Technical Report Writing'],
+            ['patent-drafting', 'Patent Drafting'],
+            ['presentation-design', 'Presentation Design'],
         ],
     },
     {
-        group: 'research-management',
-        name: 'Research Management',
+        /*
+         * C09 工作评阅：对**已有的**研究做系统诊断（`ConvFusion-dsh-Skill-Review.md`）。
+         *
+         * 为什么排在最后而不是插在实验/写作之间：评阅是**横切能力** —— 它作用于某一轮
+         * 研究已经产出的资产（state / evidence / claims / paper），不专属某个阶段。真要在
+         * 中间插一个，就必须重编 C06–C08，而编号是常量表、被导出与界面引用。
+         *
+         * 粒度按该文档 §8「不过度拆分」：只做五个，而不是把 problem/literature/novelty/
+         * evidence/claim/... 拆成一堆微技能 —— 那些是这些技能**内部的方法维度**。
+         */
+        group: 'review',
+        name: 'Review',
         leaves: [
-            ['research-planning', 'Research Planning'],
-            ['task-decomposition', 'Task Decomposition'],
-            ['resource-planning', 'Resource Planning'],
-            ['collaboration', 'Collaboration'],
-            ['progress-assessment', 'Progress Assessment'],
+            // 顺序 = **评阅场合从早到晚**：只有方向 → 有研究状态 → 证据链 → 正文 → 投稿包
+            ['research-direction-review', 'Research Direction Review'],
+            ['research-quality-review', 'Research Quality Review'],
+            ['experimental-evidence-review', 'Experimental Evidence Review'],
+            ['paper-claim-review', 'Paper and Claim Review'],
+            ['pre-submission-review', 'Pre-submission Review'],
         ],
     },
 ];

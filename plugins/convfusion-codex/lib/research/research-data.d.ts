@@ -198,7 +198,7 @@ export declare const MATURITY_LEVELS: readonly MaturityLevel[];
 /** 成熟度维度（§35 的六个）。 */
 export type MaturityDimension = 'Problem' | 'Knowledge' | 'Innovation' | 'Method' | 'Experiment' | 'Evidence';
 export declare const MATURITY_DIMENSIONS: readonly MaturityDimension[];
-/** Research State 文档（`research/research-state.md`，§17）。 */
+/** Research State 文档（`research-state.md`，§17 —— 在工作区**根目录**，与 `project.md` 同级）。 */
 export interface ResearchStateDocument {
     /** 版本号（每次 Apply 一次 State Update 递增，§22）。 */
     version: string;
@@ -217,10 +217,10 @@ export interface ResearchStateDocument {
     relPath: string;
 }
 /**
- * 一次状态更新提案（§20）。
+ * 一次状态更新提案（§20 / §21）。
  *
- * §20 的核心要求：**Agent 不直接改长期研究状态**，而是提出 proposal，由用户
- * `Accept / Edit / Reject`。这比自动覆盖安全。
+ * 提案是**数据**：先落盘为 `S###.json`（含各维度正文与推导出的成熟度变更），
+ * 再由 `apply` 应用。相比直接覆盖文件，这条路径留下可核查的处置痕迹。
  */
 export interface StateUpdateProposal {
     id: string;
@@ -248,7 +248,11 @@ export interface StateUpdateProposal {
  */
 export interface StateUpdateRecord {
     proposalId: string;
-    action: 'accepted' | 'edited' | 'rejected';
+    /**
+     * 处置方式。`auto-synced` = **自进化**：插件把产物汇总进状态（`research/state-sync.ts`），
+     * 不是某个提案被接受 —— 但它同样归档旧版本、同样留痕，所以可回退、可审计。
+     */
+    action: 'accepted' | 'edited' | 'rejected' | 'auto-synced';
     at: string;
     /** 处置前的 State 版本。 */
     fromVersion: string;

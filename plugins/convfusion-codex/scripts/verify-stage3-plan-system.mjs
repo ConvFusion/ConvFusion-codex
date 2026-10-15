@@ -386,8 +386,8 @@ console.log('\n[G] Plan → Harness')
   assertEq(calls.length, 1, '只调用了一次 agent.followup（Harness 原生通道）')
   const msg = calls[0]
   assertEq(msg.role, 'user', '消息是 user role')
-  assertEq(msg.source.kind, 'plugin', 'source.kind=plugin（已知 surface 通道）')
-  assertEq(msg.source.plugin, 'convfusion', 'source.plugin=convfusion')
+  assertEq(msg.source.kind, 'plugin:convfusion', 'source.kind=plugin:convfusion（DSH 0.2.0 格式）')
+  assertEq(msg.source.plugin, undefined, '来源由 kind 唯一标识，无独立 plugin 字段')
   assertEq(msg.content[0].type, 'text', '消息内容为 text 块')
 
   // §33：不存在"ConvFusion 执行 Plan"的路径

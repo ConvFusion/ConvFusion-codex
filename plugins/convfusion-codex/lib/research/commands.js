@@ -53,7 +53,9 @@ import { loadSkillLibrary } from './library.js';
 import { listPlans, loadPlanLibrary, syncPlanHistoryDetailed } from './plan-library.js';
 import { createPlanMessage } from './plan.js';
 import { listEvidence } from './evidence.js';
+import { readActionRecords, readActionState, summariseActionRecords } from './action-construction/index.js';
 import { writeMethodsExport } from './methods-export.js';
+import { buildSyncText, collectSyncFacts, isSyncArg, resolveZipReference, syncReceipt, zipRefOf, } from './sync-request.js';
 /**
  * 是否是「导出研究方法」指令。
  *
@@ -65,6 +67,8 @@ function isMethodsExportArg(arg) {
 }
 /** 品牌展示。 */
 export const RESEARCH_LABEL = '/research';
+/** 提示 agent 该写哪个文件；显示用，不参与判定。 */
+const ACTION_STATE_HINT = 'research/action-state.json — write it via research_action_construction action="set_state"';
 /**
  * 研究目录骨架。
  *
@@ -131,7 +135,41 @@ function openProject(workspace, topic) {
     return { created };
 }
 /**
- * 当前研究状态摘要（`/research` 无参数）。
+ * `/research` 状态里的「动作构造」块（论文 d4）。
+ *
+ * 只在工作区真的配了状态或记录过评测时返回内容 —— 没配就返回空数组，
+ * 不往用户的状态显示里堆噪音。导出是为了可测：`verify-action-construction.mjs` 直接断言它。
+ */
+export function actionConstructionStatus(workspace) {
+    const actionState = readActionState(workspace);
+    const actionSummary = summariseActionRecords(workspace);
+    if (!actionState && actionSummary.count === 0)
+        return [];
+    const lines = [''];
+    if (actionState) {
+        const belief = actionState.prior.map((p, i) => `h${i} ${p.toFixed(2)}`).join(' | ');
+        lines.push(`Action state: budget ${actionState.budget} · belief ${belief} · ` +
+            `${actionState.mechanisms.length} candidate mechanisms`);
+    }
+    else {
+        lines.push(`Action state: not set (\`${ACTION_STATE_HINT}\`)`);
+    }
+    if (actionSummary.count > 0) {
+        lines.push(`Action construction: ${actionSummary.count} evaluation(s), ` +
+            `${actionSummary.inBudget} within the stated budget`);
+        for (const record of readActionRecords(workspace, 3).reverse()) {
+            const cost = record.cost === null ? 'n/a' : record.cost.toFixed(2);
+            lines.push(`  - ${record.at.slice(0, 16).replace('T', ' ')} ${record.level}: ` +
+                `IG/cost ${record.ig_per_cost.toFixed(4)} · ${(100 * record.bound_share).toFixed(1)}% of the bound · ` +
+                `cost ${cost}/${record.budget.toFixed(1)} · ${record.feasible ? 'in budget' : 'OVER BUDGET'}`);
+        }
+    }
+    else {
+        lines.push('Action construction: state set, no evaluation recorded yet');
+    }
+    return lines;
+}
+/** 当前研究状态摘要（`/research` 无参数）。
  *
  * 列出**各阶段产出的 Plan 及其状态** —— 这正是"每个阶段形成一份可优化、可继续运行的
  * Plan"的体现：用户在这里看到"手上现在有哪些方案、各自到哪一步"。
@@ -184,6 +222,7 @@ function describeProject(workspace) {
     lines.push('');
     lines.push(`Skills: ${skills.counts.total} (system ${skills.counts.system} · user ${skills.counts.user} · derived ${skills.counts.derived})`);
     lines.push(`Evidence: ${evidence.length} item(s)`);
+    lines.push(...actionConstructionStatus(workspace));
     lines.push('');
     lines.push('Continue with natural language — e.g. "analyse the direction", "design the experiment",');
     lines.push('"re-check the baseline claim". The agent decides what to do; there is no step list to follow.');
@@ -267,15 +306,25 @@ function buildContinueText(workspace, intent, root = '') {
  * @param customizationStore 用户定制来源：导出研究方法时要导**生效版本**（基线 + 定制）
  * @returns disposer 数组（命令运行时缺失时返回 `null`，不影响插件其余功能）。
  */
-export function defineResearchCommand(ctx, resolveCurrentWorkspace, customizationStore) {
+export function defineResearchCommand(ctx, resolveCurrentWorkspace, customizationStore,
+/** 下载便签（判定用）：`/research sync` 靠它知道"这个 ZIP 是服务器上的哪项研究"。 */
+syncNoteStore,
+/** 本机工作标识注册表（解压前也读得到身份）。 */
+workIdentity) {
     const commands = ctx.get('commands');
     if (!commands || typeof commands.register !== 'function')
         return null;
+    /**
+     * 同步分支要用它读"这次下载的是哪项研究"的便签，以及本机标识注册表。
+     * 都没配也能跑：判定退化为 `unverifiable`（技能里"先盘查再判断"那一支）。
+     */
+    const syncNotes = syncNoteStore;
+    const identities = workIdentity;
     return [
         commands.register({
             name: 'research',
             description: 'Open, inspect or continue the ConvFusion research project in this workspace.',
-            input: { hint: '<what to do next> — omit to show the current research state' },
+            input: { hint: '<what to do next> | sync @workspace.zip — omit to show the current research state' },
             recordInput: true,
             handler: (invocation) => {
                 const arg = (invocation.rawInput ?? '').trim();
@@ -313,7 +362,7 @@ export function defineResearchCommand(ctx, resolveCurrentWorkspace, customizatio
                                 `文件：\`${res.path}\``,
                                 full
                                     ? '内容：完整正文（含 `Source Prompts` 逐字历史提示词）'
-                                    : '内容：6 个可定制章节（生效版本）；需要完整正文加 `--full`',
+                                    : '内容：7 个可定制章节（生效版本）；需要完整正文加 `--full`',
                                 '编号：`CxxPyy` —— 类别 `C01`–`C09` 按研究过程排序，可直接用于排序与将来的按编号合并。',
                             ].join('\n'),
                         };
@@ -327,6 +376,53 @@ export function defineResearchCommand(ctx, resolveCurrentWorkspace, customizatio
                             kind: 'error',
                             text: '当前 Harness 不提供 agent.followup()，无法把研究任务交给 Agent。',
                         };
+                    }
+                    // ── 同步下载的研究工作区：`/research sync @某.zip` ──────────────
+                    //
+                    // 必须**先于** followup 判定（同 `导出研究方法`）：否则这一行会被当成研究意图
+                    // 丢给 Agent，而 Agent 每次拼出的流程都会漂。这里只**解析 + 校验 + 给参数**，
+                    // 流程本身在 `skills/sync.md`（agent 按需加载）—— 一行命令，一套写死的流程。
+                    if (isSyncArg(arg)) {
+                        const sessionWorkspace = sessionWorkspaceOf(invocation);
+                        const ref = zipRefOf(arg);
+                        const resolved = resolveZipReference(ref, sessionWorkspace);
+                        if (!resolved.ok) {
+                            const hint = ['在输入框里打 `@` 选文件，会自动带出路径。'];
+                            if (resolved.candidates.length > 0) {
+                                hint.push('', '同前缀的候选（宿主同名会加序号）：');
+                                for (const c of resolved.candidates)
+                                    hint.push(`- \`${c}\``);
+                            }
+                            return {
+                                kind: 'error',
+                                text: [`${resolved.error ?? '无法解析压缩包'}`, '', ...hint].join('\n'),
+                            };
+                        }
+                        // ZIP 必须**真的能用**：不完整 / 还在下载中就别让 agent 去解半成品
+                        const facts = collectSyncFacts({
+                            zip: resolved.path,
+                            sessionWorkspace,
+                            researchRoot: workspace,
+                            ...(syncNotes ? { noteStore: syncNotes } : {}),
+                            ...(identities ? { identityStore: identities } : {}),
+                        });
+                        /*
+                         * ZIP 必须**真的能用**：不完整 / 还在下载中 / 根本不是 ZIP 时，
+                         * 直接把问题说清楚，别让 agent 去解一个半成品（它会读到一个坏包，
+                         * 然后花几轮才反应过来）。
+                         */
+                        if (!facts.zipOk) {
+                            return {
+                                kind: 'error',
+                                text: [
+                                    facts.zipError ?? '这个压缩包现在不能用',
+                                    '',
+                                    '下载完成之后再发一次这条命令即可。',
+                                ].join('\n'),
+                            };
+                        }
+                        followup(ctx, agent, buildSyncText(facts, root), 'continue');
+                        return { kind: 'success', text: syncReceipt(facts) };
                     }
                     // ── 尚无研究项目：这句话即为研究主题，建好后**立即开跑** ──────
                     //

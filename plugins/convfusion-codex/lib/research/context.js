@@ -32,10 +32,14 @@
 import { isAbsolute, relative, resolve } from 'node:path';
 import { Service } from '@deepseek-ai/cordis';
 import { isResearchWorkspace, loadPaper, loadProject } from './workspace.js';
+import { researchTargetsForSession } from './session-workspace.js';
 import { recommendSkills, skillSummaries } from './library.js';
-import { assessResearchProcess } from './research-process.js';
+import { assessResearchProcess, PROCESS_SKILL_ID } from './research-process.js';
+import { BASE_SECTION_HEADER, USER_SECTION_HEADER } from './skill-customization.js';
+import { buildSignalContext } from './stage-signals.js';
+import { assessPrerequisites, renderUnmetPrerequisites } from './prerequisites.js';
 import { buildResearchIndex, loadResearchState, openQuestions } from './research-state.js';
-import { DEFAULT_PAPER_ID } from './paper-data.js';
+import { getActivePaperId, listPapers } from './paper.js';
 import { paperStatusSummary } from './paper-evolution.js';
 import { prioritizeGaps, listPaperGaps } from './paper-gaps.js';
 import { listAllOutputs } from './output.js';
@@ -61,8 +65,16 @@ export const RESEARCH_CONTEXT_ORDER = 200;
 export const RESEARCH_GUIDE_ORDER = 400;
 /** 注入段名（Harness 要求唯一；重复注册会抛错）。 */
 export const RESEARCH_CONTEXT_NAME = 'convfusion:research-context';
-/** Research State 文件引用（相对 workspace）。 */
-const RESEARCH_STATE_REF = 'research/research-state.md';
+/**
+ * Research State 文件引用（相对研究根）。
+ *
+ * ⚠️ 它必须与 `research-data.ts` 的 `RESEARCH_STATE_FILE` **字面一致** ——
+ * 这是唯一一处"告诉模型去哪儿找 / 写状态"的地方。曾经它写成
+ * `research/research-state.md`（多了 `research/` 一层），于是**按上下文给的路径写回
+ * 就会写到一个孤儿文件上**，`loadResearchState()` 永远读不到，技能结果看起来"没保存"。
+ * 自检见 `scripts/verify-stage4-research-state.mjs`（断言两者相等）。
+ */
+export const RESEARCH_STATE_REF = 'research-state.md';
 export const RESEARCH_GUIDE_NAME = 'convfusion:research-guide';
 /**
  * 科研模式指引（**稳定段**，不随 workspace 变化）。
@@ -92,11 +104,82 @@ export const RESEARCH_GUIDE_TEXT = [
     '  it out with the native tools.',
     '- Keep research knowledge in the workspace (`project.md`, `research-state.md`,',
     '  `plans/`, `research/`, `papers/`), not only in the conversation.',
+    '',
+    'Language:',
+    '',
+    '- **Talk to the user in the language they use.** Answer in the language of the user',
+    '  message — 中文提问就用中文回答，English in English — for explanations, questions,',
+    '  progress reports and plan summaries alike. Never switch the user to English just',
+    '  because the system prompt, skills and this note are written in English.',
+    '- **Write paper materials and data in English**, whatever the conversation language:',
+    '  the manuscript and everything under `papers/` (LaTeX source, figures, captions,',
+    '  tables, references), experiment code and configuration, datasets, result files',
+    '  and logs. These are shared artefacts that outlive the conversation.',
+    '- Everything else — plans, research state and other working notes — follows the',
+    '  conversation language; the user reads them, so do not make them a wall of English.',
 ].join('\n');
+/**
+ * 取出研究者对 **C00 全局能力「研究过程定义」** 的自定义流程文本。
+ *
+ * ## 为什么必须单独取出来注入
+ *
+ * 这段文字是研究者自己规定的「这项研究怎么推进」（草稿导向、仿真先行、回退到补检索……）。
+ * 它本来只活在能力正文里，而能力正文要**按需加载**才被读到 —— 不注入的话，模型在
+ * 大部分回合里根本看不到它，于是只能靠用户每轮提醒才会照着推进。
+ *
+ * ## 为什么只取「用户写的那部分」
+ *
+ * 系统默认正文刻意只描述阶段、不规定顺序（v2 的 `Category ≠ Workflow`）。
+ * 注入用户覆盖段：写了自定义流程的人，规则**每轮生效**；没写的人，行为完全不变。
+ *
+ * 用户块由 `composeSkillContent` 拼在正文之前，形如 `## Research Method\n\n<正文>`；
+ * 这里优先只取 `Research Method` 那一段，避免把用户改的其它章节也塞进系统提示。
+ */
+export function extractProcessGuidance(composed) {
+    if (!composed)
+        return undefined;
+    const userAt = composed.indexOf(USER_SECTION_HEADER);
+    if (userAt < 0)
+        return undefined;
+    const baseAt = composed.indexOf(BASE_SECTION_HEADER);
+    const block = composed.slice(userAt + USER_SECTION_HEADER.length, baseAt < 0 ? undefined : baseAt).trim();
+    if (!block)
+        return undefined;
+    // `composeSkillContent` 给每个被覆盖的章节都加了 `## <章节名>` 标题，
+    // 所以"流程"必然在 `## Research Method` 之下；只改了别的章节 → 不注入（不是流程）。
+    const heading = /^##\s+Research Method\s*$/m.exec(block);
+    if (!heading)
+        return undefined;
+    const after = block.slice(heading.index + heading[0].length);
+    const next = /^##\s+\S/m.exec(after);
+    const picked = (next ? after.slice(0, next.index) : after).trim();
+    // ⚠️ 该章同时承载**机器可读的阶段定义块**（```text 里含 `stage:` 行）——技能正文明确
+    // 允许用户在那里改自己的研究过程。这一段**不进提示**：它已经由上面的阶段列表
+    // （Current / Landed / Not yet）渲染过，把原文再注入一遍只是重复。
+    const withoutStages = picked.replace(/```[^\n]*\n[\s\S]*?```/g, (fenced) => /^[ \t]*stage:/m.test(fenced) ? '' : fenced);
+    // 删掉 stage 块后只剩标签的残行（如"我的过程："）不是指导
+    const cleaned = withoutStages
+        .split(/\r?\n/)
+        .filter((line) => !/^[^：:]{0,40}[：:]$/.test(line.trim()))
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    return cleaned || undefined;
+}
 /** 收集当前研究状态（纯读盘；每次组装都重新求值以确保动态性）。 */
 export function collectResearchContext(source) {
     const ws = source.workspace;
-    const paper = loadPaper(ws);
+    const activePaperId = getActivePaperId(ws);
+    const allPapers = listPapers(ws).map((p) => ({
+        id: p.id,
+        title: p.metadata.title,
+        status: p.metadata.status,
+        version: p.metadata.version,
+        track: p.metadata.researchTrack,
+        type: p.metadata.paperType,
+        active: p.id === activePaperId,
+    }));
+    const paper = loadPaper(ws, activePaperId);
     // 研究根目录相对会话工作区的展示前缀：新布局 → 'workspace'；旧布局（研究根 = 会话
     // 工作区）→ 不设置（路径按原样渲染，行为与旧版一致）。非常规位置（自定义配置在
     // 会话工作区之外）时同样不设置，避免渲染出 `../..` 之类的误导前缀。
@@ -106,20 +189,38 @@ export function collectResearchContext(source) {
         if (rel && rel !== '.' && !isAbsolute(rel) && !rel.startsWith('..'))
             rootPrefix = rel;
     }
+    const suggestedSkills = suggestSkillsFor(ws, source.userInput, source.skillContent);
+    // 仅评估**建议技能**的前置（不全量评估 55 个；提示性，不阻塞）。
+    const prereqWarnings = new Map();
+    if (suggestedSkills.length > 0) {
+        const signalCtx = buildSignalContext(ws);
+        const statuses = assessPrerequisites(suggestedSkills.map((s) => ({ id: s.id, content: source.skillContent?.(s.id) })), signalCtx);
+        for (const st of statuses) {
+            if (!st.satisfied)
+                prereqWarnings.set(st.skillId, renderUnmetPrerequisites(st));
+        }
+    }
     return {
         ...(rootPrefix ? { rootPrefix } : {}),
         project: loadProject(ws),
+        activePaperId,
+        allPapers,
         paperTitle: paper.title,
         paperExcerpt: paper.excerpt,
         plans: listPlans(ws),
         skills: skillSummaries(ws),
         process: assessResearchProcess(ws, { ...(source.skillContent ? { skillContent: source.skillContent } : {}) }),
-        suggestedSkills: suggestSkillsFor(ws, source.userInput, source.skillContent),
+        ...(() => {
+            const guidance = extractProcessGuidance(source.skillContent?.(PROCESS_SKILL_ID));
+            return guidance ? { processGuidance: guidance } : {};
+        })(),
+        suggestedSkills,
+        prereqWarnings,
         state: loadResearchState(ws),
         index: buildResearchIndex(ws),
         openQuestions: openQuestions(ws),
-        paper: paperStatusSummary(ws, DEFAULT_PAPER_ID) ?? null,
-        paperGaps: prioritizeGaps(listPaperGaps(ws, DEFAULT_PAPER_ID)).filter((g) => !g.resolved),
+        paper: paperStatusSummary(ws, activePaperId) ?? null,
+        paperGaps: prioritizeGaps(listPaperGaps(ws, activePaperId)).filter((g) => !g.resolved),
         outputs: listAllOutputs(ws).map((o) => ({
             id: o.id,
             type: o.type,
@@ -245,8 +346,27 @@ export function renderResearchContext(ctx, userInput = '') {
             lines.push(`  - ${q}`);
     }
     lines.push('');
+    // 论文列表
+    if (ctx.allPapers.length > 0) {
+        lines.push('## Papers in workspace');
+        lines.push('');
+        lines.push(`Current active paper: **${ctx.activePaperId}**`);
+        lines.push('');
+        for (const p of ctx.allPapers) {
+            const flags = [
+                p.active ? '✅ active' : '',
+                p.track ? `track: ${p.track}` : '',
+                p.type ? `type: ${p.type}` : ''
+            ].filter(Boolean).join(' | ');
+            lines.push(`- ${p.active ? '*' : ' '} \`${p.id}\` v${p.version} [${p.status}] — ${p.title ?? '(untitled)'}`);
+            if (flags)
+                lines.push(`    ${flags}`);
+        }
+        lines.push(`- Use \`research_paper action=switch paper=<id/alias>\` to switch active paper.`);
+        lines.push('');
+    }
     if (ctx.paperTitle || ctx.paperExcerpt) {
-        lines.push('## Current paper');
+        lines.push(`## Current active paper (${ctx.activePaperId})`);
         lines.push('');
         if (ctx.paperTitle)
             lines.push(`- Title: ${ctx.paperTitle}`);
@@ -261,7 +381,7 @@ export function renderResearchContext(ctx, userInput = '') {
             }
         }
         else {
-            lines.push(`- (Full manuscript available at \`${root}paper/\`; read it when the task needs it.)`);
+            lines.push(`- (Full manuscript available at \`${root}papers/${ctx.activePaperId}/\`; read it when the task needs it.)`);
         }
         lines.push('');
     }
@@ -276,7 +396,7 @@ export function renderResearchContext(ctx, userInput = '') {
     }
     // ── Research State（§12 / §25 / §26）────────────────────────────────
     // 只给「已建立维度的标题 + 成熟度」，**不复制正文** —— 正文在
-    // research/research-state.md 里，模型需要时自己读（§8：不无条件全量注入）。
+    // research-state.md 里，模型需要时自己读（§8：不无条件全量注入）。
     if (ctx.state) {
         const established = Object.entries(ctx.state.dimensions)
             .filter(([, v]) => v)
@@ -383,6 +503,19 @@ export function renderResearchContext(ctx, userInput = '') {
         lines.push('');
         if (ctx.process.current) {
             lines.push(`Current stage: **${ctx.process.current.stage.label}** — ${ctx.process.current.stage.produces}.`);
+            /*
+             * 「自进化」那条链的落点：阶段说清"产出什么"，这里说清"产出之后 Research State
+             * 里该出现什么" —— 不写出来的话，方法技能的结论就只停在对话里
+             * （实测：8 条 decisions 落在 `research/decisions/`，状态里连 Decisions 维度都没有）。
+             *
+             * `state` 只在**阶段定义里写了**才有（用户自定过程可以不带这一段）。
+             */
+            const stageState = ctx.process.current.stage.state ?? [];
+            if (stageState.length > 0) {
+                lines.push(`Write-back: this stage's results belong in the Research State dimension(s) ` +
+                    `${stageState.map((d) => `\`${d}\``).join(' / ')} — use \`research_state_propose\` ` +
+                    `(artifact-indexed dimensions are auto-synced into \`${RESEARCH_STATE_REF}\`).`);
+            }
             lines.push(`Basis: ${ctx.process.current.evidence}.`);
         }
         else {
@@ -395,8 +528,20 @@ export function renderResearchContext(ctx, userInput = '') {
         if (pending.length > 0)
             lines.push(`Not yet: ${pending.join(' · ')}`);
         lines.push('');
-        lines.push('This is a description of the research assets, not a procedure to follow: stages are not a ' +
-            'pipeline, and you may work on any of them in any order the research actually needs.');
+        if (ctx.processGuidance) {
+            // 研究者自定义的全局流程（C00 全局能力）：注入并声明优先。
+            // 不注入的话它只在"按需加载技能"时可见，模型看不到，就得靠用户每轮提醒才推进。
+            lines.push("## Research process (this project's own flow)");
+            lines.push('');
+            lines.push(ctx.processGuidance);
+            lines.push('');
+            lines.push('This flow is defined by the researcher for this project — follow it when choosing the next ' +
+                'step; where it is more specific, it takes precedence.');
+            lines.push('');
+        }
+        lines.push('The stage list above is a description of the research assets, not a procedure to follow: ' +
+            'stages do not gate anything, and you may work on any of them in any order the research ' +
+            'actually needs.');
         lines.push('');
     }
     if (ctx.skills.length > 0) {
@@ -409,12 +554,25 @@ export function renderResearchContext(ctx, userInput = '') {
             lines.push('Possibly relevant to this request (navigation only — no execution order):');
             for (const s of ctx.suggestedSkills) {
                 const purpose = s.purpose ? ` — ${s.purpose.split('\n')[0]}` : '';
-                lines.push(`- **${s.name}** (\`${s.path}\`)${purpose}`);
+                const warning = ctx.prereqWarnings.get(s.id);
+                lines.push(`- **${s.name}** (\`${s.path}\`)${purpose}${warning ? ` · ⚠ 前置未满足: ${warning}` : ''}`);
             }
         }
         lines.push('');
     }
     return lines.join('\n').trim();
+}
+/**
+ * 从组装上下文里取**本次组装所属会话**的 id。
+ *
+ * `AssembleContext.agent` 由 `@deepseek-ai/dsh-agent` 追加声明，而本插件只依赖
+ * `dsh-system-prompt` —— 因此这里**结构化读取**（`agent.id` 就是 SessionId），
+ * 不 import 那个包。拿不到时返回 `undefined`（调用方退化到全局解析）。
+ */
+function agentIdOf(context) {
+    const agent = context?.agent;
+    const id = agent?.id;
+    return typeof id === 'string' && id.trim() ? id : undefined;
 }
 /**
  * Research Context 服务：把研究状态注册为 Harness 的**动态上下文贡献者**。
@@ -454,6 +612,25 @@ export class ResearchContextService extends Service {
         return this.lastWorkspace;
     }
     /**
+     * 本次**组装所属会话**的研究根目录 + 会话工作区。
+     *
+     * ⚠️ 这里必须按会话解析，而不是用入口注入的全局解析（`resolveWorkspace`）：
+     * provider 是每次组装求值的，而全局解析依赖 `agent/pre-step` 同步的一个全局 cwd ——
+     * 多个会话并行时它可能已被别的会话覆盖，于是研究会话的上下文会注入到**普通对话**里
+     * （与进度卡"显示在所有对话里"同一类故障，2026-09 实测）。
+     *
+     * 权威来源是 `context.agent.id`（= SessionId）→ 会话存储里的 `header.cwd`
+     * （见 `session-workspace.ts`）。拿不到会话身份（诊断组装、子 Agent 尚未注册）时
+     * **退化**为旧的全局解析，保持可用性 —— 但绝不把"插件进程启动目录"当研究会话。
+     */
+    targetsFor(context) {
+        const agentId = agentIdOf(context);
+        const viaSession = researchTargetsForSession(this.ctx, agentId);
+        if (viaSession)
+            return viaSession;
+        return { root: this.resolveWorkspace(), session: this.resolveSessionWorkspace?.() ?? '' };
+    }
+    /**
      * 注册到 Harness 的 system prompt 组装管线。
      *
      * 返回 disposer 数组，由调用方（插件入口）按 Cordis effect 语义管理。
@@ -464,16 +641,17 @@ export class ResearchContextService extends Service {
         const guide = {
             name: RESEARCH_GUIDE_NAME,
             order: RESEARCH_GUIDE_ORDER,
-            // 只有当前会话确实属于研究项目时才注入，避免污染普通对话。
-            text: () => (isResearchWorkspace(this.resolveWorkspace()) ? RESEARCH_GUIDE_TEXT : ''),
+            // 只有**本次组装所属会话**确实属于研究项目时才注入，避免污染普通对话。
+            text: (context) => (isResearchWorkspace(this.targetsFor(context).root) ? RESEARCH_GUIDE_TEXT : ''),
         };
         disposers.push(this.ctx.systemPrompt.section(guide));
         // ── 动态段：研究现状快照（每次组装重新求值 —— §6）──────────────────
         const snapshot = {
             name: RESEARCH_CONTEXT_NAME,
             order: RESEARCH_CONTEXT_ORDER,
-            text: () => {
-                const ws = this.resolveWorkspace();
+            text: (context) => {
+                const targets = this.targetsFor(context);
+                const ws = targets.root;
                 this.lastWorkspace = ws;
                 if (!isResearchWorkspace(ws)) {
                     this.lastRendered = '';
@@ -482,7 +660,7 @@ export class ResearchContextService extends Service {
                 const collected = collectResearchContext({
                     workspace: ws,
                     ...(this.skillContent ? { skillContent: this.skillContent } : {}),
-                    ...(this.resolveSessionWorkspace ? { sessionWorkspace: this.resolveSessionWorkspace() } : {}),
+                    ...(targets.session ? { sessionWorkspace: targets.session } : {}),
                 });
                 const rendered = renderResearchContext(collected);
                 this.lastRendered = rendered;

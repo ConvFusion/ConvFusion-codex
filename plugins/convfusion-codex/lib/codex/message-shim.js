@@ -1,5 +1,3 @@
-/** Build the portable user-message shape consumed by host adapters. */
-export function createUserMessage(message) {
-    return { role: 'user', ...message };
-}
+/** Preserve the shared message/source format for the DSH compatibility adapter. */
+export { createUserMessage } from '@deepseek-ai/dsh-llm';
 //# sourceMappingURL=message-shim.js.map

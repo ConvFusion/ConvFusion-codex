@@ -26,7 +26,42 @@ export declare function paperRelDir(paperId?: string): string;
 /** 序列化 metadata.md（frontmatter + 人类可读摘要）。 */
 export declare function serializeMetadata(meta: PaperMetadata): string;
 /** 列出全部 Paper id。 */
+/**
+ * 工作区里**是否已存在论文正文**（`papers/<id>/paper.md`）。
+ *
+ * 为什么单独一个函数：进度/阶段判定原先只看硬编码的 `DEFAULT_PAPER_ID`（`paper-main`），
+ * 于是**任何没有 `paper-main` 的工作区**（例如多论文工作区，论文叫 `paper-d2-method`、
+ * `paper-d-research-ir-method`）都会被判成"尚无论文正文"，进度面板与阶段判定同时出错。
+ * 语义：**先看当前激活的论文**，再看**任一**论文 —— 项目有了正文就是有了。
+ */
+export declare function hasManuscript(workspace: string): boolean;
 export declare function listPaperIds(workspace: string): string[];
+/** 列出全部 Paper 文档（含元数据）。 */
+export declare function listPapers(workspace: string): PaperDocument[];
+/**
+ * 自动生成论文ID
+ * 规则：paper-<track>-<type>，同类型多篇时加-<序号>
+ */
+export declare function generatePaperId(workspace: string, track?: string, type?: string): string;
+/**
+ * 模糊解析 paperId 别名
+ * 支持：
+ * - 完整ID直接匹配
+ * - 短名匹配（如 d1-benchmark → paper-d1-benchmark）
+ * - track/type 组合匹配（如 d1 + benchmark → paper-d1-benchmark）
+ * - 标题关键词匹配（如 "lifecycle" 匹配对应标题的论文）
+ * 返回匹配到的paperId，歧义或找不到返回undefined
+ */
+export declare function resolvePaperId(workspace: string, input: string): string | undefined;
+/** 获取当前激活的论文ID，缺省返回 DEFAULT_PAPER_ID */
+export declare function getActivePaperId(workspace: string): string;
+/** 设置当前激活的论文ID */
+export declare function setActivePaperId(workspace: string, paperId: string): boolean;
+/**
+ * 解析用户传入的paper参数，自动处理别名、缺省情况，返回最终paperId
+ * 所有paper相关工具函数都应该调用这个函数来解析入参
+ */
+export declare function resolvePaperParameter(workspace: string, paperParam?: string): string;
 /**
  * 读一个 Paper（缺文件 → 空值，**不抛错**）。
  *
@@ -48,12 +83,16 @@ export declare function createPaper(workspace: string, input?: {
     id?: string;
     title?: string;
     researchDomain?: string;
+    researchTrack?: string;
+    paperType?: string;
     targetVenue?: string;
     authors?: string;
     researchProject?: string;
     researchStateVersion?: string;
     /** 自定义正文；缺省用 {@link manuscriptTemplate}。 */
     manuscript?: string;
+    /** 是否创建后设为当前激活论文，默认true */
+    setActive?: boolean;
 }): PaperDocument | PaperWriteError;
 /** 更新 metadata（不改正文）。 */
 export declare function updatePaperMetadata(workspace: string, paperId: string, patch: Partial<Omit<PaperMetadata, 'id'>>): PaperDocument | PaperWriteError;
@@ -96,8 +135,25 @@ export declare function diffManuscript(workspace: string, paperId: string, other
  * "这句话对应哪个 Claim"（§8 的意图）。
  */
 export declare function readClaimMap(workspace: string, paperId?: string): PaperClaimEntry[];
+/**
+ * 由**已记录的 Claim id** 推导"正文里什么样的 token 才算 Claim 引用"。
+ *
+ * ## 为什么不能只写 `\bC\d{1,4}\b`
+ *
+ * 那个正则会把**决策类型的编号**当成 Claim。实测（paper-main）：论文的 taxonomy 用
+ * `C1 next action` / `C4 stopping condition` 表示"C. Planning and next action"类下的
+ * 决策类型，于是 Gap 检测报出四条
+ * "Claim C1/C2/C3/C4 appears in the manuscript with no supporting evidence"
+ * 和四条 "The manuscript cites claim C1, but no such claim is recorded"——
+ * **八条全是假阳性**，而真正的 Claim 是 `C001` 这种三位编号。
+ *
+ * 判据改成"形状"：记录里是 `C001`（C + 3 位），正文里只有同样形状的 token 才算引用。
+ * 没有任何记录时保守要求 ≥3 位（`C001` 认，`C1` 不认）——宁可漏报，
+ * 也不要制造让研究者白跑一轮的假阳性。
+ */
+export declare function manuscriptClaimIdMatcher(knownIds: readonly string[]): (id: string) => boolean;
 /** 从正文推导 Claim → Sections（§8 的 `Paper Sections` 部分）。 */
-export declare function deriveClaimMapFromManuscript(paper: PaperDocument): PaperClaimEntry[];
+export declare function deriveClaimMapFromManuscript(paper: PaperDocument, isClaimId?: (id: string) => boolean): PaperClaimEntry[];
 /** 写 Claim Map（由 `research/claims/*.md` 与正文引用合成，不新增事实）。 */
 export declare function writeClaimMap(workspace: string, paperId: string, entries: readonly PaperClaimEntry[]): string;
 /**

@@ -8,8 +8,9 @@
  *
  * 1. **ID 与引用关系会漂移**：`E001` 的分配、`supports` 与 `evidence` 的双向引用、
  *    `supersedes` 关系，靠模型手写迟早不一致；
- * 2. **State 会被直接覆盖**：§20 明确要求 Agent **只能提出 proposal**，
- *    由用户 `Accept / Edit / Reject`。若模型直接写 `research-state.md`，这个控制点就没了。
+ * 2. **State 的改动要留痕**：状态更新以 proposal（`S###.json`）记录，再由 `apply`
+ *    应用；每次处置都写进 `applied.json`。直接手写 `research-state.md` 会绕过这条
+ *    痕迹链 —— 改了什么都查不到。
  *
  * 因此本模块提供一组**窄接口**工具，让正确的事容易做、错误的事做不出来：
  *
@@ -19,16 +20,16 @@
  * | `research_claim` | 建立 Claim 并关联证据 | 状态由证据汇总（不凭感觉标 verified） |
  * | `research_decision` | 记录研究决策 | **必须有 reason 或 evidence** |
  * | `research_state_read` | 读取当前研究状态 | 只读 |
- * | `research_state_propose` | **提出**状态更新 | **只提案，绝不自动应用**（§20 / §21） |
+ * | `research_state_propose` | 提出 / 列出 / **应用**状态更新 | 应用即写 Research State；处置痕迹记入 `applied.json` |
  * | `research_project` | 查询/更新研究主题 | 主题**必须**带理由与依据；初始输入永久保留，只动 frontmatter |
+ * | `research_ir` | Typed Research IR：提案/校验/增量变更/状态推进 | 三层验证不过不落盘；**不写** `research-state.md`；历史不删除 |
  *
  * ## 不允许出现的工具（重要的"没有"）
  *
- * - **没有** `research_state_apply`：应用必须由用户处置（§21）。
- *   用户在接受时通过 `/research` 或直接编辑文件完成。
  * - **没有**任何执行类工具：真实执行仍走 Harness 原生工具（§42 Native Harness）。
  */
 import { type ToolDefinition } from '../codex/tool-shim.js';
+import { type LiteratureDeps } from './literature.js';
 import { type PaperDownloadDeps } from './paper-download.js';
 import { type BibEntry, type ComposeInput } from './latex.js';
 import { openQuestions } from './research-state.js';
@@ -44,6 +45,10 @@ export declare const OUTPUT_TOOL = "research_output";
 export declare const LITERATURE_TOOL = "research_literature_search";
 export declare const PAPER_DOWNLOAD_TOOL = "research_paper_download";
 export declare const PAPER_LATEX_TOOL = "research_paper_latex";
+export declare const ACTION_CONSTRUCTION_TOOL = "research_action_construction";
+export declare const DIAGRAM_TOOL = "research_diagram";
+export declare const SCHEMATIC_TOOL = "research_schematic";
+export declare const IR_TOOL = "research_ir";
 /**
  * 构造研究资产工具集。
  *
@@ -52,17 +57,13 @@ export declare const PAPER_LATEX_TOOL = "research_paper_latex";
  *        会话自己的工作区，而不是插件进程的全局"当前 cwd" —— 多会话并行时全局值
  *        可能已被其它会话覆盖，会把研究数据写进别人的工作区（2026-09 事故：一条
  *        state proposal 被写进插件开发仓库根目录的 `research/`）。
- * @param literatureDeps 文献检索依赖（API Key 解析）；缺省时不注册检索工具
+ * @param literatureDeps 文献检索依赖（API Key 解析等）；缺省时不注册检索工具。
+ *        类型直接复用 {@link LiteratureDeps}，避免此处与 `literature.ts` 重复定义字段。
  * @param downloadDeps 论文全文下载依赖（fetch 实现）；缺省时不注册下载工具
  */
 export declare function defineResearchTools(resolveWorkspace: (agent?: {
     id?: unknown;
-} | null) => string, literatureDeps?: {
-    apiKey: () => string;
-    mailto?: () => string | undefined;
-    fetchImpl?: import('./literature.js').FetchLike;
-    timeoutMs?: number;
-}, downloadDeps?: PaperDownloadDeps): ToolDefinition[];
+} | null) => string, literatureDeps?: LiteratureDeps, downloadDeps?: PaperDownloadDeps): ToolDefinition[];
 /**
  * 从 Markdown 参考文献列表解析 `\bibitem` 条目。
  *
@@ -81,7 +82,23 @@ export declare function parseBibEntries(text: string): {
  * 取 `# 标题` 作 title，`## Abstract` 作 abstract，`## References` 作参考文献，
  * 其余章节按原顺序进入正文（v2 论文含 Results / Discussion，模板按需生成 `\section`）。
  */
-export declare function buildComposeInput(source: string, template: string): ComposeInput;
+/**
+ * 从 `metadata.md` 读论文的作者块信息（authors / affiliation / keywords）。
+ *
+ * 为什么需要它：论文正文（`paper.md`）里**没有**作者声明的位置，作者属于元数据。
+ * 不读 metadata，模板就永远渲染默认的 "Authors / Affiliation" —— 论文能编译、
+ * 能读，署名却是空的，属于典型的事后才发现型缺陷。
+ */
+export declare function readPaperMeta(paperDir: string): {
+    authors?: string;
+    affiliation?: string;
+    keywords?: string[];
+};
+export declare function buildComposeInput(source: string, template: string, meta?: {
+    authors?: string;
+    affiliation?: string;
+    keywords?: string[];
+}): ComposeInput;
 /** 供测试/调试：Open Questions（不经过工具层）。 */
 export { openQuestions };
 //# sourceMappingURL=research-tools.d.ts.map

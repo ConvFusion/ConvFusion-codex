@@ -22,7 +22,9 @@
  *   - 阻塞项：研究问题里带**显式标记**的（`[blocking]` / `（阻塞项）`）。
  *     是标记驱动的 —— 插件没有能力判断"这个问题难不难"，只有作者/用户能标。
  *   - 停滞：连续 N 轮研究资产计数无变化（由调用方传入连续轮数）。
- *   - 歧义：存在 ≥2 个 **draft** 状态且互斥的候选计划（说明方向还没收敛）。
+ *   - 歧义：存在 ≥2 个 **draft** 状态且互斥的候选计划（说明方向还没收敛）；
+ *     但若 `research/decisions/` 已有 `status: decided` 的研究决策，方向视为已收敛，
+ *     残留 draft 计划按簿记残留处理（不触发歧义）。
  *   - 其余情况视为 clear，但 clear **只在"下一步确实是常规推进"时才成立**：
  *     当前科研过程阶段还缺产出，且没有停滞、没有歧义、没有阻塞。
  *
@@ -31,6 +33,7 @@
  */
 import { loadProjectFile } from './project.js';
 import { listPlanDocuments } from './plans.js';
+import { listDecisions } from './claims.js';
 import { assessResearchProcess } from './research-process.js';
 /**
  * 判断研究问题里是否有**显式标记**的阻塞项。
@@ -62,6 +65,7 @@ export function assessAdvance(input) {
     if (blocking) {
         return {
             clarity: 'blocked',
+            basisCode: 'blockingQuestion',
             basis: '研究问题中存在显式标记的阻塞项',
             needsUserDecision: blocking,
         };
@@ -70,31 +74,48 @@ export function assessAdvance(input) {
     if (staleRounds >= staleThreshold) {
         return {
             clarity: 'ambiguous',
+            basisCode: 'stalled',
+            basisParams: { rounds: staleRounds },
             basis: `连续 ${staleRounds} 轮没有形成新的可验证研究资产`,
             needsUserDecision: '当前推进方式没有产生资产。请确认：是继续这个方向，还是换一个方向／调整目标？',
+            decisionCode: 'stalled',
         };
     }
     // ③ 方向未收敛 —— 多个草稿计划并存说明候选还没被排过序。
+    //    例外：磁盘上已存在 `status: decided` 的研究决策（`research/decisions/`）时，
+    //    方向已经收敛 —— 残留的 draft 计划是簿记残留（定稿/执行后没回写状态行），
+    //    不是方向歧义的证据。同样只认磁盘上的显式依据，不做语义猜测。
     const drafts = listPlanDocuments(input.workspace).filter((p) => p.status === 'draft');
     if (drafts.length >= 2) {
-        return {
-            clarity: 'ambiguous',
-            basis: `存在 ${drafts.length} 个仍是 draft 的计划（${drafts.map((p) => p.id).join(', ')}）`,
-            needsUserDecision: '多个计划都还是草稿、没有排序。请确认以哪一个为准，或说明取舍标准。',
-        };
+        const decided = listDecisions(input.workspace).filter((d) => /^decided/i.test(d.status.trim()));
+        if (decided.length === 0) {
+            return {
+                clarity: 'ambiguous',
+                basisCode: 'draftPlans',
+                basisParams: { count: drafts.length, plans: drafts.map((p) => p.id).join(', ') },
+                basis: `存在 ${drafts.length} 个仍是 draft 的计划（${drafts.map((p) => p.id).join(', ')}）`,
+                needsUserDecision: '多个计划都还是草稿、没有排序。请确认以哪一个为准，或说明取舍标准。',
+                decisionCode: 'draftPlans',
+            };
+        }
+        // 已有 decided 决策：draft 计划不作为方向歧义证据，继续按过程阶段判定。
     }
     // ④ 过程已全部落地且无缺口 —— 没有"明确的下一步"，属于持续演化，交回用户。
     if (!process.current) {
         return {
             clarity: 'ambiguous',
+            basisCode: 'processComplete',
             basis: '科研过程各阶段均已有落地资产，没有结构性缺口',
             needsUserDecision: '接下来是继续深化、转向写作，还是开新的问题？请指定方向。',
+            decisionCode: 'processComplete',
         };
     }
     // ⑤ 其余视为明确：当前阶段缺产出，且它就是下一步。
     const stage = process.current.stage;
     return {
         clarity: 'clear',
+        basisCode: 'stagePending',
+        basisParams: { stage: stage.label, evidence: process.current.evidence },
         basis: `当前阶段「${stage.label}」尚未落地（${process.current.evidence}）`,
         nextStep: stage.produces,
     };

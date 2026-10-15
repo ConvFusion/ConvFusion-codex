@@ -8,8 +8,9 @@
  *
  * 1. **ID 与引用关系会漂移**：`E001` 的分配、`supports` 与 `evidence` 的双向引用、
  *    `supersedes` 关系，靠模型手写迟早不一致；
- * 2. **State 会被直接覆盖**：§20 明确要求 Agent **只能提出 proposal**，
- *    由用户 `Accept / Edit / Reject`。若模型直接写 `research-state.md`，这个控制点就没了。
+ * 2. **State 的改动要留痕**：状态更新以 proposal（`S###.json`）记录，再由 `apply`
+ *    应用；每次处置都写进 `applied.json`。直接手写 `research-state.md` 会绕过这条
+ *    痕迹链 —— 改了什么都查不到。
  *
  * 因此本模块提供一组**窄接口**工具，让正确的事容易做、错误的事做不出来：
  *
@@ -19,22 +20,23 @@
  * | `research_claim` | 建立 Claim 并关联证据 | 状态由证据汇总（不凭感觉标 verified） |
  * | `research_decision` | 记录研究决策 | **必须有 reason 或 evidence** |
  * | `research_state_read` | 读取当前研究状态 | 只读 |
- * | `research_state_propose` | **提出**状态更新 | **只提案，绝不自动应用**（§20 / §21） |
+ * | `research_state_propose` | 提出 / 列出 / **应用**状态更新 | 应用即写 Research State；处置痕迹记入 `applied.json` |
  * | `research_project` | 查询/更新研究主题 | 主题**必须**带理由与依据；初始输入永久保留，只动 frontmatter |
+ * | `research_ir` | Typed Research IR：提案/校验/增量变更/状态推进 | 三层验证不过不落盘；**不写** `research-state.md`；历史不删除 |
  *
  * ## 不允许出现的工具（重要的"没有"）
  *
- * - **没有** `research_state_apply`：应用必须由用户处置（§21）。
- *   用户在接受时通过 `/research` 或直接编辑文件完成。
  * - **没有**任何执行类工具：真实执行仍走 Harness 原生工具（§42 Native Harness）。
  */
 
 import { defineTool, type ToolDefinition, type JsonValue } from '../codex/tool-shim.js'
 import { losslessJson } from '../json.js'
 import {
+  LITERATURE_FIELDS,
   OPENALEX_MAX_PER_PAGE,
   isLiteratureError,
   searchOpenAlex,
+  type LiteratureDeps,
   type LiteratureQuery,
 } from './literature.js'
 import {
@@ -44,10 +46,33 @@ import {
   type PaperDownloadDeps,
 } from './paper-download.js'
 import {
+  ACTION_LOG_FILE,
+  ACTION_STATE_FILE,
+  LEVELS as AC_LEVELS,
+  appendActionRecord as acAppendRecord,
+  buildPrompt as acBuildPrompt,
+  constructFromCandidates as acConstructFromCandidates,
+  explainConstruction as acExplainConstruction,
+  extractCandidates as acExtractCandidates,
+  evaluateDesign as acEvaluateDesign,
+  evaluateAnswer as acEvaluateAnswer,
+  levelSummary as acLevelSummary,
+  normaliseState as acNormaliseState,
+  readActionRecords as acReadRecords,
+  readActionState as acReadState,
+  sampleState as acSampleState,
+  summariseActionRecords as acSummariseRecords,
+  toRecord as acToRecord,
+  writeActionState as acWriteState,
+  type Design as AcDesign,
+  type ResearchState as AcState,
+} from './action-construction/index.js'
+import {
   INTERMEDIATE_TEX,
   LATEX_SUBDIR,
   MAIN_TEX,
   composeDocument,
+  detectComposeLoss,
   normalizeTemplate,
   type BibEntry,
   type ComposeInput,
@@ -60,9 +85,9 @@ import {
   scanUnsafeTokens,
   type CompileError,
 } from './latex-compile.js'
-import { parseSections, stripFrontmatter, findSection } from './markdown.js'
+import { parseSections, stripFrontmatter, findSection, parseFrontmatter } from './markdown.js'
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import {
   createEvidence,
   evidenceClaim,
@@ -74,23 +99,28 @@ import {
 } from './evidence.js'
 import { createClaim, createDecision, isIdWriteError, listClaims, listDecisions, reconcileClaimEvidence } from './claims.js'
 import {
+  applyStateUpdate,
   isStateWriteError,
   listStateProposals,
   loadResearchState,
   proposeStateUpdate,
+  readStateProposal,
   suggestMaturity,
   openQuestions,
 } from './research-state.js'
 import { buildResearchIndex } from './research-state.js'
+import { reconcileStateWithArtifacts, selfEvolve, syncStateFromArtifacts } from './state-sync.js'
 import {
   EVIDENCE_SOURCES,
   EVIDENCE_STATUSES,
+  MATURITY_DIMENSIONS,
+  MATURITY_LEVELS,
   STATE_DIMENSIONS,
   type EvidenceSource,
   type EvidenceStatus,
 } from './research-data.js'
-import { DEFAULT_PAPER_ID, PAPER_MATURITY_DIMENSIONS } from './paper-data.js'
-import { createPaper, readPaper } from './paper.js'
+import { DEFAULT_PAPER_ID, PAPER_FILES, PAPER_MATURITY_DIMENSIONS, PAPER_TYPES } from './paper-data.js'
+import { createPaper, getActivePaperId, listPapers, readPaper, resolvePaperParameter, setActivePaperId } from './paper.js'
 import { detectAndRecordGaps, prioritizeGaps, recommendCapabilities, listPaperGaps } from './paper-gaps.js'
 import { paperStatusSummary, proposeRevision, readPaperMaturity, suggestPaperMaturity, writePaperMaturity } from './paper-evolution.js'
 import { listSystemSkills } from './skills.js'
@@ -106,7 +136,63 @@ import {
   traceOutputProvenance,
 } from './output.js'
 import { getOutputProfile, listOutputProfiles } from './output-profiles.js'
-import { listTopicChanges, loadProjectFile, updateProjectTopic } from './project.js'
+import {
+  COLUMN_WIDTH_PT,
+  DIAGRAM_TYPES,
+  EDGE_TYPES,
+  FIGURES_SUBDIR,
+  LAYOUT_ALGORITHMS,
+  LAYOUT_DIRECTIONS,
+  NODE_TYPES,
+  STYLE_TOKENS,
+  buildDiagram,
+  diagramPaths,
+  exportDiagramPdf,
+  formatDiagnostics,
+  inspectDiagram,
+  listDiagramArtifacts,
+  readDiagramIr,
+  sanitizeDiagramName,
+  saveLastGood,
+  toCanonicalIr,
+  writeDiagramIr,
+  writeDiagramSvg,
+} from './diagram/index.js'
+import {
+  COLUMN_WIDTH_PT as SCHEMATIC_COLUMN_PT,
+  MIN_LEGIBLE_PT,
+  renderSchematic,
+} from './schematic/index.js'
+import {
+  listTopicChanges,
+  loadProjectFile,
+  updateProjectDefinition,
+  updateProjectTopic,
+} from './project.js'
+import { researchWorkName } from './work-name.js'
+import {
+  DECISION_TYPES,
+  EVIDENCE_REQUIREMENT_TYPES,
+  IR_SCHEMA_VERSION,
+  applyDelta,
+  applyTransition,
+  evidenceCoverage,
+  formatReport,
+  isIRWriteError,
+  listIRRevisions,
+  listIRs,
+  listStates,
+  normalizeIR,
+  parseIR,
+  readIR,
+  readIRRevision,
+  readTrace,
+  saveIR,
+  summarizeDelta,
+  validateTransition,
+  type IRDelta,
+  type TransitionInput,
+} from './ir/index.js'
 
 /** 工具名（`research_` 命名空间，与 Skill/Plan 资产一致）。 */
 export const PROJECT_TOOL = 'research_project'
@@ -120,6 +206,10 @@ export const OUTPUT_TOOL = 'research_output'
 export const LITERATURE_TOOL = 'research_literature_search'
 export const PAPER_DOWNLOAD_TOOL = 'research_paper_download'
 export const PAPER_LATEX_TOOL = 'research_paper_latex'
+export const ACTION_CONSTRUCTION_TOOL = 'research_action_construction'
+export const DIAGRAM_TOOL = 'research_diagram'
+export const SCHEMATIC_TOOL = 'research_schematic'
+export const IR_TOOL = 'research_ir'
 
 /** 把错误对象转成工具返回值（不抛异常，让模型看到原因并纠正）。 */
 function fail(error: string, extra: Record<string, unknown> = {}): Record<string, JsonValue> {
@@ -134,17 +224,13 @@ function fail(error: string, extra: Record<string, unknown> = {}): Record<string
  *        会话自己的工作区，而不是插件进程的全局"当前 cwd" —— 多会话并行时全局值
  *        可能已被其它会话覆盖，会把研究数据写进别人的工作区（2026-09 事故：一条
  *        state proposal 被写进插件开发仓库根目录的 `research/`）。
- * @param literatureDeps 文献检索依赖（API Key 解析）；缺省时不注册检索工具
+ * @param literatureDeps 文献检索依赖（API Key 解析等）；缺省时不注册检索工具。
+ *        类型直接复用 {@link LiteratureDeps}，避免此处与 `literature.ts` 重复定义字段。
  * @param downloadDeps 论文全文下载依赖（fetch 实现）；缺省时不注册下载工具
  */
 export function defineResearchTools(
   resolveWorkspace: (agent?: { id?: unknown } | null) => string,
-  literatureDeps?: {
-    apiKey: () => string
-    mailto?: () => string | undefined
-    fetchImpl?: import('./literature.js').FetchLike
-    timeoutMs?: number
-  },
+  literatureDeps?: LiteratureDeps,
   downloadDeps?: PaperDownloadDeps,
 ): ToolDefinition[] {
   /* ── Evidence ───────────────────────────────────────────────────────── */
@@ -258,27 +344,64 @@ export function defineResearchTools(
           for (const c of created.supports) linkEvidenceToClaim(ws, created.id, c, 'supports')
           for (const c of created.contradicts) linkEvidenceToClaim(ws, created.id, c, 'contradicts')
           const fresh = listEvidence(ws).find((e) => e.id === created.id) ?? created
+          /*
+           * **自进化**：产物落盘后立刻把对应维度汇总进 Research State
+           * （旧版本先进 `state-history/`，`applied.json` 留痕）。
+           *
+           * 为什么在这里而不是"等 Agent 记得 propose"：实测这样不成立 ——
+           * 8 条决策躺在 `research/decisions/`，状态里连 Decisions 维度都没有。
+           */
+          const evolved = selfEvolve(ws)
+          const syncNote = evoNote(evolved)
           return losslessJson({
             ok: true,
             evidence: { id: fresh.id, name: fresh.name, status: fresh.status, supports: fresh.supports, contradicts: fresh.contradicts },
             note: 'Evidence recorded. It starts as `unverified` until someone validates it.',
+            ...syncNote,
           }) as unknown as Record<string, JsonValue>
         }
 
         if (action === 'status') {
           const updated = setEvidenceStatus(ws, String(a.id ?? ''), String(a.status ?? 'unverified') as EvidenceStatus)
           if (isEvidenceWriteError(updated)) return fail(updated.error)
-          return losslessJson({ ok: true, evidence: { id: updated.id, status: updated.status } }) as unknown as Record<string, JsonValue>
+          /*
+           * **自进化**：产物落盘后立刻把对应维度汇总进 Research State
+           * （旧版本先进 `state-history/`，`applied.json` 留痕）。
+           *
+           * 为什么在这里而不是"等 Agent 记得 propose"：实测这样不成立 ——
+           * 8 条决策躺在 `research/decisions/`，状态里连 Decisions 维度都没有。
+           */
+          const stateSync = syncStateFromArtifacts(ws)
+          const syncNote = 'error' in stateSync
+            ? { stateSync: { error: stateSync.error } }
+            : stateSync.synced.length > 0
+              ? { stateSync: { synced: stateSync.synced, version: stateSync.version } }
+              : {}
+          return losslessJson({ ok: true, evidence: { id: updated.id, status: updated.status }, ...syncNote }) as unknown as Record<string, JsonValue>
         }
 
         if (action === 'supersede') {
           const res = supersedeEvidence(ws, String(a.id ?? ''), String(a.superseded_by ?? ''), a.reason ? String(a.reason) : undefined)
           if (isEvidenceWriteError(res)) return fail(res.error)
+          /*
+           * **自进化**：产物落盘后立刻把对应维度汇总进 Research State
+           * （旧版本先进 `state-history/`，`applied.json` 留痕）。
+           *
+           * 为什么在这里而不是"等 Agent 记得 propose"：实测这样不成立 ——
+           * 8 条决策躺在 `research/decisions/`，状态里连 Decisions 维度都没有。
+           */
+          const stateSync = syncStateFromArtifacts(ws)
+          const syncNote = 'error' in stateSync
+            ? { stateSync: { error: stateSync.error } }
+            : stateSync.synced.length > 0
+              ? { stateSync: { synced: stateSync.synced, version: stateSync.version } }
+              : {}
           return losslessJson({
             ok: true,
             superseded: res.old,
             supersededBy: res.next,
             note: 'The older evidence is kept and marked superseded — history is never erased.',
+            ...syncNote,
           }) as unknown as Record<string, JsonValue>
         }
 
@@ -356,7 +479,20 @@ export function defineResearchTools(
             ...(a.paper ? { paper: String(a.paper) } : {}),
           })
           if (isIdWriteError(created)) return fail(created.error)
-          return losslessJson({ ok: true, claim: { id: created.id, status: created.status } }) as unknown as Record<string, JsonValue>
+          /*
+           * **自进化**：产物落盘后立刻把对应维度汇总进 Research State
+           * （旧版本先进 `state-history/`，`applied.json` 留痕）。
+           *
+           * 为什么在这里而不是"等 Agent 记得 propose"：实测这样不成立 ——
+           * 8 条决策躺在 `research/decisions/`，状态里连 Decisions 维度都没有。
+           */
+          const stateSync = syncStateFromArtifacts(ws)
+          const syncNote = 'error' in stateSync
+            ? { stateSync: { error: stateSync.error } }
+            : stateSync.synced.length > 0
+              ? { stateSync: { synced: stateSync.synced, version: stateSync.version } }
+              : {}
+          return losslessJson({ ok: true, claim: { id: created.id, status: created.status }, ...syncNote }) as unknown as Record<string, JsonValue>
         }
         if (action === 'reconcile') {
           const rec = reconcileClaimEvidence(ws, String(a.id ?? ''))
@@ -422,7 +558,10 @@ export function defineResearchTools(
             ...(a.alternatives ? { alternatives: String(a.alternatives) } : {}),
           })
           if (isIdWriteError(created)) return fail(created.error)
-          return losslessJson({ ok: true, decision: { id: created.id, status: created.status } }) as unknown as Record<string, JsonValue>
+          // 自进化：决策落盘后立刻汇总进 Research State 的 Decisions 维度（见 evidence 段的说明）
+          const evolved = selfEvolve(ws, { dimensions: ['Decisions'] })
+          const syncNote = evoNote(evolved)
+          return losslessJson({ ok: true, decision: { id: created.id, status: created.status }, ...syncNote }) as unknown as Record<string, JsonValue>
         }
         return fail(`Unknown action "${action}".`, { allowed: ['create', 'list'] })
       } catch (e) {
@@ -432,13 +571,37 @@ export function defineResearchTools(
     presentCall: () => ({ card: 'generic', title: 'Research decision', kind: 'execute' }),
   })
 
+  /**
+   * 自进化的回执（工具返回值里的 `stateSync` / `topicSync`）。
+   *
+   * 为什么要报：状态与主题是**自动**改的，Agent 必须知道"磁盘上刚刚变了什么"，
+   * 否则它会以为自己没写、又去写一遍（或向用户描述一个已经过期的状态）。
+   */
+  const evoNote = (evolved: {
+    state: { synced?: readonly string[]; version?: { from: string; to: string } } | { error: string }
+    topic: { changed: boolean; current?: string; reason?: string; error?: string }
+  }): Record<string, unknown> => {
+    const out: Record<string, unknown> = {}
+    if ('error' in evolved.state) out.stateSync = { error: evolved.state.error }
+    else if ((evolved.state.synced ?? []).length > 0) {
+      out.stateSync = { synced: evolved.state.synced, version: evolved.state.version }
+    }
+    if (evolved.topic.changed) out.topicSync = { topic: evolved.topic.current, reason: evolved.topic.reason }
+    else if (evolved.topic.error) out.topicSync = { error: evolved.topic.error }
+    return out
+  }
+
   /* ── Research State: read ───────────────────────────────────────────── */
   const stateReadTool = defineTool({
     name: STATE_READ_TOOL,
     description:
       'Read the current Research State: which dimensions are established, maturity, open questions, ' +
       'and where the evidence gaps are (claims without evidence, contested claims, evidence with no ' +
-      'raw artifact reference). Use this before deciding what the research needs next.',
+      'raw artifact reference). Use this before deciding what the research needs next.\n' +
+      'It also reports the **artifact ↔ state reconciliation**: which indexed dimensions ' +
+      '(Decisions / Claims / Evidence / Literature / Experiments) have artifacts on disk but are ' +
+      'not reflected in the state (those are auto-synced; a row still showing `none` means the ' +
+      'sync could not run).',
     parameters: {},
     output: {
       schema: { type: 'object', additionalProperties: true },
@@ -451,6 +614,7 @@ export function defineResearchTools(
           missing?: string[]
           openQuestions?: string[]
           gaps?: { unsupportedClaims: string[]; contestedClaims: string[]; evidenceWithoutRawArtifact: string[] }
+          artifacts?: Array<{ dimension: string; hasArtifacts: boolean; hasAutoBlock: boolean; stateEmpty: boolean }>
         }
         if (v.ok === false) return [{ type: 'text' as const, text: `Research state unavailable: ${v.error ?? ''}` }]
         const lines = [`Research State v${v.version ?? '?'}`]
@@ -462,6 +626,11 @@ export function defineResearchTools(
           if (v.gaps.contestedClaims.length) lines.push(`Contested claims: ${v.gaps.contestedClaims.join(', ')}`)
           if (v.gaps.evidenceWithoutRawArtifact.length)
             lines.push(`Evidence lacking raw artifact: ${v.gaps.evidenceWithoutRawArtifact.join(', ')}`)
+        }
+        // 产物 ↔ 状态：**没有反映进状态的产物**必须报出来（"说同步了但状态里没有"要能发现）
+        const notReflected = (v.artifacts ?? []).filter((r) => r.hasArtifacts && (!r.hasAutoBlock || r.stateEmpty))
+        if (notReflected.length > 0) {
+          lines.push(`Artifacts not reflected in the state: ${notReflected.map((r) => r.dimension).join(', ')}`)
         }
         return [{ type: 'text' as const, text: lines.join('\n') }]
       },
@@ -488,6 +657,27 @@ export function defineResearchTools(
             contestedClaims: index.contestedClaims,
             evidenceWithoutRawArtifact: index.evidenceWithoutRawArtifact,
           },
+          /*
+           * 产物 ↔ 状态对账（v0.6.1）：自动同步之后正常情况下恒为"已反映"；
+           * 报出来是为了 ① 老工作区一眼看出落后在哪 ② 验证同步真的发生了。
+           */
+          artifacts: reconcileStateWithArtifacts(ws),
+          /*
+           * 主题对齐：`project.md` 的 topic 是否已收敛到论文标题。
+           * 与"产物 ↔ 状态"同一个道理 —— 显示用的主题必须是**当前**的主题。
+           */
+          topic: (() => {
+            const project = loadProjectFile(ws)
+            const current = project?.topic ?? ''
+            const work = researchWorkName(ws, current)
+            return {
+              current,
+              ...(work.source === 'paper' && work.paperTitle
+                ? { converged: work.paperTitle, aligned: work.paperTitle.trim() === current.trim(), source: `papers/${work.paperId}/` }
+                : { converged: null, aligned: true }),
+              changes: listTopicChanges(ws).length,
+            }
+          })(),
           note: 'A missing dimension is normal — research is rarely complete in every dimension.',
         }) as unknown as Record<string, JsonValue>
       } catch (e) {
@@ -501,14 +691,25 @@ export function defineResearchTools(
   const stateProposeTool = defineTool({
     name: STATE_PROPOSE_TOOL,
     description:
-      'Propose an update to the Research State. This records a *proposal* only — the user reviews ' +
-      'it and accepts, edits or rejects it. There is deliberately no tool that applies the state ' +
-      'directly: the long-lived research state is user-controlled.\n' +
-      'Use it when new evidence changes what the research understands (a hypothesis is now ' +
-      'supported, a method is settled, an open question is resolved, a new risk appeared).\n' +
-      'Actions: `propose` | `list`.',
+      'Work with Research State updates (the self-evolving record of what the research currently is).\n' +
+      '`propose` records a pending proposal for explicit user review by default. ' +
+      'Set `apply: true` only when the user explicitly authorized applying this state change.\n' +
+      '`sync` re-derives the artifact-indexed dimensions (Decisions / Claims / Evidence / ' +
+      'Literature / Experiments) from the files on disk — the same job the platform runs ' +
+      'automatically after every `research_decision` / `research_claim` / `research_evidence` write.\n' +
+      '`list` shows the proposals awaiting disposition; `apply` applies a pending one.\n' +
+      '**Use `propose` whenever a method result belongs in the state** — a theme, a hypothesis, a ' +
+      'settled method, a resolved open question, a new risk. The current stage in the context names ' +
+      'the dimension(s) it belongs to; a result that only exists in the conversation is not part of ' +
+      'the research state.\n' +
+      'Actions: `propose` | `list` | `apply` | `sync`.',
     parameters: {
-      action: { type: 'string', description: 'One of: propose | list.', enum: ['propose', 'list'] },
+      action: { type: 'string', description: 'One of: propose | list | apply | sync.', enum: ['propose', 'list', 'apply', 'sync'] },
+      apply: {
+        type: 'boolean',
+        description:
+          'For `propose`: default false leaves a pending proposal. Set true only with explicit user authorization.',
+      },
       changes: {
         type: 'object',
         additionalProperties: true,
@@ -525,21 +726,48 @@ export function defineResearchTools(
         enum: ['Unknown', 'Weak', 'Emerging', 'Strong', 'Established'],
       },
       plan: { type: 'string', description: 'For `propose`: the plan that produced this.' },
+      proposalId: {
+        type: 'string',
+        description: 'For `apply`: id of the proposal to apply (e.g. S001). Omit to apply the newest pending one.',
+      },
+      maturityOverride: {
+        type: 'object',
+        additionalProperties: true,
+        description:
+          "For `apply`: optional dimension → level overrides applied on top of the proposal's own " +
+          'maturity changes. Valid levels: Unknown, Weak, Emerging, Strong, Established.',
+      },
     },
     output: {
       schema: { type: 'object', additionalProperties: true },
       render: (_args, value) => {
-        const v = value as { ok?: boolean; error?: string; proposal?: { id: string }; count?: number; pending?: Array<{ id: string }> }
-        if (v.ok === false) return [{ type: 'text' as const, text: `Proposal not recorded: ${v.error ?? ''}` }]
+        const v = value as {
+          ok?: boolean
+          error?: string
+          proposal?: { id: string }
+          count?: number
+          pending?: Array<{ id: string }>
+          applied?: { id: string; version?: string; maturity?: Record<string, string> }
+        }
+        if (v.ok === false) return [{ type: 'text' as const, text: `State update failed: ${v.error ?? ''}` }]
+        if (v.applied) {
+          const m = v.applied.maturity
+            ? Object.entries(v.applied.maturity).map(([k, lvl]) => `${k}=${lvl}`).join(', ')
+            : ''
+          return [
+            {
+              type: 'text' as const,
+              text: `Applied ${v.applied.id}; Research State is now ${v.applied.version ?? '?'}${m ? ` — ${m}` : ''}.`,
+            },
+          ]
+        }
         if (v.pending) {
-          return [{ type: 'text' as const, text: `${v.pending.length} state update proposal(s) awaiting review.` }]
+          return [{ type: 'text' as const, text: `${v.pending.length} state update proposal(s) awaiting disposition.` }]
         }
         return [
           {
             type: 'text' as const,
-            text:
-              `Proposed state update ${v.proposal?.id ?? ''}. The research state is unchanged until the ` +
-              'user accepts it.',
+            text: `Proposed state update ${v.proposal?.id ?? ''}. Apply it with action="apply".`,
           },
         ]
       },
@@ -554,8 +782,72 @@ export function defineResearchTools(
           const pending = listStateProposals(ws)
           return losslessJson({ ok: true, count: pending.length, pending }) as unknown as Record<string, JsonValue>
         }
+        if (action === 'apply') {
+          const wanted = a.proposalId ? String(a.proposalId).toUpperCase() : undefined
+          const pending = listStateProposals(ws)
+          const target = wanted
+            ? pending.find((p) => p.id.toUpperCase() === wanted)
+            : pending[pending.length - 1]
+          if (!target) {
+            return fail(
+              wanted ? `No pending proposal ${wanted}.` : 'No pending proposal to apply.',
+              { pending: pending.map((p) => p.id) },
+            )
+          }
+          const full = readStateProposal(ws, target.id)
+          if (!full) return fail(`Proposal ${target.id} could not be read.`)
+
+          // Level overrides are merged into the proposal's own maturity changes,
+          // because `applyStateUpdate` reads them off the proposal, not off options.
+          const overrides = (a.maturityOverride ?? {}) as Record<string, unknown>
+          const merged: Record<string, string> = { ...(full.maturityChanges ?? {}) }
+          for (const [k, v] of Object.entries(overrides)) {
+            const dim = (MATURITY_DIMENSIONS as readonly string[]).find((d) => d.toLowerCase() === k.toLowerCase())
+            if (!dim) continue
+            const lvl = (MATURITY_LEVELS as readonly string[]).find((l) => l.toLowerCase() === String(v).toLowerCase())
+            if (lvl) merged[dim] = lvl
+          }
+
+          const applied = applyStateUpdate(
+            ws,
+            { ...full, maturityChanges: merged as typeof full.maturityChanges },
+            { action: 'accepted', by: 'agent' },
+          )
+          if (isStateWriteError(applied)) return fail(applied.error)
+
+          return losslessJson({
+            ok: true,
+            applied: { id: full.id, version: applied.version, maturity: applied.maturity },
+            appliedDimensions: Object.keys(full.changes ?? {}),
+            maturityChanges: merged,
+          }) as unknown as Record<string, JsonValue>
+        }
+        if (action === 'sync') {
+          /*
+           * 手动触发一次"产物 → 状态"的自动同步。
+           *
+           * 平台在每次 decisions / claims / evidence 写入后已经自动跑同一条路径，
+           * 这个动作是给"老工作区补一次"和"我刚手工改了产物文件"用的。
+           */
+          const evolved = selfEvolve(ws, { reason: 'manual sync' })
+          if ('error' in evolved.state) return fail(evolved.state.error)
+          const synced = evolved.state
+          return losslessJson({
+            ok: true,
+            synced: synced.synced,
+            ...(synced.version ? { version: synced.version } : {}),
+            ...(synced.archived ? { archived: synced.archived } : {}),
+            ...(evolved.topic.changed ? { topic: { now: evolved.topic.current, reason: evolved.topic.reason } } : {}),
+            ...(evolved.topic.error ? { topicError: evolved.topic.error } : {}),
+            note:
+              synced.synced.length === 0 && !evolved.topic.changed
+                ? 'Research State and the project topic already match the artifacts — nothing to write.'
+                : 'Re-derived from disk: artifact-indexed dimensions and/or the project topic (old versions archived).',
+          }) as unknown as Record<string, JsonValue>
+        }
+
         if (action !== 'propose') {
-          return fail(`Unknown action "${action}".`, { allowed: ['propose', 'list'] })
+          return fail(`Unknown action "${action}".`, { allowed: ['propose', 'list', 'apply', 'sync'] })
         }
 
         const rawChanges = (a.changes ?? {}) as Record<string, unknown>
@@ -573,8 +865,18 @@ export function defineResearchTools(
           return fail('No valid dimension changes supplied.', { validDimensions: [...STATE_DIMENSIONS] })
         }
 
+        // The derived maturity levels travel WITH the proposal. Previously they were
+        // computed and reported here but never attached to it, so applying a proposal
+        // could not refresh them — which is why the progress bar stayed at 0% no matter
+        // how far the research actually advanced.
+        const maturitySuggestions = suggestMaturity(ws)
+        const maturityChanges = Object.fromEntries(
+          maturitySuggestions.map((s) => [s.dimension, s.suggested]),
+        ) as Parameters<typeof proposeStateUpdate>[1]['maturityChanges']
+
         const proposal = proposeStateUpdate(ws, {
           changes,
+          maturityChanges,
           rationale: String(a.rationale ?? ''),
           ...(Array.isArray(a.evidence) ? { evidence: a.evidence.map(String) } : {}),
           ...(a.confidence
@@ -584,14 +886,35 @@ export function defineResearchTools(
           actor: 'agent',
         })
 
+        // Codex: judgment-bearing updates require explicit user review; artifact sync remains automatic.
+        const applyNow = a.apply === true
+        if (applyNow) {
+          const applied = applyStateUpdate(
+            ws,
+            { ...proposal, maturityChanges: proposal.maturityChanges },
+            { action: 'accepted', by: 'agent' },
+          )
+          if (isStateWriteError(applied)) return fail(applied.error)
+          return losslessJson({
+            ok: true,
+            applied: { id: proposal.id, version: applied.version, maturity: applied.maturity },
+            appliedDimensions: Object.keys(changes),
+            ...(rejected.length ? { ignoredDimensions: rejected } : {}),
+            maturityChanges: proposal.maturityChanges,
+            note: 'Written into the Research State (old version archived). Pass `apply: false` for a pending proposal instead.',
+          }) as unknown as Record<string, JsonValue>
+        }
+
         return losslessJson({
           ok: true,
-          proposal: { id: proposal.id, changes: Object.keys(changes) },
+          proposal: {
+            id: proposal.id,
+            changes: Object.keys(changes),
+            maturityChanges: proposal.maturityChanges,
+          },
           ...(rejected.length ? { ignoredDimensions: rejected } : {}),
-          maturitySuggestions: suggestMaturity(ws).map((s) => ({ dimension: s.dimension, suggested: s.suggested, basis: s.basis })),
-          note:
-            'Recorded as a proposal. The user accepts, edits or rejects it — the research state is ' +
-            'not modified by this call.',
+          maturitySuggestions: maturitySuggestions.map((s) => ({ dimension: s.dimension, suggested: s.suggested, basis: s.basis })),
+          note: `Recorded as an applicable proposal. Apply it with action="apply" (proposalId="${proposal.id}").`,
         }) as unknown as Record<string, JsonValue>
       } catch (e) {
         return fail(e instanceof Error ? e.message : String(e))
@@ -615,12 +938,33 @@ export function defineResearchTools(
       '- `set_topic`: update the project topic to the finally-adopted one. The originally-input ' +
       'topic is preserved as the initial topic, and the change is logged ' +
       '(from → to, reason, evidence) — never silently, never without a reason.\n' +
+      '- `set`: write other parts of the definition — `questions` / `scope` / `domain` / ' +
+      '`motivation` / `statement`. Use it for what **only a judgement can supply** (scope: what ' +
+      'is in and out; domain: the field) — the plugin never guesses those. Each write is ' +
+      'logged in `research/topic-history.json` with the reason, and **hand-written content is ' +
+      'never overwritten unless `force: true`** (`questions` / `motivation` / `statement` are ' +
+      'filled automatically from the Research State while they are still empty).\n' +
       'Call `set_topic` only when the research has genuinely converged on a different, sharper ' +
       'statement of the topic (e.g. after problem refinement or a scoping decision is accepted) ' +
       '— not for cosmetic rewordings.',
     parameters: {
-      action: { type: 'string', description: 'One of: status | set_topic.', enum: ['status', 'set_topic'] },
+      action: { type: 'string', description: 'One of: status | set_topic | set.', enum: ['status', 'set_topic', 'set'] },
       topic: { type: 'string', description: 'For `set_topic`: the finally-adopted topic (one line).' },
+      field: {
+        type: 'string',
+        description: 'For `set`: which part of the definition to write.',
+        enum: ['statement', 'questions', 'scope', 'domain', 'motivation'],
+      },
+      value: {
+        type: 'string',
+        description:
+          'For `set`: the text (for `questions`, one question per line — they are rendered as a ' +
+          'list).',
+      },
+      force: {
+        type: 'boolean',
+        description: 'For `set`: overwrite a section that already has hand-written content (default false).',
+      },
       reason: {
         type: 'string',
         description:
@@ -682,6 +1026,40 @@ export function defineResearchTools(
             ...(project.initialTopic ? { initialTopic: project.initialTopic } : {}),
             ...(project.updatedAt ? { updatedAt: project.updatedAt } : {}),
             history,
+          }) as unknown as Record<string, JsonValue>
+        }
+        if (action === 'set') {
+          const field = String(a.field ?? '').trim() as 'statement' | 'questions' | 'scope' | 'domain' | 'motivation'
+          const allowed = ['statement', 'questions', 'scope', 'domain', 'motivation']
+          if (!allowed.includes(field)) {
+            return fail(`Unknown \`field\` "${field}".`, { allowed })
+          }
+          const reason = String(a.reason ?? '').trim()
+          if (!reason) {
+            return fail('Provide `reason`: what this rests on (a decision, a file, a measurement). A definition change without a reason is not auditable.')
+          }
+          const raw = String(a.value ?? '').trim()
+          if (!raw) return fail('Provide `value`.')
+          const value = field === 'questions'
+            ? raw.split(/\r?\n/).map((x) => x.replace(/^\s*(?:[-*]|\d+[.)])\s*/, '').trim()).filter(Boolean)
+            : raw
+          const res = updateProjectDefinition(ws, {
+            field,
+            value,
+            reason,
+            ...(a.force === true ? { force: true } : {}),
+          })
+          if (!res.changed && 'error' in res) return fail(res.error)
+          if (!res.changed) {
+            return losslessJson({ ok: true, changed: false, field, current: res.current }) as unknown as Record<string, JsonValue>
+          }
+          return losslessJson({
+            ok: true,
+            changed: true,
+            field,
+            previous: res.previous,
+            current: res.current,
+            note: 'Logged in `research/topic-history.json`. Hand-written sections are never overwritten without `force: true`.',
           }) as unknown as Record<string, JsonValue>
         }
         if (action === 'set_topic') {
@@ -896,7 +1274,12 @@ export function defineResearchTools(
       '- `status`: what the paper currently is — version, sections, claim coverage, evidence usage, ' +
       'open gaps, pending revision proposals, maturity. Use this to answer "what is this paper\'s ' +
       'biggest problem right now?".\n' +
-      '- `create`: create the paper (only `paper.md` is required; other files appear as needed).\n' +
+      '- `create`: create the paper (only `paper.md` is required; other files appear as needed). ' +
+      'If `paper` is omitted, the id is auto-generated from `research_track` and `paper_type` ' +
+      '(e.g. paper-d2-method). The new paper is set as active by default.\n' +
+      '- `list`: list all papers in the workspace with their track, type, status and active flag.\n' +
+      '- `switch`: switch the active paper (the one subsequent paper operations default to). ' +
+      'Accepts an id or alias.\n' +
       '- `gaps`: run the rule-based gap check and record what is missing. Gaps only *recommend* a ' +
       'capability — nothing is executed.\n' +
       '- `recommend`: turn open gaps into skill recommendations (never executes).\n' +
@@ -906,11 +1289,29 @@ export function defineResearchTools(
     parameters: {
       action: {
         type: 'string',
-        description: 'One of: status | create | gaps | recommend | maturity | propose_revision.',
-        enum: ['status', 'create', 'gaps', 'recommend', 'maturity', 'propose_revision'],
+        description: 'One of: status | create | list | switch | gaps | recommend | maturity | propose_revision.',
+        enum: ['status', 'create', 'list', 'switch', 'gaps', 'recommend', 'maturity', 'propose_revision'],
       },
-      paper: { type: 'string', description: 'Paper id (default: paper-main).' },
+      paper: {
+        type: 'string',
+        description: 'Paper id or alias (e.g. d1-benchmark, d2-method). Defaults to the current active paper. Use action "switch" to change active paper.',
+      },
       title: { type: 'string', description: 'For `create`: paper title.' },
+      research_track: {
+        type: 'string',
+        description: 'For `create`: research track label (e.g. d1, d2, d3). Used to auto-generate paper id.',
+      },
+      paper_type: {
+        type: 'string',
+        description: 'For `create`: paper type (benchmark | method | survey | demo | position | technical-report | system | other). Used to auto-generate paper id.',
+        enum: ['benchmark', 'method', 'survey', 'demo', 'position', 'technical-report', 'system', 'other'],
+      },
+      target_venue: { type: 'string', description: 'For `create`: target venue.' },
+      authors: { type: 'string', description: 'For `create`: authors.' },
+      set_active: {
+        type: 'boolean',
+        description: 'For `create`: whether to set the new paper as the active paper (default true).',
+      },
       reason: { type: 'string', description: 'For `propose_revision`: why the paper should change.' },
       proposed_changes: {
         type: 'string',
@@ -981,9 +1382,36 @@ export function defineResearchTools(
           return [
             {
               type: 'text' as const,
-              text: `Revision proposal ${p.id} recorded. The manuscript is unchanged — the user accepts, edits or rejects it.`,
+              text: `Revision proposal ${p.id} recorded (paper: ${String(v.paper ?? '')}). The manuscript is unchanged — the user accepts, edits or rejects it.`,
             },
           ]
+        }
+        if (v.papers) {
+          const papers = v.papers as Array<{id: string; title?: string; status: string; version: string; track?: string; type?: string; active: boolean}>
+          const lines = [`Papers in workspace (active: ${String(v.active_paper)}):`, '']
+          for (const p of papers) {
+            const flags = [p.active ? '✅ active' : '', p.track ? `track: ${p.track}` : '', p.type ? `type: ${p.type}` : ''].filter(Boolean).join(' | ')
+            lines.push(`- ${p.active ? '*' : ' '} ${p.id} v${p.version} [${p.status}] — ${p.title ?? '(untitled)'}`)
+            if (flags) lines.push(`    ${flags}`)
+          }
+          return [{ type: 'text' as const, text: lines.join('\n') }]
+        }
+        if (v.active_paper && v.action === 'switch') {
+          const lines = [`Switched active paper to: ${String(v.active_paper)}`, '']
+          if (v.summary) {
+            const s = v.summary as Record<string, unknown>
+            lines.push(`  ${String(s.title)} v${String(s.version)} [${String(s.status)}]`)
+          }
+          return [{ type: 'text' as const, text: lines.join('\n') }]
+        }
+        if (v.id && v.action === 'create') {
+          const lines = [`Created new paper: ${String(v.id)}`, '']
+          if (v.summary) {
+            const s = v.summary as Record<string, unknown>
+            lines.push(`  Title: ${String(s.title ?? '(untitled)')}`)
+            lines.push(`  Status: ${String(s.status)} v${String(s.version)}`)
+          }
+          return [{ type: 'text' as const, text: lines.join('\n') }]
         }
         return [{ type: 'text' as const, text: JSON.stringify(v).slice(0, 500) }]
       },
@@ -992,25 +1420,65 @@ export function defineResearchTools(
     async execute(args, exec) {
       const ws = resolveWorkspace(exec?.agent)
       const a = args as Record<string, unknown>
-      const paperId = typeof a.paper === 'string' && a.paper.trim() ? a.paper.trim() : DEFAULT_PAPER_ID
       const action = String(a.action ?? 'status')
 
       try {
+        // list action 不需要paper参数
+        if (action === 'list') {
+          const papers = listPapers(ws)
+          const activeId = getActivePaperId(ws)
+          return losslessJson({
+            ok: true,
+            active_paper: activeId,
+            papers: papers.map((p) => ({
+              id: p.id,
+              title: p.metadata.title,
+              status: p.metadata.status,
+              version: p.metadata.version,
+              track: p.metadata.researchTrack,
+              type: p.metadata.paperType,
+              active: p.id === activeId,
+            })),
+          }) as unknown as Record<string, JsonValue>
+        }
+
+        // switch action 切换激活论文
+        if (action === 'switch') {
+          const targetParam = typeof a.paper === 'string' ? a.paper.trim() : ''
+          if (!targetParam) return fail('请指定要切换到的论文ID或别名。')
+          const resolvedId = resolvePaperParameter(ws, targetParam)
+          if (!readPaper(ws, resolvedId)) return fail(`找不到论文 \`${targetParam}\`。`)
+          setActivePaperId(ws, resolvedId)
+          return losslessJson({
+            ok: true,
+            active_paper: resolvedId,
+            summary: paperStatusSummary(ws, resolvedId),
+          }) as unknown as Record<string, JsonValue>
+        }
+
+        // 其他action解析paper参数
+        const paperId = resolvePaperParameter(ws, typeof a.paper === 'string' ? a.paper : undefined)
+
         if (action === 'status') {
           if (!readPaper(ws, paperId)) {
             return losslessJson({ ok: false, error: `No paper \`${paperId}\` in this workspace. Create one with action "create".` }) as unknown as Record<string, JsonValue>
           }
           const summary = paperStatusSummary(ws, paperId)
-          return losslessJson({ ok: true, summary }) as unknown as Record<string, JsonValue>
+          return losslessJson({ ok: true, summary, active: paperId === getActivePaperId(ws) }) as unknown as Record<string, JsonValue>
         }
 
         if (action === 'create') {
           const created = createPaper(ws, {
-            id: paperId,
+            ...(a.id ? { id: String(a.id) } : {}),
             ...(a.title ? { title: String(a.title) } : {}),
+            ...(a.research_track ? { researchTrack: String(a.research_track) } : {}),
+            ...(a.paper_type ? { paperType: String(a.paper_type) } : {}),
+            ...(a.target_venue ? { targetVenue: String(a.target_venue) } : {}),
+            ...(a.authors ? { authors: String(a.authors) } : {}),
+            ...(a.set_active === false ? { setActive: false } : {}),
           })
           if ('error' in created) return fail(created.error)
-          return losslessJson({ ok: true, summary: paperStatusSummary(ws, paperId) }) as unknown as Record<string, JsonValue>
+          return losslessJson({ ok: true, id: created.id, summary: paperStatusSummary(ws, created.id) }) as unknown as Record<string, JsonValue>
         }
 
         if (action === 'gaps') {
@@ -1018,6 +1486,7 @@ export function defineResearchTools(
           const result = detectAndRecordGaps(ws, paperId)
           return losslessJson({
             ok: true,
+            paper: paperId,
             gaps: prioritizeGaps(result.gaps.filter((g) => !g.resolved)),
             added: result.added.length,
             note: 'Recorded in the paper\'s gaps.md. Gaps only recommend capabilities — nothing is executed.',
@@ -1032,6 +1501,7 @@ export function defineResearchTools(
           const recommendations = recommendCapabilities(ws, paperId, known)
           return losslessJson({
             ok: true,
+            paper: paperId,
             recommendations,
             note: 'Suggestions only. Create a plan for one if you agree (plans/), then the user reviews it.',
           }) as unknown as Record<string, JsonValue>
@@ -1042,7 +1512,7 @@ export function defineResearchTools(
           const suggested = suggestPaperMaturity(ws, paperId)
           const applied = a.write === true
           if (applied) writePaperMaturity(ws, paperId, suggested)
-          return losslessJson({ ok: true, maturity: applied ? readPaperMaturity(ws, paperId) : suggested, applied }) as unknown as Record<string, JsonValue>
+          return losslessJson({ ok: true, paper: paperId, maturity: applied ? readPaperMaturity(ws, paperId) : suggested, applied }) as unknown as Record<string, JsonValue>
         }
 
         if (action === 'propose_revision') {
@@ -1058,13 +1528,14 @@ export function defineResearchTools(
           if ('error' in proposal) return fail(proposal.error)
           return losslessJson({
             ok: true,
+            paper: paperId,
             proposal: { id: proposal.id, status: proposal.status },
             note: 'Recorded as a proposal only. The manuscript is unchanged until the user accepts it.',
           }) as unknown as Record<string, JsonValue>
         }
 
         return fail(`Unknown action "${action}".`, {
-          allowed: ['status', 'create', 'gaps', 'recommend', 'maturity', 'propose_revision'],
+          allowed: ['status', 'create', 'list', 'switch', 'gaps', 'recommend', 'maturity', 'propose_revision'],
         })
       } catch (e) {
         return fail(e instanceof Error ? e.message : String(e))
@@ -1098,13 +1569,30 @@ export function defineResearchTools(
       'to `research_paper_download` (the record\'s `id` maps to that tool\'s `openalexId`).\n' +
       'Notes: `total` is the number of matches, `returned` is how many came back — a coverage claim ' +
       'needs the query set, not one page of results. Increase `perPage` or narrow the query rather than ' +
-      'paging blindly. If no API key is configured the request still works through OpenAlex\'s public ' +
-      'pool but with lower rate limits.',
+      'paging blindly.\n' +
+      '`field` controls how wide the search is, and it changes what "no results" means: `any` ' +
+      '(default) searches full text and is easily flooded by surveys and textbooks; `title_abstract` ' +
+      'restricts to title+abstract and is the recommended default for exploration; `title` is for ' +
+      'confirming whether anyone has already used a specific name. The `provenance.field` value records ' +
+      'which one was used — quote it, because "not found" under `title` is a much stronger claim than ' +
+      'under `any`.\n' +
+      'If no API key is configured the request still works through OpenAlex\'s public ' +
+      'pool but with lower rate limits. Requests are automatically serialized (one at a time) with a ' +
+      'minimum interval, and HTTP 429/5xx are retried with backoff — do not pace or serialize queries ' +
+      'yourself.',
     parameters: {
       query: { type: 'string', description: 'The search expression (natural language or OpenAlex boolean syntax).' },
       perPage: {
         type: 'number',
         description: `How many records to return (1..${OPENALEX_MAX_PER_PAGE}, default 20).`,
+      },
+      field: {
+        type: 'string',
+        enum: [...LITERATURE_FIELDS],
+        description:
+          'How wide the search is (default any). any = full text (broad, noisy); ' +
+          'title_abstract = title + abstract (recommended for exploration); ' +
+          'title = title only (for "has anyone used this name").',
       },
       yearFrom: { type: 'number', description: 'Earliest publication year (inclusive).' },
       yearTo: { type: 'number', description: 'Latest publication year (inclusive).' },
@@ -1122,9 +1610,20 @@ export function defineResearchTools(
           ok?: boolean
           error?: string
           query?: string
-          provenance?: { source?: string; retrievedAt?: string; total?: number; returned?: number; usedApiKey?: boolean }
+          provenance?: {
+            source?: string
+            retrievedAt?: string
+            total?: number
+            returned?: number
+            usedApiKey?: boolean
+            /** 实际使用的检索字段 —— 决定"未发现"有多可信。 */
+            field?: string
+          }
           results?: Array<{
             title?: string
+            authors?: string[]
+            /** 作者总数（可能大于 `authors` 的长度，用于补 `et al.`）。 */
+            authorCount?: number
             year?: number
             venue?: string
             citedByCount?: number
@@ -1142,10 +1641,20 @@ export function defineResearchTools(
         const p = v.provenance ?? {}
         const lines = [
           `OpenAlex · "${v.query ?? ''}"`,
-          `hits ${p.total ?? '?'} · returned ${p.returned ?? '?'} · key ${p.usedApiKey ? 'yes' : 'no'} · ${p.retrievedAt ?? ''}`,
+          // 字段必须渲染出来：只放进结构化 payload 的话，"未发现"就无法被解释 ——
+          // 全文检索没命中与仅标题没命中，可信度完全不同。
+          `hits ${p.total ?? '?'} · returned ${p.returned ?? '?'} · field ${p.field ?? 'any'} · ` +
+            `key ${p.usedApiKey ? 'yes' : 'no'} · ${p.retrievedAt ?? ''}`,
         ]
         for (const [i, r] of (v.results ?? []).entries()) {
+          // 作者是构建参考文献的必需字段：记录里有，就必须渲染出来 ——
+          // 只放进结构化 payload 而渲染时丢掉，等于模型看不到。
+          const names = (r.authors ?? []).filter(Boolean)
+          const authors = names.length > 0
+            ? names.join(', ') + (r.authorCount !== undefined && r.authorCount > names.length ? ', et al.' : '')
+            : undefined
           const bits = [
+            authors,
             r.year ? String(r.year) : undefined,
             r.venue,
             r.citedByCount !== undefined ? `${r.citedByCount} cites` : undefined,
@@ -1172,6 +1681,7 @@ export function defineResearchTools(
         yearTo?: number
         sort?: LiteratureQuery['sort']
         openAccessOnly?: boolean
+        field?: LiteratureQuery['field']
       }
       const query: LiteratureQuery = {
         query: typeof a.query === 'string' ? a.query : '',
@@ -1180,6 +1690,7 @@ export function defineResearchTools(
         ...(typeof a.yearTo === 'number' ? { yearTo: a.yearTo } : {}),
         ...(a.sort === 'relevance' || a.sort === 'cited' || a.sort === 'recent' ? { sort: a.sort } : {}),
         ...(a.openAccessOnly === true ? { openAccessOnly: true } : {}),
+        ...(typeof a.field === 'string' && a.field.trim() ? { field: a.field as LiteratureQuery['field'] } : {}),
       }
 
       const outcome = await searchOpenAlex(query, literatureDeps)
@@ -1197,6 +1708,7 @@ export function defineResearchTools(
           returned: outcome.returned,
           requestUrl: outcome.requestUrl,
           usedApiKey: outcome.usedApiKey,
+          field: outcome.field,
         },
         results: outcome.results as unknown as JsonValue,
         coverageNote:
@@ -1503,7 +2015,7 @@ export function defineResearchTools(
       const ws = resolveWorkspace(exec?.agent)
       const a = args as Record<string, unknown>
       const action = String(a.action ?? 'status')
-      const paperId = typeof a.paperId === 'string' && a.paperId.trim() ? a.paperId.trim() : DEFAULT_PAPER_ID
+      const paperId = resolvePaperParameter(ws, typeof a.paperId === 'string' ? a.paperId : undefined)
 
       const paperDir = join(ws, 'papers', paperId)
       const latexDir = join(paperDir, LATEX_SUBDIR)
@@ -1533,10 +2045,29 @@ export function defineResearchTools(
           if (!existsSync(mdPath)) return fail(`论文正文不存在：papers/${paperId}/paper.md`)
           const source = readFileSync(mdPath, 'utf8')
           const template = normalizeTemplate(typeof a.template === 'string' ? a.template : undefined)
-          const input = buildComposeInput(source, template)
+          const input = buildComposeInput(source, template, readPaperMeta(paperDir))
           const result = composeDocument(input)
 
           if (!existsSync(latexDir)) mkdirSync(latexDir, { recursive: true })
+          /**
+           * 覆盖前检查（2026-10-04 事故后新增）：旧 main.tex 里若有新产物不会再出现的实质内容
+           * （书目条目、自定义宏、导言区宏包），**拒绝写盘并保持旧文件原样**，而不是先备份再静默抹掉。
+           * 逃生口：环境变量 CONVFUSION_LATEX_COMPOSE_FORCE=1（或入参 force）。
+           */
+          if (existsSync(texPath)) {
+            const force = a.force === true || process.env.CONVFUSION_LATEX_COMPOSE_FORCE === '1'
+            if (!force) {
+              const lost = detectComposeLoss(readFileSync(texPath, 'utf8'), result.latex)
+              if (lost.length) {
+                return fail(
+                  'compose 已中止：重写 main.tex 会丢失其中仅存在于 .tex 的内容（未写盘，旧文件保持原样）。\n' +
+                  lost.map((l) => `  - ${l}`).join('\n') +
+                  '\n把上述内容搬进 `paper.md`（compose 的源；书目写在 `## References` 一节，' +
+                  '格式为 `- [key] 著录信息`）后重试；确认可以丢弃时用 CONVFUSION_LATEX_COMPOSE_FORCE=1。',
+                )
+              }
+            }
+          }
           let backup: string | undefined
           if (existsSync(texPath)) {
             const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15)
@@ -1640,6 +2171,1300 @@ export function defineResearchTools(
     },
   })
 
+  /* ── Diagram（C08P07 `paper-diagrams` 的执行通道）────────────────────── */
+  /**
+   * 论文配图：Agent 写 **Diagram IR**，Renderer 确定性地画。
+   *
+   * 为什么必须有这个工具，而不是让 Agent 用 `write` 直接产 SVG：
+   *
+   * 1. **出不了坏图**：校验不过就不写 SVG。这条路径在系统里**不存在**，不是"记得别写"。
+   * 2. **可复现**：同一个 IR 渲染 N 次逐字节相同 —— 图因此可以进 git、可以 review。
+   * 3. **可演化**：改图是改 IR（`read` → 改 → `render`），不是重新画一张。
+   * 4. **风格统一**：样式只能引用内置 token，一篇论文里的图不会各写各的配色与字体。
+   *
+   * `create` 只写 IR（起草阶段拿诊断），`render` 写 IR 并出 SVG（校验通过才写）。
+   * 校验失败时**不覆盖**已有 SVG，并把上一次成功的那份留在 `figures/.last-good/`。
+   */
+  const diagramTool = defineTool({
+    name: DIAGRAM_TOOL,
+    description:
+      'Create publication figures from a structured **Diagram IR** (paper C08P07 `paper-diagrams`).\n' +
+      'You decide *what* to draw; the IR records the nodes/groups/edges; the renderer draws it ' +
+      'deterministically. **Never hand-write SVG** — write an IR and render it.\n' +
+      'Actions:\n' +
+      '- `create`: validate the IR and write it to `papers/<paperId>/figures/<name>.json` (no SVG). ' +
+      'Use this while drafting, to get diagnostics early.\n' +
+      '- `render`: validate and render; writes both the IR and `<name>.svg`. If validation fails, ' +
+      'the previous good SVG is kept and no new one is written.\n' +
+      '- `export`: convert the rendered SVG into a **vector PDF** for LaTeX `\\includegraphics`. ' +
+      'Needs a Python interpreter with PyMuPDF (set `CONVFUSION_PYTHON` if it is not on PATH). ' +
+      'It reports the figure\'s on-page text size — pass `column_width_pt` (252 = IEEE single column, ' +
+      '516 = full width) and read `legible`: a wide diagram shrunk into one column becomes unreadable.\n' +
+      '- `validate`: run validation only (no writes) on `ir`, or on the stored IR when `ir` is omitted.\n' +
+      '- `read`: return the stored IR for an incremental edit (modify it, then `render` again).\n' +
+      '- `list`: list the diagram artifacts already in the paper\'s `figures/` directory.\n' +
+      'IR shape: {version, type, title?, canvas?, layout?:{direction,algorithm}, nodes[], groups[], edges[], cards?, labels?}.\n' +
+      `- type: ${DIAGRAM_TYPES.join(' | ')}\n` +
+      `- node.type: ${NODE_TYPES.join(' | ')} (role in the figure, never a method-specific name)\n` +
+      `- edge.type: ${EDGE_TYPES.join(' | ')}\n` +
+      `- layout.direction: ${LAYOUT_DIRECTIONS.join(' | ')} (LR default) · layout.algorithm: ${LAYOUT_ALGORITHMS.join(' | ')}\n` +
+      '- layout.layer_gap (optional, 12-120, default 64): gap between layers. Lower it to pack a long, ' +
+      'content-heavy diagram so its text is still legible after the figure is scaled into a column; ' +
+      'leave it out for short figures, where the default reads better.\n' +
+      `- style tokens (nodes/groups/edges only reference these): ${STYLE_TOKENS.join(' | ')}\n` +
+      '- sequence mode: `nodes[]` are PARTICIPANTS (declaration order = left-to-right columns) and `edges[]`\n' +
+      '  are MESSAGES (declaration order = time, top to bottom). A self-message draws as a return loop.\n' +
+      '  Groups have no meaning here; declaring them warns (`UNSUPPORTED_IN_MODE`) and ignores them.\n' +
+      '- lifecycle mode: states + transitions. Self-transitions are supported (drawn as a loop), an `input`\n' +
+      '  node gets an initial-state marker, an `output` node a final-state ring, and cycles are expected\n' +
+      '  (no `CYCLE_DETECTED` noise).\n' +
+      '- refs (optional, on a node/group/edge/card): the paper assets this element CARRIES, e.g. `["C1","E008"]`.\n' +
+      '  A figure exists to carry the paper\'s argument, so a box should say which claim it supports; refs render\n' +
+      '  as a small line at the bottom of the box. Ids are checked against the workspace — a ref that is not a\n' +
+      '  recorded claim/evidence is an error (`UNKNOWN_REF`), because a dead citation on a figure is worse than none.\n' +
+      '- cards (optional, top level): [{"title","body?","refs?"}] rendered in a panel OUTSIDE the flow.\n' +
+      '  Use a card for a secondary point, a key number or a condition, instead of adding another edge: a denser\n' +
+      '  graph is harder to read, and every extra edge is another chance for a bad route.\n' +
+      'No x/y coordinates: layout is the renderer\'s job. An edge may target a group id, which ' +
+      'draws the arrow to the group border. Within-layer order follows declaration order, so ' +
+      'reordering the `nodes` array is how you move a box.',
+    parameters: {
+      action: {
+        type: 'string',
+        description: 'One of: create | render | export | validate | read | list.',
+        enum: ['create', 'render', 'export', 'validate', 'read', 'list'],
+      },
+      name: {
+        type: 'string',
+        description: 'Figure name / file stem, e.g. `fig1_method`. Written to `papers/<paperId>/figures/<name>.{json,svg}`.',
+      },
+      paperId: { type: 'string', description: 'Paper id (default: the active paper).' },
+      ir: {
+        type: 'object',
+        description: 'The Diagram IR. Required for `create` and `render`; optional for `validate` (falls back to the stored IR).',
+        additionalProperties: true,
+      },
+      show_descriptions: {
+        type: 'boolean',
+        description: 'Render each node as label + description (default false — figures should carry as little text as possible).',
+      },
+      column_width_pt: {
+        type: 'number',
+        description: 'For `export`: the width the figure will be drawn at in the paper, in pt (252 = IEEE single column, 516 = full width). Default 252.',
+      },
+    },
+    output: {
+      schema: { type: 'object', additionalProperties: true },
+      render: (_args, value) => {
+        const v = value as {
+          ok?: boolean
+          error?: string
+          action?: string
+          valid?: boolean
+          errorCount?: number
+          warningCount?: number
+          irPath?: string
+          svgPath?: string
+          svgWritten?: boolean
+          keptPrevious?: string
+          summary?: string
+          nodes?: number
+          edges?: number
+          groups?: number
+          width?: number
+          height?: number
+          entries?: Array<{ name: string; complete: boolean; type?: string | null }>
+          ir?: unknown
+          pdfPath?: string
+          pdfBytes?: number
+          effectiveNodePt?: number
+          legible?: boolean
+          maxCanvasUnitsFor7pt?: number
+          columnWidthPt?: number
+          allFontsEmbedded?: boolean
+          pymupdf?: string
+        }
+        if (v.ok === false) return [{ type: 'text' as const, text: `Diagram action failed: ${v.error ?? ''}` }]
+        if (v.action === 'list') {
+          const rows = (v.entries ?? []).map((e) => `- ${e.name}${e.type ? ` (${e.type})` : ''}${e.complete ? '' : ' — IR or SVG missing'}`)
+          return [{ type: 'text' as const, text: rows.length > 0 ? `Diagrams:\n${rows.join('\n')}` : 'No diagrams yet.' }]
+        }
+        if (v.action === 'read') {
+          return [{ type: 'text' as const, text: `IR at ${v.irPath ?? ''}:\n${JSON.stringify(v.ir ?? null, null, 2)}` }]
+        }
+        if (v.action === 'export') {
+          const lines = [
+            `✅ ${v.pdfPath ?? ''} (${Math.round((v.pdfBytes ?? 0) / 1024)} KB, vector, fonts ${v.allFontsEmbedded ? 'embedded' : 'NOT embedded'})`,
+            `node text ≈ ${v.effectiveNodePt ?? '?'} pt when drawn ${v.columnWidthPt ?? '?'} pt wide — ${v.legible ? 'legible' : 'TOO SMALL ❌'}`,
+          ]
+          if (v.legible === false) {
+            lines.push(
+              `→ this figure is too wide for that column: keep the canvas under ${v.maxCanvasUnitsFor7pt} units ` +
+                '(fewer layers, or split it into a method figure + a module figure), or draw it full width.',
+            )
+          }
+          return [{ type: 'text' as const, text: lines.join('\n') }]
+        }
+        const head = v.valid
+          ? v.svgWritten
+            ? `✅ ${v.svgPath ?? ''}`
+            : `✅ IR valid (${v.irPath ?? ''})`
+          : `❌ IR invalid — ${v.errorCount ?? 0} error(s), ${v.warningCount ?? 0} warning(s)`
+        const lines = [head]
+        if (v.valid && v.width !== undefined) {
+          lines.push(`${v.nodes ?? 0} node(s), ${v.groups ?? 0} group(s), ${v.edges ?? 0} edge(s) · ${v.width}×${v.height}`)
+        }
+        if (v.keptPrevious) lines.push(`kept previous figure: ${v.keptPrevious}`)
+        if (v.summary) lines.push(v.summary)
+        return [{ type: 'text' as const, text: lines.join('\n') }]
+      },
+    },
+    isConcurrencySafe: () => false,
+    async execute(args, exec) {
+      const ws = resolveWorkspace(exec?.agent)
+      const a = args as Record<string, unknown>
+      const action = String(a.action ?? 'list')
+      const paperId = resolvePaperParameter(ws, typeof a.paperId === 'string' ? a.paperId : undefined)
+      const DIAGRAM_ACTIONS = ['create', 'render', 'export', 'validate', 'read', 'list']
+      if (!DIAGRAM_ACTIONS.includes(action)) {
+        return fail(`Unknown action "${action}".`, { allowed: DIAGRAM_ACTIONS })
+      }
+      try {
+        if (action === 'list') {
+          const entries = listDiagramArtifacts(ws, paperId).map((e) => ({ name: e.name, complete: e.complete, type: e.type }))
+          return losslessJson({ ok: true, action, paperId, entries }) as unknown as Record<string, JsonValue>
+        }
+
+        const nameResult = sanitizeDiagramName(a.name)
+        if (!nameResult.ok) return fail(nameResult.error)
+        const name = nameResult.name
+        const paths = diagramPaths(ws, paperId, name)
+
+        if (action === 'read') {
+          const read = readDiagramIr(paths)
+          if (!read.ok) return fail(read.error)
+          return losslessJson({ ok: true, action, irPath: paths.relIr, ir: read.raw as JsonValue }) as unknown as Record<string, JsonValue>
+        }
+
+        /**
+         * `export` 在**读 IR 之前**处理：它转的是**已经渲染好的 SVG**，不需要 IR，
+         * 也不重新布局。放在 IR 解析之后会导致"没传 ir 就不给导出"这种无理由的限制。
+         */
+        if (action === 'export') {
+          if (!existsSync(paths.svgPath)) {
+            return fail(`No rendered figure at ${paths.relSvg} — run \`render\` first (and fix any validation errors).`)
+          }
+          const columnWidthPt = typeof a.column_width_pt === 'number' && a.column_width_pt > 0 ? a.column_width_pt : COLUMN_WIDTH_PT
+          const pdfPath = paths.svgPath.replace(/\.svg$/i, '.pdf')
+          const result = exportDiagramPdf({ svgPath: paths.svgPath, pdfPath, targetWidthPt: columnWidthPt })
+          if (!result.ok) return fail(result.error ?? 'export failed')
+          return losslessJson({
+            ok: true,
+            action,
+            name,
+            paperId,
+            svgPath: paths.relSvg,
+            pdfPath: `papers/${paperId}/${FIGURES_SUBDIR}/${name}.pdf`,
+            pdfBytes: result.bytes ?? 0,
+            widthPt: result.widthPt,
+            heightPt: result.heightPt,
+            allFontsEmbedded: result.allFontsEmbedded,
+            effectiveNodePt: result.effectiveNodePt,
+            legible: result.legible,
+            maxCanvasUnitsFor7pt: result.maxCanvasUnitsFor7pt,
+            columnWidthPt,
+            pymupdf: result.pymupdf,
+            python: result.python,
+          }) as unknown as Record<string, JsonValue>
+        }
+
+        let raw: unknown = a.ir
+        if (raw === undefined || raw === null) {
+          /**
+           * 省略 `ir` 时回落到**已落盘**的 IR：这样"Agent 用原生 `write` 手改了
+           * `<name>.json`，再 `render` 一次"这条最自然的编辑路径也能走通。
+           * `create` 例外 —— 没有 IR 就没有要创建的东西。
+           */
+          if (action === 'validate' || action === 'render') {
+            const read = readDiagramIr(paths)
+            if (!read.ok) return fail(`${read.error} Pass \`ir\` explicitly for an unsaved diagram.`)
+            raw = read.raw
+          } else {
+            return fail(`\`ir\` is required for action "${action}".`)
+          }
+        }
+        if (typeof raw === 'string') {
+          try {
+            raw = JSON.parse(raw) as unknown
+          } catch (e) {
+            return fail(`\`ir\` is not valid JSON: ${e instanceof Error ? e.message : String(e)}`)
+          }
+        }
+
+        /**
+         * `knownRefs`：把工作区里**真实存在**的 claim / evidence 编号交给校验器，
+         * 这样图上印的 `[C3]` 如果是个不存在的编号，会直接报 `UNKNOWN_REF`。
+         *
+         * 为什么在这里读、而不是内核里去读：内核是纯函数（同输入同输出、可测），
+         * "编号存不存在"属于研究记录的事实，只有工具层知道去哪儿读。
+         */
+        const knownRefs = new Set<string>([
+          ...listClaims(ws).map((c) => c.id),
+          ...listEvidence(ws).map((e) => e.id),
+        ])
+        // 只在调用者**显式给了布尔**时才传该键：
+        //  · 没给 → 不传，于是 layout 回退到 IR 自己的 `show_descriptions`（重渲染得到同一张图）；
+        //  · 给了 true/false → 显式参数优先，能覆盖 IR（layout.ts 声明的优先级）。
+        // 曾经的错法：把 `options.showDescriptions ?? diagram.showDescriptions === true` 里的
+        // 左值恒等布尔化（永远传 false），IR 里的 show_descriptions:true 被静默忽略，
+        // 实测每个节点只剩标签、描述全丢。
+        const options = {
+          ...(typeof a.show_descriptions === 'boolean' ? { showDescriptions: a.show_descriptions } : {}),
+          knownRefs,
+        }
+
+        if (action === 'validate') {
+          const inspection = inspectDiagram(raw, options)
+          return losslessJson({
+            ok: true,
+            action,
+            valid: inspection.report.valid,
+            errorCount: inspection.report.errors.length,
+            warningCount: inspection.report.warnings.length,
+            errors: inspection.report.errors as unknown as JsonValue,
+            warnings: inspection.report.warnings as unknown as JsonValue,
+            summary: formatDiagnostics(inspection.report),
+          }) as unknown as Record<string, JsonValue>
+        }
+
+        /* create / render：先校验，再落盘 */
+        const build = buildDiagram(raw, options)
+        const report = build.report
+        const canonical = build.diagram !== null ? toCanonicalIr(build.diagram) : raw
+        writeDiagramIr(paths, canonical)
+
+        let svgWritten = false
+        let keptPrevious: string | undefined
+        // `create` 只固化 IR：起草阶段拿诊断，不产图（图由 `render` 出）。
+        if (action !== 'create' && build.svg !== null && build.diagram !== null && build.layout !== null) {
+          writeDiagramSvg(paths, build.svg)
+          saveLastGood(paths, canonical, build.svg)
+          svgWritten = true
+        } else if (existsSync(paths.svgPath)) {
+          const st = statSync(paths.svgPath)
+          keptPrevious = `${paths.relSvg} (from ${st.mtime.toISOString()})`
+        }
+
+        return losslessJson({
+          ok: true,
+          action,
+          valid: report.valid,
+          errorCount: report.errors.length,
+          warningCount: report.warnings.length,
+          errors: report.errors as unknown as JsonValue,
+          warnings: report.warnings as unknown as JsonValue,
+          irPath: paths.relIr,
+          ...(svgWritten ? { svgPath: paths.relSvg } : {}),
+          svgWritten,
+          ...(keptPrevious !== undefined ? { keptPrevious } : {}),
+          ...(build.layout !== null
+            ? {
+                nodes: build.layout.nodes.length,
+                groups: build.layout.groups.length,
+                edges: build.layout.edges.length,
+                width: build.layout.width,
+                height: build.layout.height,
+              }
+            : {}),
+          summary: formatDiagnostics(report),
+        }) as unknown as Record<string, JsonValue>
+      } catch (e) {
+        return fail(e instanceof Error ? e.message : String(e))
+      }
+    },
+    presentCall: (args) => {
+      const a = args as { action?: string; name?: string }
+      return { card: 'generic', title: `Diagram · ${a.action ?? ''} ${a.name ?? ''}`.trim(), kind: 'execute' }
+    },
+  })
+
+  /* ── 论文示意图（课题组样式；绘图实现随包发行）──────────────────────── */
+  /**
+   * 与 `research_diagram` 的分工：**示意图**用本工具（课题组样式、几何断言、
+   * 单栏 ≥7pt 判据），其绘图实现内联在 `assets/figures_kit/`，任何工作区一致；
+   * Diagram-IR 用于需要自带样式与校验器的结构图。**同一篇论文不要混用两者**。
+   */
+  const schematicTool = defineTool({
+    name: SCHEMATIC_TOOL,
+    description:
+      'Draw a publication **schematic** in the team\'s fixed style (white boxes, near-black border, ' +
+      'bold title + grey description, small rounding) with programmatic geometry checks. ' +
+      'You decide *what* to draw (nodes / edges / note); the renderer decides *how* — never hand-write ' +
+      'SVG or matplotlib.\n' +
+      'Why this tool rather than `research_diagram`: the drawing implementation ships with the plugin ' +
+      '(`assets/figures_kit/`), so every workspace uses one style, and every figure is checked before ' +
+      'it is delivered (text inside its box, no two text runs overlapping, no two boxes overlapping, ' +
+      'no edge crossing a non-endpoint box).\n' +
+      'Inputs: `nodes[]` on a grid (`col`/`row` are 1-based; `label` is the bold title, `desc` the grey ' +
+      'line; `role` = normal | accent | reject | muted), `edges[]` (`route`: auto | v | down | back | over | ' +
+      'rowgap | outer | points), optional `note`.\n' +
+      'For a **swimlane** figure, declare `lanes[]` (`{id, label}`) and give each box `nodes[].lane`: the ' +
+      'lane rectangle and height are computed from the measured size of its member boxes and the canvas ' +
+      'height follows from the content, so never pass coordinates. Boxes without `lane` form the bottom ' +
+      'belt (e.g. one wide summary box, via `nodes[].width`). See ' +
+      '`assets/figures_kit/examples/lanes_feedback.json` for a complete worked example (two lanes, four ' +
+      'boxes per lane, two feedback loops).\n' +
+      'Lane-aware routing: `rowgap` crosses the gap between lanes and enters the target top (it leaves the ' +
+      'side that faces the target, and honours `enterOffset`); `outer` runs outside the lane stack and ' +
+      'returns along a feedback belt above the top lane (`side`: left/right, `belt`: 0/1 so two loops stay ' +
+      'apart). Both keep their clearance measured **from the lane border**, so the lane checks hold by ' +
+      'construction. `v` connects vertically stacked boxes, and `points` (inches) is an escape hatch.\n' +
+      'Keep it **wide and short** (aspect >= 1.8) and keep the text short: the figure is scaled by ' +
+      'column width / canvas width, so a wide canvas makes the text unreadable. The result reports ' +
+      '`effectiveNodePt` and `legible` — a single-column figure must stay at or above ' +
+      `${COLUMN_WIDTH_PT} … ${MIN_LEGIBLE_PT}pt. If it is not legible, shorten the labels or split the ` +
+      'figure; do not shrink the font.\n' +
+      'Do **not** use this tool for statistical charts (bar/line/scatter): those must be generated by a ' +
+      'script that reads the result files, so the numbers have one source of truth.',
+    parameters: {
+      name: {
+        type: 'string',
+        description: 'Figure name / file stem, e.g. `fig_lhrdp_overview`. Written to `papers/<paperId>/figures/<name>.pdf`.',
+      },
+      paperId: { type: 'string', description: 'Paper id (default: the active paper).' },
+      nodes: {
+        type: 'array',
+        description:
+          'Boxes, in reading order. `col`/`row` are 1-based indices into `cols`/`rows` (ignored for a node that ' +
+          'declares `lane`: its row comes from the lane layout). `label` is the bold title, `desc` the grey line ' +
+          'under it; keep both short. Optional `lane` = the lane id this box belongs to, `width` (inches) for a ' +
+          'wide box, `x` (inches) to place it by absolute centre instead of `col`, `role` = normal | accent | reject.',
+        items: {
+          type: 'object',
+          additionalProperties: true,
+          description: 'One box.',
+        },
+      },
+      lanes: {
+        type: 'array',
+        description:
+          'Optional swimlane containers, e.g. `[{id: "model", label: "model lane, never gated"}]`. Give only ' +
+          '`id` and `label` (plus optional `band`): the renderer computes each lane rectangle from the measured ' +
+          'size of its member nodes (`nodes[].lane`), stacks the lanes top-down and computes the canvas height, ' +
+          'so never pass coordinates. Nodes with no `lane` form the bottom belt (one row, e.g. a wide summary box). ' +
+          'With `lanes` present the renderer also enforces the two lane checks (lane name vs member boxes, edge vs ' +
+          'lane border) instead of letting those collisions through.',
+        items: { type: 'object', additionalProperties: true, description: 'One lane container.' },
+      },
+      edges: {
+        type: 'array',
+        description:
+          'Connections between declared node ids. `route`: auto (default) | v (vertical, for stacked boxes) | ' +
+          'down | back | over (feedback along the top) | rowgap (cross the gap between lanes, entering the target ' +
+          'top; needs `lanes`) | outer (outside corridor plus a feedback belt above the top lane; needs `lanes`, ' +
+          'take `side`: left/right and `belt`: 0/1 so two loops do not overlap) | points (explicit waypoints in ' +
+          'inches, an escape hatch). Optional `enterOffset` (inches, shifts where a `rowgap` edge enters), ' +
+          '`ls` ("-" | "dashed" | "dotted"), `role` = normal | accent | reject.',
+        items: { type: 'object', additionalProperties: true, description: 'One connection.' },
+      },
+      size: {
+        type: 'array',
+        description: 'Canvas size in inches [width, height]. Default [3.45, 1.9] (single IEEE column, aspect 1.8).',
+        items: { type: 'number' },
+      },
+      cols: {
+        type: 'array',
+        description: 'Column centres as fractions of the inner width, e.g. [0.17, 0.5, 0.83].',
+        items: { type: 'number' },
+      },
+      rows: {
+        type: 'array',
+        description: 'Row centres as fractions measured from the top, e.g. [0.22, 0.8].',
+        items: { type: 'number' },
+      },
+      margin: {
+        type: 'array',
+        description: 'Margins in inches [left, bottom, right, top]. Default [0.10, 0.08, 0.10, 0.20].',
+        items: { type: 'number' },
+      },
+      nodeWidth: { type: 'number', description: 'Box width in inches (default: column pitch x 0.86).' },
+      corridor: { type: 'number', description: 'Clearance in inches for an `over` / `back` route (default 0.14).' },
+      note: { type: 'string', description: 'One optional grey line of text under the flow.' },
+      column_width_pt: {
+        type: 'number',
+        description: 'Width the figure will be drawn at in the paper in pt (252 = IEEE single column, 516 = full width). Default 252.',
+      },
+    },
+    output: {
+      schema: { type: 'object', additionalProperties: true },
+      render: (_args, value) => {
+        const r = value as {
+          ok?: boolean; name?: string; pdfPath?: string; aspect?: number
+          effectiveNodePt?: number[]; legible?: boolean; error?: string
+        }
+        if (r.ok === false) return [{ type: 'text' as const, text: `❌ schematic failed: ${r.error ?? 'unknown'}` }]
+        const pt = Array.isArray(r.effectiveNodePt) ? r.effectiveNodePt : []
+        return [{
+          type: 'text' as const,
+          text: [
+            `✅ ${r.pdfPath ?? r.name ?? ''}`,
+            `aspect ${r.aspect ?? '?'} · text ${pt[0] ?? '?'}pt / ${pt[1] ?? '?'}pt` +
+              (r.legible ? ' (legible)' : ' — TOO SMALL: shorten labels or split the figure'),
+          ].join('\n'),
+        }]
+      },
+    },
+    isConcurrencySafe: () => false,
+    async execute(args, exec) {
+      const ws = resolveWorkspace(exec?.agent)
+      const a = args as Record<string, unknown>
+      const paperId = resolvePaperParameter(ws, typeof a.paperId === 'string' ? a.paperId : undefined)
+      if (typeof a.name !== 'string' || !a.name.trim()) return fail('`name` is required (file stem).')
+      const nameResult = sanitizeDiagramName(a.name)
+      if (!nameResult.ok) return fail(nameResult.error)
+      const name = nameResult.name
+      if (!Array.isArray(a.nodes) || a.nodes.length === 0) return fail('`nodes` must be a non-empty array.')
+
+      const paths = diagramPaths(ws, paperId, name)
+      const spec: Record<string, unknown> = {
+        ...a,
+        paperId,
+        name,
+        outDir: paths.dir,
+        latexFiguresDir: join(paths.dir, '..', 'latex', 'figures'),
+      }
+      // 全宽图必须按调用者给的实际版面宽度判读性（曾写死单栏 252pt，
+      // 于是 width=\\textwidth 的图被误报 TOO SMALL）。
+      const columnWidthPt =
+        typeof a.column_width_pt === 'number' && a.column_width_pt > 0
+          ? a.column_width_pt
+          : SCHEMATIC_COLUMN_PT
+      const result = renderSchematic({ spec, targetWidthPt: columnWidthPt })
+      if (!result.ok) return fail(result.error ?? 'schematic render failed', { tried: result.tried })
+      return losslessJson({
+        ok: true,
+        name,
+        paperId,
+        pdfPath: `papers/${paperId}/${FIGURES_SUBDIR}/${name}.pdf`,
+        copies: result.copies ?? [],
+        sizeIn: result.sizeIn,
+        aspect: result.aspect,
+        effectiveNodePt: result.effectiveNodePt,
+        legible: result.legible,
+        stats: result.stats,
+      }) as unknown as Record<string, JsonValue>
+    },
+    presentCall: (args) => {
+      const a = args as { name?: string }
+      return { card: 'generic', title: `Schematic · ${a.name ?? ''}`.trim(), kind: 'execute' }
+    },
+  })
+
+  /* ── Action Construction（Paper 4 的度量，纯计算）────────────────────── */
+  /**
+   * 论文 d4 的度量：一个决策买到的信息量取决于**动作是怎么写下来的**。
+   * 这里只做度量与规范化，不发模型调用——在 DSH 里"写动作"的是当前 agent 本身。
+   *
+   * 在 `/research` 里的用法（实验前）：
+   *   set_state（把这次实验的机制集/组/信念/预算写下来）
+   *     → prompt（拿到该层级的提示词）→ evaluate（打分）→ record（落盘）
+   *   → 预算闸门 + `action-construction` 信号据此判断"这个动作写成了可执行设计、且预算付得起"
+   *     → 才允许发真实调用。
+   */
+  const actionConstructionTool = defineTool({
+    name: ACTION_CONSTRUCTION_TOOL,
+    description:
+      'Measure how much information a research action buys, as a function of how it was ' +
+      'written down (Action Construction, paper d4). An action such as "run an ablation" ' +
+      'names neither the mechanism nor the arms nor the seeds, so an executor must invent ' +
+      'them; the metric averages information gain per unit cost over the designs the answer ' +
+      'could mean, and reports the gap to an optimal design as a pointer gap, a resolution ' +
+      'gap and a feasibility term.\n' +
+      'Two scales are returned: `bound_share` (share of the unconstrained cost-efficiency ' +
+      'bound, the informativeness scale) and `compliant` (a design the stated budget cannot ' +
+      'pay for counts as buying nothing, normalised by the affordable optimum).\n' +
+      'Actions:\n' +
+      '- `prompt`: the prompt an agent at a given level receives (L1 named / L2 intent / ' +
+      'L3 structured / L4 + predicted); use it to ask a model for an action.\n' +
+      '- `evaluate`: score an answer (raw text parsed at `level`) or a structured `design`.\n' +
+      '- `sample`: return a synthetic research state from the built-in panel (demo/testing).\n' +
+      '- `state`: show the state this workspace scores against (`research/action-state.json`).\n' +
+      '- `set_state`: write that state (the candidate mechanisms, the arms, the belief and ' +
+      'the budget the experiment is decided under) so the next action can be measured.\n' +
+      '- `record`: evaluate an action and append the result to ' +
+      '`research/action-construction.jsonl` — the trace the experiment gate reads.\n' +
+      '- `report`: summarise the recorded evaluations (count, in-budget rate, latest).\n' +
+      '- `extract`: build action objects from actions that already exist — the steps of a ' +
+      'plan (`plan`) or a list of action texts (`actions`). Each item is classified as ' +
+      'measurable by this metric (an ablation-design action) or not, and measurable ones get ' +
+      'a constructed object plus both scores (as written / constructed). Use `record: true` ' +
+      'to log the ones you are about to run. This is the path that works while the decision ' +
+      'layer (paper 1) does not exist yet: plan steps and the agent\'s own proposals are ' +
+      'already actions, they are just not written in a measurable form.\n' +
+      'State resolution order: explicit `state` argument, else the workspace state written by ' +
+      '`set_state`, else `state_index` for a synthetic demo state. `record` and the experiment ' +
+      'gate need a *real* workspace state — a synthetic panel state is for demos only. ' +
+      'No model call is made; only `set_state` and `record` write to the workspace.',
+    parameters: {
+      action: {
+        type: 'string',
+        description:
+          'One of: prompt | evaluate | sample | state | set_state | record | report | extract. ' +
+          '`record` = evaluate + append to the workspace log (what the experiment gate reads).',
+        enum: [
+          'prompt', 'evaluate', 'sample', 'state', 'set_state', 'record', 'report', 'extract',
+        ],
+      },
+      level: {
+        type: 'string',
+        description:
+          'Representation level. L1 named / L2 intent / L3 structured / L4 structured+predicted. ' +
+          'Defaults to L3.',
+        enum: [...AC_LEVELS],
+      },
+      answer: {
+        type: 'string',
+        description:
+          'For `evaluate`: the agent answer verbatim. It is parsed at `level` (last occurrence ' +
+          'of each field wins; a design that cannot discriminate two hypotheses counts as a ' +
+          'failed answer, not a repaired one).',
+      },
+      design: {
+        type: 'object',
+        additionalProperties: true,
+        description:
+          'For `evaluate`: a structured design instead of raw text, e.g. ' +
+          '{"action_type":"component_scan","target":1,"arms":[0,1,2,3,4,5],"n":11}.',
+      },
+      state: {
+        type: 'object',
+        additionalProperties: true,
+        description:
+          'The research state: {question, method, partial_results, mechanisms[6], arms[6], ' +
+          'prior[6], budget, truth?}. Mechanism count must match the environment (6).',
+      },
+      state_index: {
+        type: 'number',
+        description: 'Which synthetic state to use when `state` is omitted (0..29). Default 0.',
+      },
+      seed: {
+        type: 'number',
+        description: 'Seed for the synthetic panel. Default 11.',
+      },
+      note: {
+        type: 'string',
+        description:
+          'For `record`: why this action was chosen (kept next to the numbers in the log).',
+      },
+      plan: {
+        type: 'string',
+        description:
+          'For `extract`: workspace-relative Markdown to mine for action-like steps, e.g. ' +
+          '"plans/experiment-pipeline.md". Checklist items, numbered steps and plan-step ' +
+          'table rows are recognised.',
+      },
+      text: {
+        type: 'string',
+        description: 'For `extract`: Markdown text to mine instead of a file.',
+      },
+      actions: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'For `extract`: explicit action texts to construct objects for (e.g. pasted from a ' +
+          'plan, or the actions an agent proposed). Each is parsed, or its design shape is ' +
+          'inferred from the wording.',
+      },
+      ids: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'For `extract` with `record: true`: which extracted ids to log. Default: the first ' +
+          'constructed action the stated budget can pay for (never a silent bulk write).',
+      },
+    },
+    output: {
+      schema: { type: 'object', additionalProperties: true },
+      render: (_args, value) => {
+        const v = value as {
+          ok?: boolean
+          error?: string
+          action?: string
+          level?: string
+          source?: string
+          path?: string
+          configured?: boolean
+          hint?: string
+          next?: string
+          count?: number
+          inBudget?: number
+          latest?: { ig_per_cost: number; bound_share: number; feasible: boolean; cost: number | null; budget: number }
+          recent?: Array<{ level: string; ig_per_cost: number; bound_share: number; feasible: boolean; cost: number | null; budget: number; at: string; note?: string }>
+          prompt?: string
+          summary?: string
+          parse_status?: string
+          state?: AcState
+          evaluation?: {
+            ig_per_cost?: number
+            bound_share?: number
+            compliant?: number
+            feasible?: boolean
+            cost?: number | null
+            budget?: number
+            guess_rate?: number
+            pointer_gap?: number
+            resolution_gap?: number
+            status?: string
+          }
+        }
+        if (v.ok === false) return [{ type: 'text' as const, text: `Action construction failed: ${v.error ?? ''}` }]
+
+        const describeState = (s: AcState): string =>
+          `${s.question}\n${s.partial_results}\nBelief: ` +
+          `${s.prior.map((p, i) => `h${i} ${p.toFixed(2)}`).join(' | ')} | budget ${s.budget}`
+
+        /* state / set_state / report: the workspace flow around the metric */
+        if (v.action === 'state') {
+          if (v.configured === false) {
+            return [{ type: 'text' as const, text: `${v.hint ?? 'No action state yet.'} (${v.path ?? ''})` }]
+          }
+          return [{ type: 'text' as const, text: `Action state (${v.path ?? ''}):\n${v.state ? describeState(v.state) : ''}` }]
+        }
+        if (v.action === 'set_state') {
+          return [
+            {
+              type: 'text' as const,
+              text: `Action state written → ${v.path ?? ''}\n${v.state ? describeState(v.state) : ''}\n${v.next ?? ''}`,
+            },
+          ]
+        }
+        if (v.action === 'report') {
+          const lines = [`Action construction log (${v.path ?? ''}): ${v.count ?? 0} evaluation(s), ${v.inBudget ?? 0} within the stated budget.`]
+          for (const r of (v.recent ?? []).slice().reverse()) {
+            const cost = r.cost === null || r.cost === undefined ? 'n/a' : r.cost.toFixed(2)
+            lines.push(
+              `  - ${r.at.slice(0, 16).replace('T', ' ')} ${r.level}: IG/cost ${r.ig_per_cost.toFixed(4)} · ` +
+                `${(100 * r.bound_share).toFixed(1)}% of the bound · cost ${cost}/${r.budget.toFixed(1)} · ` +
+                `${r.feasible ? 'in budget' : 'OVER BUDGET'}${r.note ? ` · ${r.note}` : ''}`,
+            )
+          }
+          return [{ type: 'text' as const, text: lines.join('\n') }]
+        }
+        if (v.action === 'extract') {
+          const lines: string[] = []
+          const items = (v as unknown as { items?: Array<{ id: string; actionType: string | null; text: string; design: { target: number | null; arms: number[] | null; n: number | null }; constructed: { ig_per_cost: number; bound_share: number; feasible: boolean; cost: number | null; budget: number }; as_written: { ig_per_cost: number; guess_rate: number } }> }).items ?? []
+          const skipped = (v as unknown as { skipped?: Array<{ id: string; text: string; reason: string }> }).skipped ?? []
+          const recorded = (v as unknown as { recorded?: string[] }).recorded ?? []
+          lines.push(
+            `Action objects: ${items.length} measurable · ${skipped.length} not covered by this metric` +
+              (recorded.length > 0 ? ` · recorded: ${recorded.join(', ')}` : ''),
+          )
+          for (const item of items) {
+            const e = item.constructed
+            const cost = e.cost === null ? 'n/a' : e.cost.toFixed(2)
+            lines.push(
+              `  ${item.id}  ${item.actionType ?? '?'} → target ${item.design.target}, arms [${(item.design.arms ?? []).join(',')}], seeds ${item.design.n}` +
+                `  ·  ${(100 * e.bound_share).toFixed(1)}% of the bound · cost ${cost}/${e.budget.toFixed(1)} · ${e.feasible ? 'in budget' : 'OVER BUDGET'}` +
+                `  ·  as written ${item.as_written.ig_per_cost.toFixed(4)} (executor invents ${(100 * item.as_written.guess_rate).toFixed(0)}%)`,
+            )
+          }
+          for (const item of skipped.slice(0, 5)) {
+            lines.push(`  ${item.id}  skipped — ${item.reason}`)
+          }
+          return [{ type: 'text' as const, text: lines.join('\n') }]
+        }
+        if (v.action === 'prompt' && v.prompt) {
+          return [
+            {
+              type: 'text' as const,
+              text: `Prompt for ${v.level} (${v.summary ?? ''}):\n\n${v.prompt}`,
+            },
+          ]
+        }
+        if (v.state && !v.evaluation) {
+          return [{ type: 'text' as const, text: `Synthetic state:\n${describeState(v.state)}` }]
+        }
+        const e = v.evaluation
+        if (!e) return [{ type: 'text' as const, text: 'Action construction returned no evaluation.' }]
+        if (e.status !== 'ok') {
+          return [
+            {
+              type: 'text' as const,
+              text:
+                `No usable design (parse status: ${v.parse_status ?? 'unknown'}): ` +
+                `information gain 0, whole gap attributed to the resolution gap.`,
+            },
+          ]
+        }
+        const cost = e.cost === null || e.cost === undefined ? 'n/a' : e.cost.toFixed(2)
+        const overBudget = e.feasible === false ? ' OVER BUDGET' : ''
+        const recorded = v.action === 'record' ? `\nrecorded → ${v.path ?? ''}` : ''
+        return [
+          {
+            type: 'text' as const,
+            text:
+              `IG/cost ${(e.ig_per_cost ?? 0).toFixed(4)} · ` +
+              `${(100 * (e.bound_share ?? 0)).toFixed(1)}% of the bound · ` +
+              `compliant ${(e.compliant ?? 0).toFixed(3)} · ` +
+              `cost ${cost} vs budget ${e.budget?.toFixed(1)}${overBudget} · ` +
+              `executor invents ${(100 * (e.guess_rate ?? 0)).toFixed(0)}% of the design · ` +
+              `gap: pointer ${(e.pointer_gap ?? 0).toFixed(4)} / resolution ${(e.resolution_gap ?? 0).toFixed(4)}` +
+              recorded,
+          },
+        ]
+      },
+    },
+    isConcurrencySafe: () => true,
+    async execute(args, exec) {
+      const a = (args ?? {}) as Record<string, unknown>
+      const action = String(a.action ?? 'evaluate')
+      const level = String(a.level ?? 'L3')
+      const workspace = resolveWorkspace(exec?.agent)
+      try {
+        if (!AC_LEVELS.includes(level as (typeof AC_LEVELS)[number])) {
+          return fail(`Unknown level "${level}".`, { allowed: [...AC_LEVELS] })
+        }
+        const allowed = ['prompt', 'evaluate', 'sample', 'state', 'set_state', 'record', 'report', 'extract']
+        if (!allowed.includes(action)) return fail(`Unknown action "${action}".`, { allowed })
+
+        /* ── `state` / `set_state`: the state this workspace scores against ── */
+        if (action === 'state') {
+          const state = acReadState(workspace)
+          if (!state) {
+            return losslessJson({
+              ok: true,
+              action,
+              configured: false,
+              path: ACTION_STATE_FILE,
+              hint:
+                'No action state yet. Write one with action="set_state" and a `state` object ' +
+                '({question, method, partial_results, mechanisms[6], arms[6], prior[6], budget, truth?}) ' +
+                'so the next experiment can be measured instead of just named.',
+            }) as unknown as Record<string, JsonValue>
+          }
+          return losslessJson({ ok: true, action, configured: true, path: ACTION_STATE_FILE, state }) as unknown as Record<string, JsonValue>
+        }
+        if (action === 'set_state') {
+          if (a.state === undefined) {
+            return fail('`set_state` needs a `state` object.', { path: ACTION_STATE_FILE })
+          }
+          const path = acWriteState(workspace, a.state)
+          return losslessJson({
+            ok: true,
+            action,
+            path,
+            state: acReadState(workspace),
+            next: 'Use action="prompt" to get the L3 prompt, then action="record" to log the evaluation.',
+          }) as unknown as Record<string, JsonValue>
+        }
+        if (action === 'report') {
+          const summary = acSummariseRecords(workspace)
+          return losslessJson({
+            ok: true,
+            action,
+            path: ACTION_LOG_FILE,
+            count: summary.count,
+            inBudget: summary.inBudget,
+            latest: summary.latest,
+            recent: acReadRecords(workspace, 5),
+          }) as unknown as Record<string, JsonValue>
+        }
+        if (action === 'sample') {
+          const state = acSampleState(Number(a.state_index ?? 0), Number(a.seed ?? 11))
+          return losslessJson({
+            ok: true,
+            action,
+            state,
+            note:
+              'Synthetic panel state — good for a demo, but `record` and the experiment gate ' +
+              'expect the workspace state (action="set_state").',
+          }) as unknown as Record<string, JsonValue>
+        }
+
+        /* ── state resolution: explicit > workspace > synthetic ── */
+        let state: AcState | null = null
+        let source = ''
+        if (a.state !== undefined) {
+          state = acNormaliseState(a.state)
+          source = 'argument'
+        } else {
+          state = acReadState(workspace)
+          source = state ? ACTION_STATE_FILE : ''
+        }
+        if (!state) {
+          if (a.state_index !== undefined) {
+            state = acSampleState(Number(a.state_index), Number(a.seed ?? 11))
+            source = 'synthetic panel'
+          } else {
+            return fail(
+              `No state to score against: this workspace has no ${ACTION_STATE_FILE}.`,
+              {
+                fix: 'Write one with action="set_state" (recommended), pass `state` explicitly, ' +
+                  'or pass `state_index` to try a synthetic state.',
+              },
+            )
+          }
+        }
+
+        if (action === 'extract') {
+          // Build action objects from actions that already exist in the workspace.  This is
+          // the path that works before the decision layer exists: plan steps and proposals
+          // are actions already, they are just not written in a measurable form.
+          const fromActions = Array.isArray(a.actions)
+            ? (a.actions as unknown[]).map((x) => `- [ ] ${String(x)}`).join('\n')
+            : ''
+          let fromPlan = ''
+          let planPath = ''
+          if (a.plan !== undefined) {
+            planPath = String(a.plan)
+            const full = isAbsolute(planPath) ? planPath : join(workspace, planPath)
+            if (!existsSync(full)) {
+              return fail(`Plan not found: ${planPath}`, { workspace })
+            }
+            fromPlan = readFileSync(full, 'utf8')
+          }
+          const fromText = a.text !== undefined ? String(a.text) : ''
+          const markdown = [fromPlan, fromText, fromActions].filter(Boolean).join('\n')
+          if (!markdown.trim()) {
+            return fail('`extract` needs `plan` (a Markdown file), `text` (Markdown) or `actions`.')
+          }
+          const candidates = acExtractCandidates(markdown, planPath || 'actions')
+          const constructed = acConstructFromCandidates(state, candidates)
+          const byId = new Map(constructed.map((item) => [item.candidate.id, item]))
+
+          let recorded: string[] = []
+          if (a.record === true) {
+            const requested = Array.isArray(a.ids) ? (a.ids as unknown[]).map(String) : []
+            const selected = requested.length > 0
+              ? requested.filter((id) => byId.has(id))
+              : [...byId.values()].filter((item) => item.constructed.feasible).slice(0, 1).map((i) => i.candidate.id)
+            for (const id of selected) {
+              const item = byId.get(id)
+              if (!item) continue
+              acAppendRecord(
+                workspace,
+                acToRecord(item.constructed, {
+                  level,
+                  answer: item.candidate.text,
+                  design: item.design,
+                  note: `${item.candidate.id}: ${item.candidate.text.slice(0, 80)}`,
+                }),
+              )
+              recorded.push(id)
+            }
+          }
+
+          return losslessJson({
+            ok: true,
+            action,
+            level,
+            source,
+            plan: planPath || null,
+            candidates: candidates.length,
+            measurable: constructed.length,
+            items: constructed.map((item) => ({
+              id: item.candidate.id,
+              text: item.candidate.text,
+              actionType: item.candidate.actionType,
+              confidence: item.candidate.confidence,
+              calls: item.candidate.calls,
+              materialisedFrom: item.materialisedFrom ?? null,
+              design: item.design,
+              as_written: item.asWritten,
+              constructed: item.constructed,
+              note: acExplainConstruction(item),
+            })),
+            skipped: candidates
+              .filter((c) => !c.measurable)
+              .map((c) => ({ id: c.id, text: c.text, reason: c.reason ?? 'not an ablation-design action' })),
+            recorded,
+            hint:
+              'Review the constructed objects (target/arms/seeds), edit the ones you disagree ' +
+              'with, then run. `record: true` logs the selected ids so the experiment gate can ' +
+              'see them.',
+          }) as unknown as Record<string, JsonValue>
+        }
+
+        if (action === 'prompt') {
+          return losslessJson({
+            ok: true,
+            action,
+            level,
+            source,
+            summary: acLevelSummary(level as (typeof AC_LEVELS)[number]),
+            prompt: acBuildPrompt(state, level as (typeof AC_LEVELS)[number]),
+            state,
+          }) as unknown as Record<string, JsonValue>
+        }
+
+        /* ── evaluate / record ── */
+        if (a.answer === undefined && a.design === undefined) {
+          return fail('`evaluate`/`record` need either `answer` (raw text) or `design` (structured).', {
+            hint: 'Use action="prompt" first to see what the agent is asked to write.',
+          })
+        }
+        const structured = a.design as AcDesign | undefined
+        const answered = a.answer !== undefined
+        const evaluation = answered
+          ? acEvaluateAnswer(state, String(a.answer), level)
+          : acEvaluateDesign(state, (structured ?? null) as AcDesign | null)
+
+        if (action === 'record') {
+          const record = acToRecord(evaluation, {
+            level,
+            answer: answered ? String(a.answer) : null,
+            design: structured ?? null,
+            ...(a.note !== undefined ? { note: String(a.note) } : {}),
+          })
+          const path = acAppendRecord(workspace, record)
+          return losslessJson({
+            ok: true,
+            action,
+            level,
+            source,
+            path,
+            state,
+            evaluation,
+            record,
+          }) as unknown as Record<string, JsonValue>
+        }
+
+        return losslessJson({
+          ok: true,
+          action: 'evaluate',
+          level,
+          source,
+          state,
+          evaluation,
+          parse_status: 'parse_status' in evaluation ? evaluation.parse_status : 'direct',
+        }) as unknown as Record<string, JsonValue>
+      } catch (e) {
+        return fail(e instanceof Error ? e.message : String(e))
+      }
+    },
+    presentCall: (args) => {
+      const a = args as { action?: string; level?: string }
+      return {
+        card: 'generic',
+        title: `Action construction · ${a.action ?? 'evaluate'} ${a.level ?? ''}`.trim(),
+        kind: 'execute',
+      }
+    },
+  })
+
+  /* ── Research IR Kernel（v0.5.6，dev-notes/v0.5.6-ResearchIR.md）────── */
+  const irTool = defineTool({
+    name: IR_TOOL,
+    description:
+      'Work with the Research IR — the typed, machine-facing representation that sits between ' +
+      'research decisions and execution (IR Kernel). Markdown stays the user interface; the IR is ' +
+      'what the kernel validates and constrains.\n' +
+      'An IR holds: research identity, question, hypotheses, a *typed* decision (closed set: ' +
+      DECISION_TYPES.join(' | ') +
+      '), the plan (execution projection) and evidence requirements, plus provenance.\n' +
+      'Actions:\n' +
+      '- `propose`: submit an IR proposal. It passes three validation layers (structural R0xx, ' +
+      'scientific-structure R1xx, transition R2xx) and is saved as `IR###` only when valid. ' +
+      'Invalid proposals return structured errors, each with a `repair` hint — fix and re-propose.\n' +
+      '- `validate`: validate without saving (the repair loop).\n' +
+      '- `delta`: apply an incremental change to an existing IR ({change, target, operations[], ' +
+      'reason?}); a new revision is recorded and the old one archived — never overwritten.\n' +
+      '- `transition`: execution → evidence → state: record which evidence satisfies which ' +
+      'requirements (`satisfies`), which plan steps completed (`completed`), claim adjudications ' +
+      '(`claims`). Illegal transitions are refused (claim supported without evidence, requirement ' +
+      'satisfied by unknown evidence, completed step without artifact, stale revision).\n' +
+      '- `coverage`: required evidence vs produced evidence (computable, not vibes).\n' +
+      '- `trace`: the decision trace — state chain S### with parent links, IR revisions, evidence.\n' +
+      '- `show` / `list`: read one IR (optionally an archived revision) / list IRs.\n' +
+      'What this tool deliberately does NOT do: it never edits `research-state.md` (the ' +
+      'user-controlled state keeps its propose/accept gate) and it never deletes history.',
+    parameters: {
+      action: {
+        type: 'string',
+        description: 'One of: propose | validate | delta | transition | coverage | trace | show | list.',
+        enum: ['propose', 'validate', 'delta', 'transition', 'coverage', 'trace', 'show', 'list'],
+      },
+      ir: {
+        type: 'object',
+        additionalProperties: true,
+        description:
+          'For `propose`/`validate`: the IR proposal — {research:{key,title}, question:{statement}, ' +
+          'hypotheses:[{id,statement,observableOutcome?}], decision:{type,objective,alternatives,' +
+          'selected,rationale,baseline?,metric?,...}, plan:{steps:[{id,action,artifact?}]}, ' +
+          'evidenceRequirements:[{id,type,description,step?}]}. Types: ' +
+          EVIDENCE_REQUIREMENT_TYPES.join(' | ') +
+          '. ids are assigned automatically when omitted.',
+      },
+      id: { type: 'string', description: 'IR id (`IR001`) for `delta` / `transition` / `coverage` / `show`.' },
+      delta: {
+        type: 'object',
+        additionalProperties: true,
+        description:
+          'For `delta`: {change: string, target: string, operations: [{add|update|remove, items?}], ' +
+          'reason?}. Targets: research · question · decision · plan · hypotheses · ' +
+          'evidence_requirements · plan.steps, or an element like `hypotheses.H01`. Object targets: ' +
+          'add=new fields, update=existing fields, remove=fields. Array targets use `items` to ' +
+          'append/merge elements and `remove` for ids.',
+      },
+      revision: {
+        type: 'number',
+        description:
+          'For `transition`: the IR revision you are working from (mismatch → refused, so a stale ' +
+          'update cannot overwrite newer work). For `show`: which archived revision to read.',
+      },
+      decision_id: {
+        type: 'string',
+        description: 'For `propose`/`transition`: the decision id (`D001`) this belongs to (provenance).',
+      },
+      satisfies: {
+        type: 'array',
+        items: { type: 'object', additionalProperties: true },
+        description: 'For `transition`: [{requirement: "ER01", evidence: "E001"}] — evidence satisfying IR requirements.',
+      },
+      completed: {
+        type: 'array',
+        items: { type: 'object', additionalProperties: true },
+        description: 'For `transition`: [{step: "step-1", artifact: "experiments/x/results/main.json"}] — completed plan steps.',
+      },
+      claims: {
+        type: 'array',
+        items: { type: 'object', additionalProperties: true },
+        description: 'For `transition`: [{claim: "C001", status: "supported"}] — claim adjudications (needs backing evidence).',
+      },
+      skill: { type: 'string', description: 'For `propose`: provenance — the skill that produced this IR.' },
+      state_id: { type: 'string', description: 'For `propose`: provenance — the state it was decided under (`S001`).' },
+      agent: { type: 'string', description: 'For `transition`: who executed it (recorded in provenance).' },
+      note: { type: 'string', description: 'Free-form note kept in provenance / trace.' },
+    },
+    output: {
+      schema: { type: 'object', additionalProperties: true },
+      render: (_args, value) => {
+        const v = value as {
+          ok?: boolean
+          error?: string
+          action?: string
+          note?: string
+          ir?: { id?: string; revision?: number; decision?: { type?: string } }
+          validation?: { status?: string; errors?: Array<{ code: string; field: string; message: string; repair: string }>; warnings?: unknown[] }
+          errors?: Array<{ code: string; field: string; message: string; repair: string }>
+          applied?: string[]
+          coverage?: number
+          required?: number
+          satisfied?: number
+          count?: number
+          state?: { stateId?: string }
+          trace?: { stateId?: string; summary?: string }
+        }
+        if (v.ok === false) {
+          const errs = v.errors ?? v.validation?.errors ?? []
+          const lines = errs.map((e) => `[${e.code}] ${e.field}: ${e.message} → repair: ${e.repair}`)
+          return [
+            {
+              type: 'text' as const,
+              text: `${v.action ?? 'research_ir'} failed${v.error ? `: ${v.error}` : ''}\n${lines.join('\n')}${v.note ? `\n${v.note}` : ''}`,
+            },
+          ]
+        }
+        if (v.action === 'coverage') {
+          return [
+            {
+              type: 'text' as const,
+              text: `Evidence coverage: ${v.satisfied ?? 0}/${v.required ?? 0} requirements satisfied (${v.coverage ?? 0}).`,
+            },
+          ]
+        }
+        if (v.action === 'trace') return [{ type: 'text' as const, text: `Decision trace: ${v.count ?? 0} transition(s).` }]
+        if (v.action === 'validate') {
+          const st = v.validation?.status ?? '?'
+          const warn = v.validation?.warnings?.length ?? 0
+          return [{ type: 'text' as const, text: `Validation: ${st}${warn ? ` · ${warn} warning(s)` : ''}` }]
+        }
+        if (v.action === 'transition') {
+          return [
+            {
+              type: 'text' as const,
+              text: `State ${v.state?.stateId ?? ''} recorded · ${v.trace?.summary ?? ''}`,
+            },
+          ]
+        }
+        if (v.ir?.id) {
+          return [
+            {
+              type: 'text' as const,
+              text: `IR ${v.ir.id} r${v.ir.revision ?? 1} (${v.ir.decision?.type ?? '—'}) · validation ${v.validation?.status ?? 'valid'}${v.applied?.length ? ` · applied: ${v.applied.join(', ')}` : ''}${v.note ? `\n${v.note}` : ''}`,
+            },
+          ]
+        }
+        return [{ type: 'text' as const, text: `${v.count ?? 0} IR(s).` }]
+      },
+    },
+    isConcurrencySafe: () => false,
+    async execute(args, exec) {
+      const ws = resolveWorkspace(exec?.agent)
+      const a = (args ?? {}) as Record<string, unknown>
+      const action = String(a.action ?? '')
+
+      try {
+        if (action === 'list') {
+          const items = listIRs(ws)
+          return losslessJson({ ok: true, action, count: items.length, irs: items }) as unknown as Record<string, JsonValue>
+        }
+
+        if (action === 'show') {
+          const id = String(a.id ?? '').trim().toUpperCase()
+          const rev = typeof a.revision === 'number' ? a.revision : undefined
+          const current = readIR(ws, id)
+          // 当前修订就在 IR###.json；只有历史修订才去 .history/ 找
+          const ir =
+            rev === undefined ? current : current?.revision === rev ? current : readIRRevision(ws, id, rev ?? 0)
+          if (!ir) return fail(`找不到 IR \`${id}\`${rev !== undefined ? ` 修订 r${rev}` : ''}。`, { action })
+          return losslessJson({
+            ok: true,
+            action,
+            ir,
+            revisions: listIRRevisions(ws, id),
+          }) as unknown as Record<string, JsonValue>
+        }
+
+        if (action === 'validate') {
+          if (!a.ir) return fail('`validate` 需要 `ir` 对象。', { action })
+          const { ir, report } = parseIR(a.ir)
+          return losslessJson({
+            ok: report.status === 'valid',
+            action,
+            validation: report,
+            ir,
+            ...(report.status === 'failed' ? { note: 'Not saved — fix the errors (each carries a `repair` hint) and re-submit.' } : {}),
+          }) as unknown as Record<string, JsonValue>
+        }
+
+        if (action === 'propose') {
+          if (!a.ir) return fail('`propose` 需要 `ir` 对象。', { action })
+          const base = normalizeIR(a.ir)
+          const candidate = {
+            ...base,
+            id: '',
+            revision: 1,
+            provenance: {
+              createdAt: new Date().toISOString(),
+              ...(a.skill ? { skill: String(a.skill) } : {}),
+              ...(a.decision_id ? { decisionId: String(a.decision_id) } : {}),
+              ...(a.state_id ? { stateId: String(a.state_id) } : {}),
+              source: 'proposal' as const,
+              ...(a.note ? { note: String(a.note) } : {}),
+            },
+          }
+          const { report } = parseIR(candidate)
+          if (report.status === 'failed') {
+            return losslessJson({
+              ok: false,
+              action,
+              validation: report,
+              note: 'IR not saved — fix the errors (each carries a `repair` hint) and re-propose.',
+            }) as unknown as Record<string, JsonValue>
+          }
+          const saved = saveIR(ws, candidate)
+          if (isIRWriteError(saved)) return fail(saved.error, { action })
+          return losslessJson({
+            ok: true,
+            action,
+            ir: { id: saved.id, revision: saved.revision, decision: { type: saved.decision.type } },
+            validation: report,
+            note: 'IR recorded. Intent is now typed — execution follows the plan projection.',
+          }) as unknown as Record<string, JsonValue>
+        }
+
+        if (action === 'delta') {
+          const id = String(a.id ?? '').trim().toUpperCase()
+          const current = readIR(ws, id)
+          if (!current) return fail(`找不到 IR \`${id}\`。`, { action })
+          if (!a.delta) return fail('`delta` 需要 `delta` 对象。', { action })
+          const delta = a.delta as IRDelta
+          const res = applyDelta(current, delta)
+          if (!res.ok) {
+            return losslessJson({
+              ok: false,
+              action,
+              errors: res.errors,
+              note: 'Delta rejected — IR unchanged. Fix the errors and retry.',
+            }) as unknown as Record<string, JsonValue>
+          }
+          const saved = saveIR(ws, res.ir)
+          if (isIRWriteError(saved)) return fail(saved.error, { action })
+          return losslessJson({
+            ok: true,
+            action,
+            ir: { id: saved.id, revision: saved.revision, decision: { type: saved.decision.type } },
+            applied: res.applied,
+            delta: summarizeDelta(delta),
+            validation: res.report,
+          }) as unknown as Record<string, JsonValue>
+        }
+
+        if (action === 'transition') {
+          const id = String(a.id ?? '').trim().toUpperCase()
+          const input: TransitionInput = {
+            irId: id,
+            ...(typeof a.revision === 'number' ? { revision: a.revision } : {}),
+            ...(a.decision_id ? { decisionId: String(a.decision_id) } : {}),
+            ...(Array.isArray(a.satisfies) ? { satisfies: a.satisfies as TransitionInput['satisfies'] } : {}),
+            ...(Array.isArray(a.completed) ? { completed: a.completed as TransitionInput['completed'] } : {}),
+            ...(Array.isArray(a.claims) ? { claims: a.claims as TransitionInput['claims'] } : {}),
+            ...(a.agent ? { agent: String(a.agent) } : {}),
+            ...(a.note ? { note: String(a.note) } : {}),
+          }
+          const res = applyTransition(ws, input)
+          if (!res.ok) {
+            return losslessJson({
+              ok: false,
+              action,
+              errors: res.errors,
+              note: 'Transition refused — state unchanged. Fix the errors and retry.',
+            }) as unknown as Record<string, JsonValue>
+          }
+          return losslessJson({
+            ok: true,
+            action,
+            state: { stateId: res.state.stateId, parentStateId: res.state.parentStateId ?? null },
+            ir: { id: res.ir.id, revision: res.ir.revision, decision: { type: res.ir.decision.type } },
+            trace: res.trace,
+          }) as unknown as Record<string, JsonValue>
+        }
+
+        if (action === 'coverage') {
+          const id = String(a.id ?? '').trim().toUpperCase()
+          const cov = evidenceCoverage(ws, id)
+          if (!cov.ok) return fail(cov.error, { action })
+          return losslessJson({ action, ...cov }) as unknown as Record<string, JsonValue>
+        }
+
+        if (action === 'trace') {
+          const trace = readTrace(ws)
+          const states = listStates(ws).map((s) => ({
+            stateId: s.stateId,
+            parentStateId: s.parentStateId ?? null,
+            irId: s.irId,
+            irRevision: s.irRevision,
+            decisionId: s.decisionId ?? null,
+            evidence: s.evidence,
+          }))
+          return losslessJson({ ok: true, action, count: trace.length, states, trace }) as unknown as Record<string, JsonValue>
+        }
+
+        return fail(`Unknown action "${action}".`, {
+          action,
+          allowed: ['propose', 'validate', 'delta', 'transition', 'coverage', 'trace', 'show', 'list'],
+        })
+      } catch (e) {
+        return fail(e instanceof Error ? e.message : String(e), { action })
+      }
+    },
+    presentCall: (args) => {
+      const a = args as { action?: string }
+      return { card: 'generic', title: `Research IR · ${a.action ?? 'show'}`, kind: 'execute' }
+    },
+  })
+
   return [
     projectTool as ToolDefinition,
     evidenceTool as ToolDefinition,
@@ -1652,6 +3477,10 @@ export function defineResearchTools(
     literatureTool as ToolDefinition,
     paperDownloadTool as ToolDefinition,
     paperLatexTool as ToolDefinition,
+    actionConstructionTool as ToolDefinition,
+    diagramTool as ToolDefinition,
+    schematicTool as ToolDefinition,
+    irTool as ToolDefinition,
   ]
 }
 
@@ -1684,7 +3513,17 @@ export function parseBibEntries(text: string): { entries: BibEntry[]; numberToKe
     }
     if (seen.has(key)) continue
     seen.add(key)
-    entries.push({ key, text: body.replace(/\s+/g, ' ') })
+    // thebibliography 非表格环境：作者列表里的 & / % / # 必须转义，否则
+    // "Misplaced alignment tab character &" 之类的编译错误。
+    // `_` 同理且更容易漏：DOI 里下划线是常态（如 `10.1162/tacl_a_00754`），
+    // 不转义会直接报 "Missing $ inserted"，整篇编译失败。
+    const safeText = body
+      .replace(/\s+/g, ' ')
+      .replace(/(?<!\\)&/g, '\\&')
+      .replace(/(?<!\\)%/g, '\\%')
+      .replace(/(?<!\\)#/g, '\\#')
+      .replace(/(?<!\\)_/g, '\\_')
+    entries.push({ key, text: safeText })
   }
   return { entries, numberToKey }
 }
@@ -1695,7 +3534,35 @@ export function parseBibEntries(text: string): { entries: BibEntry[]; numberToKe
  * 取 `# 标题` 作 title，`## Abstract` 作 abstract，`## References` 作参考文献，
  * 其余章节按原顺序进入正文（v2 论文含 Results / Discussion，模板按需生成 `\section`）。
  */
-export function buildComposeInput(source: string, template: string): ComposeInput {
+/**
+ * 从 `metadata.md` 读论文的作者块信息（authors / affiliation / keywords）。
+ *
+ * 为什么需要它：论文正文（`paper.md`）里**没有**作者声明的位置，作者属于元数据。
+ * 不读 metadata，模板就永远渲染默认的 "Authors / Affiliation" —— 论文能编译、
+ * 能读，署名却是空的，属于典型的事后才发现型缺陷。
+ */
+export function readPaperMeta(
+  paperDir: string,
+): { authors?: string; affiliation?: string; keywords?: string[] } {
+  const p = join(paperDir, PAPER_FILES.metadata)
+  if (!existsSync(p)) return {}
+  const fm = parseFrontmatter(readFileSync(p, 'utf8'))
+  const keywords = (fm.keywords ?? '')
+    .split(/[;,]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return {
+    ...(fm.authors ? { authors: fm.authors } : {}),
+    ...(fm.affiliation ? { affiliation: fm.affiliation } : {}),
+    ...(keywords.length > 0 ? { keywords } : {}),
+  }
+}
+
+export function buildComposeInput(
+  source: string,
+  template: string,
+  meta: { authors?: string; affiliation?: string; keywords?: string[] } = {},
+): ComposeInput {
   const body = stripFrontmatter(source)
   const parsed = parseSections(body)
   /**
@@ -1713,6 +3580,12 @@ export function buildComposeInput(source: string, template: string): ComposeInpu
   return {
     template: normalizeTemplate(template),
     title: parsed.title ?? 'Untitled',
+    // 作者信息来自 `metadata.md` —— 论文正文里没有作者块的位置。
+    // 此前这里不读任何来源，模板于是永远渲染默认的 "Authors / Affiliation"：
+    // 论文能编译、能读，署名却是空的，属于典型的"事后才发现"缺陷。
+    ...(meta.authors ? { authors: meta.authors } : {}),
+    ...(meta.affiliation ? { affiliation: meta.affiliation } : {}),
+    ...(meta.keywords && meta.keywords.length > 0 ? { keywords: meta.keywords } : {}),
     abstract,
     sections,
     bibliography: bib.entries,

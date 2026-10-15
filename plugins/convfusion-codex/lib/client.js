@@ -32,29 +32,1491 @@ window.__ModuleLoader__.load({
 		  mod
 		));
 		var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-		
+
 		// src/client/index.tsx
 		var index_exports = {};
 		__export(index_exports, {
-		  ResearchProgressCard: () => ResearchProgressCard,
-		  ResearchProgressWarmer: () => ResearchProgressWarmer,
+		  COMMUNITY_VIEW_ID: () => COMMUNITY_VIEW_ID,
+		  COMMUNITY_VIEW_ORDER: () => COMMUNITY_VIEW_ORDER,
+		  CONVFUSION_VIEW_SLOT: () => CONVFUSION_VIEW_SLOT,
+		  CommunityTab: () => CommunityTab,
+		  CommunityView: () => CommunityView,
+		  DownloadDialog: () => DownloadDialog,
+		  PROGRESS_VIEW_ID: () => PROGRESS_VIEW_ID,
+		  PROGRESS_VIEW_ORDER: () => PROGRESS_VIEW_ORDER,
+		  ResearchProgressPanel: () => ResearchProgressPanel,
+		  ResearchProgressView: () => ResearchProgressView,
 		  apply: () => apply,
 		  applyNavIcon: () => applyNavIcon,
+		  convfusionTabSpecs: () => convfusionTabSpecs,
+		  currentMainSessionId: () => currentMainSessionId,
 		  inject: () => inject,
+		  installConvFusionTabs: () => installConvFusionTabs,
 		  installNavIcon: () => installNavIcon,
 		  loadSettingsState: () => loadSettingsState,
 		  logoUrl: () => favicon_default,
-		  resetProgressCardState: () => resetProgressCardState,
-		  selectResearchTurn: () => selectResearchTurn
+		  percentText: () => percentText,
+		  preferredCategory: () => preferredCategory,
+		  preferredSection: () => preferredSection,
+		  preferredSkill: () => preferredSkill,
+		  readProgressValue: () => readProgressValue,
+		  shortenPath: () => shortenPath,
+		  syncCommandLine: () => syncCommandLine
 		});
 		module.exports = __toCommonJS(index_exports);
-		
+
 		// assets/favicon.svg
 		var favicon_default = 'data:image/svg+xml,<?xml version="1.0" encoding="UTF-8"?>%0A<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">%0A<path d="M1023.84 343.14C1023.84 345.61 1023.84 348.08 1023.84 350.55C1023.09 352.57 1023.05 354.95 1022.56 357.16C1021.32 362.65 1018.56 367.85 1015.52 372.54C1004.99 388.79 988.22 398.68 972.19 408.73C967.67 411.57 962.63 414.18 958.52 417.55C958.53 480.52 958.54 543.48 958.55 606.45C961.95 608.77 966.23 609.89 969.85 611.98C979.76 617.69 988.83 626.12 993.97 636.46C1013.53 675.85 987.24 721.91 943.11 723.76C903.32 725.44 872.89 686.17 883.24 647.98C888.73 627.76 901.9 617.52 919.46 608.32C919.55 552.97 919.64 497.61 919.73 442.26C912.15 444.53 900.3 453.38 893.27 457.9C876.5 468.69 859.2 478.9 842.02 489.01C782.46 524.05 723.76 560.44 664.12 595.37C629.78 615.49 595.5 641.12 556.76 651.59C516.75 662.41 472.51 657.62 435.22 639.81C425.92 635.37 417.34 629.62 408.51 624.37C393.06 615.19 377.52 606.19 362.16 596.87C339.56 583.16 316.54 570.17 293.75 556.78C271.66 543.81 249.98 530.04 228.06 516.75C192.55 495.23 156.58 474.42 121.44 452.28C98.08 437.56 74.49 423.24 51.08 408.6C35.77 399.03 20.32 390.24 9.57 375.25C6.3 370.69 3.8 365.7 2.06 360.39C1.31 358.11 1.04 355.62 0.16 353.5C0.16 349.76 0.16 346.02 0.16 342.28C1.18 339.95 1.45 337.14 2.26 334.63C3.93 329.4 6.63 324.34 9.95 319.98C21.82 304.38 37.86 295.55 54.59 286.05C74.8 274.57 94.92 262.84 114.93 251C158.72 225.1 203.1 200.12 247.19 174.74C272.46 160.2 297.24 144.74 322.7 130.54C339.42 121.22 356.22 111.78 372.64 101.95C386.3 93.76 400.4 86.14 413.94 77.75C448.96 56.03 484.27 39.05 526.88 44.29C570.42 49.64 603.43 73.71 640.33 95.15C699.67 129.62 759.26 163.7 818.33 198.64C859.74 223.13 901.54 247.1 943.31 270.96C952.42 276.16 961.44 281.54 970.54 286.75C988.46 297.01 1005.6 306.6 1016.94 324.55C1020.69 330.47 1021.39 336.88 1023.84 343.14ZM756.86 278.21C733.59 263.09 708 249.72 683.83 235.94C661.79 223.38 640 209.15 616.48 199.48C571.04 180.8 519.83 175.94 471.84 187.22C427.6 197.62 389.51 224.43 350.03 245.76C341.56 250.33 333.28 255.24 324.86 259.88C287.09 280.72 234.79 309.66 235.08 359.57C235.36 408.48 283.59 434.05 320.09 455.62C331.48 462.35 343 469.05 354.65 475.32C389.66 494.16 420.17 515.24 459.14 526.04C506.69 539.22 560.81 536.52 607.14 519.64C635.9 509.17 662.51 493.29 689 478.16C706.07 468.41 723.24 458.47 740.65 449.36C746.59 446.25 762.13 439.02 765.75 434.38C748.39 424.68 730.88 415.21 713.62 405.31C708.79 402.54 698.12 394.92 692.72 395.96C689.45 396.59 685.93 399.48 683.02 401.08C675.81 405.05 668.75 409.28 661.54 413.26C646.25 421.7 630.87 429.96 615.53 438.29C604.18 444.45 592.71 451.15 580.65 455.83C549.28 468 514.42 469.48 482.45 458.74C467.92 453.86 454.5 445.85 441.27 438.24C429.56 431.51 417.67 425.08 405.9 418.45C387.63 408.15 367.02 399.12 351.01 385.41C342.72 378.31 335.52 368.03 335.57 356.76C335.71 324.89 376.08 310.02 399.14 296.76C409.49 290.8 420.08 285.3 430.54 279.54C442.49 272.95 454.51 265.84 467.44 261.3C504.25 248.36 547.61 249.07 583.76 264.01C609.22 274.53 632.48 290.29 656.75 303.21C662.39 306.22 668.09 309.27 673.61 312.49C676.79 314.34 680.46 317.23 684.23 317.58C689.12 318.03 699.09 310.92 703.55 308.45C714.98 302.11 726.36 295.64 737.89 289.49C744.2 286.12 751.68 283.17 756.86 278.21ZM177.21 527.62C185.91 530.62 194.24 537.06 202.12 541.8C215.58 549.91 229.2 557.8 242.74 565.76C278.06 586.55 313.67 606.89 348.87 627.91C394.2 654.97 432.69 680.75 486.78 687.05C526.39 691.67 566.66 685.11 603.1 669.04C623.2 660.18 641.44 647.51 660.36 636.51C705.26 610.4 749.7 583.46 794.84 557.76C811.61 548.21 827.53 536.44 844.92 528.01C846.97 531.3 846.22 536.08 846.22 540.05C846.22 548.47 846.3 556.89 846.32 565.3C846.38 596.79 846.27 628.27 846.31 659.76C846.34 680.33 846.32 700.9 846.28 721.48C846.22 749.74 846.22 771.06 832.71 796.73C818.12 824.46 796.87 836.61 771.26 852.18C762.34 857.6 753.47 863.08 744.46 868.39C712.55 887.21 681.02 906.64 649.05 925.4C634.53 933.93 620.3 943.49 604.94 950.49C573.02 965.04 537.85 973.13 502.65 971.41C471.72 969.89 440.89 961.71 413.16 947.9C403.12 942.9 393.95 936.52 384.18 931.1C362.5 919.09 341.39 905.97 320.15 893.2C301.07 881.73 281.97 870.25 262.8 858.92C248.04 850.2 232.05 841.88 218.8 830.91C197.12 812.98 182.39 787.55 177.84 759.8C175.09 743.09 176.75 725.27 176.73 708.38C176.7 677.52 176.69 646.66 176.71 615.8C176.72 597.1 176.92 578.39 176.69 559.69C176.58 550.3 175.32 536.49 177.21 527.62Z" fill="%234a43ea" fill-rule="evenodd" stroke="%234a43ea" stroke-width="0.25" stroke-linejoin="round"/>%0A<path d="M756.86 278.21C751.68 283.17 744.2 286.12 737.89 289.49C726.36 295.64 714.98 302.11 703.55 308.45C699.09 310.92 689.12 318.03 684.23 317.58C680.46 317.23 676.79 314.34 673.61 312.49C668.09 309.27 662.39 306.22 656.75 303.21C632.48 290.29 609.22 274.53 583.76 264.01C547.61 249.07 504.25 248.36 467.44 261.3C454.51 265.84 442.49 272.95 430.54 279.54C420.08 285.3 409.49 290.8 399.14 296.76C376.08 310.02 335.71 324.89 335.57 356.76C335.52 368.03 342.72 378.31 351.01 385.41C367.02 399.12 387.63 408.15 405.9 418.45C417.67 425.08 429.56 431.51 441.27 438.24C454.5 445.85 467.92 453.86 482.45 458.74C514.42 469.48 549.28 468 580.65 455.83C592.71 451.15 604.18 444.45 615.53 438.29C630.87 429.96 646.25 421.7 661.54 413.26C668.75 409.28 675.81 405.05 683.02 401.08C685.93 399.48 689.45 396.59 692.72 395.96C698.12 394.92 708.79 402.54 713.62 405.31C730.88 415.21 748.39 424.68 765.75 434.38C762.13 439.02 746.59 446.25 740.65 449.36C723.24 458.47 706.07 468.41 689 478.16C662.51 493.29 635.9 509.17 607.14 519.64C560.81 536.52 506.69 539.22 459.14 526.04C420.17 515.24 389.66 494.16 354.65 475.32C343 469.05 331.48 462.35 320.09 455.62C283.59 434.05 235.36 408.48 235.08 359.57C234.79 309.66 287.09 280.72 324.86 259.88C333.28 255.24 341.56 250.33 350.03 245.76C389.51 224.43 427.6 197.62 471.84 187.22C519.83 175.94 571.04 180.8 616.48 199.48C640 209.15 661.79 223.38 683.83 235.94C708 249.72 733.59 263.09 756.86 278.21Z" fill="%23ffffff" fill-rule="evenodd" stroke="%23ffffff" stroke-width="0.25" stroke-linejoin="round"/>%0A</svg>';
-		
+
+		// src/client/i18n/en.ts
+		var en = {
+		  "settings.nav": "ConvFusion",
+		  "settings.version.updateAvailable": "(Update available: v{version})",
+		  "settings.version.updateHint": "It is recommended to update directly via DSH Launcher",
+		  "settings.hero.subtitle": "Customize capabilities to create your own research methodology",
+		  "settings.badge.customized": "{count} customized",
+		  "settings.badge.systemDefaults": "Using all system defaults",
+		  "settings.badge.readOnly": "Read-only settings",
+		  "settings.tab.local": "Local Methodology",
+		  "settings.tab.community": "ConvFusion.com",
+		  "settings.tab.system": "System Settings",
+		  "settings.status.needsConfiguration": "Needs setup",
+		  "settings.stale.title": "Host restart required",
+		  "settings.stale.badge": "Restart required",
+		  "settings.stale.body": "The Host is still running older code, so the content below may be outdated.",
+		  "settings.stale.action": "Refreshing this page will not help because Host modules are loaded when DSH starts. Restart DSH, then reopen this page.",
+		  "settings.error.title": "Unable to load",
+		  "settings.error.badge": "Error",
+		  "settings.error.missingTransport": "The settings page has no transport implementation.",
+		  "settings.error.service": "The settings service returned an error: {detail}",
+		  "settings.error.incomplete": "The settings service returned incomplete data. Restart DSH and try again.",
+		  "settings.error.timeout": "The request timed out after {seconds} seconds. Check the DSH Host logs for entries related to {route}.",
+		  "settings.error.connection": "Could not connect to the settings service: {detail}\n(Route: {route}. The DSH Host logs record whether this route was registered.)",
+		  "settings.error.call": "The {endpoint} request failed: {detail}",
+		  "settings.error.unknown": "Unknown cause",
+		  "settings.error.code.bad-request": "The request is missing required data.",
+		  "settings.error.code.not-customizable": "This section cannot be customized.",
+		  "settings.error.code.unknown-endpoint": "The settings endpoint is not supported.",
+		  "settings.error.code.not-found": "The requested settings route was not found.",
+		  "settings.error.code.method-not-allowed": "The settings route rejected this request method.",
+		  "settings.error.code.rejected": "The request was rejected by the DSH trust or authentication check.",
+		  "settings.error.code.bad-body": "The request body is invalid.",
+		  "settings.action.retry": "Retry",
+		  "settings.status.loading": "Loading…",
+		  "settings.library.title": "Capability Library",
+		  "settings.library.summary": "{total} items · {customized} customized",
+		  "settings.library.category": "① Capability category",
+		  "settings.library.skill": "② Capability",
+		  "settings.library.section": "③ Customizable section",
+		  "settings.library.optionCount": "{count}",
+		  "settings.library.customizedSuffix": " · {count} customized",
+		  "settings.library.categoryHint": "{count} capabilities · Categories follow the research process",
+		  "settings.library.emptyCategory": "No customizable capabilities in this category",
+		  "settings.library.sectionCount": "{count} sections",
+		  "settings.library.sectionHint": "{count} customizable sections",
+		  "settings.library.sectionCustomizedSuffix": " · Customized",
+		  "settings.library.emptyUsesDefault": "Leave blank to use the system default",
+		  "settings.editor.customized": "Customized",
+		  "settings.editor.systemDefault": "System default",
+		  "settings.editor.requirements": "Your additional requirements",
+		  "settings.editor.placeholder": "Leave blank to use the system default.\nExample: When evaluating research ideas, prioritize whether characterization can be completed with available equipment.",
+		  "settings.editor.base": "System default ({count} characters)",
+		  "settings.editor.characterCount": "{count} characters",
+		  "settings.editor.resetSection": "Reset section",
+		  "settings.editor.resetSkill": "Reset capability",
+		  "settings.editor.save": "Save",
+		  "settings.editor.saving": "Saving…",
+		  "settings.editor.saved": "Saved",
+		  "settings.editor.restoredDefault": "Restored system default",
+		  "settings.editor.restoredSkill": "Restored “{skill}”",
+		  "settings.editor.confirmSection": "Restore the system default for “{section}”? Your customization will be deleted.",
+		  "settings.editor.confirmSkill": "Restore all sections of “{skill}”? This capability’s customizations will be deleted.",
+		  "community.title": "ConvFusion.com",
+		  "community.entry.label": "ConvFusion.com",
+		  "community.notice.published": "{title} · state v{version}",
+		  "community.notice.tokens": "{tokens} Token",
+		  "community.notice.files": "{count} attachment(s)",
+		  "community.notice.oversize": "{count} too large to upload",
+		  "community.notice.renameFailed": "⚠️ Name not updated: {reason}",
+		  "community.publish.title": "Publish {title}",
+		  // The dialog head carries the **name being published** (the work's own name); when it
+		  // differs from the local workspace name, say which workspace this is.
+		  "community.publish.workspaceHint": "Local workspace: {workspace}",
+		  "community.publish.cost": "Costs {tokens} Token : ConvFusion.com",
+		  "community.publish.costUnknown": "Cost unknown",
+		  "community.publish.unknown": "unknown",
+		  "community.publish.storage": "This upload {selected} · server free {available}",
+		  "community.publish.changed": "{count} file(s) to update",
+		  "community.publish.unchanged": "no content changes",
+		  "community.publish.expand": "Expand",
+		  "community.publish.collapse": "Collapse",
+		  "community.publish.tooLarge": "over the per-file limit",
+		  "community.publish.oversizeWarning": "{count} file(s) exceed the server per-file limit (100 MB) and will not be uploaded.",
+		  "community.publish.summary": "{files} file(s) selected · {size} · {batches} batch(es)",
+		  "community.publish.remember": "Remember this selection",
+		  "community.publish.confirm": "Publish",
+		  "community.action.cancel": "Cancel",
+		  "community.action.close": "Close",
+		  "community.action.viewMentor": "Mentor",
+		  "community.action.accept": "Accept",
+		  "community.action.propose": "Offer mentorship",
+		  "community.action.download": "Download",
+		  "community.action.upload": "Upload",
+		  "community.action.more": "More actions",
+		  "community.action.reject": "Decline",
+		  "upload.category.state": "Research state and definition",
+		  "upload.category.plans": "Research plans",
+		  "upload.category.papers": "Paper and figures",
+		  "upload.category.experiments": "Experiments and code",
+		  "upload.category.research-assets": "Research assets",
+		  "upload.category.review": "Review records",
+		  "upload.category.outputs": "Outputs",
+		  "upload.category.literature-raw": "Literature extracts and search payloads",
+		  "upload.category.literature-fulltext": "Literature full texts (PDF)",
+		  "upload.category.large-files": "Large files (≥10 MB)",
+		  "upload.category.others": "Other files",
+		  "upload.reason.state": "The core evidence of what this research is",
+		  "upload.reason.plans": "Plans: what happens next and where it stands",
+		  "upload.reason.papers": "Paper text and figures: how results are expressed",
+		  "upload.reason.experiments": "Experiment scripts and results: how it was verified",
+		  "upload.reason.research-assets": "Evidence, claims, decisions and literature notes: the researcher’s judgement",
+		  "upload.reason.review": "Diagnosis and guidance: who reviewed this work, and on what basis",
+		  "upload.reason.outputs": "Deliverables (reports, slides, …)",
+		  "upload.reason.literature-raw": "Machine-extracted text and raw search payloads: not uploaded by default",
+		  "upload.reason.literature-fulltext": "Other people’s papers: not uploaded by default; select individually if needed",
+		  "upload.reason.large-files": "Single files ≥10 MB: not uploaded by default; select if genuinely useful",
+		  "upload.reason.others": "Unclassified files: not uploaded by default",
+		  "community.action.seekMentor": "Find an online mentor",
+		  // ── Topic mode (v0.6.0): the publish entry collapses to ONE button per role ──
+		  // researcher → "Find an online mentor"; mentor → "Find top students" (+ the other
+		  // direction in the dropdown); published → "Update research". A work belongs to exactly
+		  // one direction, so there is never more than one publish entry per row.
+		  "community.action.seekStudent": "Find top students",
+		  "community.tip.morePublish": "More publishing options (the other direction)",
+		  "community.tip.republish": "Update this work in the network (direction unchanged: a work posted to find a mentor).",
+		  "community.tip.republishTopic": "Update this topic in the network (direction unchanged: a topic posted to recruit students).",
+		  "community.tip.publishTopic": "Publish this topic to ConvFusion.com so students can discover it and bid to join. Research methods are never uploaded.",
+		  // Student-side actions (rows in "Joinable")
+		  "community.action.bid": "Bid",
+		  "community.action.viewStudent": "Student",
+		  "community.tip.bid": "Bid on this topic (free; the deposit is only frozen if the mentor accepts)",
+		  "community.tip.bidded": "Already bid: awaiting the mentor’s response",
+		  "community.action.republish": "Update research",
+		  "community.action.publishing": "Publishing…",
+		  "community.badge.inNetwork": "On the network",
+		  "community.badge.published": "Published",
+		  "community.tip.publish": "Publish this research progress to ConvFusion.com so mentors can discover it. Research methods are never uploaded.",
+		  "community.tip.publishNeedSignIn": "Sign in to ConvFusion.com before publishing",
+		  "community.hint.publishMissing": "These fields have no content on this machine yet, so they are not visible on the network: {fields}.",
+		  "community.error.publish": "Publishing failed.",
+		  "community.tab.account": "Account",
+		  "community.tab.signIn": "Sign in",
+		  "community.tab.server": "Server",
+		  // The account card is collapsed by default: it keeps only "who + how many Tokens left".
+		  // The chevron is the only hint, so the tooltip says what expanding gives you.
+		  "community.tip.expand": "Show account and server settings",
+		  "community.tip.collapse": "Hide account and server settings",
+		  // Dashboard tiles on the Account tab (Token / storage / projects)
+		  "community.dash.token": "Token balance",
+		  "community.dash.tokenFrozen": "{frozen} frozen",
+		  "community.dash.tokenTotal": "{total} in total",
+		  "community.dash.storage": "Storage",
+		  "community.dash.storageSub": "Used {used} / {total}",
+		  "community.dash.projects": "Published projects",
+		  "community.dash.projectsSub": "Tier {tier} · next publish {cost} Token",
+		  // Unavailable is stated as "unknown": 0 asserts "indeed none", which is not the same thing
+		  "community.dash.unknown": "Unknown",
+		  "community.work.title": "Research work",
+		  "community.work.byAuthor": "by {name}",
+		  "community.tab.mine": "Mine",
+		  "community.tab.mentor": "Can mentor",
+		  // "Joinable" = topics published by mentors (student view). A researcher only sees
+		  // Mine / Joinable / Mentorship; a mentor sees all four.
+		  "community.tab.joinable": "Joinable",
+		  "community.tab.mentorship": "Mentorship",
+		  "community.login.keyLabel": "Sign in with API key",
+		  "community.server.address": "Server address",
+		  "community.server.title": "Leave empty to follow the environment config (this environment defaults to {url}); addresses containing /api or /docs are normalized automatically.",
+		  // The shortcut icon buttons next to the address field (tooltip = "<label> · <url>")
+		  "community.server.presetDev": "Dev server",
+		  "community.server.presetProd": "Internet server",
+		  "community.server.inviteCode": "Invitation code",
+		  "community.server.probing": "Testing connection...",
+		  "community.server.probeOk": "Connected",
+		  "community.server.probeFail": "Connection failed",
+		  "community.badge.production": "Production",
+		  "community.badge.development": "Development",
+		  "community.badge.envMismatch": "Address does not match environment",
+		  "community.badge.checking": "Checking…",
+		  "community.badge.signedIn": "Signed in",
+		  "community.badge.unverified": "Credential unverified",
+		  "community.badge.signedOut": "Not signed in",
+		  "community.badge.sample": "Sample data",
+		  "community.badge.charged": "Charged",
+		  "community.badge.registryUnavailable": "Registry unavailable",
+		  "community.badge.signInRequired": "Sign-in required",
+		  "community.badge.addressChanged": "Address not saved",
+		  // Two disclosure levels, named for what the reader is doing:
+		  //   Overview = topic + work note, free, to judge relevance;
+		  //   Details  = motivation / core idea / hypothesis / method / evidence / open problems, 1 Token.
+		  "community.action.summary": "Overview",
+		  "community.action.collapse": "Collapse",
+		  // The button carries only the action; price/state goes in the badge after it
+		  "community.action.brief": "Details",
+		  "community.briefState.cost": "1 Token",
+		  "community.briefState.paid": "Paid",
+		  "community.action.loading": "Loading…",
+		  "community.action.refresh": "Refresh",
+		  "community.action.retry": "Retry",
+		  "community.action.saveAddress": "Save",
+		  "community.action.saving": "Saving...",
+		  "community.action.retryVerify": "Retry verification",
+		  "community.action.signIn": "Sign in",
+		  "community.action.signingIn": "Signing in…",
+		  "community.action.signOut": "Sign out",
+		  "community.action.register": "Register and sign in",
+		  "community.action.registering": "Registering…",
+		  "community.action.inviteShow": "Register with an invitation",
+		  "community.action.inviteHide": "Hide invitation form",
+		  "community.action.applyInvite": "Request invitation code",
+		  "community.action.applyInviteTip": "Open the server homepage in your browser to request an invitation code from the administrator",
+		  "community.tip.summary": "Free: topic and work note — see whether it relates to you",
+		  "community.tip.briefDisabled": "Sign in to read the details",
+		  "community.tip.briefCost": "Go deeper: motivation / core idea / hypothesis / method / evidence / open problems (1 Token on first read; you can offer mentorship afterwards)",
+		  "community.tip.briefUnlocked": "Unlocked: re-reading this one is free, and you can offer mentorship",
+		  // ── Mentorship (third tab) ─────────────────────────────────────────
+		  // Proposal dialog (mentor side; offering is free, the dialog is the confirmation)
+		  "community.mentor.proposeTitle": "Offer mentorship",
+		  "community.mentor.proposeFree": "Free to offer",
+		  "community.mentor.proposeDone": "Offered; waiting for their response.",
+		  // The student side of the same dialog (bid on a mentor-published topic): same logic,
+		  // but it must say plainly that the deposit frozen on acceptance is **theirs**.
+		  "community.mentor.bidTitle": "Bid to join",
+		  "community.mentor.bidNote": "A {percent}% deposit ({deposit} Token) is frozen from **your** account when the mentor accepts, the two sides confirm the success condition, and the remaining {success} Token is paid once the outcome is verified.",
+		  "community.mentor.bidDone": "Bid placed; waiting for the mentor’s response.",
+		  // The mentor only sets the total: the deposit ratio is platform policy
+		  "community.mentor.feeTotal": "Total fee",
+		  "community.mentor.feeNote": "A {percent}% deposit ({deposit} Token) is frozen on acceptance, the other side confirms the success condition, and the remaining {success} Token is paid once the outcome is verified.",
+		  "community.mentor.feeInvalid": "Enter a positive integer for the total fee.",
+		  "community.tip.propose": "Offer to mentor this work (free; the deposit is only frozen if they accept)",
+		  "community.tip.proposed": "Already offered: this request is awaiting their response",
+		  "community.mentor.profileTitle": "Mentor profile",
+		  // In the mentor-topic direction the person being judged is the **mentor**, and the
+		  // party they look at is the bidding student — same structure, different wording.
+		  "community.mentor.profileTitleResearcher": "Student profile",
+		  "community.mentor.profileEmpty": "This mentor has not filled in a research profile yet.",
+		  "community.mentor.profileEmptyResearcher": "This student has not filled in a research profile yet.",
+		  "community.mentor.profileBio": "About",
+		  "community.mentor.profileFields": "Research fields",
+		  "community.mentor.profileInterests": "Research interests",
+		  "community.mentor.profileExpertise": "Research expertise",
+		  "community.mentor.unknownParty": "Unknown user",
+		  "community.mentor.untitledProject": "Untitled project",
+		  "community.mentor.mentorIs": "Mentor: {name}",
+		  "community.mentor.researcherIs": "Student: {name}",
+		  // The Mentorship tab keeps only status + fee numbers
+		  "community.mentor.feeText": "{total} Token (deposit {deposit} · success {success})",
+		  // Progress after the relationship exists. `review_files` counts the **non-owner**
+		  // side: in direction A that is the mentor's guidance, in direction B the student's
+		  // delivery — so all four phrasings are needed, not just mentor/student.
+		  "community.mentor.progress.studentWaiting": "Awaiting guidance",
+		  "community.mentor.progress.studentGot": "Mentor has given guidance",
+		  "community.mentor.progress.mentorWaiting": "Guidance pending",
+		  "community.mentor.progress.mentorDone": "Guidance delivered",
+		  "community.mentor.progress.iToDeliver": "I still need to deliver",
+		  "community.mentor.progress.iDelivered": "I have delivered",
+		  "community.mentor.progress.studentToDeliver": "Waiting for the student to deliver",
+		  "community.mentor.progress.studentDelivered": "Student has delivered",
+		  // The watermark is on the **owner** side, so only the party that downloads that side
+		  // (the non-owner) sees these — hence "the other side", not "the student".
+		  "community.mentor.peerNeverDownloaded": "This workspace has not been downloaded yet — download it first.",
+		  "community.mentor.peerUpdated": "The other side updated files — re-download.",
+		  "community.mentor.peerDeleted": "The other side deleted files — re-download.",
+		  "community.mentor.status.PROPOSED": "Awaiting response",
+		  "community.mentor.status.ACCEPTED": "Accepted",
+		  "community.mentor.status.REJECTED": "Declined",
+		  "community.mentor.status.EXPIRED": "Expired",
+		  "community.mentor.status.CANCELLED": "Cancelled",
+		  "community.mentor.condition.PAPER_ACCEPTED": "Paper accepted",
+		  "community.mentor.condition.PAPER_PUBLISHED": "Paper published",
+		  "community.mentor.condition.RESEARCH_COMPLETED": "Research completed",
+		  "community.mentor.condition.PATENT_GRANTED": "Patent granted",
+		  "community.mentor.condition.TECHNICAL_OUTCOME": "Technical outcome",
+		  "community.mentor.condition.MUTUAL_COMPLETION": "Mutual completion",
+		  "community.mentor.badgeDone": "Done",
+		  "community.mentor.badgeFailed": "Failed",
+		  "community.mentor.acceptDone": "Mentorship accepted; {deposit} Token deposit frozen.",
+		  // Direction B: the acceptor is the mentor and the deposit frozen is the **student's**
+		  // (neither the receipt nor the 402 may read as "your balance is too low").
+		  "community.mentor.acceptDoneOther": "Accepted; the student’s {deposit} Token deposit is frozen.",
+		  "community.mentor.acceptNoTokens": "Need {deposit} more available Tokens; get Tokens and retry.",
+		  "community.mentor.acceptNoTokensOther": "The student has fewer than {deposit} available Tokens — cannot accept; ask them to top up.",
+		  "community.mentor.rejectDone": "Request declined.",
+		  "community.mentor.acceptConfirmTitle": "Accepting freezes a deposit",
+		  "community.mentor.acceptConfirmTitleOther": "Accepting freezes the student’s deposit",
+		  "community.mentor.acceptConfirmBadge": "Freeze {deposit} Token",
+		  "community.mentor.acceptConfirmBadgeOther": "Freeze {deposit} Token from the student",
+		  "community.mentor.acceptConfirm": "Confirm accept",
+		  "community.mentor.acceptFreezeNote": "Accepting freezes a {deposit} Token deposit (still yours, just unavailable).",
+		  "community.mentor.acceptFreezeNoteOther": "Accepting freezes a {deposit} Token deposit from the **student**’s account; it fails if the student lacks the balance.",
+		  "community.mentor.acceptBalance": "Available balance: {balance} Token",
+		  "community.exchange.downloadTitle": "Download into a workspace",
+		  "community.exchange.sizeBadge": "{files} files · {size}",
+		  "community.exchange.zipOnly": "Only the ZIP is saved into the chosen workspace; no extraction — the rest is up to you.",
+		  "community.exchange.destHint": "Saves to: {dest}",
+		  "community.exchange.downloading": "Downloaded {done} / ≈{total}",
+		  "community.exchange.downloadingBtn": "Downloading…",
+		  "community.exchange.noWorkspaces": "No DSH workspace available (create one in DSH first).",
+		  "community.exchange.downloadDone": "Saved {name} into {dir}.",
+		  // Download target validation (protocol 23): is this workspace **the same research**?
+		  "community.exchange.ws.new": "New workspace",
+		  "community.exchange.ws.newHint": "No research workspace yet; treated as a fresh one",
+		  "community.exchange.ws.same": "Same research",
+		  "community.exchange.ws.sameHint": "DSH will read both sides and merge into the existing workspace/",
+		  "community.exchange.ws.other": "Another research",
+		  "community.exchange.ws.otherHint": "This workspace holds a different research; the prompt backs it up first, then extracts fresh",
+		  "community.exchange.ws.unknown": "Cannot confirm",
+		  "community.exchange.ws.unknownHint": "Its identity cannot be read; the prompt surveys first and asks you to judge",
+		  "community.exchange.ws.unverifiable": "Server gave no id",
+		  "community.exchange.ws.unverifiableHint": "Cannot verify sameness; the prompt surveys first and asks you to judge",
+		  "community.exchange.ws.missing": "Directory missing",
+		  "community.exchange.ws.missingHint": "This workspace directory is not present right now (e.g. an unmounted volume); it will be created on download",
+		  "community.exchange.ws.conflict": "Identity conflict",
+		  "community.exchange.ws.conflictHint": "The in-workspace marker and the local record disagree — cannot confirm",
+		  "community.exchange.ws.current": "Current session",
+		  "community.exchange.ws.otherWarn": "⚠️ This workspace holds **another** research. After downloading, DSH first **backs up** the existing research root (moved under this workspace and renamed to `workspace_<initialism>_<date>`; never deleted) and then extracts this one as a new root — pick another workspace if you want to keep it as it is.",
+		  "community.exchange.ws.unknownWarn": "⚠️ This workspace's identity cannot be read, so sameness is unconfirmed. The merge prompt makes DSH survey read-only, state a judgement, and wait for your confirmation before touching files.",
+		  "community.exchange.ws.conflictWarn": "⚠️ The in-workspace marker and the local record contradict each other, so sameness is unconfirmed. The merge prompt makes DSH survey read-only, state a judgement, and wait for your confirmation.",
+		  "community.exchange.ws.unverifiableWarn": "⚠️ The server provided no research identity, so sameness cannot be verified. The merge prompt makes DSH survey read-only, state a judgement, and wait for your confirmation.",
+		  "community.exchange.ws.missingWarn": "⚠️ This workspace directory is not present right now (e.g. an unmounted volume); downloading will create it.",
+		  // After downloading: the plugin **only builds the prompt**; the agent follows it.
+		  // new → extract as a new root · **same → merge** · **other → back up the existing root (move, never
+		  // delete), then extract as a new one**. Unreadable / missing identity → survey, state a judgement,
+		  // wait for confirmation, then act on the matching branch. Two steps either way.
+		  "community.merge.title": "Sync command",
+		  "community.merge.hint": "Just send it: the agent loads the `sync` skill first — step 1 is a **read-only survey** whose report it stops at, and only after your confirmation does it touch files. Same research → merge (new files from both sides, never overwrite); another research → back up the existing root first, then extract the new one.",
+		  "community.merge.fill": "Fill the input box",
+		  "community.merge.fillHint": "Replaces whatever is in the input box",
+		  "community.merge.copy": "Copy prompt",
+		  "community.merge.copied": "Prompt copied to the clipboard.",
+		  "community.merge.copyFailed": "Copy failed — select the prompt in the input box manually.",
+		  "community.merge.filled": "Merge prompt filled into the input box — send it when you are ready.",
+		  "community.merge.otherWorkspace": "Saved to {dir}. That workspace is not this session's workspace — send this command from a session **in that workspace** (DSH can only write its own session workspace).",
+		  "community.merge.noComposer": "Not in a session: copy this command and paste it into a session in the target workspace.",
+		  "community.merge.plan.new": "This workspace has **no** research root yet: step 2 extracts the archive into a new one.",
+		  "community.merge.plan.same": "This workspace already holds the **same** research (identity matches): step 2 **merges** the archive into it — not a replacement, information from both sides survives.",
+		  "community.merge.plan.other": "This workspace currently holds **another** research (identity differs): step 2 first backs up the whole existing research root (**moves** it, never deletes) and then extracts the download as a **new** research root. The backup stays in place — nothing is lost.",
+		  "community.merge.plan.unknown": "This workspace has research but its **identity cannot be read**, so sameness cannot be decided automatically: in the survey, compare both sides' project.md / research-state.md topics and questions, state whether they are the same research and why, and **wait for my confirmation** before acting on either branch.",
+		  "community.merge.plan.unverifiable": "The server provided **no** research identity, so sameness cannot be decided automatically: in the survey, compare both sides' project.md / research-state.md topics and questions, state your judgement and its basis, and **wait for my confirmation** before acting on either branch.",
+		  "community.merge.pendingHint": "Downloading: this command is **already in the input box** — send it once this download has landed (sending now would point at a half-written zip; the command blocks that too).",
+		  "community.merge.nameChanged": "The file actually written is `{name}` (different from the pre-check guess).",
+		  "community.merge.refill": "Update command with the real filename",
+		  "community.merge.downloadFailedHint": "Do **not** send the command already in the input box — the zip never landed.",
+		  // Upload = hand back *my copy of the workspace* (the mentor kept working inside the student's workspace/)
+		  "community.exchange.uploadTitle": "Upload research progress",
+		  "community.exchange.workspaceLabel": "Workspace",
+		  "community.exchange.workspacePlaceholder": "Choose a workspace to hand back…",
+		  "community.exchange.noSourceFiles": "The other side has not uploaded anything yet.",
+		  "community.exchange.noUploadWorkspaces": "No workspace can be handed back (a workspace needs workspace/ with project.md).",
+		  "community.exchange.fromHint": "Handing back: {root}",
+		  "community.exchange.selectWorkspaceFirst": "Choose a workspace, then tick the files to hand back.",
+		  "community.exchange.noUploadFiles": "Nothing to hand back in this workspace.",
+		  "community.exchange.skippedMachine": "Skipped {count} machine-generated files (caches / dependencies / build output / backups).",
+		  "community.exchange.oversizeWarning": "{count} files exceed the per-file limit (100 MB) and will be skipped.",
+		  "community.exchange.uploadSummary": "{files} files · {size} · {batches} batches",
+		  "community.exchange.uploading": "Uploaded {done}/{files} files · {sent} / {total}",
+		  "community.exchange.uploadNoChange": "{count} files already match the server; nothing to re-upload.",
+		  "community.exchange.uploadPartial": "Uploaded {uploaded} files; {skipped} skipped for exceeding the per-file limit.",
+		  "community.exchange.uploadDone": "Uploaded {count} files.",
+		  "community.tip.download": "Download this project workspace snapshot (ZIP)",
+		  "community.tip.upload": "Send my copy of the workspace back so the student can continue",
+		  "community.hint.mentorSignIn": "Sign in to send or accept mentorship requests.",
+		  "community.hint.mentorEmpty": "No mentorship requests yet — offer one under Can mentor, or bid under Joinable.",
+		  "community.error.readMentor": "Failed to load mentorship requests.",
+		  // Charged-action confirmation: clicking Brief only opens this dialog; the request (and the charge) happens on confirm
+		  "community.briefConfirm.title": "Reading the details costs Tokens",
+		  "community.briefConfirm.scope": "Includes: motivation / core idea / hypothesis / method overview / key evidence / open problems",
+		  "community.briefConfirm.cost": "First read costs 1 Token (free for your own research)",
+		  "community.briefConfirm.balance": "Balance {balance}",
+		  "community.briefConfirm.balanceUnknown": "Balance unknown",
+		  "community.briefConfirm.idempotent": "Re-opening the same research does not charge again",
+		  "community.briefConfirm.confirm": "Confirm",
+		  "community.tip.balance": "Click to view the balance and renewal",
+		  // ── Token balance dialog + recharge application (2026-09 user request) ──
+		  "community.token.dialogTitle": "Token balance",
+		  "community.token.available": "Available",
+		  "community.token.frozen": "Frozen",
+		  "community.token.total": "Total",
+		  "community.token.renewHint": "Tokens are currently granted by an administrator. Once you apply, an administrator will handle it on the server; self-service payment is not available yet.",
+		  "community.token.pendingLine": "Applied for {amount} Token; waiting for the administrator.",
+		  "community.token.amountLabel": "Amount",
+		  "community.token.amountPlaceholder": "e.g. 100",
+		  "community.token.reasonLabel": "Reason",
+		  "community.token.reasonPlaceholder": "Optional, up to 500 characters",
+		  "community.token.apply": "Apply for renewal",
+		  "community.token.applying": "Submitting...",
+		  "community.token.close": "Got it",
+		  "community.token.amountInvalid": "The amount must be a positive integer.",
+		  "community.token.receipt": "Recharge request submitted ({amount} Token); waiting for the administrator.",
+		  "community.tip.balanceDetail": "Available {available} · frozen {frozen} (frozen funds are still yours, merely locked); click to view the balance and renewal",
+		  "community.tip.keyPrivacy": "The credential is stored only on this machine (DSH settings); it is never sent back to the browser or written into the conversation.",
+		  "community.tip.envKey": "The credential comes from an environment variable; change it and restart DSH",
+		  "community.balance.frozenNote": "({count} frozen)",
+		  "community.detail.researchQuestion": "Research question",
+		  "community.detail.summary": "Summary",
+		  "community.detail.motivation": "Motivation",
+		  "community.detail.coreIdea": "Core idea",
+		  "community.detail.hypothesis": "Hypothesis",
+		  "community.detail.methodOverview": "Method overview",
+		  "community.detail.keyEvidence": "Key evidence",
+		  "community.detail.openProblems": "Open problems",
+		  "community.hint.inviteRule": "The email must match the one the invitation was issued to; the API key issued on registration is stored on this machine automatically.",
+		  "community.hint.addressChanged": "Saving signs in again on the new server.",
+		  "community.hint.mismatchProduction": "This is the production environment but the address points at localhost — you are most likely connected to a development server on this machine.",
+		  "community.hint.mismatchDevelopment": "This is the development environment but the address points at the live server — acting on live data from a development machine is risky; please confirm this is intended.",
+		  "community.hint.sampleFootnote": "Sample data; sign in to browse and act on research work from the network.",
+		  // "Can mentor" is hidden entirely without the mentor role (v0.6.0), so the
+		  // "mentor role required" note and its badge are gone with it.
+		  "community.hint.noJoinable": "No mentor-published topics yet.",
+		  "community.hint.registryUnavailable": "This DSH instance does not provide the workspace registry.",
+		  "community.hint.loading": "Loading…",
+		  "community.hint.loadingWork": "Loading research work…",
+		  "community.hint.noData": "No data.",
+		  "community.hint.mineEmpty": "No local research projects yet (workspaces containing a valid research workspace appear here).",
+		  "community.hint.paper": "Paper available",
+		  "community.hint.noDiscoverable": "No discoverable research work right now.",
+		  "community.error.unknown": "Unknown reason",
+		  "community.error.readAccount": "Failed to read the sign-in state.",
+		  "community.error.readAccountDetail": "Cannot read the sign-in state: {detail}",
+		  "community.error.readWorkList": "Failed to load the research work list.",
+		  "community.error.readMine": "Failed to load local research work.",
+		  "community.error.readSummary": "Failed to load the overview.",
+		  "community.error.readBrief": "Failed to load the details.",
+		  "community.error.hostRestart": "The host must be restarted: it does not expose the work/mine endpoint yet.",
+		  "community.error.transport": "Cannot reach {route} ({detail}). Check the DSH host log.",
+		  "community.notice.charged": "Details read; {tokens} Token charged (balance {balance})",
+		  "community.notice.briefRead": "Details read (balance {balance})",
+		  "community.placeholder.invitation": "Invitation code cf_inv_…",
+		  "community.placeholder.email": "Email (must match the invitation)",
+		  "community.placeholder.displayName": "Display name",
+		  "community.sample.retrieval.title": "Retrieval-augmented long-context reasoning",
+		  "community.sample.retrieval.fields": "Natural language processing",
+		  "community.sample.robotFailure.title": "Visual judgement of robot manipulation failures",
+		  "community.sample.robotFailure.fields": "Robot learning, Multimodal",
+		  "community.sample.lidar.title": "Vision-LiDAR cross-modal localisation",
+		  "community.sample.lidar.fields": "Multimodal, Robotics",
+		  "community.role.RESEARCHER": "Researcher",
+		  "community.role.MENTOR": "Mentor",
+		  "community.role.ADMIN": "Administrator",
+		  "community.status.ACTIVE": "Active",
+		  "community.status.SUSPENDED": "Suspended",
+		  "community.status.DEACTIVATED": "Deactivated",
+		  "community.stage.IDEA": "Idea",
+		  "community.stage.LITERATURE": "Literature",
+		  "community.stage.HYPOTHESIS": "Hypothesis",
+		  "community.stage.PLANNING": "Planning",
+		  "community.stage.IMPLEMENTATION": "Implementation",
+		  "community.stage.EXPERIMENT": "Experiment",
+		  "community.stage.ANALYSIS": "Analysis",
+		  "community.stage.WRITING": "Writing",
+		  "community.stage.COMPLETED": "Completed",
+		  "settings.library.localOnly": "Local only",
+		  "system.retrieval.notConfigured": "Not configured: register for free at",
+		  "system.retrieval.notConfiguredAction": "and paste a key (without one, searches use the public pool at a lower rate).",
+		  "system.retrieval.envFrom": "Currently provided by the environment variable",
+		  "system.retrieval.envFromAction": "; saving a key here overrides it.",
+		  "system.dependency.title": "Local dependency",
+		  "system.status.unknown": "Unknown",
+		  "system.status.installed": "Installed",
+		  "system.status.notInstalled": "Not installed",
+		  "system.dependency.viaEnv": "(specified by {envVar})",
+		  "system.dependency.checking": "Checking…",
+		  "system.dependency.recheck": "Check again",
+		  "system.dependency.available": "tectonic is available{version}",
+		  "system.dependency.missing": "tectonic was not found. Install it using the instructions below, then check again.",
+		  "system.dependency.installIntro": "Compiling a paper to PDF requires tectonic on this machine (it is not an npm dependency). Install it using any one of these commands:",
+		  "system.dependency.installOutro": "If it is installed elsewhere, set {envVar} to its path, then click “Check again”. The first compilation downloads about 40 MB of packages; later runs reuse them.",
+		  "system.retrieval.title": "Literature search",
+		  "system.status.configured": "Configured",
+		  "system.status.notConfigured": "Not configured",
+		  "system.retrieval.placeholderReplace": "A key is set; enter a new value to replace it",
+		  "system.retrieval.placeholderPaste": "Paste API Key",
+		  "system.retrieval.secretHint": "Leave blank to keep the current value. The key is stored locally and is never returned to the browser.",
+		  "system.retrieval.clear": "Clear",
+		  "system.retrieval.saved": "OpenAlex API Key saved",
+		  "system.retrieval.cleared": "OpenAlex API Key cleared",
+		  "system.retrieval.saveFailed": "Save failed: {detail}",
+		  "system.retrieval.clearFailed": "Clear failed: {detail}",
+		  "progress.name": "Research progress",
+		  // Session-tab copy: carry the percentage when one is known
+		  "progress.tab.label": "Progress {percent}",
+		  "progress.summary": "Maturity conversion {percent}",
+		  "progress.currentStage": " · Current stage: {stage}",
+		  "progress.noData": "No data yet",
+		  "progress.reading": "Reading…",
+		  "progress.refresh": "Refresh",
+		  "progress.section.maturity": "A · Research maturity (level conversion, not a measurement)",
+		  "progress.section.assets": "A2 · Countable assets (actual counts)",
+		  "progress.paper": "Paper body",
+		  "progress.paper.present": "Draft exists",
+		  "progress.paper.absent": "No draft yet",
+		  "progress.stateVersion": "Research State version: {version}",
+		  "progress.section.turn": "B · Most recent turn",
+		  "progress.turn.summary": "Turn {turn} · Maturity conversion {before} → {after}{assetChange}",
+		  "progress.turn.assetChange": " · {count} asset changes",
+		  "progress.turn.noAssetChange": " · No asset changes",
+		  "progress.turn.maturityChange": "Maturity {dimension}: {from} → {to}",
+		  "progress.turn.countChange": "{label}: {from} → {to} ({delta})",
+		  "progress.turn.noChange": "This turn created no new verifiable research assets. Discussion and clarification do not create assets, which is normal.",
+		  "progress.turn.unavailable": "This session has no turn report yet. The Host creates one after a conversation turn; section A always shows the latest state.",
+		  "progress.section.need": "C · Current gaps and advance assessment",
+		  "progress.need.assessment": "Advance assessment:",
+		  "progress.need.basis": " (Basis: {basis})",
+		  "progress.need.nextStep": "Next step: {text}",
+		  "progress.need.decision": "Your decision is needed: {text}",
+		  "progress.basis.blockingQuestion": "A research question is explicitly marked as blocking",
+		  "progress.basis.stalled": "No new verifiable research assets were created for {rounds} consecutive turns",
+		  "progress.basis.draftPlans": "{count} plans are still drafts ({plans})",
+		  "progress.basis.processComplete": "Every research-process stage has a landed asset; there is no structural gap",
+		  "progress.basis.stagePending": "The current stage “{stage}” has not landed yet ({evidence})",
+		  "progress.decision.stalled": "The current approach is not producing assets. Continue in this direction, switch direction, or adjust the objective?",
+		  "progress.decision.draftPlans": "Several plans are still drafts and have not been ranked. Choose a primary plan or provide selection criteria.",
+		  "progress.decision.processComplete": "Should the research deepen, move to writing, or open a new question? Choose a direction.",
+		  "progress.noReport": "The Host has not returned progress data for this workspace yet.",
+		  "progress.footnote": "All data comes from real assets on disk (project.md / research-state.md / evidence / claims / plans). Maturity is a conversion of Research State levels, not a measurement. This panel describes research needs; it does not prescribe the next action.",
+		  "progress.clarity.clear": "Direction is clear → proceed directly",
+		  "progress.clarity.ambiguous": "Choose a direction",
+		  "progress.clarity.blocked": "Waiting for your decision (blocked)",
+		  "progress.clarity.unknown": "Not assessed",
+		  "progress.gap.stagePending": "Current research-process stage: {stage} (not yet landed)",
+		  "progress.gap.processComplete": "Every research-process stage has a landed asset",
+		  "progress.gap.unsupportedClaims": "{count} claims still lack supporting evidence",
+		  "progress.gap.missingArtifacts": "{count} evidence items lack a raw-artifact reference (incomplete provenance)",
+		  "progress.gap.openQuestions": "{count} open questions remain",
+		  "progress.stage.topics": "Topic Proposal",
+		  "progress.stage.literature": "Literature Grounding",
+		  "progress.stage.innovation": "Innovation and Hypotheses",
+		  "progress.stage.planning": "Research Planning",
+		  "progress.stage.resource": "Resource Estimation",
+		  "progress.stage.decision": "Research Decision",
+		  "progress.stage.experiment": "Experimental Validation",
+		  "progress.stage.writing": "Academic Writing",
+		  "progress.stageEvidence.topics": "research topics (research/topics.md)",
+		  "progress.stageEvidence.literature": "retrieved literature evidence (research/evidence/)",
+		  "progress.stageEvidence.innovation": "testable hypotheses and claims (research/claims/)",
+		  "progress.stageEvidence.planning": "an executable research plan and method design (research/plans/)",
+		  "progress.stageEvidence.resource": "resource requirements, cost and feasibility estimates (research/plans/)",
+		  "progress.stageEvidence.decision": "research decisions with recorded rationale (research/decisions/)",
+		  "progress.stageEvidence.experiment": "experimental artifacts and settled result evidence (experiments/<name>/results/)",
+		  "progress.stageEvidence.writing": "paper body (papers/<id>/paper.md)",
+		  "progress.stageOutput.topics": "Record research topics in research/topics.md.",
+		  "progress.stageOutput.literature": "Collect actual literature evidence in research/evidence/.",
+		  "progress.stageOutput.innovation": "Create testable hypotheses and claims in research/claims/.",
+		  "progress.stageOutput.planning": "Produce an executable research plan and method design in research/plans/.",
+		  "progress.stageOutput.resource": "Estimate resource requirements, cost and feasibility in research/plans/.",
+		  "progress.stageOutput.decision": "Record a research decision and its rationale in research/decisions/.",
+		  "progress.stageOutput.experiment": "Produce experimental artifacts and settled result evidence under experiments/<name>/results/.",
+		  "progress.stageOutput.writing": "Develop the paper body under papers/<id>/paper.md.",
+		  "progress.count.evidence": "Evidence",
+		  "progress.count.claims": "Claims",
+		  "progress.count.decisions": "Decisions",
+		  "progress.count.plans": "Plans",
+		  "progress.count.openQuestions": "Open questions",
+		  "progress.count.outputs": "Outputs",
+		  "progress.count.settled": "{count} confirmed",
+		  "progress.count.supported": "{count} supported by evidence",
+		  "progress.count.ready": "{count} executable",
+		  // 多研究工作：工作区同时跑多篇论文时，面板顶部用 tab 切换（一个工作 = 一篇论文）
+		  "progress.works.overview": "Overview",
+		  "progress.works.active": "active paper",
+		  // 总览 tab 的多工作汇总（v2）：逐工作一行 + 合计；括号里的子集含义放悬停提示
+		  "progress.works.section.aggregate": "All works (actual counts)",
+		  "progress.works.col.work": "Work",
+		  "progress.works.col.maturity": "Maturity",
+		  "progress.works.col.sections": "Sections",
+		  "progress.works.col.claims": "Claims",
+		  "progress.works.col.evidence": "Evidence",
+		  "progress.works.col.gaps": "Gaps",
+		  "progress.works.col.proposals": "Revisions",
+		  "progress.works.totals": "Total ({count} works)",
+		  "progress.works.derived": "derived from assets",
+		  "progress.works.evidenceShared": "shared workspace evidence library",
+		  "progress.work.section.maturity": "A · Paper maturity (level conversion, not a measurement)",
+		  "progress.work.maturityDerived": " · derived from assets",
+		  "progress.work.section.assets": "A2 · This work’s countable assets (actual counts)",
+		  "progress.work.section.next": "C · This work’s next step",
+		  "progress.work.meta": "v{version} · {status}",
+		  "progress.work.count.sections": "Sections (substantive)",
+		  "progress.work.count.claims": "Claims",
+		  "progress.work.count.claimsWithoutEvidence": "{count} without evidence",
+		  "progress.work.count.evidence": "Evidence",
+		  "progress.work.count.evidenceUsed": "{count} cited in manuscript",
+		  "progress.work.count.gaps": "Open gaps (rule check)",
+		  "progress.work.count.gapsHigh": "{count} high priority",
+		  "progress.work.count.proposals": "Pending revisions",
+		  "progress.work.nextStep": "Next step: {text}",
+		  "progress.work.nextSkill": "Suggested capability: {skill}",
+		  "progress.work.gap.missing-section": "Missing `{target}` section",
+		  "progress.work.gap.thin-section": "Section `{target}` has no substantive content",
+		  "progress.work.gap.unsupported-claim": "Claim {target} lacks supporting evidence",
+		  "progress.work.gap.contested-claim": "Claim {target} has contradicting evidence",
+		  "progress.work.gap.missing-evidence": "Missing supporting evidence",
+		  "progress.work.gap.evidence-without-artifact": "Evidence lacks a raw-artifact reference",
+		  "progress.work.gap.unreferenced-evidence": "Evidence is not cited in the manuscript",
+		  "progress.work.gap.missing-ablation": "Missing ablation",
+		  "progress.work.gap.experimental-validation": "Missing experimental validation",
+		  "progress.work.gap.no-claim-map": "No claim ↔ evidence map",
+		  "progress.work.gap.outdated-related-work": "Related work may be outdated",
+		  "progress.work.gap.reproducibility": "Reproducibility information is insufficient",
+		  "maturity.dimension.Problem": "Problem",
+		  "maturity.dimension.Knowledge": "Knowledge",
+		  "maturity.dimension.Innovation": "Innovation",
+		  "maturity.dimension.Method": "Method",
+		  "maturity.dimension.Experiment": "Experiment",
+		  "maturity.dimension.Evidence": "Evidence",
+		  "maturity.level.Unknown": "Unknown",
+		  "maturity.level.Weak": "Weak",
+		  "maturity.level.Emerging": "Emerging",
+		  "maturity.level.Strong": "Strong",
+		  "maturity.level.Established": "Established",
+		  // 论文成熟度维度（每个研究工作自己的 9 个维度，与 Research State 的 6 个不同）
+		  "maturity.paper.Problem": "Problem",
+		  "maturity.paper.Literature": "Literature",
+		  "maturity.paper.Innovation": "Innovation",
+		  "maturity.paper.Method": "Method",
+		  "maturity.paper.Experiment": "Experiment",
+		  "maturity.paper.Evidence": "Evidence",
+		  "maturity.paper.Claims": "Claims",
+		  "maturity.paper.Writing": "Writing",
+		  "maturity.paper.Reproducibility": "Reproducibility",
+		  "section.Purpose": "Purpose",
+		  "section.When to Use": "When to Use",
+		  "section.Prerequisites": "Prerequisites",
+		  "section.Research Method": "Research Method",
+		  "section.Reasoning Guidance": "Reasoning Guidance",
+		  "section.Evidence Requirements": "Evidence Requirements",
+		  "section.Expected Output": "Expected Output",
+		  "taxonomy.category.global-capabilities": "Global Capabilities",
+		  "taxonomy.category.research-understanding": "Research Understanding",
+		  "taxonomy.category.literature": "Literature",
+		  "taxonomy.category.innovation": "Innovation",
+		  "taxonomy.category.research-planning": "Research Planning",
+		  "taxonomy.category.resource-estimation": "Resource Estimation",
+		  "taxonomy.category.research-decision": "Research Decision",
+		  "taxonomy.category.experiment": "Experiment",
+		  "taxonomy.category.academic-writing": "Academic Writing",
+		  "taxonomy.category.review": "Review",
+		  "taxonomy.skill.input-understanding": "Input Understanding",
+		  "taxonomy.skill.research-intent-assessment": "Research Intent Assessment",
+		  "taxonomy.skill.research-topic-proposal": "Research Topic Proposal",
+		  "taxonomy.skill.research-domain-profiling": "Research Domain Profiling",
+		  "taxonomy.skill.research-foundation-assessment": "Research Foundation Assessment",
+		  "taxonomy.skill.literature-search": "Literature Search",
+		  "taxonomy.skill.literature-screening": "Literature Screening",
+		  "taxonomy.skill.paper-fulltext-download": "Paper Full-Text Download",
+		  "taxonomy.skill.literature-review": "Literature Review",
+		  "taxonomy.skill.research-landscape": "Research Landscape",
+		  "taxonomy.skill.research-theme-generation": "Research Theme Generation",
+		  "taxonomy.skill.innovation-gap-analysis": "Innovation Gap Analysis",
+		  "taxonomy.skill.idea-novelty-assessment": "Idea Novelty Assessment",
+		  "taxonomy.skill.hypothesis-formulation": "Hypothesis Formulation",
+		  "taxonomy.skill.contribution-design": "Contribution Design",
+		  "taxonomy.skill.research-method-design": "Research Method Design",
+		  "taxonomy.skill.experiment-design": "Experiment Design & Feasibility",
+		  "taxonomy.skill.dataset-selection": "Dataset Selection & Data Pipeline Specification",
+		  "taxonomy.skill.baseline-selection": "Baseline Selection & Comparison Protocol",
+		  "taxonomy.skill.evaluation-protocol": "Evaluation Protocol & Metric Design",
+		  "taxonomy.skill.ablation-design": "Ablation & Contribution Isolation",
+		  "taxonomy.skill.reproducible-implementation-spec": "Reproducible Implementation Specification",
+		  "taxonomy.skill.method-implementation-spec": "Method Implementation Specification",
+		  "taxonomy.skill.simulation-baseline": "Simulation-First Results & Baseline Reference",
+		  "taxonomy.skill.result-analysis": "Result Analysis & Finding Extraction",
+		  "taxonomy.skill.comparative-analysis": "Comparative Analysis & Significance",
+		  "taxonomy.skill.evidence-assessment": "Evidence Assessment & Claim Traceability",
+		  "taxonomy.skill.research-direction-steering": "Research Direction Steering",
+		  "taxonomy.skill.research-topic-ranking": "Research Topic Ranking",
+		  "taxonomy.skill.research-direction": "Research Direction",
+		  "taxonomy.skill.research-direction-selection": "Research Direction Selection",
+		  "taxonomy.skill.plan-risk-assessment": "Plan Risk Assessment",
+		  "taxonomy.skill.research-risk-assessment": "Research Risk Assessment",
+		  "taxonomy.skill.feasibility-cost-and-resource-plan": "Feasibility, Cost and Resource Plan",
+		  "taxonomy.skill.go-no-go-decision": "Go / No-Go Decision",
+		  "taxonomy.skill.venue-fit-decision": "Venue Fit Decision",
+		  "taxonomy.skill.paper-architecture": "Paper Architecture",
+		  "taxonomy.skill.research-narrative": "Research Narrative and Positioning",
+		  "taxonomy.skill.section-drafting": "Section Drafting from Evidence",
+		  "taxonomy.skill.equation-formalization": "Equation Formalization",
+		  "taxonomy.skill.visual-evidence-selection": "Visual Evidence Selection",
+		  "taxonomy.skill.paper-diagrams": "Paper Diagrams",
+		  "taxonomy.skill.manuscript-revision": "Manuscript Revision and Style",
+		  "taxonomy.skill.submission-compile-and-format": "Submission Formatting and Compile Repair",
+		  "taxonomy.skill.technical-report-writing": "Technical Report Writing",
+		  "taxonomy.skill.patent-drafting": "Patent Drafting",
+		  "taxonomy.skill.presentation-design": "Research Presentation Design",
+		  "taxonomy.skill.research-process": "Research Process",
+		  "taxonomy.skill.research-strategy-portfolio": "Research Strategy Portfolio",
+		  "taxonomy.skill.experiment-pipeline-design": "Experiment Pipeline Design",
+		  "taxonomy.skill.resource-requirement-estimation": "Resource Requirement Estimation",
+		  "taxonomy.skill.infrastructure-cost-selection": "Infrastructure and Cost Selection",
+		  "taxonomy.skill.research-direction-review": "Research Direction Review",
+		  "taxonomy.skill.research-quality-review": "Research Quality Review",
+		  "taxonomy.skill.experimental-evidence-review": "Experimental Evidence Review",
+		  "taxonomy.skill.paper-claim-review": "Paper and Claim Review",
+		  "taxonomy.skill.pre-submission-review": "Pre-submission Review"
+		};
+
+		// src/client/i18n/zh.ts
+		var zh = {
+		  "settings.nav": "ConvFusion",
+		  "settings.version.updateAvailable": "(有新版 v{version})",
+		  "settings.version.updateHint": "建议通过 DSH Launcher 直接更新",
+		  "settings.hero.subtitle": "定制各项能力，形成你自己的研究方法",
+		  "settings.badge.customized": "已定制 {count} 项",
+		  "settings.badge.systemDefaults": "全部使用系统原文",
+		  "settings.badge.readOnly": "设置只读",
+		  "settings.tab.local": "本地研究方法",
+		  "settings.tab.community": "ConvFusion.com",
+		  "settings.tab.system": "系统设置",
+		  "settings.status.needsConfiguration": "待配置",
+		  "settings.stale.title": "宿主侧需要重启",
+		  "settings.stale.badge": "需重启",
+		  "settings.stale.body": "宿主侧仍在运行旧代码，下面的内容可能不是最新的。",
+		  "settings.stale.action": "刷新页面不会生效（宿主模块在 DSH 启动时载入内存）。请重启 DSH 后再打开本页。",
+		  "settings.error.title": "加载失败",
+		  "settings.error.badge": "错误",
+		  "settings.error.missingTransport": "设置页缺少传输实现。",
+		  "settings.error.service": "设置服务返回失败：{detail}",
+		  "settings.error.incomplete": "设置服务返回的数据不完整，请重启 DSH 后重试。",
+		  "settings.error.timeout": "请求超时（{seconds} 秒无响应）。若反复出现，请查看 DSH 宿主日志中与 {route} 相关的记录。",
+		  "settings.error.connection": "无法连接设置服务：{detail}\n（路由 {route}。DSH 宿主日志会记录该路由的注册结果。）",
+		  "settings.error.call": "调用 {endpoint} 失败：{detail}",
+		  "settings.error.unknown": "未知原因",
+		  "settings.error.code.bad-request": "请求缺少必要数据。",
+		  "settings.error.code.not-customizable": "该章节不允许定制。",
+		  "settings.error.code.unknown-endpoint": "设置服务不支持该端点。",
+		  "settings.error.code.not-found": "未找到请求的设置路由。",
+		  "settings.error.code.method-not-allowed": "设置路由不接受该请求方法。",
+		  "settings.error.code.rejected": "请求被 DSH 的信任或认证检查拒绝。",
+		  "settings.error.code.bad-body": "请求体无效。",
+		  "settings.action.retry": "重试",
+		  "settings.status.loading": "正在加载…",
+		  "settings.library.title": "能力库",
+		  "settings.library.summary": "共 {total} 项 · 已定制 {customized}",
+		  "settings.library.category": "① 能力类别",
+		  "settings.library.skill": "② 能力",
+		  "settings.library.section": "③ 可定制章节",
+		  "settings.library.optionCount": "{count}",
+		  "settings.library.customizedSuffix": " · 已定制 {count}",
+		  "settings.library.categoryHint": "{count} 项能力 · 类别按研究过程排序",
+		  "settings.library.emptyCategory": "该类别下暂无可定制能力",
+		  "settings.library.sectionCount": "{count} 个章节",
+		  "settings.library.sectionHint": "共 {count} 个可定制章节",
+		  "settings.library.sectionCustomizedSuffix": " · 已定制",
+		  "settings.library.emptyUsesDefault": "留空则使用系统原文",
+		  "settings.editor.customized": "已定制",
+		  "settings.editor.systemDefault": "系统原文",
+		  "settings.editor.requirements": "你的额外要求",
+		  "settings.editor.placeholder": "留空则使用系统原文。\n例如：评估研究想法时，优先考虑能否用现有设备完成表征。",
+		  "settings.editor.base": "系统原文（{count} 字）",
+		  "settings.editor.characterCount": "{count} 字",
+		  "settings.editor.resetSection": "恢复该章节",
+		  "settings.editor.resetSkill": "恢复该能力",
+		  "settings.editor.save": "保存",
+		  "settings.editor.saving": "保存中…",
+		  "settings.editor.saved": "已保存",
+		  "settings.editor.restoredDefault": "已恢复系统原文",
+		  "settings.editor.restoredSkill": "已恢复「{skill}」",
+		  "settings.editor.confirmSection": "恢复「{section}」的系统原文？你的定制会被删除。",
+		  "settings.editor.confirmSkill": "恢复「{skill}」的全部章节？该能力的定制会被删除。",
+		  "community.title": "ConvFusion.com",
+		  "community.entry.label": "科V社区",
+		  "community.notice.published": "{title} · 研究状态 v{version}",
+		  "community.notice.tokens": "{tokens} Token",
+		  "community.notice.files": "{count} 附件",
+		  "community.notice.oversize": "{count} 个超大未传",
+		  "community.notice.renameFailed": "⚠️ 名字未更新：{reason}",
+		  "community.publish.title": "发布 {title}",
+		  // 对话框标题里是**要发布的名字**（这项工作自己的名字）；与本机工作区名不同时指认一下
+		  "community.publish.workspaceHint": "本机工作区：{workspace}",
+		  "community.publish.cost": "花费 {tokens} Token : ConvFusion.com",
+		  "community.publish.costUnknown": "成本未知",
+		  "community.publish.unknown": "未知",
+		  "community.publish.storage": "本次 {selected} · 服务器可用 {available}",
+		  "community.publish.changed": "本次将更新 {count} 个文件",
+		  "community.publish.unchanged": "内容无变化",
+		  "community.publish.expand": "展开",
+		  "community.publish.collapse": "收起",
+		  "community.publish.tooLarge": "超过单文件上限",
+		  "community.publish.oversizeWarning": "有 {count} 个文件超过服务器单文件上限（100 MB），不会上传。",
+		  "community.publish.summary": "已选 {files} 个文件 · {size} · {batches} 批上传",
+		  "community.publish.remember": "记住这次选择",
+		  "community.publish.confirm": "发布",
+		  "community.action.cancel": "取消",
+		  "community.action.close": "关闭",
+		  "community.action.viewMentor": "导师",
+		  // 列表行的标签压到最短：一行要塞下"导师 + 接受 + ▾"，字长了会把左侧信息挤掉
+		  "community.action.accept": "接受",
+		  "community.action.propose": "发起指导",
+		  "community.action.download": "下载",
+		  "community.action.upload": "上传",
+		  "community.action.more": "更多操作",
+		  "community.action.reject": "拒绝",
+		  "upload.category.state": "研究状态与定义",
+		  "upload.category.plans": "研究计划",
+		  "upload.category.papers": "论文与图表",
+		  "upload.category.experiments": "实验与代码",
+		  "upload.category.research-assets": "研究资产",
+		  "upload.category.review": "评阅记录",
+		  "upload.category.outputs": "成果输出",
+		  "upload.category.literature-raw": "文献抽取文本 / 检索报文",
+		  "upload.category.literature-fulltext": "文献原文 (PDF)",
+		  "upload.category.large-files": "大文件（≥10 MB）",
+		  "upload.category.others": "其它文件",
+		  "upload.reason.state": '导师判断"这项研究在做什么"的核心依据',
+		  "upload.reason.plans": "研究计划：接下来怎么做、做到哪一步",
+		  "upload.reason.papers": "论文正文与图表：研究结果的表达",
+		  "upload.reason.experiments": "实验脚本与结果：怎么验证的",
+		  "upload.reason.research-assets": "证据 / 主张 / 决策 / 文献笔记：研究者的判断",
+		  "upload.reason.review": "研究诊断与指导：谁在什么依据下评阅过这项工作",
+		  "upload.reason.outputs": "交付成果（报告 / 演示等）",
+		  "upload.reason.literature-raw": "机器抽取的原文与检索报文：默认不上传",
+		  "upload.reason.literature-fulltext": "别人的论文原文：默认不上传，需要时单独勾选",
+		  "upload.reason.large-files": "单个文件 ≥10 MB：默认不上传，确认有用再勾选",
+		  "upload.reason.others": "未归类的文件：默认不上传",
+		  "community.action.seekMentor": "寻找线上导师",
+		  // ── 出题模式（v0.6.0）：发布入口**按角色收敛成一个按钮** ──────────────
+		  // 研究者 → 寻找线上导师；导师 → 寻找优秀学生（+ 下拉里的"另一个方向"）；
+		  // 已发布 → 更新研究工作。一个研究工作只属于一个方向，所以永远只有一个发布入口。
+		  // 三个按钮的中文都取 6 个字，宽度另有固定常量保证一致（settings.tsx）。
+		  "community.action.seekStudent": "寻找优秀学生",
+		  "community.tip.morePublish": "更多发布方式（另一个方向）",
+		  "community.tip.republish": "更新这项工作在网络里的研究进展（研究方向不变：学生发布工作 → 找导师）。",
+		  "community.tip.republishTopic": "更新这项选题在网络里的内容（研究方向不变：导师出题 → 招学生）。",
+		  "community.tip.publishTopic": "把这项选题发布到 ConvFusion.com，让学生能发现并出价加入。研究方法不会被上传。",
+		  // 学生侧的动作（【可加入】列表行）
+		  "community.action.bid": "出价",
+		  "community.action.viewStudent": "学生",
+		  "community.tip.bid": "向这个选题出价（免费，导师接受后才冻结押金）",
+		  "community.tip.bidded": "已经出过价：正在等待导师响应",
+		  "community.action.republish": "更新研究工作",
+		  "community.action.publishing": "发布中…",
+		  "community.badge.inNetwork": "已在网络中",
+		  "community.badge.published": "已发布",
+		  "community.tip.publish": "把这项研究的进展发布到 ConvFusion.com，让导师能在网络里发现它。研究方法不会被上传。",
+		  "community.tip.publishNeedSignIn": "先登录 ConvFusion.com 才能发布",
+		  "community.hint.publishMissing": "本机这几项还没有内容，网络上暂时看不到：{fields}。",
+		  "community.error.publish": "发布失败。",
+		  "community.tab.account": "账号",
+		  "community.tab.signIn": "登录",
+		  "community.tab.server": "服务器设置",
+		  // 用户信息卡**默认折叠**：折叠时只留"是谁 + 还剩多少 Token"（2026-10 用户要求），
+		  // 展开才是账号 / 服务器设置。箭头是唯一提示，所以悬浮说明要写清"点开有什么"。
+		  "community.tip.expand": "展开账号与服务器设置",
+		  "community.tip.collapse": "收起账号与服务器设置",
+		  // 【账号】的仪表板小图（Token / 存储 / 项目）—— 三块同规格，标题都取短词
+		  "community.dash.token": "Token 余额",
+		  "community.dash.tokenFrozen": "冻结 {frozen}",
+		  "community.dash.tokenTotal": "合计 {total}",
+		  "community.dash.storage": "存储空间",
+		  "community.dash.storageSub": "已用 {used} / {total}",
+		  "community.dash.projects": "已发布项目",
+		  "community.dash.projectsSub": "等级 {tier} · 下次发布 {cost} Token",
+		  // 读不到就照实说"未知"：0 是断言"确实没有"，与"还没读到 / 服务器没答"不是一回事
+		  "community.dash.unknown": "未知",
+		  "community.work.title": "研究工作",
+		  // 【可指导】列表行上的作者（服务器 owner 投影；旧服务器无此字段则不显示）
+		  "community.work.byAuthor": "作者 {name}",
+		  "community.tab.mine": "我的",
+		  "community.tab.mentor": "可指导",
+		  // 【可加入】= 导师发布的选题（学生视角）。研究者只看得到 我的/可加入/指导中，
+		  // 导师四个都看得到（2026-10 用户拍板）。
+		  "community.tab.joinable": "可加入",
+		  "community.tab.mentorship": "指导中",
+		  "community.login.keyLabel": "API Key 登录",
+		  "community.server.address": "服务器地址",
+		  "community.server.title": "留空 = 跟随环境配置（本环境默认 {url}）；带 /api 或 /docs 的地址会自动归一。",
+		  // 地址框右边的快捷图标按钮（悬停提示 = "<名称> · <完整地址>"）
+		  "community.server.presetDev": "开发服务器",
+		  "community.server.presetProd": "互联网服务器",
+		  "community.server.inviteCode": "邀请码",
+		  // 快捷按钮的连通性探测（颜色是答案，文字只在悬浮提示里出现）
+		  "community.server.probing": "正在测试连接…",
+		  "community.server.probeOk": "连接正常",
+		  "community.server.probeFail": "连接失败",
+		  "community.badge.production": "生产环境",
+		  "community.badge.development": "开发环境",
+		  "community.badge.envMismatch": "地址与环境不一致",
+		  "community.badge.checking": "检查中…",
+		  "community.badge.signedIn": "已登录",
+		  "community.badge.unverified": "凭据待验证",
+		  "community.badge.signedOut": "未登录",
+		  "community.badge.sample": "示例数据",
+		  "community.badge.charged": "已计费",
+		  "community.badge.registryUnavailable": "注册表不可用",
+		  "community.badge.signInRequired": "需要登录",
+		  "community.badge.addressChanged": "地址未保存",
+		  // 两级披露的界面术语（对齐业务：先免费判断相关性，再付费深入了解）：
+		  //   概览 = 研究主题 + 工作说明，任何人都能看，用来判断"跟不跟我相关"；
+		  //   详情 = 动机 / 核心想法 / 假设 / 方法概览 / 关键证据 / 待解问题，1 Token。
+		  //   注意：面板里的字段标签仍是 `community.detail.summary`（那是接口字段名，不跟着改）。
+		  "community.action.summary": "概览",
+		  "community.action.collapse": "收起",
+		  // 按钮只写动作名，价格/状态交给后面的角标（两种状态要一样宽）
+		  "community.action.brief": "详情",
+		  "community.briefState.cost": "1 Token",
+		  "community.briefState.paid": "已支付",
+		  "community.action.loading": "读取中…",
+		  "community.action.refresh": "刷新",
+		  "community.action.retry": "重试",
+		  "community.action.saveAddress": "保存",
+		  "community.action.saving": "保存中…",
+		  "community.action.retryVerify": "重试验证",
+		  "community.action.signIn": "登录",
+		  "community.action.signingIn": "登录中…",
+		  "community.action.signOut": "登出",
+		  "community.action.register": "注册并登录",
+		  "community.action.registering": "注册中…",
+		  "community.action.inviteShow": "使用邀请码注册",
+		  "community.action.inviteHide": "收起邀请码注册",
+		  "community.action.applyInvite": "申请邀请码",
+		  "community.action.applyInviteTip": "在浏览器打开服务器首页，向管理员申请邀请码",
+		  "community.tip.summary": "免费：研究主题与工作说明，先看是否与你相关",
+		  "community.tip.briefDisabled": "登录后可查看详情",
+		  // 详情按钮的 tooltip 顺带说明"读后可发起指导"：发起按钮在读过详情之后才出现，
+		  // 不说一句的话这个入口就没人找得到（零版面成本的提示位）。
+		  "community.tip.briefCost": "深入了解：动机 / 核心想法 / 假设 / 方法 / 证据 / 待解问题（首次读取 1 Token；读后可发起指导）",
+		  "community.tip.briefUnlocked": "已解锁：这一项重读不再扣费，可直接发起指导",
+		  // ── 指导关系（第三个 Tab「指导中」）────────────────────────────────
+		  // 商业闭环：导师发起提案 → 研究者接受（**冻结押金**）→ 建立研究关系 → 导师可读完整状态。
+		  // 发起提案对话框（导师视角；发起免费，对话框即确认）
+		  "community.mentor.proposeTitle": "发起指导申请",
+		  "community.mentor.proposeFree": "发起免费",
+		  "community.mentor.proposeDone": "已发起，等待对方响应。",
+		  // 学生侧的同一个对话框（【可加入】点【出价】）—— 逻辑一样，只是要写清
+		  // "冻结的是**你**的押金"：两个方向都是学生出钱，但出价的人不同。
+		  "community.mentor.bidTitle": "出价加入",
+		  "community.mentor.bidNote": "押金 {percent}%（{deposit} Token）由**你**在导师接受时冻结，成功条件由双方确认，其余 {success} Token 成果验证后支付。",
+		  "community.mentor.bidDone": "已出价，等待导师响应。",
+		  // 导师侧只填总费用：押金比例由平台定（界面按平台建议算比例，不写死 20%）
+		  "community.mentor.feeTotal": "总费用",
+		  // 一段话说完"钱怎么分 + 成功条件谁定"：分两行会让对话框多一行高（2026-09 用户微调）
+		  "community.mentor.feeNote": "押金 {percent}%（{deposit} Token）接受时冻结，成功条件由对方确认，其余 {success} Token 成果验证后支付。",
+		  "community.mentor.feeInvalid": "总费用请填正整数。",
+		  "community.tip.propose": "向这项工作发起指导申请（免费，对方接受后才冻结押金）",
+		  "community.tip.proposed": "已经发起过：这条申请正在等待对方响应",
+		  // 导师信息（Profile）：接受之前总得知道要跟谁合作
+		  "community.mentor.profileTitle": "导师信息",
+		  // 方向 B（导师出题）里要判断人的是**导师**，看的是出价学生 —— 同一套结构、换个说法
+		  "community.mentor.profileTitleResearcher": "学生信息",
+		  "community.mentor.profileEmpty": "该导师尚未填写研究简介。",
+		  "community.mentor.profileEmptyResearcher": "该学生尚未填写研究简介。",
+		  "community.mentor.profileBio": "简介",
+		  "community.mentor.profileFields": "研究领域",
+		  "community.mentor.profileInterests": "研究兴趣",
+		  "community.mentor.profileExpertise": "研究专长",
+		  "community.mentor.unknownParty": "未知用户",
+		  "community.mentor.untitledProject": "未命名项目",
+		  "community.mentor.mentorIs": "导师：{name}",
+		  // 方向 B 里要判断/确认的对象是出价的学生
+		  "community.mentor.researcherIs": "学生：{name}",
+		  // 「指导中」只留状态 + 费用数字：描述性文字（指导范围 / 成功条件 / 简介 / 机构）全部去掉
+		  "community.mentor.feeText": "{total} Token（押金 {deposit} · 成功 {success}）",
+		  // 关系建立之后的**进展**（提案状态接受后就不再变了，光看它永远是"已接受"）。
+		  // `review_files` 数的是**非 owner 那一侧**：方向 A 是导师的指导产物，方向 B 是学生的交付 ——
+		  // 所以四个说法都要有，不能只用"导师/学生"这两个词。
+		  "community.mentor.progress.studentWaiting": "等待指导意见",
+		  "community.mentor.progress.studentGot": "导师已指导",
+		  "community.mentor.progress.mentorWaiting": "待我指导",
+		  "community.mentor.progress.mentorDone": "我已指导",
+		  "community.mentor.progress.iToDeliver": "待我交付",
+		  "community.mentor.progress.iDelivered": "我已交付",
+		  "community.mentor.progress.studentToDeliver": "等待学生交付",
+		  "community.mentor.progress.studentDelivered": "学生已交付",
+		  // 「对方更新了 → 重新下载」的两态（判据：时间戳变大 / 文件数变，见 sync-watermarks.ts）。
+		  // 水位记的是 **owner 侧**，所以只有"下载 owner 侧"的一方（= 非 owner）看得到：措辞用"对方"。
+		  "community.mentor.peerNeverDownloaded": "还没下载过这份工作区，先下载一次",
+		  "community.mentor.peerUpdated": "对方更新了文件，需要重新下载",
+		  "community.mentor.peerDeleted": "对方删除了文件，需要重新下载",
+		  "community.mentor.status.PROPOSED": "等待响应",
+		  "community.mentor.status.ACCEPTED": "已接受",
+		  "community.mentor.status.REJECTED": "已拒绝",
+		  "community.mentor.status.EXPIRED": "已过期",
+		  "community.mentor.status.CANCELLED": "已取消",
+		  "community.mentor.condition.PAPER_ACCEPTED": "论文被接收",
+		  "community.mentor.condition.PAPER_PUBLISHED": "论文发表",
+		  "community.mentor.condition.RESEARCH_COMPLETED": "研究完成",
+		  "community.mentor.condition.PATENT_GRANTED": "专利授权",
+		  "community.mentor.condition.TECHNICAL_OUTCOME": "技术成果",
+		  "community.mentor.condition.MUTUAL_COMPLETION": "双方确认完成",
+		  "community.mentor.badgeDone": "已处理",
+		  "community.mentor.badgeFailed": "未完成",
+		  "community.mentor.acceptDone": "已接受指导，冻结押金 {deposit} Token。",
+		  // 方向 B：接受的人是导师，冻的是**学生**的押金（回执与 402 都不能写成"你的余额不足"）
+		  "community.mentor.acceptDoneOther": "已接受，冻结学生的押金 {deposit} Token。",
+		  "community.mentor.acceptNoTokens": "可用 Token 不足 {deposit}，先获取 Token 再试。",
+		  "community.mentor.acceptNoTokensOther": "学生的可用 Token 不足 {deposit}，无法接受；请学生充值后再试。",
+		  "community.mentor.rejectDone": "已拒绝这次申请。",
+		  // 接受指导的确认框（押金冻结 = 真正动 Token，不能点击即生效）
+		  "community.mentor.acceptConfirmTitle": "接受指导会冻结押金",
+		  "community.mentor.acceptConfirmTitleOther": "接受会冻结学生的押金",
+		  "community.mentor.acceptConfirmBadge": "冻结 {deposit} Token",
+		  "community.mentor.acceptConfirmBadgeOther": "学生冻结 {deposit} Token",
+		  "community.mentor.acceptConfirm": "确认接受",
+		  "community.mentor.acceptFreezeNote": "接受后冻结押金 {deposit} Token（仍是你的，只是暂不可用）。",
+		  "community.mentor.acceptFreezeNoteOther": "接受后从**学生**的账户冻结押金 {deposit} Token；学生余额不足时会失败。",
+		  "community.mentor.acceptBalance": "当前可用余额：{balance} Token",
+		  // 指导闭环的文件交换（关系建立之后）
+		  // 下载 = 把服务器上的工作区快照 **只当成一个 ZIP 存下来**，写进用户选的 DSH 工作区
+		  // （不走浏览器默认下载，也不输地址；解压与整理交给用户自己处理）
+		  "community.exchange.downloadTitle": "下载到工作区",
+		  "community.exchange.sizeBadge": "{files} 个文件 · {size}",
+		  "community.exchange.zipOnly": "只把 ZIP 保存到所选工作区，不解压，其余你自己处理。",
+		  "community.exchange.destHint": "保存到：{dest}",
+		  // 下载中：分母是**解压后**的合计（服务器发的是压缩 ZIP），所以写「≈」
+		  "community.exchange.downloading": "已下载 {done} / ≈{total}",
+		  "community.exchange.downloadingBtn": "下载中…",
+		  "community.exchange.noWorkspaces": "没有可用的 DSH 工作区（先在 DSH 里建一个）。",
+		  "community.exchange.downloadDone": "已保存 {name} 到 {dir}。",
+		  // ── 【下载】的目标工作区校验（协议 23）：这个工作区是不是**同一项研究** ──────────
+		  // 判据是服务器给的 workspace_id（全局唯一、跨项目生命周期不变）；本地这一半见
+		  // research/work-identity.ts。没有状态徽章的旧宿主 = 不显示这一块（不假装校验过）。
+		  "community.exchange.ws.new": "新工作区",
+		  "community.exchange.ws.newHint": "还没有研究工作区；下载后按新建处理",
+		  "community.exchange.ws.same": "同一项研究",
+		  "community.exchange.ws.sameHint": "下载后由 DSH 读两侧内容，整合进现有 workspace/",
+		  "community.exchange.ws.other": "另一项研究",
+		  "community.exchange.ws.otherHint": "这个工作区里是另一项研究；提示词会先备份它，再解压成新的研究根",
+		  "community.exchange.ws.unknown": "无法确认",
+		  "community.exchange.ws.unknownHint": "读不到它的标识；提示词会先盘查并请你判断",
+		  "community.exchange.ws.unverifiable": "服务器未提供标识",
+		  "community.exchange.ws.unverifiableHint": "无法校验是否同一项；提示词会先盘查并请你判断",
+		  "community.exchange.ws.missing": "目录不存在",
+		  "community.exchange.ws.missingHint": "这个工作区的目录现在不在（例如挂载盘没挂上）；下载时会把它建出来",
+		  "community.exchange.ws.conflict": "身份记录冲突",
+		  "community.exchange.ws.conflictHint": "工作区内的标记与本地记录互相矛盾，无法确认",
+		  "community.exchange.ws.current": "当前会话",
+		  "community.exchange.ws.otherWarn": "⚠️ 这个工作区里是**另一项**研究。下载后 DSH 会先把现有研究根整体**备份**（移动到本工作区下、改名为 `workspace_缩写_日期`，不删除），再把这份解压成新的研究根 —— 想保住原研究、又不想换掉它的话，请另选一个工作区。",
+		  "community.exchange.ws.unknownWarn": "⚠️ 读不到这个工作区的身份标识，无法确认是否同一项研究。整合提示词会让 DSH 先只读盘查、给出判断，等你确认后才动文件。",
+		  "community.exchange.ws.conflictWarn": "⚠️ 这个工作区里的标记与本地记录互相矛盾，无法确认是不是同一项研究。整合提示词会让 DSH 先只读盘查、给出判断，等你确认后才动文件。",
+		  "community.exchange.ws.unverifiableWarn": "⚠️ 服务器没有提供研究标识，无法校验是不是同一项研究。整合提示词会让 DSH 先只读盘查、给出判断，等你确认后才动文件。",
+		  "community.exchange.ws.missingWarn": "⚠️ 这个工作区的目录现在不在（例如挂载盘没挂上）；下载会把目录建出来。",
+		  // ── 下载之后的「整合提示词」：插件**只构建提示词**，具体怎么做由 agent 按提示词执行 ──
+		  // 三种情形：还没有研究根 → 解压成新根；**同一项研究 → 融合**；
+		  // **另一项研究 → 先备份现有研究根（移动，不删），再解压成新的研究根**。
+		  // 标识读不到 / 服务器不给 → 先盘查、给出判断，等我确认后按对应的一支执行。
+		  // 两步走：第 1 步只读盘查并报告 → 我确认 → 第 2 步才动文件。
+		  "community.merge.title": "同步命令",
+		  "community.merge.hint": "把它发出去就行：agent 会先加载 `sync` 技能 —— 第 1 步**只读盘查**并报告，**停下等你确认**后才动文件。同一项研究就融合（读两侧内容产出新文件，不是覆盖）；另一项研究就先整体备份现有研究根，再解压成新的。",
+		  "community.merge.fill": "填入输入框",
+		  "community.merge.fillHint": "会替换输入框里现有的内容",
+		  "community.merge.copy": "复制提示词",
+		  "community.merge.copied": "提示词已复制到剪贴板。",
+		  "community.merge.copyFailed": "复制失败，请手动选中输入框里的提示词。",
+		  "community.merge.filled": "整合提示词已填入输入框，确认后发送。",
+		  "community.merge.otherWorkspace": "已保存到 {dir}。这个工作区不是当前会话的工作区 —— 请到**那个工作区**的会话里发送这条命令（DSH 只能写自己会话的工作区）。",
+		  "community.merge.noComposer": "当前不在会话里：复制这条命令，到目标工作区的会话里粘贴发送。",
+		  "community.merge.plan.new": "本工作区**还没有**研究工作区：第 2 步把包内内容解压成新的研究根。",
+		  "community.merge.plan.same": "本工作区里已经是**同一项**研究（标识一致）：第 2 步把包内内容与本地内容**融合** —— 不是替换，两侧信息都要保留。",
+		  "community.merge.plan.other": "本工作区里现在是**另一项**研究（标识不一致）：第 2 步先把现有研究根**整体备份**（移动，不是删除），再把下载的这份解压成**新的**研究根。备份会留在原地，什么都不丢。",
+		  "community.merge.plan.unknown": '本工作区里有研究，但**读不到它的标识**，无法自动判断是不是同一项：请在盘查时对照两侧 `project.md` / `research-state.md` 的研究主题与研究问题，给出"同一项 / 另一项"的判断与依据，**等我确认后**再按对应的一支执行。',
+		  "community.merge.plan.unverifiable": "服务器没有提供研究工作标识，**无法自动判断**是不是同一项：请在盘查时对照两侧 `project.md` / `research-state.md` 的研究主题与研究问题，给出判断与依据，**等我确认后**再按对应的一支执行。",
+		  "community.merge.pendingHint": "下载中：这条命令**已经先填进输入框**了 —— 等这一步落盘完成再发送（现在发，zip 还没写完；命令自己也会拦住）。",
+		  "community.merge.nameChanged": "服务器实际落盘的文件名是 `{name}`（与预检猜的不同）。",
+		  "community.merge.refill": "按实际文件名更新命令",
+		  "community.merge.downloadFailedHint": "刚才填进输入框的那条命令**先别发送** —— zip 还没有落盘。",
+		  // 上传 = **回传我这一份工作区**（导师是在学生的 workspace/ 里继续推进研究的）：
+		  // 选工作区 → 勾文件 → 只说清"传什么、多少"，不解释背景
+		  "community.exchange.uploadTitle": "上传研究进展",
+		  "community.exchange.workspaceLabel": "工作区",
+		  "community.exchange.workspacePlaceholder": "选择要回传的工作区…",
+		  "community.exchange.noSourceFiles": "对方还没有上传可下载的内容。",
+		  "community.exchange.noUploadWorkspaces": "本机没有可回传的工作区（工作区里要有 workspace/ 且含 project.md）。",
+		  "community.exchange.fromHint": "要回传的是：{root}",
+		  "community.exchange.selectWorkspaceFirst": "先选一个工作区，再勾选要回传的文件。",
+		  "community.exchange.noUploadFiles": "这个工作区里没有可回传的文件。",
+		  // 被剔掉的机器产物也要说一句：否则导师会以为"漏了"
+		  "community.exchange.skippedMachine": "已跳过 {count} 个机器生成文件（缓存 / 依赖 / 构建产物 / 备份）。",
+		  "community.exchange.oversizeWarning": "{count} 个文件超过服务器单文件上限（100 MB），会被跳过。",
+		  "community.exchange.uploadSummary": "已选 {files} 个文件 · {size} · {batches} 批",
+		  "community.exchange.uploading": "已上传 {done}/{files} 个文件 · {sent} / {total}",
+		  "community.exchange.uploadNoChange": "{count} 个文件与服务器一致，无需重复上传。",
+		  "community.exchange.uploadPartial": "已上传 {uploaded} 个文件；{skipped} 个超过单文件上限被跳过。",
+		  "community.exchange.uploadDone": "已上传 {count} 个文件。",
+		  "community.tip.download": "下载这个项目的工作区快照（ZIP）",
+		  "community.tip.upload": "把我这一份工作区传回服务器，学生下载后继续",
+		  "community.hint.mentorSignIn": "登录后可发起或接受指导。",
+		  "community.hint.mentorEmpty": "还没有指导申请 —— 在【可指导】里发起，或在【可加入】里出价。",
+		  "community.error.readMentor": "读取指导申请失败。",
+		  // 扣费确认：点【详情】先弹这个对话框，点「确认读取」才真的发请求、才扣费
+		  "community.briefConfirm.title": "查看详情会消耗 Token",
+		  "community.briefConfirm.scope": "包含：动机 / 核心想法 / 假设 / 方法概览 / 关键证据 / 待解问题",
+		  "community.briefConfirm.cost": "首次读取消耗 1 Token（自己的研究免费）",
+		  "community.briefConfirm.balance": "余额 {balance}",
+		  "community.briefConfirm.balanceUnknown": "余额未知",
+		  "community.briefConfirm.idempotent": "同一项研究不会重复扣费",
+		  "community.briefConfirm.confirm": "确认读取",
+		  "community.tip.balance": "点击查看余额与续费",
+		  // ── Token 余额弹窗 + 续费申请（2026-09 用户要求）──
+		  "community.token.dialogTitle": "Token 余额",
+		  "community.token.available": "可用",
+		  "community.token.frozen": "冻结",
+		  "community.token.total": "合计",
+		  "community.token.renewHint": "目前 Token 由管理员发放。提交申请后，管理员会在服务器上处理；暂未开通自助付费。",
+		  "community.token.pendingLine": "已申请 {amount} Token，等待管理员处理。",
+		  "community.token.amountLabel": "申请数量",
+		  "community.token.amountPlaceholder": "如 100",
+		  "community.token.reasonLabel": "申请理由",
+		  "community.token.reasonPlaceholder": "可选，最多 500 字",
+		  "community.token.apply": "申请续费",
+		  "community.token.applying": "提交中…",
+		  "community.token.close": "知道了",
+		  "community.token.amountInvalid": "申请数量必须是正整数。",
+		  "community.token.receipt": "已提交续费申请（{amount} Token），等待管理员处理。",
+		  "community.tip.balanceDetail": "可用 {available} · 冻结 {frozen}（冻结仍是你的，只是锁住了）；点击查看余额与续费",
+		  "community.tip.keyPrivacy": "凭据只保存在本机（DSH 设置），不会回传浏览器，也不会写进对话内容。",
+		  "community.tip.envKey": "凭据来自环境变量，请修改环境变量后重启 DSH",
+		  // 只留最短标记：完整解释在 community.tip.balanceDetail 里（悬浮可见）
+		  "community.balance.frozenNote": "（冻 {count}）",
+		  "community.detail.researchQuestion": "研究问题",
+		  "community.detail.summary": "摘要",
+		  "community.detail.motivation": "动机",
+		  "community.detail.coreIdea": "核心想法",
+		  "community.detail.hypothesis": "假设",
+		  "community.detail.methodOverview": "方法概览",
+		  "community.detail.keyEvidence": "关键证据",
+		  "community.detail.openProblems": "待解问题",
+		  "community.hint.inviteRule": "邮箱必须与邀请码签发时指定的邮箱一致；注册成功后服务器签发的 API Key 直接保存在本机。",
+		  "community.hint.addressChanged": "保存后会在新服务器上重新登录一次。",
+		  "community.hint.mismatchProduction": "当前是生产环境，但地址指向本机 —— 你多半连的是自己电脑上的开发服务器。",
+		  "community.hint.mismatchDevelopment": "当前是开发环境，但地址指向线上服务器 —— 在开发机上操作线上数据有风险，请确认这是你想要的。",
+		  "community.hint.sampleFootnote": "示例数据，登录后可浏览并操作网络上的研究工作。",
+		  // 【可指导】没有导师角色时**不再显示这个 Tab**（v0.6.0 用户要求），所以
+		  // "需要导师角色"那条说明连同它的徽章一起删掉 —— 留着就是没人用的死文案。
+		  "community.hint.noJoinable": "还没有导师发布选题。",
+		  "community.hint.registryUnavailable": "这台 DSH 没有提供工作区注册表。",
+		  "community.hint.loading": "正在读取…",
+		  "community.hint.loadingWork": "正在读取研究工作…",
+		  "community.hint.noData": "暂无数据。",
+		  "community.hint.mineEmpty": "本机还没有研究项目（含有效 research workspace 的工作区会出现在这里）。",
+		  "community.hint.paper": "已有论文",
+		  "community.hint.noDiscoverable": "暂无可发现的研究工作。",
+		  "community.error.unknown": "未知原因",
+		  "community.error.readAccount": "读取登录状态失败。",
+		  "community.error.readAccountDetail": "无法读取登录状态：{detail}",
+		  "community.error.readWorkList": "读取研究工作列表失败。",
+		  "community.error.readMine": "读取本机研究工作失败。",
+		  "community.error.readSummary": "读取概览失败。",
+		  "community.error.readBrief": "读取详情失败。",
+		  "community.error.hostRestart": "宿主侧需要重启：当前宿主还没有 work/mine 端点。",
+		  "community.error.transport": "无法访问 {route}（{detail}）。请查看 DSH 宿主日志。",
+		  "community.notice.charged": "已读取详情，消耗 {tokens} Token（余额 {balance}）",
+		  "community.notice.briefRead": "已读取详情（余额 {balance}）",
+		  "community.placeholder.invitation": "邀请码 cf_inv_…",
+		  "community.placeholder.email": "邮箱（须与邀请码一致）",
+		  "community.placeholder.displayName": "显示名",
+		  "community.sample.retrieval.title": "检索增强的长上下文推理",
+		  "community.sample.retrieval.fields": "自然语言处理",
+		  "community.sample.robotFailure.title": "机器人操作失败的视觉判定",
+		  "community.sample.robotFailure.fields": "机器人学习、多模态",
+		  "community.sample.lidar.title": "视觉-激光跨模态定位",
+		  "community.sample.lidar.fields": "多模态、机器人",
+		  "community.role.RESEARCHER": "研究者",
+		  "community.role.MENTOR": "导师",
+		  "community.role.ADMIN": "管理员",
+		  "community.status.ACTIVE": "正常",
+		  "community.status.SUSPENDED": "已停用",
+		  "community.status.DEACTIVATED": "已注销",
+		  "community.stage.IDEA": "想法",
+		  "community.stage.LITERATURE": "文献",
+		  "community.stage.HYPOTHESIS": "假设",
+		  "community.stage.PLANNING": "规划",
+		  "community.stage.IMPLEMENTATION": "实现",
+		  "community.stage.EXPERIMENT": "实验",
+		  "community.stage.ANALYSIS": "分析",
+		  "community.stage.WRITING": "写作",
+		  "community.stage.COMPLETED": "完成",
+		  "settings.library.localOnly": "仅本机",
+		  "system.retrieval.notConfigured": "未配置：可在",
+		  "system.retrieval.notConfiguredAction": "免费申请后粘贴（未配置时走公共池，速率较低）。",
+		  "system.retrieval.envFrom": "当前由环境变量",
+		  "system.retrieval.envFromAction": "提供；在此保存会覆盖它。",
+		  "system.dependency.title": "本地依赖",
+		  "system.status.unknown": "未知",
+		  "system.status.installed": "已安装",
+		  "system.status.notInstalled": "未安装",
+		  "system.dependency.viaEnv": "（由 {envVar} 指定）",
+		  "system.dependency.checking": "检查中…",
+		  "system.dependency.recheck": "重新检查",
+		  "system.dependency.available": "tectonic 可用{version}",
+		  "system.dependency.missing": "未找到 tectonic，请按下方说明安装后重新检查",
+		  "system.dependency.installIntro": "论文编译成 PDF 需要本机的 tectonic（不是 npm 依赖）。安装任一即可：",
+		  "system.dependency.installOutro": "装在别处就设 {envVar} 指向它，再点「重新检查」。首次编译会下载宏包（约 40 MB），之后复用。",
+		  "system.retrieval.title": "文献检索",
+		  "system.status.configured": "已配置",
+		  "system.status.notConfigured": "未配置",
+		  "system.retrieval.placeholderReplace": "已设置，输入新值可覆盖",
+		  "system.retrieval.placeholderPaste": "粘贴 API Key",
+		  "system.retrieval.secretHint": "留空则不修改。密钥仅保存在本机，不会发送到浏览器。",
+		  "system.retrieval.clear": "清除",
+		  "system.retrieval.saved": "已保存 OpenAlex API Key",
+		  "system.retrieval.cleared": "已清除 OpenAlex API Key",
+		  "system.retrieval.saveFailed": "保存失败：{detail}",
+		  "system.retrieval.clearFailed": "清除失败：{detail}",
+		  "progress.name": "研究进展",
+		  // 会话 Tab 的文案：拿得到百分比就带上（tab 条上一眼能看到进度）
+		  "progress.tab.label": "研究进展 {percent}",
+		  "progress.summary": "成熟度折算 {percent}",
+		  "progress.currentStage": " · 当前阶段 {stage}",
+		  "progress.noData": "尚无数据",
+		  "progress.reading": "读取中…",
+		  "progress.refresh": "刷新",
+		  "progress.section.maturity": "A · 研究成熟度（等级折算，非测量值）",
+		  "progress.section.assets": "A2 · 可数资产（真实计数）",
+		  "progress.paper": "论文正文",
+		  "progress.paper.present": "已有正文",
+		  "progress.paper.absent": "尚无正文",
+		  "progress.stateVersion": "Research State 版本：{version}",
+		  "progress.section.turn": "B · 最近一轮变化",
+		  "progress.turn.summary": "第 {turn} 轮 · 成熟度折算 {before} → {after}{assetChange}",
+		  "progress.turn.assetChange": " · {count} 项资产变化",
+		  "progress.turn.noAssetChange": " · 本轮无资产变化",
+		  "progress.turn.maturityChange": "成熟度 {dimension}：{from} → {to}",
+		  "progress.turn.countChange": "{label}：{from} → {to}（{delta}）",
+		  "progress.turn.noChange": "这一轮没有形成新的可验证研究资产（讨论/澄清不产生资产，这是正常的）。",
+		  "progress.turn.unavailable": "本会话还没有回合报告（对话结束后宿主才会生成；面板的 A 段始终是最新状态）。",
+		  "progress.section.need": "C · 当前缺口与推进判定",
+		  "progress.need.assessment": "推进判定：",
+		  "progress.need.basis": "（依据：{basis}）",
+		  "progress.need.nextStep": "下一步：{text}",
+		  "progress.need.decision": "待你决定：{text}",
+		  "progress.basis.blockingQuestion": "研究问题中存在显式标记的阻塞项",
+		  "progress.basis.stalled": "连续 {rounds} 轮没有形成新的可验证研究资产",
+		  "progress.basis.draftPlans": "存在 {count} 个仍是 draft 的计划（{plans}）",
+		  "progress.basis.processComplete": "科研过程各阶段均已有落地资产，没有结构性缺口",
+		  "progress.basis.stagePending": "当前阶段「{stage}」尚未落地（{evidence}）",
+		  "progress.decision.stalled": "当前推进方式没有产生资产。请确认：是继续这个方向，还是换一个方向／调整目标？",
+		  "progress.decision.draftPlans": "多个计划都还是草稿、没有排序。请确认以哪一个为准，或说明取舍标准。",
+		  "progress.decision.processComplete": "接下来是继续深化、转向写作，还是开新的问题？请指定方向。",
+		  "progress.noReport": "宿主还没有返回这个工作区的进展数据。",
+		  "progress.footnote": "数据全部来自磁盘上的真实资产（project.md / research-state.md / evidence / claims / plans）。成熟度是 Research State 的等级折算，不是测量值；这里只陈述研究需求，不代表必须执行的下一步。",
+		  "progress.clarity.clear": "方向明确 → 可直接推进",
+		  "progress.clarity.ambiguous": "需要你选一个方向",
+		  "progress.clarity.blocked": "等你拍板（阻塞）",
+		  "progress.clarity.unknown": "（未判定）",
+		  "progress.gap.stagePending": "科研过程当前阶段：{stage}（尚未落地）",
+		  "progress.gap.processComplete": "科研过程各阶段均已有落地资产",
+		  "progress.gap.unsupportedClaims": "{count} 条主张尚缺支撑证据",
+		  "progress.gap.missingArtifacts": "{count} 条证据缺原始产物引用（provenance 不完整）",
+		  "progress.gap.openQuestions": "{count} 个开放问题待解",
+		  "progress.stage.topics": "提出话题",
+		  "progress.stage.literature": "文献调研",
+		  "progress.stage.innovation": "创新与假设",
+		  "progress.stage.planning": "计划管理",
+		  "progress.stage.resource": "资源评估",
+		  "progress.stage.decision": "研究决策",
+		  "progress.stage.experiment": "实验验证",
+		  "progress.stage.writing": "论文写作",
+		  "progress.stageEvidence.topics": "研究话题（research/topics.md）",
+		  "progress.stageEvidence.literature": "实际检索到的文献证据（research/evidence/）",
+		  "progress.stageEvidence.innovation": "可检验的假设与主张（research/claims/）",
+		  "progress.stageEvidence.planning": "可执行的研究计划与方法设计（research/plans/）",
+		  "progress.stageEvidence.resource": "资源需求、成本与可行性估计（research/plans/）",
+		  "progress.stageEvidence.decision": "已记录理由的研究决策（research/decisions/）",
+		  "progress.stageEvidence.experiment": "实验产物与经确认的结果证据（experiments/<name>/results/）",
+		  "progress.stageEvidence.writing": "论文正文（papers/<id>/paper.md）",
+		  "progress.stageOutput.topics": "把研究话题写入 research/topics.md。",
+		  "progress.stageOutput.literature": "在 research/evidence/ 中形成实际检索到的文献证据。",
+		  "progress.stageOutput.innovation": "在 research/claims/ 中形成可检验的假设与主张。",
+		  "progress.stageOutput.planning": "在 research/plans/ 中形成可执行的研究计划与方法设计。",
+		  "progress.stageOutput.resource": "在 research/plans/ 中形成资源需求、成本与可行性估计。",
+		  "progress.stageOutput.decision": "在 research/decisions/ 中记录研究决策及其理由。",
+		  "progress.stageOutput.experiment": "在 experiments/<name>/results/ 中形成实验产物与经确认的结果证据。",
+		  "progress.stageOutput.writing": "在 papers/<id>/paper.md 中形成论文正文。",
+		  "progress.count.evidence": "证据",
+		  "progress.count.claims": "主张",
+		  "progress.count.decisions": "决策",
+		  "progress.count.plans": "计划",
+		  "progress.count.openQuestions": "开放问题",
+		  "progress.count.outputs": "产出",
+		  "progress.count.settled": "{count} 已确认",
+		  "progress.count.supported": "{count} 有支撑证据",
+		  "progress.count.ready": "{count} 可执行",
+		  // 多研究工作：工作区同时跑多篇论文时，面板顶部用 tab 切换（一个工作 = 一篇论文）
+		  "progress.works.overview": "总览",
+		  "progress.works.active": "当前激活论文",
+		  // 总览 tab 的多工作汇总（v2）：逐工作一行 + 合计；括号里的子集含义放悬停提示
+		  "progress.works.section.aggregate": "全部工作汇总（真实计数）",
+		  "progress.works.col.work": "工作",
+		  "progress.works.col.maturity": "成熟度",
+		  "progress.works.col.sections": "章节",
+		  "progress.works.col.claims": "主张",
+		  "progress.works.col.evidence": "证据",
+		  "progress.works.col.gaps": "缺口",
+		  "progress.works.col.proposals": "待修订",
+		  "progress.works.totals": "合计（{count} 个工作）",
+		  "progress.works.derived": "依资产推定",
+		  "progress.works.evidenceShared": "工作区共用的证据库",
+		  "progress.work.section.maturity": "A · 论文成熟度（等级折算，非测量值）",
+		  "progress.work.maturityDerived": " · 依资产推定",
+		  "progress.work.section.assets": "A2 · 该工作的可数资产（真实计数）",
+		  "progress.work.section.next": "C · 该工作的下一步",
+		  "progress.work.meta": "v{version} · {status}",
+		  "progress.work.count.sections": "章节（有实质内容）",
+		  "progress.work.count.claims": "主张",
+		  "progress.work.count.claimsWithoutEvidence": "{count} 无支撑",
+		  "progress.work.count.evidence": "证据",
+		  "progress.work.count.evidenceUsed": "{count} 正文引用",
+		  "progress.work.count.gaps": "未解决缺口（规则检查）",
+		  "progress.work.count.gapsHigh": "{count} 高优先级",
+		  "progress.work.count.proposals": "待处理修订",
+		  "progress.work.nextStep": "下一步：{text}",
+		  "progress.work.nextSkill": "建议能力：{skill}",
+		  "progress.work.gap.missing-section": "缺少 `{target}` 章节",
+		  "progress.work.gap.thin-section": "`{target}` 章节没有实质内容",
+		  "progress.work.gap.unsupported-claim": "主张 {target} 缺支撑证据",
+		  "progress.work.gap.contested-claim": "主张 {target} 有矛盾证据",
+		  "progress.work.gap.missing-evidence": "缺少证据支持",
+		  "progress.work.gap.evidence-without-artifact": "证据缺原始产物引用",
+		  "progress.work.gap.unreferenced-evidence": "证据未被正文引用",
+		  "progress.work.gap.missing-ablation": "缺少消融实验",
+		  "progress.work.gap.experimental-validation": "缺少实验验证",
+		  "progress.work.gap.no-claim-map": "缺 Claim ↔ 证据映射",
+		  "progress.work.gap.outdated-related-work": "相关工作需要更新",
+		  "progress.work.gap.reproducibility": "可复现性信息不足",
+		  "maturity.dimension.Problem": "问题",
+		  "maturity.dimension.Knowledge": "知识",
+		  "maturity.dimension.Innovation": "创新",
+		  "maturity.dimension.Method": "方法",
+		  "maturity.dimension.Experiment": "实验",
+		  "maturity.dimension.Evidence": "证据",
+		  "maturity.level.Unknown": "未知",
+		  "maturity.level.Weak": "薄弱",
+		  "maturity.level.Emerging": "形成中",
+		  "maturity.level.Strong": "较强",
+		  "maturity.level.Established": "已建立",
+		  // 论文成熟度维度（每个研究工作自己的 9 个维度，与 Research State 的 6 个不同）
+		  "maturity.paper.Problem": "问题",
+		  "maturity.paper.Literature": "文献",
+		  "maturity.paper.Innovation": "创新",
+		  "maturity.paper.Method": "方法",
+		  "maturity.paper.Experiment": "实验",
+		  "maturity.paper.Evidence": "证据",
+		  "maturity.paper.Claims": "主张",
+		  "maturity.paper.Writing": "写作",
+		  "maturity.paper.Reproducibility": "可复现性",
+		  "section.Purpose": "用途",
+		  "section.When to Use": "适用场景",
+		  "section.Prerequisites": "前置条件",
+		  "section.Research Method": "研究方法",
+		  "section.Reasoning Guidance": "推理指导",
+		  "section.Evidence Requirements": "证据要求",
+		  "section.Expected Output": "预期输出",
+		  "taxonomy.category.global-capabilities": "全局能力",
+		  "taxonomy.category.research-understanding": "理解输入",
+		  "taxonomy.category.literature": "文献调研",
+		  "taxonomy.category.innovation": "创新假设",
+		  "taxonomy.category.research-planning": "研究计划",
+		  "taxonomy.category.resource-estimation": "资源估计",
+		  "taxonomy.category.research-decision": "研究决策",
+		  "taxonomy.category.experiment": "实验验证",
+		  "taxonomy.category.academic-writing": "论文写作",
+		  "taxonomy.category.review": "工作评阅",
+		  "taxonomy.skill.input-understanding": "输入理解",
+		  "taxonomy.skill.research-intent-assessment": "研究意图判断",
+		  "taxonomy.skill.research-topic-proposal": "提出研究话题",
+		  "taxonomy.skill.research-domain-profiling": "研究领域画像",
+		  "taxonomy.skill.research-foundation-assessment": "研究基础评估",
+		  "taxonomy.skill.literature-search": "文献检索",
+		  "taxonomy.skill.literature-screening": "文献筛选",
+		  "taxonomy.skill.paper-fulltext-download": "论文全文下载",
+		  "taxonomy.skill.literature-review": "文献综述",
+		  "taxonomy.skill.research-landscape": "研究全景",
+		  "taxonomy.skill.research-theme-generation": "生成研究主题",
+		  "taxonomy.skill.innovation-gap-analysis": "创新缺口分析",
+		  "taxonomy.skill.idea-novelty-assessment": "新颖性评估",
+		  "taxonomy.skill.hypothesis-formulation": "假设形式化",
+		  "taxonomy.skill.contribution-design": "贡献设计",
+		  "taxonomy.skill.research-method-design": "研究方法设计",
+		  "taxonomy.skill.experiment-design": "实验设计",
+		  "taxonomy.skill.dataset-selection": "数据集选择",
+		  "taxonomy.skill.baseline-selection": "基线选择",
+		  "taxonomy.skill.evaluation-protocol": "评测协议",
+		  "taxonomy.skill.ablation-design": "消融设计",
+		  "taxonomy.skill.reproducible-implementation-spec": "可复现实现规范",
+		  "taxonomy.skill.method-implementation-spec": "方法实现规格",
+		  "taxonomy.skill.simulation-baseline": "仿真实验",
+		  "taxonomy.skill.result-analysis": "结果分析",
+		  "taxonomy.skill.comparative-analysis": "对比分析",
+		  "taxonomy.skill.evidence-assessment": "证据评估",
+		  "taxonomy.skill.research-direction-steering": "研究方向引导",
+		  "taxonomy.skill.research-topic-ranking": "研究主题排序",
+		  "taxonomy.skill.research-direction": "研究方向收敛",
+		  "taxonomy.skill.research-direction-selection": "研究方向选择",
+		  "taxonomy.skill.plan-risk-assessment": "计划风险评估",
+		  "taxonomy.skill.research-risk-assessment": "研究风险评估",
+		  "taxonomy.skill.feasibility-cost-and-resource-plan": "可行性与资源规划",
+		  "taxonomy.skill.go-no-go-decision": "继续/放弃决策",
+		  "taxonomy.skill.venue-fit-decision": "投稿渠道决策",
+		  "taxonomy.skill.paper-architecture": "论文架构",
+		  "taxonomy.skill.research-narrative": "研究叙事",
+		  "taxonomy.skill.section-drafting": "章节起草",
+		  "taxonomy.skill.equation-formalization": "公式形式化",
+		  "taxonomy.skill.visual-evidence-selection": "图表证据选择",
+		  "taxonomy.skill.paper-diagrams": "论文配图",
+		  "taxonomy.skill.manuscript-revision": "手稿修订",
+		  "taxonomy.skill.submission-compile-and-format": "投稿编译与格式化",
+		  "taxonomy.skill.technical-report-writing": "技术报告写作",
+		  "taxonomy.skill.patent-drafting": "专利撰写",
+		  "taxonomy.skill.presentation-design": "演讲设计",
+		  "taxonomy.skill.research-process": "研究过程定义",
+		  "taxonomy.skill.research-strategy-portfolio": "研究策略组合",
+		  "taxonomy.skill.experiment-pipeline-design": "实验流水线设计",
+		  "taxonomy.skill.resource-requirement-estimation": "资源需求估算",
+		  "taxonomy.skill.infrastructure-cost-selection": "基础设施选型",
+		  "taxonomy.skill.research-direction-review": "选题方向评阅",
+		  "taxonomy.skill.research-quality-review": "研究工作质量评阅",
+		  "taxonomy.skill.experimental-evidence-review": "实验与证据评阅",
+		  "taxonomy.skill.paper-claim-review": "论文与主张评阅",
+		  "taxonomy.skill.pre-submission-review": "投稿前评阅"
+		};
+
+		// src/client/i18n/index.ts
+		var CONVFUSION_LOCALE_NS = "convfusion";
+		var dictionaries = { zh, en };
+		var translateEnglish = (key, params) => {
+		  const template = en[key] ?? key;
+		  if (!params) return template;
+		  return template.replace(
+		    /\{(\w+)\}/g,
+		    (match, name) => name in params ? String(params[name]) : match
+		  );
+		};
+		function translateOr(t, key, fallback) {
+		  const value = t(key);
+		  return value === key ? fallback : value;
+		}
+		function categoryText(t, categoryId, fallback) {
+		  return translateOr(t, `taxonomy.category.${categoryId}`, fallback);
+		}
+		function skillText(t, skillId, fallback) {
+		  return translateOr(t, `taxonomy.skill.${skillId}`, fallback);
+		}
+		function sectionText(t, section) {
+		  return translateOr(t, `section.${section}`, section);
+		}
+		function maturityDimensionText(t, dimension) {
+		  return translateOr(t, `maturity.dimension.${dimension}`, dimension);
+		}
+		function maturityLevelText(t, level) {
+		  return translateOr(t, `maturity.level.${level}`, level);
+		}
+		function progressCountText(t, key) {
+		  return translateOr(t, `progress.count.${key}`, key);
+		}
+
 		// src/client/settings.tsx
 		var import_react = __toESM(require("react"), 1);
-		
+
 		// src/client/icon.tsx
 		var import_jsx_runtime = require("react/jsx-runtime");
 		function ConvFusionMark({ size = 38 }) {
@@ -69,10 +1531,326 @@ window.__ModuleLoader__.load({
 		    }
 		  );
 		}
-		
-		// src/client/settings.tsx
+
+		// src/client/markdown-view.tsx
+		var React = __toESM(require("react"), 1);
+
+		// src/client/markdown.ts
+		var INLINE = /(`[^`]+`)|(\*\*[^*]+\*\*)|(__[^_]+__)|(~~[^~]+~~)|(\*[^*\n]+\*)|(_[^_\n]+_)|(\[[^\]\n]+\]\([^)\s]+\))/;
+		var TABLE_SEP = /^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$/;
+		var LIST_ITEM = /^\s*([-*+]|\d+[.)])\s+(.*)$/;
+		var HEADING = /^(#{1,6})\s+(.*)$/;
+		var HR = /^\s*(-{3,}|\*{3,}|_{3,})\s*$/;
+		function splitRow(line) {
+		  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+		  return trimmed.split("|").map((cell) => cell.trim());
+		}
+		function parseMarkdownBlocks(src) {
+		  const lines = (src ?? "").replace(/\r\n?/g, "\n").split("\n");
+		  const blocks = [];
+		  let i = 0;
+		  while (i < lines.length) {
+		    const line = lines[i];
+		    if (line.trim() === "") {
+		      i += 1;
+		      continue;
+		    }
+		    const fence = /^\s*(```+|~~~+)\s*(\S*)\s*$/.exec(line);
+		    if (fence) {
+		      const marker = fence[1];
+		      const lang = fence[2] ?? "";
+		      const body = [];
+		      i += 1;
+		      while (i < lines.length && !new RegExp(`^\\s*${marker[0]}{${marker.length},}\\s*$`).test(lines[i])) {
+		        body.push(lines[i]);
+		        i += 1;
+		      }
+		      i += 1;
+		      blocks.push({ kind: "code", lang, text: body.join("\n") });
+		      continue;
+		    }
+		    if (HR.test(line)) {
+		      blocks.push({ kind: "hr" });
+		      i += 1;
+		      continue;
+		    }
+		    const heading = HEADING.exec(line);
+		    if (heading) {
+		      blocks.push({ kind: "heading", level: heading[1].length, text: heading[2].trim() });
+		      i += 1;
+		      continue;
+		    }
+		    if (/^\s*>/.test(line)) {
+		      const quote = [];
+		      while (i < lines.length && /^\s*>/.test(lines[i])) {
+		        quote.push(lines[i].replace(/^\s*>\s?/, ""));
+		        i += 1;
+		      }
+		      blocks.push({ kind: "quote", text: quote.join("\n") });
+		      continue;
+		    }
+		    if (line.includes("|") && i + 1 < lines.length && TABLE_SEP.test(lines[i + 1])) {
+		      const head = splitRow(line);
+		      const rows = [];
+		      i += 2;
+		      while (i < lines.length && lines[i].includes("|") && lines[i].trim() !== "") {
+		        rows.push(splitRow(lines[i]));
+		        i += 1;
+		      }
+		      blocks.push({ kind: "table", head, rows });
+		      continue;
+		    }
+		    const item = LIST_ITEM.exec(line);
+		    if (item) {
+		      const ordered = /^\d/.test(item[1]);
+		      const items = [];
+		      while (i < lines.length) {
+		        const m = LIST_ITEM.exec(lines[i]);
+		        if (!m || /^\d/.test(m[1]) !== ordered) break;
+		        items.push(m[2]);
+		        i += 1;
+		      }
+		      blocks.push({ kind: "list", ordered, items });
+		      continue;
+		    }
+		    const para = [];
+		    while (i < lines.length) {
+		      const l = lines[i];
+		      if (l.trim() === "" || HEADING.test(l) || HR.test(l) || LIST_ITEM.test(l) || /^\s*>/.test(l) || /^\s*(```+|~~~+)/.test(l)) {
+		        break;
+		      }
+		      para.push(l);
+		      i += 1;
+		    }
+		    blocks.push({ kind: "paragraph", text: para.join("\n") });
+		  }
+		  return blocks;
+		}
+		function parseInline(src) {
+		  const out = [];
+		  let rest = src ?? "";
+		  while (rest.length > 0) {
+		    const m = INLINE.exec(rest);
+		    if (!m || m.index === void 0) {
+		      out.push({ kind: "text", text: rest });
+		      break;
+		    }
+		    if (m.index > 0) out.push({ kind: "text", text: rest.slice(0, m.index) });
+		    const token = m[0];
+		    if (token.startsWith("`")) {
+		      out.push({ kind: "code", text: token.slice(1, -1) });
+		    } else if (token.startsWith("**") || token.startsWith("__")) {
+		      out.push({ kind: "bold", text: token.slice(2, -2) });
+		    } else if (token.startsWith("~~")) {
+		      out.push({ kind: "strike", text: token.slice(2, -2) });
+		    } else if (token.startsWith("[")) {
+		      const at = token.indexOf("](");
+		      out.push({ kind: "link", text: token.slice(1, at), href: token.slice(at + 2, -1) });
+		    } else {
+		      out.push({ kind: "italic", text: token.slice(1, -1) });
+		    }
+		    rest = rest.slice(m.index + token.length);
+		  }
+		  return out;
+		}
+
+		// src/client/markdown-view.tsx
 		var import_jsx_runtime2 = require("react/jsx-runtime");
+		function inline(tokens) {
+		  return tokens.map((tk, i) => {
+		    switch (tk.kind) {
+		      case "bold":
+		        return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("strong", { style: { fontWeight: 650 }, children: tk.text }, i);
+		      case "italic":
+		        return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("em", { style: { fontStyle: "italic" }, children: tk.text }, i);
+		      case "strike":
+		        return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { textDecoration: "line-through", opacity: 0.75 }, children: tk.text }, i);
+		      case "code":
+		        return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          "code",
+		          {
+		            style: {
+		              fontFamily: "var(--dsw-font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+		              fontSize: 11,
+		              padding: "1px 4px",
+		              borderRadius: 4,
+		              background: "var(--dsw-alias-bg-layer-3)"
+		            },
+		            children: tk.text
+		          },
+		          i
+		        );
+		      case "link":
+		        return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          "a",
+		          {
+		            href: tk.href,
+		            target: "_blank",
+		            rel: "noreferrer noopener",
+		            style: { color: "var(--dsw-alias-state-business-primary)", textDecoration: "underline" },
+		            children: tk.text
+		          },
+		          i
+		        );
+		      default:
+		        return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(React.Fragment, { children: tk.text }, i);
+		    }
+		  });
+		}
+		function Inline({ text }) {
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_jsx_runtime2.Fragment, { children: inline(parseInline(text)) });
+		}
+		function Block({ block }) {
+		  switch (block.kind) {
+		    case "heading":
+		      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		        "div",
+		        {
+		          style: {
+		            fontWeight: 700,
+		            fontSize: block.level <= 2 ? 13 : 12.5,
+		            margin: "4px 0 2px"
+		          },
+		          children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Inline, { text: block.text })
+		        }
+		      );
+		    case "code":
+		      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		        "pre",
+		        {
+		          style: {
+		            margin: "4px 0",
+		            padding: "6px 8px",
+		            borderRadius: 6,
+		            overflowX: "auto",
+		            background: "var(--dsw-alias-bg-layer-3)",
+		            fontFamily: "var(--dsw-font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+		            fontSize: 11,
+		            lineHeight: 1.5
+		          },
+		          children: block.text
+		        }
+		      );
+		    case "quote":
+		      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		        "div",
+		        {
+		          style: {
+		            margin: "4px 0",
+		            paddingLeft: 8,
+		            borderLeft: "2px solid var(--dsw-alias-border-l2)",
+		            color: "var(--dsw-alias-label-secondary)"
+		          },
+		          children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Inline, { text: block.text })
+		        }
+		      );
+		    case "list": {
+		      const items = block.items.map((it, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("li", { style: { margin: "1px 0" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Inline, { text: it }) }, i));
+		      return block.ordered ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("ol", { style: { margin: "3px 0", paddingLeft: 20 }, children: items }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("ul", { style: { margin: "3px 0", paddingLeft: 18 }, children: items });
+		    }
+		    case "table":
+		      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { margin: "4px 0", overflowX: "auto" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("table", { style: { borderCollapse: "collapse", fontSize: 11.5 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("tr", { children: block.head.map((cell, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          "th",
+		          {
+		            style: {
+		              textAlign: "left",
+		              fontWeight: 650,
+		              padding: "2px 6px",
+		              border: "1px solid var(--dsw-alias-border-l1)",
+		              whiteSpace: "nowrap"
+		            },
+		            children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Inline, { text: cell })
+		          },
+		          i
+		        )) }) }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("tbody", { children: block.rows.map((row, r) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("tr", { children: row.map((cell, c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          "td",
+		          {
+		            style: {
+		              padding: "2px 6px",
+		              border: "1px solid var(--dsw-alias-border-l1)",
+		              verticalAlign: "top"
+		            },
+		            children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Inline, { text: cell })
+		          },
+		          c
+		        )) }, r)) })
+		      ] }) });
+		    case "hr":
+		      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		        "hr",
+		        {
+		          style: {
+		            margin: "6px 0",
+		            border: 0,
+		            borderTop: "1px solid var(--dsw-alias-border-l1)"
+		          }
+		        }
+		      );
+		    default:
+		      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { margin: "2px 0", whiteSpace: "pre-wrap" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Inline, { text: block.text }) });
+		  }
+		}
+		function Markdown({ text }) {
+		  if (!text || text.trim() === "") return null;
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }, children: parseMarkdownBlocks(text).map((b, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Block, { block: b }, i)) });
+		}
+
+		// src/client/sync-command.ts
+		function syncCommandLine(zipPath) {
+		  const path = zipPath.trim();
+		  const ref = /\s/.test(path) ? `@"${path}"` : `@${path}`;
+		  return `/research sync ${ref}`;
+		}
+
+		// src/client/publish-actions.ts
+		function publishButtonOrder(canMentor) {
+		  return canMentor ? ["SEEK_STUDENT", "SEEK_MENTOR"] : ["SEEK_MENTOR", "SEEK_STUDENT"];
+		}
+		function publishActionPlan(canMentor, published) {
+		  const order = publishButtonOrder(canMentor);
+		  if (published.length > 0) {
+		    const mine = order.filter((d) => published.includes(d));
+		    const [first, ...rest] = mine.length > 0 ? mine : [order[0]];
+		    return {
+		      primary: { direction: first, kind: "update" },
+		      more: rest.map((direction) => ({ direction, kind: "update" }))
+		    };
+		  }
+		  if (!canMentor) {
+		    return { primary: { direction: "SEEK_MENTOR", kind: "publish" }, more: [] };
+		  }
+		  return {
+		    primary: { direction: "SEEK_STUDENT", kind: "publish" },
+		    more: [{ direction: "SEEK_MENTOR", kind: "publish" }]
+		  };
+		}
+
+		// src/client/settings.tsx
+		var import_jsx_runtime3 = require("react/jsx-runtime");
+		function rpcErrorDetail(t, error) {
+		  if (!error) return t("settings.error.unknown");
+		  if (error.code) {
+		    const key = `settings.error.code.${error.code}`;
+		    const localized = t(key);
+		    if (localized !== key) return localized;
+		  }
+		  return error.message ?? t("settings.error.unknown");
+		}
 		var SETTINGS_ROUTE_PREFIX = "/dsh-convfusion";
+		function preferredSection(sections) {
+		  if (!sections?.length) return "";
+		  return (sections.find((s) => s.overridden) ?? sections[0])?.section ?? "";
+		}
+		function preferredSkill(skills) {
+		  if (!skills?.length) return void 0;
+		  return skills.find((s) => s.overriddenCount > 0) ?? skills[0];
+		}
+		function preferredCategory(categories) {
+		  if (!categories?.length) return void 0;
+		  return categories.find((c) => c.overriddenCount > 0) ?? categories[0];
+		}
 		var SETTINGS_LOAD_TIMEOUT_MS = 15e3;
 		var fetchSettingsSend = async (endpoint, payload, signal) => {
 		  const res = await fetch(`${SETTINGS_ROUTE_PREFIX}/${endpoint}`, {
@@ -86,9 +1864,9 @@ window.__ModuleLoader__.load({
 		  }
 		  return await res.json();
 		};
-		async function loadSettingsState(send = fetchSettingsSend, options = {}) {
+		async function loadSettingsState(send = fetchSettingsSend, options = {}, t = translateEnglish) {
 		  if (typeof send !== "function") {
-		    return { kind: "error", message: "设置页缺少传输实现。" };
+		    return { kind: "error", message: t("settings.error.missingTransport") };
 		  }
 		  const timeoutMs = options.timeoutMs ?? SETTINGS_LOAD_TIMEOUT_MS;
 		  const ac = new AbortController();
@@ -104,21 +1882,31 @@ window.__ModuleLoader__.load({
 		  try {
 		    const res = await Promise.race([send("state", {}, ac.signal), timeout]);
 		    if (!res || res.ok !== true) {
-		      return { kind: "error", message: `设置服务返回失败：${res?.error?.message ?? "未知原因"}` };
+		      return {
+		        kind: "error",
+		        message: t("settings.error.service", {
+		          detail: rpcErrorDetail(t, res?.error)
+		        })
+		      };
 		    }
 		    const value = res.value;
 		    if (!value || !Array.isArray(value.categories)) {
 		      return {
 		        kind: "error",
-		        message: "设置服务返回的数据不完整，请重启 DSH 后重试。"
+		        message: t("settings.error.incomplete")
 		      };
 		    }
 		    return { kind: "ok", state: value };
 		  } catch (e) {
 		    return {
 		      kind: "error",
-		      message: timedOut ? `请求超时（${Math.round(timeoutMs / 1e3)} 秒无响应）。若反复出现，请查看 DSH 宿主日志中与 ${SETTINGS_ROUTE_PREFIX} 相关的记录。` : `无法连接设置服务：${e instanceof Error ? e.message : String(e)}
-		（路由 ${SETTINGS_ROUTE_PREFIX}/state。DSH 宿主日志会记录该路由的注册结果。）`
+		      message: timedOut ? t("settings.error.timeout", {
+		        seconds: Math.round(timeoutMs / 1e3),
+		        route: SETTINGS_ROUTE_PREFIX
+		      }) : t("settings.error.connection", {
+		        detail: e instanceof Error ? e.message : String(e),
+		        route: `${SETTINGS_ROUTE_PREFIX}/state`
+		      })
 		    };
 		  } finally {
 		    if (timer !== void 0) clearTimeout(timer);
@@ -171,6 +1959,16 @@ window.__ModuleLoader__.load({
 		    background: "var(--dsw-alias-bg-layer-1)",
 		    overflow: "hidden"
 		  },
+		  /** 模态遮罩：四个对话框共用（原先各抄一遍，加第四个时抽出来）。 */
+		  overlay: {
+		    position: "fixed",
+		    inset: 0,
+		    background: "rgba(0,0,0,.45)",
+		    display: "grid",
+		    placeItems: "center",
+		    zIndex: 1e3,
+		    padding: 20
+		  },
 		  cardHead: {
 		    display: "flex",
 		    alignItems: "center",
@@ -207,6 +2005,16 @@ window.__ModuleLoader__.load({
 		  row: { display: "flex", gap: 12, flexWrap: "wrap" },
 		  field: { display: "flex", flexDirection: "column", gap: 5, flex: "1 1 200px", minWidth: 0 },
 		  label: { fontSize: 11.5, fontWeight: 600, color: "var(--dsw-alias-label-secondary)" },
+		  /** 分区标题（指导中的「我收到的」/「我发起的」）：一行字 + 计数徽章。 */
+		  sectionLabel: {
+		    display: "flex",
+		    alignItems: "center",
+		    gap: 8,
+		    fontSize: 11.5,
+		    fontWeight: 700,
+		    color: "var(--dsw-alias-label-secondary)",
+		    marginTop: 6
+		  },
 		  hint: { fontSize: 11, color: "var(--dsw-alias-label-tertiary)", lineHeight: 1.5 },
 		  select: {
 		    appearance: "none",
@@ -286,7 +2094,224 @@ window.__ModuleLoader__.load({
 		    fontWeight: 600,
 		    cursor: "pointer"
 		  },
-		  mono: { fontFamily: "var(--ds-font-family-code)", fontSize: 11 }
+		  mono: { fontFamily: "var(--ds-font-family-code)", fontSize: 11 },
+		  /** 紧凑的一行（登录输入 / 账号信息 / 失败提示共用）：靠 flexWrap 自适应窄宽度。 */
+		  inlineRow: {
+		    display: "flex",
+		    alignItems: "center",
+		    gap: 8,
+		    flexWrap: "wrap"
+		  },
+		  /**
+		   * **主行动按钮**（品牌色描边 + 淡底）：研究工作列表里的【发起指导】用它。
+		   *
+		   * 与 `ghostBtn`（中性描边）不同的理由：它是这一页真正的**商业动作**（把导师关系建起来），
+		   * 和上面一排"看内容"的按钮不是一个层级。配色直接用 Badge brand 的那两个变量，
+		   * 与全站品牌色一致；不做成实心 `primaryBtn`，避免和对话框里的「确认」抢主次。
+		   */
+		  accentBtn: {
+		    padding: "6px 14px",
+		    borderRadius: 8,
+		    border: "1px solid var(--dsw-alias-state-business-primary)",
+		    background: "var(--dsw-alias-state-business-tertiary)",
+		    color: "var(--dsw-alias-state-business-primary)",
+		    fontSize: 12.5,
+		    fontWeight: 600,
+		    cursor: "pointer"
+		  },
+		  /** 行内输入框：不占满整行（`S.input` 是 100% 宽，这里要压扁）。 */
+		  compactInput: {
+		    width: "auto",
+		    flex: "1 1 150px",
+		    minWidth: 110,
+		    padding: "5px 9px",
+		    borderRadius: 8,
+		    border: "1px solid var(--dsw-alias-border-l2)",
+		    background: "var(--dsw-alias-bg-layer-2)",
+		    color: "var(--dsw-alias-label-primary)",
+		    fontSize: 12
+		  },
+		  /** Token 余额徽章：既是数字也是按钮（点了打开余额弹窗）。 */
+		  tokenBadge: {
+		    display: "inline-flex",
+		    alignItems: "center",
+		    gap: 4,
+		    height: 20,
+		    padding: "0 9px",
+		    borderRadius: 10,
+		    border: "1px solid var(--dsw-alias-border-l2)",
+		    background: "var(--dsw-alias-bg-layer-2)",
+		    color: "var(--dsw-alias-state-business-primary)",
+		    fontSize: 11,
+		    fontWeight: 700,
+		    cursor: "pointer",
+		    whiteSpace: "nowrap"
+		  },
+		  /** 余额弹窗里的**一行明细**：左边名目、右边数字（两端对齐）。 */
+		  rowBetween: {
+		    display: "flex",
+		    alignItems: "baseline",
+		    justifyContent: "space-between",
+		    gap: 12
+		  },
+		  /** 余额弹窗里的**数字**：等宽、不换行，三行数字右侧对齐。 */
+		  tokenNum: {
+		    fontSize: 13,
+		    fontWeight: 600,
+		    fontVariantNumeric: "tabular-nums",
+		    whiteSpace: "nowrap"
+		  },
+		  /**
+		   * **图标按钮**：只有符号、没有文字（账号行的【刷新】【登出】用）。
+		   *
+		   * 为什么要有它：这两个动作是**次要操作**，两个字各占 ~45px，加上余额徽章会把
+		   * 账号行挤成两行。图标固定方形（26×26）→ 宽度可预测，行宽不再随文案变。
+		   * 代价是失去可见文案，所以 `title` + `aria-label` 是**必须**的（不可省）。
+		   */
+		  iconBtn: {
+		    display: "inline-flex",
+		    alignItems: "center",
+		    justifyContent: "center",
+		    width: 26,
+		    height: 26,
+		    padding: 0,
+		    borderRadius: 8,
+		    border: "1px solid var(--dsw-alias-border-l2)",
+		    background: "transparent",
+		    color: "var(--dsw-alias-label-secondary)",
+		    fontSize: 13,
+		    lineHeight: 1,
+		    cursor: "pointer"
+		  },
+		  /** 快捷按钮的**当前生效态**（地址就是这一边）：与 `accentBtn` 同一套品牌色。 */
+		  iconBtnActive: {
+		    border: "1px solid var(--dsw-alias-state-business-primary)",
+		    background: "var(--dsw-alias-state-business-tertiary)",
+		    color: "var(--dsw-alias-state-business-primary)"
+		  },
+		  /**
+		   * 快捷按钮的**连通成功态**：绿色。
+		   *
+		   * 用 `state-success` 那一组变量（与 `Badge tone="success"` 同一套），不自己调色 ——
+		   * 否则"绿"会和页面上其它成功提示不是同一个绿。
+		   */
+		  iconBtnOk: {
+		    border: "1px solid var(--dsw-alias-state-success-primary)",
+		    background: "var(--dsw-alias-state-success-tertiary)",
+		    color: "var(--dsw-alias-state-success-primary)"
+		  },
+		  /** 已登录时的账号名。 */
+		  accountName: {
+		    fontSize: 13,
+		    fontWeight: 700,
+		    color: "var(--dsw-alias-label-primary)"
+		  },
+		  /** 卡片内部的**小** Tab（账号 / 服务器设置）：比页面级 Tab 更轻。 */
+		  miniTabs: {
+		    display: "inline-flex",
+		    gap: 2,
+		    padding: 2,
+		    borderRadius: 8,
+		    background: "var(--dsw-alias-bg-layer-2)",
+		    alignSelf: "flex-start"
+		  },
+		  /** 次要入口（"使用邀请码注册"）：看起来是链接，不抢主按钮的注意力。 */
+		  linkBtn: {
+		    padding: "2px 4px",
+		    border: "none",
+		    background: "transparent",
+		    color: "var(--dsw-alias-state-business-primary)",
+		    fontSize: 11.5,
+		    fontWeight: 600,
+		    cursor: "pointer"
+		  },
+		  /**
+		   * 卡片头的**折叠箭头**（展开时转 90°）。
+		   *
+		   * 折叠与否必须**一眼可见**：只靠"内容多了一段"不够（用户会以为功能没了）。
+		   * 尺寸取 15px（比卡片头的字号大一档）——它是这一行里**唯一**的交互提示，
+		   * 和旁边的徽章同一视觉重量才找得到；用固定宽度让旋转前后标题不动（▸ 转 90° 后
+		   * 字宽会变，不固定的话整行标题会跟着抖一下）。
+		   */
+		  chevron: {
+		    display: "inline-block",
+		    flex: "0 0 auto",
+		    width: 14,
+		    textAlign: "center",
+		    fontSize: 15,
+		    lineHeight: 1,
+		    color: "var(--dsw-alias-label-secondary)",
+		    transition: "transform .15s"
+		  },
+		  /**
+		   * 【账号】的仪表板：几块**小图**并排（Token / 存储 / 项目）。
+		   *
+		   * ⚠️ `flexWrap: 'wrap'` 是必需的：会话 Tab 那一列的宽度可以被拖得很窄，
+		   * 三块并排会被各压成一条；换行后每块各自保持可读。
+		   */
+		  dash: {
+		    display: "flex",
+		    flexWrap: "wrap",
+		    gap: 10
+		  },
+		  /** 一块小图：左边图形，右边标题 + 数字（+ 一行注释）。 */
+		  dashTile: {
+		    display: "flex",
+		    alignItems: "center",
+		    gap: 10,
+		    flex: "1 1 190px",
+		    minWidth: 170,
+		    padding: "8px 12px",
+		    borderRadius: 10,
+		    border: "1px solid var(--dsw-alias-border-l1)",
+		    background: "var(--dsw-alias-bg-layer-2)"
+		  },
+		  dashTitle: {
+		    fontSize: 11,
+		    fontWeight: 600,
+		    color: "var(--dsw-alias-label-secondary)"
+		  },
+		  dashValue: {
+		    fontSize: 15,
+		    fontWeight: 700,
+		    lineHeight: 1.2,
+		    color: "var(--dsw-alias-label-primary)",
+		    fontVariantNumeric: "tabular-nums",
+		    whiteSpace: "nowrap"
+		  },
+		  dashUnit: {
+		    fontSize: 11,
+		    fontWeight: 600,
+		    color: "var(--dsw-alias-label-tertiary)",
+		    marginLeft: 3
+		  },
+		  dashSub: {
+		    fontSize: 10.5,
+		    color: "var(--dsw-alias-label-tertiary)",
+		    whiteSpace: "nowrap",
+		    overflow: "hidden",
+		    textOverflow: "ellipsis"
+		  },
+		  /**
+		   * 没有"比例"可画的那一块（已发布项目）：一个**圆形数字块**。
+		   *
+		   * 与圆环同尺寸（54×54），所以三块的眼睛落点在同一条线上；不为了凑形状
+		   * 给计数编一个分母（那会画出一张没有意义的饼）。
+		   */
+		  dashStat: {
+		    display: "flex",
+		    alignItems: "center",
+		    justifyContent: "center",
+		    flex: "0 0 auto",
+		    width: 54,
+		    height: 54,
+		    borderRadius: 27,
+		    background: "var(--dsw-alias-state-business-tertiary)",
+		    color: "var(--dsw-alias-state-business-primary)",
+		    fontSize: 18,
+		    fontWeight: 700,
+		    fontVariantNumeric: "tabular-nums"
+		  }
 		};
 		function Badge({
 		  tone = "neutral",
@@ -300,7 +2325,7 @@ window.__ModuleLoader__.load({
 		    error: { fg: "var(--dsw-alias-state-error-primary)", bg: "var(--dsw-alias-bg-layer-3)" }
 		  };
 		  const c = tones[tone] ?? tones.neutral;
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		    "span",
 		    {
 		      style: {
@@ -325,7 +2350,7 @@ window.__ModuleLoader__.load({
 		  onClick,
 		  children
 		}) {
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		    "button",
 		    {
 		      type: "button",
@@ -346,8 +2371,38 @@ window.__ModuleLoader__.load({
 		    }
 		  );
 		}
+		function MiniTab({
+		  active,
+		  onClick,
+		  count,
+		  children
+		}) {
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		    "button",
+		    {
+		      type: "button",
+		      onClick,
+		      style: {
+		        padding: "3px 10px",
+		        borderRadius: 6,
+		        border: "1px solid transparent",
+		        background: active ? "var(--dsw-alias-bg-layer-1)" : "transparent",
+		        color: active ? "var(--dsw-alias-label-primary)" : "var(--dsw-alias-label-tertiary)",
+		        fontSize: 11.5,
+		        fontWeight: active ? 700 : 500,
+		        cursor: "pointer"
+		      },
+		      children: [
+		        children,
+		        typeof count === "number" ? ` (${count})` : ""
+		      ]
+		    }
+		  );
+		}
 		function ConvFusionProjectSettings({
 		  scope,
+		  session,
+		  t,
 		  send = fetchSettingsSend
 		}) {
 		  const [state, setState] = import_react.default.useState(null);
@@ -355,6 +2410,7 @@ window.__ModuleLoader__.load({
 		  const [loading, setLoading] = import_react.default.useState(true);
 		  const [tab, setTab] = import_react.default.useState("local");
 		  const [staleHost, setStaleHost] = import_react.default.useState(false);
+		  const [update, setUpdate] = import_react.default.useState(null);
 		  const [categoryId, setCategoryId] = import_react.default.useState("");
 		  const [skillId, setSkillId] = import_react.default.useState("");
 		  const [section, setSection] = import_react.default.useState("");
@@ -370,19 +2426,23 @@ window.__ModuleLoader__.load({
 		    async (endpoint, payload) => {
 		      try {
 		        if (endpoint === "state") {
-		          const outcome = await loadSettingsState(send);
+		          const outcome = await loadSettingsState(send, {}, t);
 		          if (outcome.kind === "error") {
 		            setError(outcome.message);
 		            return null;
 		          }
 		          setError(null);
 		          setState(outcome.state);
-		          setStaleHost(outcome.state.protocol !== 4);
+		          setStaleHost(outcome.state.protocol !== 27);
 		          return outcome.state;
 		        }
 		        const res = await send(endpoint, payload);
 		        if (!res || res.ok !== true) {
-		          setError(`设置服务返回失败：${res?.error?.message ?? "未知原因"}`);
+		          setError(
+		            t("settings.error.service", {
+		              detail: rpcErrorDetail(t, res?.error)
+		            })
+		          );
 		          return null;
 		        }
 		        setError(null);
@@ -390,23 +2450,28 @@ window.__ModuleLoader__.load({
 		        setState(next);
 		        return next;
 		      } catch (e) {
-		        setError(`调用 ${endpoint} 失败：${e instanceof Error ? e.message : String(e)}`);
+		        setError(
+		          t("settings.error.call", {
+		            endpoint,
+		            detail: e instanceof Error ? e.message : String(e)
+		          })
+		        );
 		        return null;
 		      }
 		    },
-		    [send]
+		    [send, t]
 		  );
 		  const reload = import_react.default.useCallback(async () => {
 		    setLoading(true);
 		    try {
 		      const next = await call("state", {});
 		      if (next?.categories?.length) {
-		        const first = next.categories[0];
-		        setCategoryId(first.categoryId);
-		        const firstSkill = first.skills[0];
-		        if (firstSkill) {
+		        const first = preferredCategory(next.categories);
+		        const firstSkill = preferredSkill(first?.skills);
+		        if (first && firstSkill) {
+		          setCategoryId(first.categoryId);
 		          setSkillId(firstSkill.skillId);
-		          setSection(firstSkill.sections[0]?.section ?? "");
+		          setSection(preferredSection(firstSkill.sections));
 		        }
 		      }
 		    } finally {
@@ -423,6 +2488,23 @@ window.__ModuleLoader__.load({
 		      alive = false;
 		    };
 		  }, [reload]);
+		  import_react.default.useEffect(() => {
+		    let alive = true;
+		    void (async () => {
+		      try {
+		        const res = await send("version/check", {});
+		        if (!alive || !res || res.ok !== true) return;
+		        const v = res.value;
+		        if (v?.outdated === true && typeof v.latest === "string") {
+		          setUpdate({ latest: v.latest, url: typeof v.url === "string" ? v.url : "" });
+		        }
+		      } catch {
+		      }
+		    })();
+		    return () => {
+		      alive = false;
+		    };
+		  }, [send]);
 		  const recheckDependencies = import_react.default.useCallback(async () => {
 		    try {
 		      const res = await send("dependencies/check", {});
@@ -443,15 +2525,15 @@ window.__ModuleLoader__.load({
 		    setCategoryId(id);
 		    setNotice(null);
 		    const cat = state?.categories.find((c) => c.categoryId === id);
-		    const s0 = cat?.skills[0];
+		    const s0 = preferredSkill(cat?.skills);
 		    setSkillId(s0?.skillId ?? "");
-		    setSection(s0?.sections[0]?.section ?? "");
+		    setSection(preferredSection(s0?.sections));
 		  };
 		  const onSkill = (id) => {
 		    setSkillId(id);
 		    setNotice(null);
 		    const s0 = category?.skills.find((s) => s.skillId === id);
-		    setSection(s0?.sections[0]?.section ?? "");
+		    setSection(preferredSection(s0?.sections));
 		  };
 		  const onSection = (name) => {
 		    setSection(name);
@@ -470,76 +2552,104 @@ window.__ModuleLoader__.load({
 		      text: draft
 		    });
 		    setSaving(false);
-		    if (next) setNotice({ tone: "success", text: draft.trim() ? "已保存" : "已恢复系统原文" });
+		    if (next) {
+		      setNotice({
+		        tone: "success",
+		        text: draft.trim() ? t("settings.editor.saved") : t("settings.editor.restoredDefault")
+		      });
+		    }
 		  };
 		  const reset = async () => {
 		    if (!skill || !point) return;
-		    if (!window.confirm(`恢复「${point.section}」的系统原文？你的定制会被删除。`)) return;
+		    if (!window.confirm(t("settings.editor.confirmSection", { section: sectionText(t, point.section) }))) return;
 		    setSaving(true);
 		    const next = await call("customization/reset", { skillId: skill.skillId, section: point.section });
 		    setSaving(false);
 		    if (next) {
 		      setDraft("");
-		      setNotice({ tone: "success", text: "已恢复系统原文" });
+		      setNotice({ tone: "success", text: t("settings.editor.restoredDefault") });
 		    }
 		  };
 		  const resetSkill = async () => {
 		    if (!skill) return;
-		    if (!window.confirm(`恢复「${skill.skillName}」的全部章节？该能力的定制会被删除。`)) return;
+		    const displaySkill = skillText(t, skill.skillId, skill.skillName);
+		    if (!window.confirm(t("settings.editor.confirmSkill", { skill: displaySkill }))) return;
 		    setSaving(true);
 		    const next = await call("customization/resetSkill", { skillId: skill.skillId });
 		    setSaving(false);
-		    if (next) setNotice({ tone: "success", text: `已恢复「${skill.skillName}」` });
+		    if (next) setNotice({ tone: "success", text: t("settings.editor.restoredSkill", { skill: displaySkill }) });
 		  };
 		  const totalOverridden = state ? state.categories.reduce((n, c) => n + c.overriddenCount, 0) : 0;
 		  const totalPoints = state ? state.categories.reduce((n, c) => n + c.pointCount, 0) : 0;
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.page, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hero, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.heroIcon, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(ConvFusionMark, { size: 24 }) }),
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { flex: "1 1 auto", minWidth: 0 }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.heroTitle, children: "ConvFusion" }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.heroSub, children: "定制各项能力，形成你自己的研究方法" })
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.page, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hero, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.heroIcon, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ConvFusionMark, { size: 24 }) }),
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { flex: "1 1 auto", minWidth: 0 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.heroTitle, children: "ConvFusion" }),
+		          state?.version ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--dsw-alias-label-tertiary)" }, children: [
+		            "v",
+		            state.version
+		          ] }) : null,
+		          update ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            "a",
+		            {
+		              href: update.url || void 0,
+		              target: "_blank",
+		              rel: "noreferrer",
+		              title: t("settings.version.updateHint"),
+		              style: {
+		                fontSize: 11,
+		                fontWeight: 600,
+		                color: "var(--dsw-alias-state-business-primary)",
+		                textDecoration: "none"
+		              },
+		              children: t("settings.version.updateAvailable", { version: update.latest })
+		            }
+		          ) : null
+		        ] }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.heroSub, children: t("settings.hero.subtitle") })
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }, children: [
-		        totalOverridden > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Badge, { tone: "brand", children: [
-		          "已定制 ",
-		          totalOverridden,
-		          " 项"
-		        ] }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: "全部使用系统原文" }),
-		        scopeSnap.status === "unavailable" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: "设置只读" }) : null
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }, children: [
+		        totalOverridden > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "brand", children: t("settings.badge.customized", { count: totalOverridden }) }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("settings.badge.systemDefaults") }),
+		        scopeSnap.status === "unavailable" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("settings.badge.readOnly") }) : null
 		      ] })
 		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.tabs, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(TabButton, { active: tab === "local", onClick: () => setTab("local"), children: "⚙ 本地研究方法" }),
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(TabButton, { active: tab === "community", onClick: () => setTab("community"), children: [
-		        "◈ 研究方法库",
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, marginLeft: 6 }, children: "即将开放" })
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.tabs, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(TabButton, { active: tab === "local", onClick: () => setTab("local"), children: [
+		        "⚙ ",
+		        t("settings.tab.local")
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(TabButton, { active: tab === "retrieval", onClick: () => setTab("retrieval"), children: [
-		        "⚙ 系统设置",
-		        state && (!state.retrieval.configured || state.dependencies?.tectonic.available === false) ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, marginLeft: 6 }, children: "待配置" }) : null
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(TabButton, { active: tab === "community", onClick: () => setTab("community"), children: [
+		        "◈ ",
+		        t("settings.tab.community")
+		      ] }),
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(TabButton, { active: tab === "retrieval", onClick: () => setTab("retrieval"), children: [
+		        "⚙ ",
+		        t("settings.tab.system"),
+		        state && (!state.retrieval.configured || state.dependencies?.tectonic.available === false) ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, marginLeft: 6 }, children: t("settings.status.needsConfiguration") }) : null
 		      ] })
 		    ] }),
-		    staleHost ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
-		        "宿主侧需要重启",
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: "需重启" })
+		    staleHost ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		        t("settings.stale.title"),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("settings.stale.badge") })
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.hint, lineHeight: 1.7 }, children: [
-		        "宿主侧仍在运行旧代码，下面的内容可能不是最新的。",
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("br", {}),
-		        "刷新页面不会生效（宿主模块在 DSH 启动时载入内存）。请重启 DSH 后再打开本页。"
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.hint, lineHeight: 1.7 }, children: [
+		        t("settings.stale.body"),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("br", {}),
+		        t("settings.stale.action")
 		      ] }) })
 		    ] }) : null,
-		    error ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
-		        "加载失败",
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: "错误" })
+		    error ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		        t("settings.error.title"),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "error", children: t("settings.error.badge") })
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardBody, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		          "div",
 		          {
 		            style: {
@@ -551,12 +2661,12 @@ window.__ModuleLoader__.load({
 		            children: error
 		          }
 		        ),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.footer, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => void reload(), children: "重试" }) })
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.footer, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => void reload(), children: t("settings.action.retry") }) })
 		      ] })
 		    ] }) : null,
-		    loading && !state ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: "正在加载…" }) }) }) : null,
-		    tab === "community" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(CommunityTab, {}) : null,
-		    tab === "retrieval" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		    loading && !state ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("settings.status.loading") }) }) }) : null,
+		    tab === "community" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(CommunityTab, { session, send, initial: state?.account ?? null, t }) : null,
+		    tab === "retrieval" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		      SystemTab,
 		      {
 		        configured: state?.retrieval.configured ?? false,
@@ -565,94 +2675,88 @@ window.__ModuleLoader__.load({
 		        tectonic: state?.dependencies?.tectonic ?? null,
 		        onRecheck: recheckDependencies,
 		        scope,
-		        onNotice: setNotice
+		        onNotice: setNotice,
+		        t
 		      }
 		    ) : null,
-		    state && tab === "local" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
-		          "能力库",
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { ...S.hint, fontWeight: 400 }, children: [
-		            "共 ",
-		            totalPoints,
-		            " 项 · 已定制 ",
-		            totalOverridden
-		          ] })
+		    state && tab === "local" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		          t("settings.library.title"),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("settings.library.localOnly") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, fontWeight: 400 }, children: t("settings.library.summary", { total: totalPoints, customized: totalOverridden }) })
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.row, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.field, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: "① 能力类别" }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("select", { style: S.select, value: categoryId, onChange: (e) => onCategory(e.target.value), children: state.categories.map((c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("option", { value: c.categoryId, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.row, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.field, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.label, children: t("settings.library.category") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("select", { style: S.select, value: categoryId, onChange: (e) => onCategory(e.target.value), children: state.categories.map((c) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("option", { value: c.categoryId, children: [
 		              c.code ? `${c.code} ` : "",
-		              c.label ?? c.categoryName,
-		              "（",
+		              categoryText(t, c.categoryId, c.categoryName),
+		              " (",
 		              c.skills.length,
-		              "）",
-		              c.overriddenCount > 0 ? ` · 已定制 ${c.overriddenCount}` : ""
+		              ")",
+		              c.overriddenCount > 0 ? t("settings.library.customizedSuffix", { count: c.overriddenCount }) : ""
 		            ] }, c.categoryId)) }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: category ? `${category.skills.length} 项能力 · 类别按研究过程排序` : "该类别下暂无可定制能力" })
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: category ? t("settings.library.categoryHint", { count: category.skills.length }) : t("settings.library.emptyCategory") })
 		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.field, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: "② 能力" }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("select", { style: S.select, value: skillId, onChange: (e) => onSkill(e.target.value), children: category?.skills.map((s) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("option", { value: s.skillId, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.field, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.label, children: t("settings.library.skill") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("select", { style: S.select, value: skillId, onChange: (e) => onSkill(e.target.value), children: category?.skills.map((s) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("option", { value: s.skillId, children: [
 		              s.code ? `${s.code} · ` : "",
-		              s.label ?? s.skillName,
-		              s.overriddenCount > 0 ? ` · 已定制 ${s.overriddenCount}` : ""
+		              skillText(t, s.skillId, s.skillName),
+		              s.overriddenCount > 0 ? t("settings.library.customizedSuffix", { count: s.overriddenCount }) : ""
 		            ] }, s.skillId)) }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: skill ? `${skill.sections.length} 个章节` : "" })
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: skill ? t("settings.library.sectionCount", { count: skill.sections.length }) : "" })
 		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.field, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: "③ 可定制章节" }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("select", { style: S.select, value: section, onChange: (e) => onSection(e.target.value), children: skill?.sections.map((s) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("option", { value: s.section, children: [
-		              s.section,
-		              s.overridden ? " · 已定制" : ""
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.field, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.label, children: t("settings.library.section") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("select", { style: S.select, value: section, onChange: (e) => onSection(e.target.value), children: skill?.sections.map((s) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("option", { value: s.section, children: [
+		              sectionText(t, s.section),
+		              s.overridden ? t("settings.library.sectionCustomizedSuffix") : ""
 		            ] }, s.section)) }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: "留空则使用系统原文" })
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: skill ? `${t("settings.library.sectionHint", { count: skill.sections.length })} · ${t("settings.library.emptyUsesDefault")}` : t("settings.library.emptyUsesDefault") })
 		          ] })
 		        ] }) })
 		      ] }),
-		      skill && point ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }, children: [
+		      skill && point ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }, children: [
 		            skill.code ? `${skill.code} · ` : "",
-		            skill.label ?? skill.skillName,
+		            skillText(t, skill.skillId, skill.skillName),
 		            " · ",
-		            point.section
+		            sectionText(t, point.section)
 		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		          point.overridden ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "brand", children: "已定制" }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: "系统原文" })
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		          point.overridden ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "brand", children: t("settings.editor.customized") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("settings.editor.systemDefault") })
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hint, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardBody, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hint, children: [
 		            category?.code ? `${category.code} ` : "",
-		            category?.label ?? category?.categoryName,
+		            category ? categoryText(t, category.categoryId, category.categoryName) : "",
+		            " ·",
+		            " ",
+		            skillText(t, skill.skillId, skill.skillName),
 		            " · ",
-		            skill.label ?? skill.skillName,
-		            " · ",
-		            point.section
+		            sectionText(t, point.section)
 		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: "你的额外要求" }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.label, children: t("settings.editor.requirements") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		            "textarea",
 		            {
 		              style: S.textarea,
 		              spellCheck: false,
 		              value: draft,
-		              placeholder: "留空则使用系统原文。\n例如：评估研究想法时，优先考虑能否用现有设备完成表征。",
+		              placeholder: t("settings.editor.placeholder"),
 		              onChange: (e) => setDraft(e.target.value)
 		            }
 		          ),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("details", { children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("summary", { style: { ...S.label, cursor: "pointer" }, children: [
-		              "系统原文（",
-		              point.base.length,
-		              " 字）"
-		            ] }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.base, marginTop: 8 }, children: point.base })
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("details", { children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("summary", { style: { ...S.label, cursor: "pointer" }, children: t("settings.editor.base", { count: point.base.length }) }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.base, marginTop: 8 }, children: point.base })
 		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
-		            notice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
+		            notice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		              "span",
 		              {
 		                style: {
@@ -662,38 +2766,35 @@ window.__ModuleLoader__.load({
 		                },
 		                children: notice.text
 		              }
-		            ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { ...S.hint, marginRight: "auto" }, children: [
-		              draft.length,
-		              " 字"
-		            ] }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		            ) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, marginRight: "auto" }, children: t("settings.editor.characterCount", { count: draft.length }) }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		              "button",
 		              {
 		                type: "button",
 		                style: { ...S.ghostBtn, opacity: point.overridden && !saving ? 1 : 0.55 },
 		                disabled: !point.overridden || saving,
 		                onClick: () => void reset(),
-		                children: "恢复该章节"
+		                children: t("settings.editor.resetSection")
 		              }
 		            ),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		              "button",
 		              {
 		                type: "button",
 		                style: { ...S.ghostBtn, opacity: skill.overriddenCount > 0 && !saving ? 1 : 0.55 },
 		                disabled: skill.overriddenCount === 0 || saving,
 		                onClick: () => void resetSkill(),
-		                children: "恢复该能力"
+		                children: t("settings.editor.resetSkill")
 		              }
 		            ),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		              "button",
 		              {
 		                type: "button",
 		                style: { ...S.primaryBtn, opacity: dirty && !saving ? 1 : 0.55 },
 		                disabled: !dirty || saving,
 		                onClick: () => void save(),
-		                children: saving ? "保存中…" : "保存"
+		                children: saving ? t("settings.editor.saving") : t("settings.editor.save")
 		              }
 		            )
 		          ] })
@@ -702,68 +2803,3525 @@ window.__ModuleLoader__.load({
 		    ] }) : null
 		  ] });
 		}
-		var COMMUNITY_DEMO_METHODS = [
-		  { name: "实验验证导向", discipline: "材料科学", count: 47, author: "convfusion 官方" },
-		  { name: "理论建构导向", discipline: "社会科学", count: 39, author: "ss_theory" },
-		  { name: "应用与可复现导向", discipline: "机器学习", count: 47, author: "convfusion 官方" },
-		  { name: "临床相关性导向", discipline: "生物医学", count: 41, author: "bm_researcher" }
-		];
-		function CommunityTab() {
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
-		        "研究方法库",
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: "尚未开放" })
-		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: "汇集其他研究者分享的研究方法，可直接套用，也可在此基础上继续定制。" }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.row, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.field, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: "社区开放方法" }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: "免费，登录后可浏览与套用" })
-		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.field, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: "作者分享的方法库" }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: "由作者提供，可含付费内容。本期不实现" })
-		          ] })
-		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: "开放方法" }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: "演示数据" })
-		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: COMMUNITY_DEMO_METHODS.map((m, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+		var ROLE_LABEL_KEYS = {
+		  RESEARCHER: "community.role.RESEARCHER",
+		  MENTOR: "community.role.MENTOR",
+		  ADMIN: "community.role.ADMIN"
+		};
+		var STATUS_LABEL_KEYS = {
+		  ACTIVE: "community.status.ACTIVE",
+		  SUSPENDED: "community.status.SUSPENDED",
+		  DEACTIVATED: "community.status.DEACTIVATED"
+		};
+		var STAGE_LABEL_KEYS = {
+		  IDEA: "community.stage.IDEA",
+		  LITERATURE: "community.stage.LITERATURE",
+		  HYPOTHESIS: "community.stage.HYPOTHESIS",
+		  PLANNING: "community.stage.PLANNING",
+		  IMPLEMENTATION: "community.stage.IMPLEMENTATION",
+		  EXPERIMENT: "community.stage.EXPERIMENT",
+		  ANALYSIS: "community.stage.ANALYSIS",
+		  WRITING: "community.stage.WRITING",
+		  COMPLETED: "community.stage.COMPLETED"
+		};
+		function enumText(t, keys, value) {
+		  if (!value) return "";
+		  return translateOr(t, keys[value] ?? value, value);
+		}
+		var PROPOSAL_STATUS_KEYS = {
+		  PROPOSED: "community.mentor.status.PROPOSED",
+		  ACCEPTED: "community.mentor.status.ACCEPTED",
+		  REJECTED: "community.mentor.status.REJECTED",
+		  EXPIRED: "community.mentor.status.EXPIRED",
+		  CANCELLED: "community.mentor.status.CANCELLED"
+		};
+		function proposalTone(status) {
+		  if (status === "PROPOSED") return "brand";
+		  if (status === "ACCEPTED") return "success";
+		  if (status === "EXPIRED") return "warn";
+		  return "neutral";
+		}
+		function proposalView(p, myAccountId) {
+		  const myRole = myAccountId && p.mentor?.id === myAccountId ? "mentor" : "researcher";
+		  const iAmOwner = p.direction === "SEEK_MENTOR" ? myRole === "researcher" : myRole === "mentor";
+		  const proposerRole = p.direction === "SEEK_MENTOR" ? "mentor" : "researcher";
+		  const iProposed = p.proposedById != null ? p.proposedById === myAccountId : myRole === proposerRole;
+		  const counterparty = myRole === "mentor" ? p.researcher : p.mentor;
+		  return {
+		    myRole,
+		    iAmOwner,
+		    mySide: iAmOwner ? "owner" : "mentor",
+		    otherSide: iAmOwner ? "mentor" : "owner",
+		    iProposed,
+		    iAmAcceptor: !iProposed,
+		    counterparty,
+		    counterpartyIsMentor: myRole === "researcher"
+		  };
+		}
+		function progressLabelKey(p, view) {
+		  if (p.status !== "ACCEPTED") return PROPOSAL_STATUS_KEYS[p.status] ?? p.status;
+		  const hasDelivered = typeof p.reviewFiles === "number" && p.reviewFiles > 0;
+		  if (!view.iAmOwner) {
+		    if (p.direction === "SEEK_STUDENT") {
+		      return hasDelivered ? "community.mentor.progress.iDelivered" : "community.mentor.progress.iToDeliver";
+		    }
+		    return hasDelivered ? "community.mentor.progress.studentGot" : "community.mentor.progress.studentWaiting";
+		  }
+		  if (p.direction === "SEEK_STUDENT") {
+		    return hasDelivered ? "community.mentor.progress.studentDelivered" : "community.mentor.progress.studentToDeliver";
+		  }
+		  return hasDelivered ? "community.mentor.progress.mentorDone" : "community.mentor.progress.mentorWaiting";
+		}
+		function canDownloadProposal(p, view) {
+		  if (p.status !== "ACCEPTED") return false;
+		  if (view.iAmOwner) return true;
+		  if (p.reviewFiles === null || p.reviewFiles === void 0) return true;
+		  return p.reviewFiles > 0;
+		}
+		function sideSyncHint(t, p, view) {
+		  const sync = p.syncBySide ? p.syncBySide[view.otherSide] : p.sync;
+		  if (!sync) return null;
+		  if ("neverDownloaded" in sync) {
+		    const count = view.otherSide === "owner" ? p.workspaceFiles : p.reviewFiles;
+		    if (typeof count !== "number" || count === 0) return null;
+		    return t("community.mentor.peerNeverDownloaded");
+		  }
+		  if (!sync.changed) return null;
+		  return t(sync.reason === "deleted" ? "community.mentor.peerDeleted" : "community.mentor.peerUpdated");
+		}
+		var DEFAULT_DEPOSIT_RATIO = 0.2;
+		var PROPOSE_SCOPE_PLACEHOLDER = "-";
+		var PROPOSE_DEFAULT_CONDITION = "MUTUAL_COMPLETION";
+		function roleText(t, roles) {
+		  if (!roles.length) return "—";
+		  return roles.map((r) => translateOr(t, ROLE_LABEL_KEYS[r] ?? r, r)).join(" · ");
+		}
+		function workLabelOf(source) {
+		  return source.workName?.trim() || source.title;
+		}
+		function proposalWorkLabel(p) {
+		  return p.workName?.trim() || p.projectTitle;
+		}
+		function publishedIn(w, direction) {
+		  return w.published.find((r) => r.direction === direction) ?? null;
+		}
+		var HOST_PROTOCOL_MIN_FOR_CHECK = 23;
+		var PUBLISH_BUTTON_WIDTH = 128;
+		function PublishButton({
+		  t,
+		  item,
+		  more,
+		  busyHere,
+		  busyLabel,
+		  disabled,
+		  onPick
+		}) {
+		  const [open, setOpen] = import_react.default.useState(false);
+		  const label = (it) => it.kind === "update" ? t("community.action.republish") : it.direction === "SEEK_STUDENT" ? t("community.action.seekStudent") : t("community.action.seekMentor");
+		  const tip = (it) => it.kind === "update" ? t(it.direction === "SEEK_STUDENT" ? "community.tip.republishTopic" : "community.tip.republish") : t(it.direction === "SEEK_STUDENT" ? "community.tip.publishTopic" : "community.tip.publish");
+		  import_react.default.useEffect(() => {
+		    if (!open) return;
+		    const close = () => setOpen(false);
+		    document.addEventListener("pointerdown", close);
+		    return () => document.removeEventListener("pointerdown", close);
+		  }, [open]);
+		  const main = (withCaret) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    "button",
+		    {
+		      type: "button",
+		      style: {
+		        ...S.ghostBtn,
+		        ...withCaret ? { flex: "1 1 auto", padding: "6px 8px", borderTopRightRadius: 0, borderBottomRightRadius: 0 } : { width: PUBLISH_BUTTON_WIDTH }
+		      },
+		      disabled,
+		      title: tip(item),
+		      onClick: () => onPick(item.direction),
+		      children: busyHere ? busyLabel ?? t("community.action.loading") : label(item)
+		    }
+		  );
+		  if (more.length === 0) return main(false);
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		    "div",
+		    {
+		      style: {
+		        position: "relative",
+		        display: "flex",
+		        alignItems: "stretch",
+		        width: PUBLISH_BUTTON_WIDTH
+		      },
+		      children: [
+		        main(true),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          "button",
+		          {
+		            type: "button",
+		            style: {
+		              ...S.ghostBtn,
+		              padding: "6px 6px",
+		              borderLeft: "none",
+		              borderTopLeftRadius: 0,
+		              borderBottomLeftRadius: 0
+		            },
+		            disabled,
+		            title: t("community.tip.morePublish"),
+		            "aria-label": t("community.tip.morePublish"),
+		            "aria-expanded": open,
+		            onClick: (e) => {
+		              e.stopPropagation();
+		              setOpen((v) => !v);
+		            },
+		            children: "▾"
+		          }
+		        ),
+		        open ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		          "div",
 		          {
-		            style: i === 0 ? S.listRow : { ...S.listRow, borderTop: "1px solid var(--dsw-alias-border-l1)" },
-		            children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { minWidth: 0, flex: "1 1 auto" }, children: [
-		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: m.name }),
-		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hint, children: [
-		                  m.discipline,
-		                  " · ",
-		                  m.count,
-		                  " 项能力 · ",
-		                  m.author
-		                ] })
-		              ] }),
-		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: { ...S.ghostBtn, opacity: 0.55 }, disabled: true, children: "套用" })
-		            ]
-		          },
-		          m.name
-		        )) }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: "以上为界面演示，服务尚未开通，暂不可套用。" })
+		            style: {
+		              position: "absolute",
+		              top: "100%",
+		              right: 0,
+		              marginTop: 4,
+		              zIndex: 30,
+		              display: "flex",
+		              flexDirection: "column",
+		              padding: 4,
+		              minWidth: 132,
+		              borderRadius: 8,
+		              border: "1px solid var(--dsw-alias-border-l2)",
+		              background: "var(--dsw-alias-bg-layer-1)",
+		              boxShadow: "0 6px 20px rgba(0,0,0,.16)"
+		            },
+		            children: more.map((it) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              "button",
+		              {
+		                type: "button",
+		                style: { ...S.ghostBtn, border: "none", textAlign: "left", padding: "6px 8px" },
+		                disabled,
+		                title: tip(it),
+		                onClick: () => {
+		                  setOpen(false);
+		                  onPick(it.direction);
+		                },
+		                children: label(it)
+		              },
+		              it.direction
+		            ))
+		          }
+		        ) : null
+		      ]
+		    }
+		  );
+		}
+		function TransferProgress({
+		  t,
+		  busy,
+		  progress
+		}) {
+		  if (!busy) return null;
+		  const pct2 = progress && progress.totalBytes > 0 ? Math.min(100, Math.round(progress.sentBytes / progress.totalBytes * 100)) : null;
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: progress && progress.totalFiles > 0 ? t("community.exchange.uploading", {
+		      done: progress.doneFiles,
+		      files: progress.totalFiles,
+		      sent: formatBytes(progress.sentBytes),
+		      total: formatBytes(progress.totalBytes)
+		    }) : t("community.action.loading") }),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { height: 4, borderRadius: 2, background: "var(--dsw-alias-border-l1)", overflow: "hidden" }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      "div",
+		      {
+		        style: {
+		          height: "100%",
+		          width: `${pct2 ?? 0}%`,
+		          background: "var(--dsw-alias-brand-primary, #4a43ea)",
+		          transition: "width 400ms linear"
+		        }
+		      }
+		    ) })
+		  ] });
+		}
+		var SAMPLE_WORKS = [
+		  {
+		    titleKey: "community.sample.retrieval.title",
+		    fieldsKey: "community.sample.retrieval.fields",
+		    stage: "EXPERIMENT",
+		    progress: 0.5
+		  },
+		  {
+		    titleKey: "community.sample.robotFailure.title",
+		    fieldsKey: "community.sample.robotFailure.fields",
+		    stage: "ANALYSIS",
+		    progress: 0.7
+		  },
+		  {
+		    titleKey: "community.sample.lidar.title",
+		    fieldsKey: "community.sample.lidar.fields",
+		    stage: "IMPLEMENTATION",
+		    progress: 0.4
+		  }
+		];
+		function ProgressBar({ value }) {
+		  const pct2 = Math.round(Math.min(Math.max(value, 0), 1) * 100);
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { display: "inline-flex", alignItems: "center", gap: 6 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      "span",
+		      {
+		        style: {
+		          display: "inline-block",
+		          width: 44,
+		          height: 4,
+		          borderRadius: 2,
+		          background: "var(--dsw-alias-bg-layer-3)",
+		          overflow: "hidden"
+		        },
+		        children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          "span",
+		          {
+		            style: {
+		              display: "block",
+		              width: `${pct2}%`,
+		              height: "100%",
+		              background: "var(--dsw-alias-state-business-primary)"
+		            }
+		          }
+		        )
+		      }
+		    ),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: S.mono, children: [
+		      pct2,
+		      "%"
+		    ] })
+		  ] });
+		}
+		var BRIEF_BADGE_MIN_WIDTH = 64;
+		function briefFree(w) {
+		  if (typeof w.briefPaid === "boolean") return w.briefPaid;
+		  if (w.briefOpened === true) return true;
+		  return false;
+		}
+		function WorkRow({
+		  t,
+		  title,
+		  fields,
+		  stage,
+		  progress,
+		  updatedAt,
+		  author,
+		  disabled,
+		  busy,
+		  expanded,
+		  briefFree: briefFree2,
+		  onSummary,
+		  onBrief,
+		  below
+		}) {
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.listRow, alignItems: "flex-start" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 4 }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: title }),
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.hint, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }, children: [
+		        author ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: t("community.work.byAuthor", { name: author }) }) : null,
+		        fields.length ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: fields.join(" · ") }) : null,
+		        stage ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: enumText(t, STAGE_LABEL_KEYS, stage) }) : null,
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ProgressBar, { value: progress }),
+		        updatedAt ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: updatedAt.slice(0, 10) }) : null
 		      ] })
 		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.label, color: "var(--dsw-alias-label-primary)" }, children: "登录 ConvFusion.com 可获得更多研究方法" }),
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: "登录后还可将你在「本地研究方法」里定制好的研究方法发布给其他研究者。" }),
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: { ...S.primaryBtn, opacity: 0.55 }, disabled: true, children: "登录 ConvFusion.com" }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.hint, children: "服务尚未开通" })
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 6, flex: "0 0 auto", alignItems: "flex-end" }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 6 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          "button",
+		          {
+		            type: "button",
+		            style: { ...S.ghostBtn, opacity: disabled || busy ? 0.55 : 1 },
+		            disabled: disabled || busy !== null,
+		            title: t("community.tip.summary"),
+		            onClick: onSummary,
+		            children: busy === "summary" ? t("community.action.loading") : expanded ? t("community.action.collapse") : t("community.action.summary")
+		          }
+		        ),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          "button",
+		          {
+		            type: "button",
+		            style: {
+		              ...S.ghostBtn,
+		              display: "inline-flex",
+		              alignItems: "center",
+		              gap: 5,
+		              opacity: disabled || busy ? 0.55 : 1
+		            },
+		            disabled: disabled || busy !== null,
+		            title: disabled ? t("community.tip.briefDisabled") : briefFree2 ? t("community.tip.briefUnlocked") : t("community.tip.briefCost"),
+		            onClick: onBrief,
+		            children: busy === "brief" ? t("community.action.loading") : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		              t("community.action.brief"),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                "span",
+		                {
+		                  style: { display: "inline-flex", minWidth: BRIEF_BADGE_MIN_WIDTH, justifyContent: "center" },
+		                  children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: briefFree2 ? "success" : "brand", children: briefFree2 ? t("community.briefState.paid") : t("community.briefState.cost") })
+		                }
+		              )
+		            ] })
+		          }
+		        )
+		      ] }),
+		      below
+		    ] })
+		  ] });
+		}
+		function WorkDetail({
+		  t,
+		  work,
+		  brief
+		}) {
+		  const line = (label, value) => value ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.label, flex: "0 0 56px" }, children: label }),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, color: "var(--dsw-alias-label-secondary)", whiteSpace: "pre-wrap" }, children: value })
+		  ] }) : null;
+		  const block = (label, value) => value && value.trim() !== "" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.label, flex: "0 0 56px" }, children: label }),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, minWidth: 0, flex: "1 1 auto", color: "var(--dsw-alias-label-secondary)" }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Markdown, { text: value }) })
+		  ] }) : null;
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		    "div",
+		    {
+		      style: {
+		        margin: "0 12px 10px",
+		        padding: 10,
+		        borderRadius: 9,
+		        border: "1px solid var(--dsw-alias-border-l1)",
+		        background: "var(--dsw-alias-bg-layer-2)",
+		        display: "flex",
+		        flexDirection: "column",
+		        gap: 6
+		      },
+		      children: [
+		        block(t("community.detail.researchQuestion"), brief ? brief.researchQuestion : work.researchQuestion),
+		        block(t("community.detail.summary"), work.summary),
+		        brief ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		          block(t("community.detail.motivation"), brief.motivation),
+		          block(t("community.detail.coreIdea"), brief.coreIdea),
+		          block(t("community.detail.hypothesis"), brief.hypothesis),
+		          block(t("community.detail.methodOverview"), brief.methodOverview),
+		          brief.keyEvidence.length ? line(t("community.detail.keyEvidence"), brief.keyEvidence.join("；")) : null,
+		          brief.openProblems.length ? brief.openProblems.map((p, i) => block(i === 0 ? t("community.detail.openProblems") : "", p)).filter(Boolean) : null
+		        ] }) : null
+		      ]
+		    }
+		  );
+		}
+		function formatBytes(bytes) {
+		  if (bytes < 1024) return `${bytes} B`;
+		  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+		  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+		  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+		}
+		async function copyText(text) {
+		  try {
+		    const clipboard = globalThis.navigator?.clipboard;
+		    if (clipboard?.writeText) {
+		      await clipboard.writeText(text);
+		      return true;
+		    }
+		  } catch {
+		  }
+		  try {
+		    const doc = globalThis.document;
+		    if (!doc?.body) return false;
+		    const area = doc.createElement("textarea");
+		    area.value = text;
+		    area.setAttribute("readonly", "");
+		    area.style.position = "fixed";
+		    area.style.opacity = "0";
+		    doc.body.appendChild(area);
+		    area.select();
+		    const okText = typeof doc.execCommand === "function" ? doc.execCommand("copy") : false;
+		    doc.body.removeChild(area);
+		    return Boolean(okText);
+		  } catch {
+		    return false;
+		  }
+		}
+		function UploadCategoryList({
+		  t,
+		  categories,
+		  maxFileBytes,
+		  selection,
+		  expanded,
+		  onToggleCategory,
+		  onToggleFile,
+		  onToggleExpand
+		}) {
+		  const visible = categories.filter((c) => c.decision !== "excluded" && c.files.length > 0);
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.list, children: visible.map((cat, i) => {
+		    const files = cat.files;
+		    const all = files.every((f) => selection.has(f.relPath));
+		    const some = !all && files.some((f) => selection.has(f.relPath));
+		    const isOpen = expanded.has(cat.id);
+		    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		      "div",
+		      {
+		        style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
+		        children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.listRow, alignItems: "flex-start" }, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              "input",
+		              {
+		                type: "checkbox",
+		                checked: all,
+		                ref: (el) => {
+		                  if (el) el.indeterminate = some;
+		                },
+		                onChange: (e) => onToggleCategory(cat.id, files.map((f) => f.relPath), e.target.checked),
+		                style: { marginTop: 3 }
+		              }
+		            ),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 3 }, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.listTitle, children: [
+		                t(`upload.category.${cat.id}`),
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { ...S.hint, marginLeft: 8 }, children: [
+		                  formatBytes(cat.bytes),
+		                  " · ",
+		                  files.length
+		                ] })
+		              ] }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t(`upload.reason.${cat.id}`) })
+		            ] }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.linkBtn, onClick: () => onToggleExpand(cat.id), children: isOpen ? t("community.publish.collapse") : t("community.publish.expand") })
+		          ] }),
+		          isOpen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { maxHeight: 200, overflow: "auto", padding: "4px 12px 10px 34px" }, children: files.map((f) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		            "label",
+		            {
+		              style: { display: "flex", alignItems: "center", gap: 8, padding: "2px 0" },
+		              children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                  "input",
+		                  {
+		                    type: "checkbox",
+		                    checked: selection.has(f.relPath),
+		                    onChange: (e) => onToggleFile(f.relPath, e.target.checked)
+		                  }
+		                ),
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.mono, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }, children: f.relPath }),
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { ...S.hint, marginLeft: "auto", whiteSpace: "nowrap" }, children: [
+		                  formatBytes(f.size),
+		                  f.size > maxFileBytes ? ` ⚠ ${t("community.publish.tooLarge")}` : ""
+		                ] })
+		              ]
+		            },
+		            f.relPath
+		          )) }) : null
+		        ]
+		      },
+		      cat.id
+		    );
+		  }) });
+		}
+		function PublishDialog({
+		  t,
+		  data,
+		  selection,
+		  remember,
+		  expanded,
+		  busy,
+		  progress,
+		  onToggleCategory,
+		  onToggleFile,
+		  onToggleExpand,
+		  onRemember,
+		  onCancel,
+		  onConfirm
+		}) {
+		  const selectable = data.plan.categories.filter((c) => c.decision !== "excluded").flatMap((c) => c.files);
+		  const selectedFiles = selectable.map((f) => f.relPath).filter((r) => selection.has(r));
+		  const selectedBytes = selectable.filter((f) => selection.has(f.relPath)).reduce((n, f) => n + f.size, 0);
+		  const batches = Math.max(1, Math.ceil(selectedFiles.length / data.plan.limits.maxFilesPerRequest));
+		  const storage = data.usage?.storage;
+		  const oversizeSelected = selectable.filter(
+		    (f) => selection.has(f.relPath) && f.size > data.plan.limits.maxFileBytes
+		  );
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    "div",
+		    {
+		      style: S.overlay,
+		      role: "dialog",
+		      "aria-modal": "true",
+		      children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		        "div",
+		        {
+		          style: {
+		            ...S.card,
+		            width: "min(760px, 96vw)",
+		            maxHeight: "88vh",
+		            overflow: "auto",
+		            background: "var(--dsw-alias-bg-layer-1)"
+		          },
+		          children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		              t("community.publish.title", { title: data.title }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t(data.direction === "SEEK_STUDENT" ? "community.action.seekStudent" : "community.action.seekMentor") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		              data.usage ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: data.usage.nextPublishCost > 0 ? "brand" : "neutral", children: t("community.publish.cost", { tokens: data.usage.nextPublishCost }) }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.publish.costUnknown") })
+		            ] }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 12 }, children: [
+		              data.workspaceTitle && data.workspaceTitle !== data.title ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.publish.workspaceHint", { workspace: data.workspaceTitle }) }) : null,
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hint, children: [
+		                t("community.publish.storage", {
+		                  selected: formatBytes(selectedBytes),
+		                  available: storage ? formatBytes(storage.availableBytes) : t("community.publish.unknown")
+		                }),
+		                data.changed.length > 0 ? ` · ${t("community.publish.changed", { count: data.changed.length })}` : data.remembered ? ` · ${t("community.publish.unchanged")}` : ""
+		              ] }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                UploadCategoryList,
+		                {
+		                  t,
+		                  categories: data.plan.categories,
+		                  maxFileBytes: data.plan.limits.maxFileBytes,
+		                  selection,
+		                  expanded,
+		                  onToggleCategory,
+		                  onToggleFile,
+		                  onToggleExpand
+		                }
+		              ),
+		              oversizeSelected.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: 11.5, color: "var(--dsw-alias-state-warn-primary)", lineHeight: 1.6 }, children: t("community.publish.oversizeWarning", { count: oversizeSelected.length }) }) : null,
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, marginRight: "auto" }, children: t("community.publish.summary", {
+		                  files: selectedFiles.length,
+		                  size: formatBytes(selectedBytes),
+		                  batches
+		                }) }),
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { style: { ...S.hint, display: "flex", alignItems: "center", gap: 6 }, children: [
+		                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("input", { type: "checkbox", checked: remember, onChange: (e) => onRemember(e.target.checked) }),
+		                  t("community.publish.remember")
+		                ] }),
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, disabled: busy, onClick: onCancel, children: t("community.action.cancel") }),
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                  "button",
+		                  {
+		                    type: "button",
+		                    style: { ...S.primaryBtn, opacity: busy ? 0.55 : 1 },
+		                    disabled: busy,
+		                    onClick: onConfirm,
+		                    children: busy ? t("community.action.publishing") : t("community.publish.confirm")
+		                  }
+		                ),
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { flexBasis: "100%" }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(TransferProgress, { t, busy, progress }) })
+		              ] })
+		            ] })
+		          ]
+		        }
+		      )
+		    }
+		  );
+		}
+		function BriefConfirmDialog({
+		  t,
+		  title,
+		  balance,
+		  onCancel,
+		  onConfirm
+		}) {
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    "div",
+		    {
+		      style: S.overlay,
+		      role: "dialog",
+		      "aria-modal": "true",
+		      children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.card, width: "min(430px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		          t("community.briefConfirm.title"),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "brand", children: t("community.briefState.cost") })
+		        ] }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: title }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.briefConfirm.scope") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hint, children: [
+		            t("community.briefConfirm.cost"),
+		            " · ",
+		            typeof balance === "number" ? t("community.briefConfirm.balance", { balance }) : t("community.briefConfirm.balanceUnknown")
+		          ] }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.briefConfirm.idempotent") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onConfirm, children: t("community.briefConfirm.confirm") })
+		          ] })
+		        ] })
 		      ] })
-		    ] }) })
+		    }
+		  );
+		}
+		function AcceptConfirmDialog({
+		  t,
+		  proposal,
+		  party,
+		  partyIsMentor,
+		  iPayer,
+		  balance,
+		  onCancel,
+		  onConfirm
+		}) {
+		  const affiliation = [party.profile?.institution, party.profile?.department].filter(Boolean).join(" · ");
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    "div",
+		    {
+		      style: S.overlay,
+		      role: "dialog",
+		      "aria-modal": "true",
+		      children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.card, width: "min(460px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		          t(iPayer ? "community.mentor.acceptConfirmTitle" : "community.mentor.acceptConfirmTitleOther"),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "brand", children: t(
+		            iPayer ? "community.mentor.acceptConfirmBadge" : "community.mentor.acceptConfirmBadgeOther",
+		            { deposit: proposal.depositAmount }
+		          ) })
+		        ] }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: t(
+		            partyIsMentor ? "community.mentor.mentorIs" : "community.mentor.researcherIs",
+		            { name: party.displayName || t("community.mentor.unknownParty") }
+		          ) }),
+		          affiliation ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: affiliation }) : null,
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.mentor.feeText", {
+		            total: proposal.totalFee,
+		            deposit: proposal.depositAmount,
+		            success: proposal.successPaymentAmount
+		          }) }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t(
+		            iPayer ? "community.mentor.acceptFreezeNote" : "community.mentor.acceptFreezeNoteOther",
+		            { deposit: proposal.depositAmount }
+		          ) }),
+		          iPayer ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: typeof balance === "number" ? t("community.mentor.acceptBalance", { balance }) : t("community.briefConfirm.balanceUnknown") }) : null,
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onConfirm, children: t("community.mentor.acceptConfirm") })
+		          ] })
+		        ] })
+		      ] })
+		    }
+		  );
+		}
+		function TokenDonut({
+		  t,
+		  available,
+		  frozen,
+		  total,
+		  size = 100
+		}) {
+		  const r = 64;
+		  const cx = 80;
+		  const cy = 80;
+		  const circumference = 2 * Math.PI * r;
+		  const availableFrac = total > 0 ? available / total : 1;
+		  const frozenFrac = total > 0 ? frozen / total : 0;
+		  const availableDash = circumference * availableFrac;
+		  const frozenDash = circumference * frozenFrac;
+		  const hasFrozen = frozen > 0;
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("svg", { width: size, height: size, viewBox: "0 0 160 160", "aria-hidden": "true", children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx, cy, r, fill: "none", stroke: "var(--dsw-alias-bg-layer-2)", strokeWidth: 14 }),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      "circle",
+		      {
+		        cx,
+		        cy,
+		        r,
+		        fill: "none",
+		        stroke: "var(--dsw-alias-state-business-primary)",
+		        strokeWidth: 14,
+		        strokeLinecap: "round",
+		        strokeDasharray: `${availableDash} ${circumference}`,
+		        strokeDashoffset: 0,
+		        transform: `rotate(90 ${cx} ${cy})`
+		      }
+		    ),
+		    hasFrozen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      "circle",
+		      {
+		        cx,
+		        cy,
+		        r,
+		        fill: "none",
+		        stroke: "var(--dsw-alias-label-secondary)",
+		        strokeWidth: 14,
+		        strokeLinecap: "round",
+		        strokeDasharray: `${frozenDash} ${circumference}`,
+		        strokeDashoffset: -availableDash,
+		        transform: `rotate(90 ${cx} ${cy})`
+		      }
+		    ) : null,
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      "text",
+		      {
+		        x: cx,
+		        y: cy - 18,
+		        textAnchor: "middle",
+		        dominantBaseline: "central",
+		        fill: "var(--dsw-alias-label-primary)",
+		        fontSize: "22",
+		        fontWeight: "700",
+		        fontFamily: "inherit",
+		        children: total
+		      }
+		    ),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      "text",
+		      {
+		        x: cx,
+		        y: cy - 2,
+		        textAnchor: "middle",
+		        fill: "var(--dsw-alias-label-secondary)",
+		        fontSize: "10",
+		        fontFamily: "inherit",
+		        children: "Token"
+		      }
+		    ),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx: cx - 30, cy: cy + 14, r: 4, fill: "var(--dsw-alias-state-business-primary)" }),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      "text",
+		      {
+		        x: cx - 22,
+		        y: cy + 14,
+		        textAnchor: "start",
+		        dominantBaseline: "central",
+		        fill: "var(--dsw-alias-label-secondary)",
+		        fontSize: "9",
+		        fontFamily: "inherit",
+		        children: t("community.token.available")
+		      }
+		    ),
+		    hasFrozen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx: cx + 10, cy: cy + 14, r: 4, fill: "var(--dsw-alias-label-secondary)" }),
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        "text",
+		        {
+		          x: cx + 18,
+		          y: cy + 14,
+		          textAnchor: "start",
+		          dominantBaseline: "central",
+		          fill: "var(--dsw-alias-label-secondary)",
+		          fontSize: "9",
+		          fontFamily: "inherit",
+		          children: t("community.token.frozen")
+		        }
+		      )
+		    ] }) : null
+		  ] });
+		}
+		function UsageRing({
+		  fraction,
+		  size = 54,
+		  tone = "brand"
+		}) {
+		  const r = 64;
+		  const c = 80;
+		  const circumference = 2 * Math.PI * r;
+		  const f = Math.max(0, Math.min(1, Number.isFinite(fraction) ? fraction : 0));
+		  const stroke = tone === "warn" ? "var(--dsw-alias-state-warn-primary)" : tone === "neutral" ? "var(--dsw-alias-label-tertiary)" : "var(--dsw-alias-state-business-primary)";
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("svg", { width: size, height: size, viewBox: "0 0 160 160", "aria-hidden": "true", style: { flex: "0 0 auto" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx: c, cy: c, r, fill: "none", stroke: "var(--dsw-alias-bg-layer-2)", strokeWidth: 14 }),
+		    f > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      "circle",
+		      {
+		        cx: c,
+		        cy: c,
+		        r,
+		        fill: "none",
+		        stroke,
+		        strokeWidth: 14,
+		        strokeLinecap: "round",
+		        strokeDasharray: `${circumference * f} ${circumference}`,
+		        transform: `rotate(90 ${c} ${c})`
+		      }
+		    ) : null
+		  ] });
+		}
+		function DashTile({
+		  title,
+		  chart,
+		  value,
+		  unit,
+		  sub
+		}) {
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.dashTile, children: [
+		    chart,
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.dashTitle, children: title }),
+		      value ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: S.dashValue, children: [
+		        value,
+		        unit ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.dashUnit, children: unit }) : null
+		      ] }) : null,
+		      sub ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.dashSub, children: sub }) : null
+		    ] })
+		  ] });
+		}
+		function TokenDialog({
+		  t,
+		  tokens,
+		  requests,
+		  loading,
+		  amount,
+		  reason,
+		  submitting,
+		  error,
+		  receipt,
+		  onAmount,
+		  onReason,
+		  onApply,
+		  onRefresh,
+		  onClose
+		}) {
+		  const pending = (requests ?? []).find((r) => r.status === "PENDING") ?? null;
+		  const parsed = Number(amount);
+		  const amountValid = Number.isInteger(parsed) && parsed > 0;
+		  const canApply = !pending && amountValid && !submitting && !loading;
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.card, width: "min(460px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		      t("community.token.dialogTitle"),
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RefreshIconButton, { t, busy: loading, onClick: onRefresh })
+		    ] }),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		      tokens ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "flex-start", gap: 12 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { flex: "0 0 auto", display: "flex", flexDirection: "column", gap: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          TokenDonut,
+		          {
+		            t,
+		            available: tokens.available,
+		            frozen: tokens.frozen,
+		            total: tokens.total,
+		            size: 100
+		          }
+		        ) }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 8 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.token.renewHint") }),
+		          pending ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-business-primary)" }, children: t("community.token.pendingLine", { amount: pending.amount }) }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.label, children: t("community.token.amountLabel") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                "input",
+		                {
+		                  style: S.compactInput,
+		                  type: "text",
+		                  inputMode: "numeric",
+		                  spellCheck: false,
+		                  autoComplete: "off",
+		                  value: amount,
+		                  placeholder: t("community.token.amountPlaceholder"),
+		                  onChange: (e) => onAmount(e.target.value)
+		                }
+		              )
+		            ] }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.label, children: t("community.token.reasonLabel") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                "input",
+		                {
+		                  style: S.compactInput,
+		                  type: "text",
+		                  spellCheck: false,
+		                  autoComplete: "off",
+		                  maxLength: 500,
+		                  value: reason,
+		                  placeholder: t("community.token.reasonPlaceholder"),
+		                  onChange: (e) => onReason(e.target.value)
+		                }
+		              )
+		            ] })
+		          ] })
+		        ] })
+		      ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.briefConfirm.balanceUnknown") }),
+		      error ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: 11.5, lineHeight: 1.6, color: "var(--dsw-alias-state-error-primary)" }, children: error }) : null,
+		      receipt ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: 11.5, lineHeight: 1.6, color: "var(--dsw-alias-state-success-primary)" }, children: receipt }) : null,
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.token.close") }),
+		        !pending ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          "button",
+		          {
+		            type: "button",
+		            style: { ...S.primaryBtn, opacity: canApply ? 1 : 0.55 },
+		            disabled: !canApply,
+		            onClick: onApply,
+		            children: submitting ? t("community.token.applying") : t("community.token.apply")
+		          }
+		        ) : null
+		      ] })
+		    ] })
+		  ] }) });
+		}
+		function ProposeDialog({
+		  t,
+		  title,
+		  fee,
+		  busy,
+		  error,
+		  onCancel,
+		  onSubmit,
+		  variant = "mentor"
+		}) {
+		  const [total, setTotal] = import_react.default.useState(String(fee?.suggestedFee ?? 100));
+		  const ratio = fee && fee.suggestedFee > 0 ? fee.suggestedDeposit / fee.suggestedFee : DEFAULT_DEPOSIT_RATIO;
+		  const touched = import_react.default.useRef(false);
+		  import_react.default.useEffect(() => {
+		    if (!fee || touched.current) return;
+		    setTotal(String(fee.suggestedFee));
+		  }, [fee]);
+		  const totalNum = Number.parseInt(total, 10);
+		  const valid = Number.isInteger(totalNum) && totalNum > 0;
+		  const deposit = valid ? Math.max(1, Math.round(totalNum * ratio)) : 0;
+		  const success = valid ? totalNum - deposit : 0;
+		  const input = S.compactInput;
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    "div",
+		    {
+		      style: S.overlay,
+		      role: "dialog",
+		      "aria-modal": "true",
+		      children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.card, width: "min(400px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		          t(variant === "researcher" ? "community.mentor.bidTitle" : "community.mentor.proposeTitle"),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.mentor.proposeFree") })
+		        ] }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: title }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.label, children: t("community.mentor.feeTotal") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              "input",
+		              {
+		                style: input,
+		                value: total,
+		                inputMode: "numeric",
+		                autoFocus: true,
+		                onChange: (e) => {
+		                  touched.current = true;
+		                  setTotal(e.target.value);
+		                }
+		              }
+		            )
+		          ] }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: valid ? t(
+		            variant === "researcher" ? "community.mentor.bidNote" : "community.mentor.feeNote",
+		            { percent: Math.round(ratio * 100), deposit, success }
+		          ) : t("community.mentor.feeInvalid") }),
+		          error ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-error-primary)" }, children: error }) : null,
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              "button",
+		              {
+		                type: "button",
+		                style: { ...S.primaryBtn, opacity: valid && !busy ? 1 : 0.55 },
+		                disabled: !valid || busy,
+		                onClick: () => onSubmit({
+		                  totalFee: totalNum,
+		                  depositAmount: deposit,
+		                  successPaymentAmount: success
+		                }),
+		                children: busy ? t("community.action.loading") : t(variant === "researcher" ? "community.action.bid" : "community.action.propose")
+		              }
+		            )
+		          ] })
+		        ] })
+		      ] })
+		    }
+		  );
+		}
+		function PartyProfileDialog({
+		  t,
+		  party,
+		  isMentor,
+		  status,
+		  onClose
+		}) {
+		  const profile = party.profile ?? null;
+		  const affiliation = [profile?.institution, profile?.department].filter(Boolean).join(" · ");
+		  const line = (label, value) => value ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.label, flex: "0 0 64px" }, children: label }),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, flex: "1 1 auto", minWidth: 0 }, children: value })
+		  ] }) : null;
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.card, width: "min(430px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		      t(isMentor ? "community.mentor.profileTitle" : "community.mentor.profileTitleResearcher"),
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: proposalTone(status), children: enumText(t, PROPOSAL_STATUS_KEYS, status) })
+		    ] }),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: party.displayName || t("community.mentor.unknownParty") }),
+		      affiliation ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: affiliation }) : null,
+		      profile ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		        line(t("community.mentor.profileBio"), profile.bio),
+		        line(t("community.mentor.profileFields"), profile.researchFields.join(" · ")),
+		        line(t("community.mentor.profileInterests"), profile.researchInterests.join(" · ")),
+		        line(t("community.mentor.profileExpertise"), profile.researchExpertise.join(" · "))
+		      ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t(isMentor ? "community.mentor.profileEmpty" : "community.mentor.profileEmptyResearcher") }),
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") })
+		      ] })
+		    ] })
+		  ] }) });
+		}
+		function stripSlash(url) {
+		  return url.replace(/\/+$/, "");
+		}
+		function downloadPrefix(p) {
+		  const owner = p.researcher?.displayName ?? p.mentor?.displayName ?? "";
+		  const parts = [owner, p.projectTitle ?? ""].filter((s) => s.trim() !== "");
+		  return parts.join("-");
+		}
+		function mergeStateOf(status) {
+		  switch (status) {
+		    case "same":
+		      return "same";
+		    case "other":
+		      return "other";
+		    case "unknown":
+		      return "unknown";
+		    case "new":
+		    case "missing":
+		      return "new";
+		    default:
+		      return "unverifiable";
+		  }
+		}
+		function statusBadge(t, target) {
+		  switch (target.status) {
+		    case "same":
+		      return {
+		        label: t("community.exchange.ws.same"),
+		        hint: t("community.exchange.ws.sameHint"),
+		        tone: "success"
+		      };
+		    case "other":
+		      return {
+		        label: t("community.exchange.ws.other"),
+		        hint: t("community.exchange.ws.otherHint"),
+		        tone: "error"
+		      };
+		    case "missing":
+		      return {
+		        label: t("community.exchange.ws.missing"),
+		        hint: t("community.exchange.ws.missingHint"),
+		        tone: "warn"
+		      };
+		    case "unknown":
+		      return {
+		        label: t("community.exchange.ws.unknown"),
+		        // 冲突（标记与本地记录矛盾）与"压根读不到"要分开说：前者是**两边都有值但不一样**，
+		        // 后者是**没有值**。补救动作也不同（前者该去查那两条记录）。
+		        hint: target.identityConflict ? t("community.exchange.ws.conflictHint") : t("community.exchange.ws.unknownHint"),
+		        tone: "warn"
+		      };
+		    case "unverifiable":
+		      return {
+		        label: t("community.exchange.ws.unverifiable"),
+		        hint: t("community.exchange.ws.unverifiableHint"),
+		        tone: "warn"
+		      };
+		    default:
+		      return {
+		        label: t("community.exchange.ws.new"),
+		        hint: t("community.exchange.ws.newHint"),
+		        tone: "neutral"
+		      };
+		  }
+		}
+		function downloadWarning(t, target) {
+		  switch (target.status) {
+		    case "other":
+		      return { text: t("community.exchange.ws.otherWarn"), tone: "error" };
+		    case "unknown":
+		      return {
+		        text: target.identityConflict ? t("community.exchange.ws.conflictWarn") : t("community.exchange.ws.unknownWarn"),
+		        tone: "warn"
+		      };
+		    case "unverifiable":
+		      return { text: t("community.exchange.ws.unverifiableWarn"), tone: "warn" };
+		    case "missing":
+		      return { text: t("community.exchange.ws.missingWarn"), tone: "warn" };
+		    default:
+		      return null;
+		  }
+		}
+		function DownloadDialog({
+		  t,
+		  proposal,
+		  fileName,
+		  workspaces,
+		  workspacesAvailable,
+		  workspacesReason,
+		  selection,
+		  files,
+		  bytes,
+		  busy,
+		  /** 下载中已收到的字节数（宿主如实报告；null = 还没开始/已结束）。 */
+		  received,
+		  notice,
+		  targets,
+		  currentWorkspaceId,
+		  done,
+		  onSelect,
+		  onDownload,
+		  onClose,
+		  onFill,
+		  onCopy,
+		  onRefill
+		}) {
+		  const targetOf = (id) => targets?.find((x) => x.id === id);
+		  const chosen = workspaces?.find((w) => w.id === selection);
+		  const chosenTarget = chosen ? targetOf(chosen.id) : void 0;
+		  const chosenBadge = chosenTarget ? statusBadge(t, chosenTarget) : null;
+		  const warning = chosenTarget ? downloadWarning(t, chosenTarget) : null;
+		  const dest = chosen ? `${chosen.path}/${fileName}` : "";
+		  const ready = Boolean(selection) && files !== null && files > 0 && !busy;
+		  const pct2 = busy && bytes && bytes > 0 && received !== null ? Math.min(100, Math.round(received / bytes * 100)) : null;
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.card, width: "min(520px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		      t("community.exchange.downloadTitle"),
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		      files === null ? null : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.exchange.sizeBadge", { files, size: formatBytes(bytes ?? 0) }) })
+		    ] }),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: proposalWorkLabel(proposal) ?? t("community.mentor.untitledProject") }),
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.zipOnly") }),
+		      files === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.noSourceFiles") }) : null,
+		      !workspacesAvailable ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: workspacesReason ?? t("community.exchange.noWorkspaces") }) : workspaces === null ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : workspaces.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.noWorkspaces") }) : (
+		        /*
+		         * **下拉框**而不是单选列表（2026-10 用户要求）：工作区多起来时列表太长，
+		         * 而这里每次只会选一个。样式直接复用设置页既有的 `S.select`（与上传对话框同源）。
+		         *
+		         * 下拉框里塞不下徽章，所以把"当前会话"与判定结论压进**选项文字**；
+		         * 选中项的完整路径与结论说明放在框下面（`chosenBadge`）。
+		         * 默认选中**当前会话的工作区**（预选优先级在 `requestDownload` 里，第一顺位）。
+		         */
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.label, children: t("community.exchange.workspaceLabel") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            "select",
+		            {
+		              style: S.select,
+		              value: selection,
+		              disabled: busy,
+		              onChange: (e) => onSelect(e.target.value),
+		              children: workspaces.map((w) => {
+		                const tg = targetOf(w.id);
+		                const badge = tg ? statusBadge(t, tg) : null;
+		                const marks = [
+		                  // 只有当前会话的工作区才能把整合提示词填进输入框
+		                  currentWorkspaceId === w.id ? t("community.exchange.ws.current") : "",
+		                  badge ? badge.label : ""
+		                ].filter(Boolean);
+		                return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { value: w.id, children: marks.length > 0 ? `${w.title}（${marks.join(" · ")}）` : w.title }, w.id);
+		              })
+		            }
+		          ),
+		          chosen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, wordBreak: "break-all" }, children: chosen.path }) : null,
+		          chosenBadge ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hint, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: chosenBadge.tone, children: chosenBadge.label }),
+		            " ",
+		            chosenBadge.hint
+		          ] }) : null
+		        ] })
+		      ),
+		      done ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 7 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: t("community.merge.title") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.downloadDone", { dir: done.dir, name: done.name }) }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: done.plan }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.merge.hint") }),
+		        done.phase === "pending" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.merge.pendingHint") }) : null,
+		        done.correctedPrompt ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.merge.nameChanged", { name: done.name }) }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onRefill, children: t("community.merge.refill") }) })
+		        ] }) : null,
+		        done.canFill && !done.filled ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.merge.fillHint") }) : null,
+		        done.filled ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.merge.filled") }) : done.fillHint ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: done.fillHint }) : null
+		      ] }) : null,
+		      !(done && done.phase === "ready") && dest ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, wordBreak: "break-all" }, children: t("community.exchange.destHint", { dest }) }) : null,
+		      !(done && done.phase === "ready") && warning ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        "div",
+		        {
+		          style: {
+		            ...S.hint,
+		            color: warning.tone === "error" ? "var(--dsw-alias-state-error-primary)" : "var(--dsw-alias-state-warn-primary)"
+		          },
+		          children: warning.text
+		        }
+		      ) : null,
+		      busy ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: received === null || !bytes ? t("community.action.loading") : t("community.exchange.downloading", {
+		          done: formatBytes(received),
+		          total: formatBytes(bytes)
+		        }) }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          "div",
+		          {
+		            style: {
+		              height: 4,
+		              borderRadius: 2,
+		              background: "var(--dsw-alias-border-l1)",
+		              overflow: "hidden"
+		            },
+		            children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              "div",
+		              {
+		                style: {
+		                  height: "100%",
+		                  width: `${pct2 ?? 0}%`,
+		                  background: "var(--dsw-alias-brand-primary, #4a43ea)",
+		                  transition: "width 400ms linear"
+		                }
+		              }
+		            )
+		          }
+		        )
+		      ] }) : null,
+		      notice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        "div",
+		        {
+		          style: {
+		            ...S.hint,
+		            color: notice.tone === "success" ? "var(--dsw-alias-label-secondary)" : "var(--dsw-alias-state-error-primary)"
+		          },
+		          children: notice.text
+		        }
+		      ) : null,
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") }),
+		        done ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCopy, children: t("community.merge.copy") }),
+		          done.canFill && !done.filled ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onFill, children: t("community.merge.fill") }) : null
+		        ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          "button",
+		          {
+		            type: "button",
+		            style: { ...S.primaryBtn, opacity: ready ? 1 : 0.55 },
+		            disabled: !ready,
+		            onClick: onDownload,
+		            children: busy ? t("community.exchange.downloadingBtn") : t("community.action.download")
+		          }
+		        )
+		      ] })
+		    ] })
+		  ] }) });
+		}
+		function UploadDialog({
+		  t,
+		  proposal,
+		  workspaces,
+		  workspacesAvailable,
+		  workspacesReason,
+		  workspaceId,
+		  currentWorkspaceId,
+		  plan,
+		  planLoading,
+		  selection,
+		  expanded,
+		  busy,
+		  progress,
+		  notice,
+		  onSelectWorkspace,
+		  onToggleCategory,
+		  onToggleFile,
+		  onToggleExpand,
+		  onUpload,
+		  onClose
+		}) {
+		  const chosen = workspaces?.find((w) => w.id === workspaceId) ?? null;
+		  const selectable = (plan?.plan.categories ?? []).filter((c) => c.decision !== "excluded").flatMap((c) => c.files.filter((f) => !f.relPath.endsWith("/")));
+		  const selected = selectable.filter((f) => selection.has(f.relPath));
+		  const selectedBytes = selected.reduce((n, f) => n + f.size, 0);
+		  const limits = plan?.plan.limits ?? null;
+		  const batches = limits ? Math.max(1, Math.ceil(selected.length / limits.maxFilesPerRequest)) : 1;
+		  const oversize = limits ? selected.filter((f) => f.size > limits.maxFileBytes) : [];
+		  const ready = Boolean(workspaceId) && selected.length > 0 && !busy && !planLoading;
+		  const pct2 = busy && progress && progress.totalBytes > 0 ? Math.min(100, Math.round(progress.sentBytes / progress.totalBytes * 100)) : null;
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		    "div",
+		    {
+		      style: {
+		        ...S.card,
+		        width: "min(760px, 96vw)",
+		        maxHeight: "88vh",
+		        overflow: "auto",
+		        background: "var(--dsw-alias-bg-layer-1)"
+		      },
+		      children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		          t("community.exchange.uploadTitle"),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.mentor.status.ACCEPTED") })
+		        ] }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 11 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: proposalWorkLabel(proposal) ?? t("community.mentor.untitledProject") }),
+		          !workspacesAvailable ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: workspacesReason ?? t("community.exchange.noWorkspaces") }) : workspaces === null ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : workspaces.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.noUploadWorkspaces") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.label, children: t("community.exchange.workspaceLabel") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		              "select",
+		              {
+		                style: { ...S.compactInput, flex: "1 1 auto" },
+		                value: workspaceId,
+		                onChange: (e) => onSelectWorkspace(e.target.value),
+		                children: [
+		                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { value: "", children: t("community.exchange.workspacePlaceholder") }),
+		                  workspaces.map((w) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { value: w.id, children: currentWorkspaceId === w.id ? `${w.title}（${t("community.exchange.ws.current")}）` : w.title }, w.id))
+		                ]
+		              }
+		            )
+		          ] }),
+		          chosen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, wordBreak: "break-all" }, children: t("community.exchange.fromHint", { root: chosen.root }) }) : null,
+		          planLoading ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : plan === null ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.selectWorkspaceFirst") }) : selectable.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.noUploadFiles") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            UploadCategoryList,
+		            {
+		              t,
+		              categories: plan.plan.categories,
+		              maxFileBytes: plan.plan.limits.maxFileBytes,
+		              selection,
+		              expanded,
+		              onToggleCategory,
+		              onToggleFile,
+		              onToggleExpand
+		            }
+		          ),
+		          plan && plan.plan.totals.excludedFiles > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.skippedMachine", { count: plan.plan.totals.excludedFiles }) }) : null,
+		          oversize.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: 11.5, color: "var(--dsw-alias-state-warn-primary)", lineHeight: 1.6 }, children: t("community.exchange.oversizeWarning", { count: oversize.length }) }) : null,
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(TransferProgress, { t, busy, progress }),
+		          notice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            "div",
+		            {
+		              style: {
+		                ...S.hint,
+		                color: notice.tone === "success" ? "var(--dsw-alias-label-secondary)" : "var(--dsw-alias-state-error-primary)"
+		              },
+		              children: notice.text
+		            }
+		          ) : null,
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, marginRight: "auto" }, children: plan ? t("community.exchange.uploadSummary", {
+		              files: selected.length,
+		              size: formatBytes(selectedBytes),
+		              batches
+		            }) : "" }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              "button",
+		              {
+		                type: "button",
+		                style: { ...S.primaryBtn, opacity: ready ? 1 : 0.55 },
+		                disabled: !ready,
+		                onClick: onUpload,
+		                children: busy ? t("community.action.loading") : t("community.action.upload")
+		              }
+		            )
+		          ] })
+		        ] })
+		      ]
+		    }
+		  ) });
+		}
+		function RefreshIconButton({
+		  t,
+		  busy,
+		  onClick
+		}) {
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    "button",
+		    {
+		      type: "button",
+		      style: { ...S.iconBtn, flex: "0 0 auto", opacity: busy ? 0.55 : 1 },
+		      disabled: busy,
+		      title: busy ? t("community.action.loading") : t("community.action.refresh"),
+		      "aria-label": t("community.action.refresh"),
+		      onClick,
+		      children: "↻"
+		    }
+		  );
+		}
+		function DevServerGlyph() {
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("svg", { width: "15", height: "15", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("rect", { x: "1.75", y: "2.75", width: "12.5", height: "8.25", rx: "1.2", stroke: "currentColor", strokeWidth: "1.3" }),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M8 11v2.75", stroke: "currentColor", strokeWidth: "1.3", strokeLinecap: "round" }),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M5.25 13.75h5.5", stroke: "currentColor", strokeWidth: "1.3", strokeLinecap: "round" })
+		  ] });
+		}
+		function InternetGlyph() {
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("svg", { width: "15", height: "15", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx: "8", cy: "8", r: "6.25", stroke: "currentColor", strokeWidth: "1.3" }),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M1.75 8h12.5", stroke: "currentColor", strokeWidth: "1.3" }),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("ellipse", { cx: "8", cy: "8", rx: "3.1", ry: "6.25", stroke: "currentColor", strokeWidth: "1.3" })
+		  ] });
+		}
+		function InviteCodeGlyph() {
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("svg", { width: "15", height: "15", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("rect", { x: "2", y: "3.75", width: "12", height: "8.5", rx: "1.2", stroke: "currentColor", strokeWidth: "1.3" }),
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M9.25 3.75v8.5", stroke: "currentColor", strokeWidth: "1.3", strokeDasharray: "1.5 1.4" })
+		  ] });
+		}
+		function ServerPresetButton({
+		  t,
+		  icon,
+		  label,
+		  url,
+		  result,
+		  active,
+		  onPick
+		}) {
+		  const status = result.state === "busy" ? t("community.server.probing") : result.state === "ok" ? t("community.server.probeOk") : result.state === "fail" ? t("community.server.probeFail") : "";
+		  const title = [label, status, result.reason ?? "", url].filter((s) => s !== "").join(" · ");
+		  const skin = result.state === "busy" ? { opacity: 0.55 } : result.state === "ok" ? S.iconBtnOk : result.state === "fail" ? S.iconBtn : active ? S.iconBtnActive : S.iconBtn;
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    "button",
+		    {
+		      type: "button",
+		      style: { ...S.iconBtn, flex: "0 0 auto", ...skin },
+		      title,
+		      "aria-label": label,
+		      onClick: () => onPick(url),
+		      children: icon
+		    }
+		  );
+		}
+		function CommunityTab({
+		  send,
+		  initial,
+		  t,
+		  session
+		}) {
+		  const [state, setState] = import_react.default.useState(initial);
+		  const [phase, setPhase] = import_react.default.useState("loading");
+		  const [busy, setBusy] = import_react.default.useState(false);
+		  const [refreshingBalance, setRefreshingBalance] = import_react.default.useState(false);
+		  const [tokenDialog, setTokenDialog] = import_react.default.useState(false);
+		  const [rechargeRequests, setRechargeRequests] = import_react.default.useState(null);
+		  const [rechargeLoading, setRechargeLoading] = import_react.default.useState(false);
+		  const [rechargeAmount, setRechargeAmount] = import_react.default.useState("");
+		  const [rechargeReason, setRechargeReason] = import_react.default.useState("");
+		  const [rechargeSubmitting, setRechargeSubmitting] = import_react.default.useState(false);
+		  const [rechargeError, setRechargeError] = import_react.default.useState(null);
+		  const [rechargeReceipt, setRechargeReceipt] = import_react.default.useState(null);
+		  const [failure, setFailure] = import_react.default.useState(null);
+		  const [userTab, setUserTab] = import_react.default.useState("account");
+		  const [userOpen, setUserOpen] = import_react.default.useState(false);
+		  const [usage, setUsage] = import_react.default.useState(null);
+		  const [usagePhase, setUsagePhase] = import_react.default.useState("idle");
+		  const [usageStaleHost, setUsageStaleHost] = import_react.default.useState(false);
+		  const [serverDraft, setServerDraft] = import_react.default.useState(initial?.serverUrl ?? "");
+		  const [serverProbes, setServerProbes] = import_react.default.useState({});
+		  const [apiKey, setApiKey] = import_react.default.useState("");
+		  const [invite, setInvite] = import_react.default.useState({ code: "", email: "", displayName: "" });
+		  const [inviteOpen, setInviteOpen] = import_react.default.useState(false);
+		  const [workTab, setWorkTab] = import_react.default.useState("mine");
+		  const [mine, setMine] = import_react.default.useState(null);
+		  const [mineLoading, setMineLoading] = import_react.default.useState(false);
+		  const [mineError, setMineError] = import_react.default.useState(null);
+		  const [mineRegistry, setMineRegistry] = import_react.default.useState(null);
+		  const [publishProgress, setPublishProgress] = import_react.default.useState(null);
+		  const [publishing, setPublishing] = import_react.default.useState(null);
+		  const [publishNotice, setPublishNotice] = import_react.default.useState(null);
+		  const [dialog, setDialog] = import_react.default.useState(null);
+		  const [dialogLoading, setDialogLoading] = import_react.default.useState(null);
+		  const [works, setWorks] = import_react.default.useState(null);
+		  const [worksLoading, setWorksLoading] = import_react.default.useState(false);
+		  const [worksError, setWorksError] = import_react.default.useState(null);
+		  const [joinable, setJoinable] = import_react.default.useState(null);
+		  const [joinableLoading, setJoinableLoading] = import_react.default.useState(false);
+		  const [joinableError, setJoinableError] = import_react.default.useState(null);
+		  const [open, setOpen] = import_react.default.useState(null);
+		  const [detail, setDetail] = import_react.default.useState(
+		    null
+		  );
+		  const [detailBusy, setDetailBusy] = import_react.default.useState(null);
+		  const [chargeNotice, setChargeNotice] = import_react.default.useState(null);
+		  const [briefConfirm, setBriefConfirm] = import_react.default.useState(null);
+		  const [intents, setIntents] = import_react.default.useState({});
+		  const [proposals, setProposals] = import_react.default.useState(null);
+		  const [proposalsLoading, setProposalsLoading] = import_react.default.useState(false);
+		  const [proposalsError, setProposalsError] = import_react.default.useState(null);
+		  const [mentorNotice, setMentorNotice] = import_react.default.useState(null);
+		  const [mentorBusy, setMentorBusy] = import_react.default.useState(null);
+		  const [acceptConfirm, setAcceptConfirm] = import_react.default.useState(null);
+		  const [acceptIntents, setAcceptIntents] = import_react.default.useState({});
+		  const [detailRead, setDetailRead] = import_react.default.useState(/* @__PURE__ */ new Set());
+		  const [menuFor, setMenuFor] = import_react.default.useState(null);
+		  const [exchange, setExchange] = import_react.default.useState(null);
+		  const [download, setDownload] = import_react.default.useState(null);
+		  const [downloadBusy, setDownloadBusy] = import_react.default.useState(false);
+		  const [downloadReceived, setDownloadReceived] = import_react.default.useState(null);
+		  const [uploadWorkspaces, setUploadWorkspaces] = import_react.default.useState(null);
+		  const [uploadRegistry, setUploadRegistry] = import_react.default.useState(
+		    null
+		  );
+		  const [uploadWorkspaceId, setUploadWorkspaceId] = import_react.default.useState("");
+		  const [uploadCurrentWorkspaceId, setUploadCurrentWorkspaceId] = import_react.default.useState(null);
+		  const [uploadPlan, setUploadPlan] = import_react.default.useState(null);
+		  const [uploadPlanLoading, setUploadPlanLoading] = import_react.default.useState(false);
+		  const [uploadSelected, setUploadSelected] = import_react.default.useState(/* @__PURE__ */ new Set());
+		  const [uploadExpanded, setUploadExpanded] = import_react.default.useState(/* @__PURE__ */ new Set());
+		  const [exchangeBusy, setExchangeBusy] = import_react.default.useState(false);
+		  const [exchangeNotice, setExchangeNotice] = import_react.default.useState(null);
+		  const [uploadProgress, setUploadProgress] = import_react.default.useState(null);
+		  const [profileTarget, setProfileTarget] = import_react.default.useState(null);
+		  const [proposeTarget, setProposeTarget] = import_react.default.useState(null);
+		  const [proposeFee, setProposeFee] = import_react.default.useState(null);
+		  const [proposeBusy, setProposeBusy] = import_react.default.useState(false);
+		  const [proposeError, setProposeError] = import_react.default.useState(null);
+		  import_react.default.useEffect(() => {
+		    if (state?.serverUrl) setServerDraft(state.serverUrl);
+		  }, [state?.serverUrl]);
+		  const post = import_react.default.useCallback(
+		    async (endpoint, payload) => {
+		      try {
+		        const res = await send(endpoint, payload);
+		        if (!res || res.ok !== true) {
+		          return {
+		            ok: false,
+		            error: { code: res?.error?.code ?? "unknown", message: res?.error?.message ?? t("community.error.unknown") }
+		          };
+		        }
+		        return { ok: true, value: res.value };
+		      } catch (e) {
+		        return {
+		          ok: false,
+		          error: {
+		            code: "transport",
+		            message: t("community.error.transport", {
+		              route: SETTINGS_ROUTE_PREFIX,
+		              detail: e instanceof Error ? e.message : String(e)
+		            })
+		          }
+		        };
+		      }
+		    },
+		    [send]
+		  );
+		  const call = import_react.default.useCallback(
+		    async (endpoint, payload) => {
+		      const res = await post(endpoint, payload);
+		      if (!res.ok) {
+		        setFailure(res.error ?? { code: "unknown", message: t("community.error.unknown") });
+		        setUserOpen(true);
+		        return null;
+		      }
+		      const next = res.value;
+		      setState(next);
+		      setFailure(null);
+		      return next;
+		    },
+		    [post]
+		  );
+		  import_react.default.useEffect(() => {
+		    let alive = true;
+		    void (async () => {
+		      try {
+		        const res = await send("account/state", {});
+		        if (!alive) return;
+		        if (!res || res.ok !== true) {
+		          setFailure({
+		            code: res?.error?.code ?? "unknown",
+		            message: res?.error?.message ?? t("community.error.readAccount")
+		          });
+		          return;
+		        }
+		        const current = res.value;
+		        setState(current);
+		        if (current.keyConfigured) await call("account/verify", {});
+		      } catch (e) {
+		        if (!alive) return;
+		        setFailure({
+		          code: "transport",
+		          message: t("community.error.readAccountDetail", {
+		            detail: e instanceof Error ? e.message : String(e)
+		          })
+		        });
+		      } finally {
+		        if (alive) setPhase("ready");
+		      }
+		    })();
+		    return () => {
+		      alive = false;
+		    };
+		  }, [send, call]);
+		  const account = state?.account ?? null;
+		  const configured = state?.keyConfigured ?? false;
+		  const activeServer = state?.serverUrl ?? "";
+		  const canMentor = Boolean(
+		    account && (account.roles.includes("MENTOR") || account.roles.includes("ADMIN"))
+		  );
+		  import_react.default.useEffect(() => {
+		    if (workTab === "mentor" && !canMentor) setWorkTab("mine");
+		  }, [workTab, canMentor]);
+		  const fromEnv = state?.keySource === "env";
+		  const loadWorks = import_react.default.useCallback(async (direction) => {
+		    const toJoinable = direction === "SEEK_STUDENT";
+		    const setLoading = toJoinable ? setJoinableLoading : setWorksLoading;
+		    const setError = toJoinable ? setJoinableError : setWorksError;
+		    const setList = toJoinable ? setJoinable : setWorks;
+		    setLoading(true);
+		    setError(null);
+		    setChargeNotice(null);
+		    setOpen(null);
+		    setDetail(null);
+		    const [res, proposalsRes] = await Promise.all([
+		      post("work/list", { direction }),
+		      post("mentor/list", {})
+		    ]);
+		    setLoading(false);
+		    if (proposalsRes.ok) {
+		      setProposals(proposalsRes.value.proposals ?? []);
+		    }
+		    if (!res.ok) {
+		      setError(res.error ?? { code: "unknown", message: t("community.error.readWorkList") });
+		      setList(null);
+		      return;
+		    }
+		    setList(res.value.items ?? []);
+		  }, [post]);
+		  const loadProposals = import_react.default.useCallback(async () => {
+		    setProposalsLoading(true);
+		    setProposalsError(null);
+		    const res = await post("mentor/list", {});
+		    setProposalsLoading(false);
+		    if (!res.ok) {
+		      setProposals(null);
+		      setProposalsError(
+		        res.error?.code === "unknown-endpoint" ? { code: "host-restart", message: t("community.error.hostRestart") } : res.error ?? { code: "unknown", message: t("community.error.readMentor") }
+		      );
+		      return;
+		    }
+		    setProposals(res.value.proposals ?? []);
+		  }, [post]);
+		  const requestAccept = (p) => {
+		    setMentorNotice(null);
+		    setAcceptConfirm(p);
+		  };
+		  const confirmAccept = async () => {
+		    const target = acceptConfirm;
+		    if (!target) return;
+		    const iPayer = !viewOf(target).iAmOwner;
+		    const intentKey = acceptIntents[target.id] ?? crypto.randomUUID();
+		    setAcceptIntents((prev) => ({ ...prev, [target.id]: intentKey }));
+		    setMentorBusy({ id: target.id, action: "accept" });
+		    const res = await post("mentor/accept", { proposalId: target.id, intentKey });
+		    setMentorBusy(null);
+		    setAcceptConfirm(null);
+		    if (!res.ok) {
+		      setMentorNotice({
+		        tone: "error",
+		        text: res.error?.code === "insufficient-tokens" ? t(
+		          iPayer ? "community.mentor.acceptNoTokens" : "community.mentor.acceptNoTokensOther",
+		          { deposit: target.depositAmount }
+		        ) : res.error?.message ?? t("community.error.unknown")
+		      });
+		      if (res.error?.code === "proposal-state") await loadProposals();
+		      return;
+		    }
+		    setMentorNotice({
+		      tone: "success",
+		      text: t(
+		        iPayer ? "community.mentor.acceptDone" : "community.mentor.acceptDoneOther",
+		        { deposit: target.depositAmount }
+		      )
+		    });
+		    await Promise.all([loadProposals(), refreshBalance()]);
+		  };
+		  const rejectProposal = async (p) => {
+		    setMentorNotice(null);
+		    setMentorBusy({ id: p.id, action: "reject" });
+		    const res = await post("mentor/reject", { proposalId: p.id });
+		    setMentorBusy(null);
+		    if (!res.ok) {
+		      setMentorNotice({ tone: "error", text: res.error?.message ?? t("community.error.unknown") });
+		      return;
+		    }
+		    setMentorNotice({ tone: "success", text: t("community.mentor.rejectDone") });
+		    await loadProposals();
+		  };
+		  const openPropose = async (w) => {
+		    setProposeError(null);
+		    setProposeFee(null);
+		    setProposeTarget(w);
+		    const res = await post("mentor/fee-suggestion", {});
+		    if (res.ok) setProposeFee(res.value.suggestion ?? null);
+		  };
+		  const submitPropose = async (input) => {
+		    const target = proposeTarget;
+		    if (!target) return;
+		    setProposeBusy(true);
+		    setProposeError(null);
+		    const res = await post("mentor/propose", {
+		      projectId: target.projectId,
+		      guidanceScope: PROPOSE_SCOPE_PLACEHOLDER,
+		      successCondition: { type: PROPOSE_DEFAULT_CONDITION, description: null },
+		      ...input
+		    });
+		    setProposeBusy(false);
+		    if (!res.ok) {
+		      setProposeError(res.error?.message ?? t("community.error.unknown"));
+		      return;
+		    }
+		    setProposeTarget(null);
+		    setMentorNotice({
+		      tone: "success",
+		      text: t(
+		        target.direction === "SEEK_STUDENT" ? "community.mentor.bidDone" : "community.mentor.proposeDone"
+		      )
+		    });
+		    await loadProposals();
+		  };
+		  const viewOf = (p) => proposalView(p, myAccountId);
+		  const selectUploadWorkspace = async (id) => {
+		    setUploadWorkspaceId(id);
+		    setUploadPlan(null);
+		    setUploadSelected(/* @__PURE__ */ new Set());
+		    setUploadExpanded(/* @__PURE__ */ new Set());
+		    setExchangeNotice(null);
+		    if (!id) return;
+		    setUploadPlanLoading(true);
+		    const res = await post("mentor/uploadPlan", { workspaceId: id });
+		    setUploadPlanLoading(false);
+		    if (!res.ok) {
+		      setExchangeNotice({ tone: "error", text: res.error?.message ?? t("community.error.unknown") });
+		      return;
+		    }
+		    const v = res.value;
+		    setUploadPlan(v);
+		    setUploadSelected(new Set(v.plan.defaultSelection));
+		  };
+		  const openExchange = async (p) => {
+		    setExchangeNotice(null);
+		    setUploadWorkspaces(null);
+		    setUploadRegistry(null);
+		    setUploadWorkspaceId("");
+		    setUploadCurrentWorkspaceId(null);
+		    setUploadPlan(null);
+		    setUploadSelected(/* @__PURE__ */ new Set());
+		    setUploadExpanded(/* @__PURE__ */ new Set());
+		    setExchange({ proposal: p, mode: "upload" });
+		    const res = await post("mentor/uploadState", {
+		      ...session?.sessionId ? { sessionId: session.sessionId } : {}
+		    });
+		    if (!res.ok) {
+		      setUploadWorkspaces([]);
+		      setUploadRegistry({
+		        available: false,
+		        reason: res.error?.code === "unknown-endpoint" ? t("community.error.hostRestart") : res.error?.message ?? t("community.error.unknown")
+		      });
+		      return;
+		    }
+		    const v = res.value;
+		    const items = v.items ?? [];
+		    setUploadWorkspaces(items);
+		    setUploadCurrentWorkspaceId(v.currentWorkspaceId ?? null);
+		    setUploadRegistry({ available: v.available ?? false, reason: v.reason ?? null });
+		    const preferred = v.currentWorkspaceId && items.some((w) => w.id === v.currentWorkspaceId) ? v.currentWorkspaceId : "";
+		    if (preferred) void selectUploadWorkspace(preferred);
+		  };
+		  const toggleUploadCategory = (_categoryId, files, next) => {
+		    setUploadSelected((prev) => {
+		      const out = new Set(prev);
+		      for (const rel of files) {
+		        if (next) out.add(rel);
+		        else out.delete(rel);
+		      }
+		      return out;
+		    });
+		  };
+		  const toggleUploadFile = (relPath, next) => {
+		    setUploadSelected((prev) => {
+		      const out = new Set(prev);
+		      if (next) out.add(relPath);
+		      else out.delete(relPath);
+		      return out;
+		    });
+		  };
+		  const toggleUploadExpand = (categoryId) => {
+		    setUploadExpanded((prev) => {
+		      const out = new Set(prev);
+		      if (out.has(categoryId)) out.delete(categoryId);
+		      else out.add(categoryId);
+		      return out;
+		    });
+		  };
+		  const runUpload = async () => {
+		    const target = exchange?.proposal;
+		    if (!target || !uploadWorkspaceId) return;
+		    setExchangeBusy(true);
+		    setExchangeNotice(null);
+		    setUploadProgress(null);
+		    let timer;
+		    const stopPoll = () => {
+		      if (timer !== void 0) clearInterval(timer);
+		      timer = void 0;
+		    };
+		    timer = setInterval(() => {
+		      void post("mentor/uploadProgress", { projectId: target.projectId }).then((p) => {
+		        if (!p.ok) return;
+		        const v2 = p.value;
+		        if (v2 && typeof v2.doneFiles === "number") setUploadProgress(v2);
+		      });
+		    }, 1e3);
+		    let res;
+		    try {
+		      res = await post("mentor/upload", {
+		        projectId: target.projectId,
+		        workspaceId: uploadWorkspaceId,
+		        paths: Array.from(uploadSelected),
+		        // 增量比对**自己那一侧**（服务器按"谁写的"分两侧，同名互不覆盖）
+		        source: viewOf(target).mySide
+		      });
+		    } finally {
+		      stopPoll();
+		      setExchangeBusy(false);
+		      setUploadProgress(null);
+		    }
+		    if (!res.ok) {
+		      setExchangeNotice({ tone: "error", text: res.error?.message ?? t("community.error.unknown") });
+		      return;
+		    }
+		    const v = res.value;
+		    const skippedOversize = (v.oversize ?? []).length;
+		    setExchange(null);
+		    setMentorNotice({
+		      tone: "success",
+		      text: (v.uploaded ?? 0) === 0 && (v.skippedExisting ?? 0) > 0 ? t("community.exchange.uploadNoChange", { count: v.selected ?? 0 }) : skippedOversize > 0 ? t("community.exchange.uploadPartial", { uploaded: v.uploaded ?? 0, skipped: skippedOversize }) : t("community.exchange.uploadDone", { count: v.uploaded ?? 0 })
+		    });
+		    await loadProposals();
+		  };
+		  const requestDownload = async (p) => {
+		    const prefix = downloadPrefix(p);
+		    const source = viewOf(p).otherSide;
+		    const res = await post("mentor/downloadState", {
+		      projectId: p.projectId,
+		      prefix,
+		      source,
+		      // v23：宿主按它算"当前会话的工作区"（预选 + 决定提示词能不能填）
+		      ...session?.sessionId ? { sessionId: session.sessionId } : {}
+		    });
+		    if (!res.ok) {
+		      setMentorNotice({ tone: "error", text: res.error?.message ?? t("community.error.unknown") });
+		      return;
+		    }
+		    const v = res.value;
+		    const supportsCheck = typeof v.protocol === "number" && v.protocol >= HOST_PROTOCOL_MIN_FOR_CHECK;
+		    const targets = supportsCheck && Array.isArray(v.targets) ? v.targets : null;
+		    const current = v.currentWorkspaceId ? v.items.find((w) => w.id === v.currentWorkspaceId) : void 0;
+		    const own = v.items.find(
+		      (w) => (mine ?? []).some((m) => m.id === w.id && m.published.some((r) => r.projectId === p.projectId))
+		    );
+		    const preferred = [current, own, ...v.items].find(Boolean);
+		    setDownload({
+		      proposal: p,
+		      source,
+		      workspaces: v.items,
+		      available: v.available,
+		      reason: v.reason,
+		      selection: preferred?.id ?? "",
+		      files: v.files,
+		      bytes: v.bytes,
+		      fileName: v.expectedName,
+		      notice: null,
+		      targets,
+		      remoteWorkspaceId: v.remoteWorkspaceId ?? null,
+		      currentWorkspaceId: v.currentWorkspaceId ?? null,
+		      done: null
+		    });
+		  };
+		  const runDownload = async () => {
+		    const target = download;
+		    if (!target || !target.selection) return;
+		    const projectId = target.proposal.projectId;
+		    const chosen = target.workspaces?.find((w) => w.id === target.selection);
+		    const chosenTarget = target.targets?.find((x) => x.id === target.selection);
+		    setDownloadBusy(true);
+		    setDownloadReceived(null);
+		    const provisionalDir = chosen?.path ?? "";
+		    const provisionalState = mergeStateOf(chosenTarget?.status);
+		    const provisionalName = target.fileName;
+		    const canFill = Boolean(session?.setDraft) && target.selection === target.currentWorkspaceId;
+		    const fillHint = canFill ? null : !session ? t("community.merge.noComposer") : t("community.merge.otherWorkspace", { dir: provisionalDir });
+		    const provisionalPrompt = provisionalDir ? (session?.syncCommand ?? syncCommandLine)(`${provisionalDir}/${provisionalName}`) : "";
+		    const autoFilled = Boolean(provisionalPrompt) && canFill && session?.draftEmpty === true;
+		    if (autoFilled) session?.setDraft?.(provisionalPrompt);
+		    setDownload(
+		      (prev) => prev ? {
+		        ...prev,
+		        notice: null,
+		        done: {
+		          phase: "pending",
+		          dir: provisionalDir,
+		          name: provisionalName,
+		          plan: t(`community.merge.plan.${provisionalState}`),
+		          prompt: provisionalPrompt,
+		          correctedPrompt: null,
+		          canFill,
+		          filled: autoFilled,
+		          fillHint
+		        }
+		      } : prev
+		    );
+		    let timer;
+		    const stopPoll = () => {
+		      if (timer !== void 0) clearInterval(timer);
+		      timer = void 0;
+		    };
+		    timer = setInterval(() => {
+		      void post("mentor/downloadProgress", { projectId }).then((p) => {
+		        if (!p.ok) return;
+		        const got = p.value?.received;
+		        if (typeof got === "number") setDownloadReceived(got);
+		      });
+		    }, 1e3);
+		    let res;
+		    try {
+		      res = await post("mentor/download", {
+		        projectId,
+		        workspaceId: target.selection,
+		        prefix: downloadPrefix(target.proposal),
+		        // 便签用它做展示（`/research sync` 的交接文本里给出"这是哪个项目"）
+		        projectTitle: target.proposal.projectTitle ?? "",
+		        // 与预检**同一侧**：否则会出现"预检说有 3 个文件、点下去 404"
+		        source: target.source,
+		        // v23：预检时那一侧的标识。宿主据此**在落盘前再判一次**，并用归档响应头复核。
+		        ...target.remoteWorkspaceId ? { remoteWorkspaceId: target.remoteWorkspaceId } : {}
+		      });
+		    } finally {
+		      stopPoll();
+		      setDownloadBusy(false);
+		      setDownloadReceived(null);
+		    }
+		    if (!res.ok) {
+		      setDownload(
+		        (prev) => prev ? {
+		          ...prev,
+		          done: null,
+		          notice: {
+		            tone: "error",
+		            text: `${res.error?.message ?? t("community.error.unknown")} ${t("community.merge.downloadFailedHint")}`
+		          }
+		        } : prev
+		      );
+		      return;
+		    }
+		    const v = res.value;
+		    const correctedPrompt = (session?.syncCommand ?? syncCommandLine)(`${v.dir}/${v.name}`);
+		    const nameChanged = Boolean(correctedPrompt) && v.name !== provisionalName;
+		    setDownload(
+		      (prev) => prev ? {
+		        ...prev,
+		        notice: null,
+		        done: {
+		          phase: "ready",
+		          dir: v.dir,
+		          name: v.name,
+		          plan: t(`community.merge.plan.${mergeStateOf(v.workspaceStatus)}`),
+		          // 没变就是同一个文本；变了则保留"已填进去的那一版"，更正版放另一栏等用户点
+		          prompt: nameChanged ? provisionalPrompt : correctedPrompt,
+		          correctedPrompt: nameChanged ? correctedPrompt : null,
+		          canFill,
+		          filled: autoFilled,
+		          fillHint
+		        }
+		      } : prev
+		    );
+		    setMentorNotice({
+		      tone: "success",
+		      text: autoFilled ? t("community.merge.filled") : t("community.exchange.downloadDone", { dir: v.dir, name: v.name })
+		    });
+		    await loadProposals();
+		  };
+		  const loadMine = import_react.default.useCallback(async () => {
+		    setMineLoading(true);
+		    setMineError(null);
+		    const res = await post("work/mine", {});
+		    setMineLoading(false);
+		    if (!res.ok) {
+		      setMine(null);
+		      setMineError(
+		        res.error?.code === "unknown-endpoint" ? { code: "host-restart", message: t("community.error.hostRestart") } : res.error ?? { code: "unknown", message: t("community.error.readMine") }
+		      );
+		      return;
+		    }
+		    const value = res.value;
+		    setMine(value.items ?? []);
+		    setMineRegistry(value.registry ?? null);
+		  }, [post]);
+		  import_react.default.useEffect(() => {
+		    if (!activeServer) return;
+		    void loadMine();
+		  }, [activeServer, loadMine]);
+		  import_react.default.useEffect(() => {
+		    if (!activeServer || !configured) {
+		      setProposals(null);
+		      setProposalsError(null);
+		      return;
+		    }
+		    void loadProposals();
+		  }, [activeServer, configured, loadProposals]);
+		  const openPublish = async (w, direction) => {
+		    setDialogLoading({ id: w.id, direction });
+		    setPublishNotice(null);
+		    const res = await post("work/uploadPlan", { id: w.id, direction });
+		    setDialogLoading(null);
+		    if (!res.ok) {
+		      const staleHost = res.error?.code === "unknown-endpoint";
+		      setPublishNotice({
+		        tone: "error",
+		        code: staleHost ? "host-restart" : res.error?.code ?? "unknown",
+		        text: staleHost ? t("community.error.hostRestart") : res.error?.message ?? t("community.error.publish")
+		      });
+		      return;
+		    }
+		    const data = res.value;
+		    const publishedHere = publishedIn(w, direction);
+		    if (publishedHere && data.remembered && data.changed.length === 0 && data.selection.length > 0) {
+		      await doPublish(w, direction, data.selection, true);
+		      return;
+		    }
+		    setDialog({
+		      work: w,
+		      direction,
+		      data,
+		      selection: new Set(data.selection),
+		      remember: true,
+		      expanded: /* @__PURE__ */ new Set()
+		    });
+		  };
+		  const doPublish = async (w, direction, selection, remember) => {
+		    setPublishing({ id: w.id, direction });
+		    setPublishNotice(null);
+		    setPublishProgress(null);
+		    let publishTimer;
+		    const stopPublishPoll = () => {
+		      if (publishTimer !== void 0) clearInterval(publishTimer);
+		      publishTimer = void 0;
+		    };
+		    publishTimer = setInterval(() => {
+		      void post("mentor/uploadProgress", { projectId: w.id }).then((p) => {
+		        if (!p.ok) return;
+		        const v = p.value;
+		        if (v && typeof v.doneFiles === "number") setPublishProgress(v);
+		      });
+		    }, 1e3);
+		    let res;
+		    try {
+		      res = await post("work/publish", { id: w.id, direction, selection, remember });
+		    } finally {
+		      stopPublishPoll();
+		    }
+		    setPublishing(null);
+		    if (!res.ok) {
+		      const staleHost = res.error?.code === "unknown-endpoint";
+		      setPublishNotice({
+		        tone: "error",
+		        code: staleHost ? "host-restart" : res.error?.code ?? "unknown",
+		        text: staleHost ? t("community.error.hostRestart") : res.error?.message ?? t("community.error.publish")
+		      });
+		      return;
+		    }
+		    const value = res.value;
+		    const bits = [
+		      // 回执用**网络里这次用的名字**：用户点完就知道发出去的名字对不对
+		      // （旧宿主不回 `title` → 退回本机工作区名，不编）
+		      t("community.notice.published", {
+		        title: value.published.title ?? w.title,
+		        version: value.published.version
+		      }),
+		      t(direction === "SEEK_STUDENT" ? "community.action.seekStudent" : "community.action.seekMentor")
+		    ];
+		    if (value.published.chargedTokens > 0) {
+		      bits.push(t("community.notice.tokens", { tokens: value.published.chargedTokens }));
+		    }
+		    if (value.attachments && value.attachments.uploaded > 0) {
+		      bits.push(t("community.notice.files", { count: value.attachments.uploaded }));
+		    }
+		    if (value.attachments && value.attachments.oversize.length > 0) {
+		      bits.push(t("community.notice.oversize", { count: value.attachments.oversize.length }));
+		    }
+		    if (value.published.renameFailed) {
+		      bits.push(t("community.notice.renameFailed", { reason: value.published.renameFailed }));
+		    }
+		    setPublishNotice({
+		      tone: "success",
+		      text: bits.join(" · "),
+		      ...value.missing && value.missing.length ? { missing: value.missing } : {}
+		    });
+		    setDialog(null);
+		    await loadMine();
+		  };
+		  import_react.default.useEffect(() => {
+		    if (!activeServer || !account) {
+		      setWorks(null);
+		      setWorksError(null);
+		      setJoinable(null);
+		      setJoinableError(null);
+		      setOpen(null);
+		      setDetail(null);
+		      return;
+		    }
+		    void loadWorks("SEEK_MENTOR");
+		    void loadWorks("SEEK_STUDENT");
+		  }, [account, activeServer, loadWorks]);
+		  const toggleSummary = async (w) => {
+		    if (open?.projectId === w.projectId && open.kind === "summary") {
+		      setOpen(null);
+		      return;
+		    }
+		    setDetailBusy({ projectId: w.projectId, kind: "summary" });
+		    setWorksError(null);
+		    const res = await post("work/summary", { projectId: w.projectId });
+		    setDetailBusy(null);
+		    if (!res.ok) {
+		      setWorksError(res.error ?? { code: "unknown", message: t("community.error.readSummary") });
+		      return;
+		    }
+		    const fresh = res.value.work;
+		    setDetail({ projectId: w.projectId, work: fresh });
+		    setOpen({ projectId: w.projectId, kind: "summary" });
+		  };
+		  const toggleBrief = async (w) => {
+		    if (open?.projectId === w.projectId && open.kind === "brief") {
+		      setOpen(null);
+		      return;
+		    }
+		    setDetailBusy({ projectId: w.projectId, kind: "brief" });
+		    setWorksError(null);
+		    setChargeNotice(null);
+		    const intentKey = intents[w.projectId] ?? (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `cf-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+		    setIntents((prev) => ({ ...prev, [w.projectId]: intentKey }));
+		    const res = await post("work/brief", { projectId: w.projectId, intentKey });
+		    setDetailBusy(null);
+		    if (!res.ok) {
+		      setWorksError(res.error ?? { code: "unknown", message: t("community.error.readBrief") });
+		      return;
+		    }
+		    const brief = res.value.brief;
+		    setDetail({ projectId: w.projectId, work: brief, brief });
+		    setOpen({ projectId: w.projectId, kind: "brief" });
+		    setDetailRead((prev) => new Set(prev).add(w.projectId));
+		    setWorks(
+		      (prev) => prev === null ? prev : prev.map(
+		        (it) => it.projectId === w.projectId ? { ...it, briefPaid: true, briefOpened: true } : it
+		      )
+		    );
+		    setIntents((prev) => {
+		      const next = { ...prev };
+		      delete next[w.projectId];
+		      return next;
+		    });
+		    const before = state?.tokens?.available;
+		    const after = await refreshBalance();
+		    if (typeof after === "number") {
+		      const charged = brief.chargedTokens;
+		      if (typeof charged === "number") {
+		        setChargeNotice(
+		          charged > 0 ? t("community.notice.charged", { tokens: charged, balance: after }) : t("community.notice.briefRead", { balance: after })
+		        );
+		      } else {
+		        setChargeNotice(
+		          typeof before === "number" && before !== after ? t("community.notice.charged", { tokens: before - after, balance: after }) : t("community.notice.briefRead", { balance: after })
+		        );
+		      }
+		    }
+		  };
+		  const requestBrief = (w) => {
+		    if (open?.projectId === w.projectId && open.kind === "brief") {
+		      void toggleBrief(w);
+		      return;
+		    }
+		    if (briefFree(w)) {
+		      void toggleBrief(w);
+		      return;
+		    }
+		    setBriefConfirm(w);
+		  };
+		  const serverUrl = serverDraft.trim() || state?.serverUrl || void 0;
+		  const serverChanged = serverDraft.trim() !== (state?.serverUrl ?? "");
+		  const activeServerUrl = stripSlash(serverDraft.trim() || state?.serverUrl || "");
+		  const openServerHome = () => {
+		    if (!serverUrl) return;
+		    window.open(serverUrl, "_blank", "noopener,noreferrer");
+		  };
+		  const pickServerPreset = async (env, url) => {
+		    setServerDraft(url);
+		    setServerProbes((prev) => ({ ...prev, [env]: { state: "busy", reason: null } }));
+		    const res = await post("account/probe", { serverUrl: url });
+		    if (!res.ok) {
+		      setServerProbes((prev) => ({
+		        ...prev,
+		        [env]: { state: "fail", reason: res.error?.message ?? null }
+		      }));
+		      return;
+		    }
+		    const v = res.value;
+		    setServerProbes((prev) => ({
+		      ...prev,
+		      [env]: { state: v.reachable ? "ok" : "fail", reason: v.reason }
+		    }));
+		  };
+		  const saveServerAddress = async () => {
+		    setBusy(true);
+		    const saved = await call("account/serverUrl", { serverUrl: serverDraft.trim() });
+		    if (saved) {
+		      setServerDraft(saved.serverUrl ?? "");
+		      if (saved.keyConfigured) await call("account/verify", {});
+		    }
+		    setBusy(false);
+		  };
+		  const login = async () => {
+		    if (!apiKey.trim()) return;
+		    setBusy(true);
+		    const next = await call("account/login", { apiKey, ...serverUrl ? { serverUrl } : {} });
+		    setBusy(false);
+		    setApiKey("");
+		    if (next) setInvite({ code: "", email: "", displayName: "" });
+		  };
+		  const register = async () => {
+		    if (!invite.code.trim() || !invite.email.trim() || !invite.displayName.trim()) return;
+		    setBusy(true);
+		    const next = await call("account/register", {
+		      invitationCode: invite.code,
+		      email: invite.email,
+		      displayName: invite.displayName,
+		      ...serverUrl ? { serverUrl } : {}
+		    });
+		    setBusy(false);
+		    if (next) setInvite({ code: "", email: "", displayName: "" });
+		  };
+		  const logout = async () => {
+		    setBusy(true);
+		    await call("account/logout", {});
+		    setBusy(false);
+		    setIntents({});
+		  };
+		  const verify = async () => {
+		    setBusy(true);
+		    await call("account/verify", {});
+		    setBusy(false);
+		    if (userOpen) void loadUsage();
+		  };
+		  const loadUsage = import_react.default.useCallback(async () => {
+		    setUsagePhase("loading");
+		    setUsageStaleHost(false);
+		    const res = await post("account/usage", {});
+		    if (!res.ok) {
+		      setUsagePhase("unavailable");
+		      setUsageStaleHost(res.error?.code === "unknown-endpoint");
+		      return;
+		    }
+		    const next = res.value.usage ?? null;
+		    setUsage(next);
+		    setUsagePhase(next ? "ready" : "unavailable");
+		  }, [post]);
+		  import_react.default.useEffect(() => {
+		    setUsage(null);
+		    setUsagePhase("idle");
+		    setUsageStaleHost(false);
+		  }, [account?.id, activeServer]);
+		  import_react.default.useEffect(() => {
+		    if (!userOpen || !account) return;
+		    void loadUsage();
+		  }, [userOpen, account?.id, activeServer, loadUsage]);
+		  const refreshBalance = async () => {
+		    setRefreshingBalance(true);
+		    const res = await post("account/tokens", {});
+		    setRefreshingBalance(false);
+		    if (!res.ok) return null;
+		    const tokens2 = res.value.tokens;
+		    if (!tokens2) return null;
+		    setState((prev) => prev ? { ...prev, tokens: tokens2 } : prev);
+		    return tokens2.available;
+		  };
+		  const loadRechargeRequests = async () => {
+		    setRechargeLoading(true);
+		    const res = await post("account/recharge-requests", {});
+		    setRechargeLoading(false);
+		    if (!res.ok) return;
+		    const items = res.value.items;
+		    setRechargeRequests(items);
+		  };
+		  const openTokenDialog = () => {
+		    setTokenDialog(true);
+		    setRechargeError(null);
+		    setRechargeReceipt(null);
+		    setRechargeRequests(null);
+		    void loadRechargeRequests();
+		  };
+		  const applyRecharge = async () => {
+		    const amount = Number(rechargeAmount);
+		    if (!Number.isInteger(amount) || amount <= 0) {
+		      setRechargeError(t("community.token.amountInvalid"));
+		      return;
+		    }
+		    setRechargeSubmitting(true);
+		    setRechargeError(null);
+		    const res = await post("account/recharge-request", {
+		      amount,
+		      ...rechargeReason.trim() ? { reason: rechargeReason.trim() } : {}
+		    });
+		    setRechargeSubmitting(false);
+		    if (!res.ok) {
+		      setRechargeError(res.error?.message ?? t("community.error.unknown"));
+		      return;
+		    }
+		    setRechargeReceipt(t("community.token.receipt", { amount }));
+		    setRechargeAmount("");
+		    setRechargeReason("");
+		    void loadRechargeRequests();
+		  };
+		  const myAccountId = account?.id ?? "";
+		  const trackItems = import_react.default.useMemo(
+		    () => (proposals ?? []).map((p) => ({ p, view: proposalView(p, myAccountId) })).sort((a, b) => {
+		      const rank = { PROPOSED: 0, ACCEPTED: 1 };
+		      const byStatus = (rank[a.p.status] ?? 9) - (rank[b.p.status] ?? 9);
+		      if (byStatus !== 0) return byStatus;
+		      const byAction = Number(b.view.iAmAcceptor && b.p.status === "PROPOSED") - Number(a.view.iAmAcceptor && a.p.status === "PROPOSED");
+		      if (byAction !== 0) return byAction;
+		      return (b.p.createdAt ?? "").localeCompare(a.p.createdAt ?? "");
+		    }),
+		    [proposals, myAccountId]
+		  );
+		  const proposalsByProject = (from) => {
+		    const rank = { PROPOSED: 0, ACCEPTED: 1 };
+		    const out = /* @__PURE__ */ new Map();
+		    for (const p of proposals ?? []) {
+		      const view = proposalView(p, myAccountId);
+		      if (view.myRole !== from || !view.iProposed) continue;
+		      const current = out.get(p.projectId);
+		      if (!current || (rank[p.status] ?? 9) < (rank[current.status] ?? 9)) out.set(p.projectId, p);
+		    }
+		    return out;
+		  };
+		  const myMentorProposalByProject = proposalsByProject("mentor");
+		  const myResearcherProposalByProject = proposalsByProject("researcher");
+		  const feeText = (p) => t("community.mentor.feeText", {
+		    total: p.totalFee,
+		    deposit: p.depositAmount,
+		    success: p.successPaymentAmount
+		  });
+		  const tokens = state?.tokens ?? null;
+		  const storage = usage?.storage ?? null;
+		  const tokenFraction = tokens && tokens.total > 0 ? tokens.available / tokens.total : 0;
+		  const storageFraction = storage && storage.capacityBytes > 0 ? storage.usedBytes / storage.capacityBytes : 0;
+		  const pendingMark = usagePhase === "loading" ? "…" : "—";
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		        "div",
+		        {
+		          role: "button",
+		          tabIndex: 0,
+		          "aria-expanded": userOpen,
+		          style: { ...S.cardHead, cursor: "pointer" },
+		          title: userOpen ? t("community.tip.collapse") : t("community.tip.expand"),
+		          onClick: () => setUserOpen((v) => !v),
+		          onKeyDown: (e) => {
+		            if (e.key === "Enter" || e.key === " ") {
+		              e.preventDefault();
+		              setUserOpen((v) => !v);
+		            }
+		          },
+		          children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.chevron, transform: userOpen ? "rotate(90deg)" : "none" }, children: "▸" }),
+		            t("community.title"),
+		            !userOpen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		              account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.accountName, flex: "0 0 auto" }, children: account.displayName }) : phase === "ready" ? (
+		                // 未登录：这里给的是"点开能做什么"，所以按提示样式（不是账号名）
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, flex: "0 0 auto" }, children: t("community.tab.signIn") })
+		              ) : null,
+		              tokens ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		                "button",
+		                {
+		                  type: "button",
+		                  style: { ...S.tokenBadge, flex: "0 0 auto", opacity: busy ? 0.55 : 1 },
+		                  disabled: busy,
+		                  title: t("community.tip.balance"),
+		                  onClick: (e) => {
+		                    e.stopPropagation();
+		                    openTokenDialog();
+		                  },
+		                  children: [
+		                    "◎ ",
+		                    tokens.available,
+		                    " Token"
+		                  ]
+		                }
+		              ) : null
+		            ] }) : null,
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		            state?.environment === "production" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "brand", children: t("community.badge.production") }) : state?.environment === "development" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.badge.development") }) : null,
+		            state?.serverUrlMismatch ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("community.badge.envMismatch") }) : null,
+		            phase === "loading" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.badge.checking") }) : account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "success", children: t("community.badge.signedIn") }) : configured ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("community.badge.unverified") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.badge.signedOut") })
+		          ]
+		        }
+		      ),
+		      userOpen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardBody, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.miniTabs, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(MiniTab, { active: userTab === "account", onClick: () => setUserTab("account"), children: account ? t("community.tab.account") : t("community.tab.signIn") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(MiniTab, { active: userTab === "server", onClick: () => setUserTab("server"), children: t("community.tab.server") })
+		        ] }),
+		        userTab === "account" ? account ? (
+		          /* 已登录：一行账号 + 右侧操作，没有多余说明文字 */
+		          /*
+		           * 一行放下：账号名 + 邮箱 + 角色·状态 + 余额 + 两个按钮。
+		           *
+		           * ⚠️ 这行是 `flexWrap: 'wrap'` 的（窄了会换行）。所以必须指定**谁让位**：
+		           * 邮箱是唯一可牺牲的元素（自己的邮箱，且悬浮能看到全的），
+		           * 其余（余额徽章、按钮）一律 `flex: 0 0 auto` 不许被压。
+		           * 曾经因为余额徽章里多了「（+30 冻结）」把两个按钮挤到第二行。
+		           */
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.accountName, flex: "0 0 auto" }, children: account.displayName }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                "span",
+		                {
+		                  style: {
+		                    ...S.mono,
+		                    flex: "0 1 auto",
+		                    minWidth: 0,
+		                    overflow: "hidden",
+		                    textOverflow: "ellipsis",
+		                    whiteSpace: "nowrap"
+		                  },
+		                  title: account.email,
+		                  children: account.email
+		                }
+		              ),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { ...S.hint, flex: "0 0 auto" }, children: [
+		                roleText(t, account.roles),
+		                " · ",
+		                enumText(t, STATUS_LABEL_KEYS, account.status)
+		              ] }),
+		              state?.tokens ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		                "button",
+		                {
+		                  type: "button",
+		                  style: {
+		                    ...S.tokenBadge,
+		                    flex: "0 0 auto",
+		                    opacity: busy ? 0.55 : 1
+		                  },
+		                  disabled: busy,
+		                  title: state.tokens.frozen > 0 ? t("community.tip.balanceDetail", {
+		                    available: state.tokens.available,
+		                    frozen: state.tokens.frozen
+		                  }) : t("community.tip.balance"),
+		                  onClick: openTokenDialog,
+		                  children: [
+		                    "◎ ",
+		                    state.tokens.available,
+		                    " Token",
+		                    state.tokens.frozen > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { fontWeight: 400, opacity: 0.7 }, children: t("community.balance.frozenNote", { count: state.tokens.frozen }) }) : null
+		                  ]
+		                }
+		              ) : null,
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RefreshIconButton, { t, busy, onClick: () => void verify() }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                "button",
+		                {
+		                  type: "button",
+		                  style: { ...S.iconBtn, flex: "0 0 auto", opacity: busy || fromEnv ? 0.55 : 1 },
+		                  disabled: busy || fromEnv,
+		                  title: fromEnv ? t("community.tip.envKey") : t("community.action.signOut"),
+		                  "aria-label": t("community.action.signOut"),
+		                  onClick: () => void logout(),
+		                  children: "⏏"
+		                }
+		              )
+		            ] }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.dash, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                DashTile,
+		                {
+		                  title: t("community.dash.token"),
+		                  chart: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(UsageRing, { fraction: tokenFraction }),
+		                  value: tokens ? String(tokens.available) : pendingMark,
+		                  unit: tokens ? "Token" : null,
+		                  sub: tokens ? tokens.frozen > 0 ? t("community.dash.tokenFrozen", { frozen: tokens.frozen }) : t("community.dash.tokenTotal", { total: tokens.total }) : t("community.dash.unknown")
+		                }
+		              ),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                DashTile,
+		                {
+		                  title: t("community.dash.storage"),
+		                  chart: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                    UsageRing,
+		                    {
+		                      fraction: storageFraction,
+		                      tone: storage && storageFraction >= 0.9 ? "warn" : storage ? "brand" : "neutral"
+		                    }
+		                  ),
+		                  value: storage ? `${Math.round(storageFraction * 100)}%` : pendingMark,
+		                  sub: storage ? t("community.dash.storageSub", {
+		                    used: formatBytes(storage.usedBytes),
+		                    total: formatBytes(storage.capacityBytes)
+		                  }) : t("community.dash.unknown")
+		                }
+		              ),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                DashTile,
+		                {
+		                  title: t("community.dash.projects"),
+		                  chart: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.dashStat, children: usage ? usage.paidProjects : pendingMark }),
+		                  sub: usage ? t("community.dash.projectsSub", {
+		                    tier: usage.tier,
+		                    cost: usage.nextPublishCost
+		                  }) : t("community.dash.unknown")
+		                }
+		              )
+		            ] }),
+		            usageStaleHost ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.error.hostRestart") }) : null
+		          ] })
+		        ) : (
+		          /* 未登录：默认只展示**一条**登录路径 */
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.label, children: t("community.login.keyLabel") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                "input",
+		                {
+		                  style: S.compactInput,
+		                  type: "password",
+		                  autoComplete: "off",
+		                  spellCheck: false,
+		                  value: apiKey,
+		                  placeholder: "cf_live_…",
+		                  title: t("community.tip.keyPrivacy"),
+		                  onChange: (e) => setApiKey(e.target.value),
+		                  onKeyDown: (e) => {
+		                    if (e.key === "Enter") void login();
+		                  }
+		                }
+		              ),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                "button",
+		                {
+		                  type: "button",
+		                  style: { ...S.primaryBtn, opacity: apiKey.trim() && !busy ? 1 : 0.55 },
+		                  disabled: !apiKey.trim() || busy,
+		                  onClick: () => void login(),
+		                  children: busy ? t("community.action.signingIn") : t("community.action.signIn")
+		                }
+		              ),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                "button",
+		                {
+		                  type: "button",
+		                  style: S.linkBtn,
+		                  onClick: () => setInviteOpen((v) => !v),
+		                  "aria-expanded": inviteOpen,
+		                  children: inviteOpen ? t("community.action.inviteHide") : t("community.action.inviteShow")
+		                }
+		              )
+		            ] }),
+		            inviteOpen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                  "input",
+		                  {
+		                    style: S.compactInput,
+		                    type: "password",
+		                    autoComplete: "off",
+		                    spellCheck: false,
+		                    value: invite.code,
+		                    placeholder: t("community.placeholder.invitation"),
+		                    onChange: (e) => setInvite({ ...invite, code: e.target.value })
+		                  }
+		                ),
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                  "input",
+		                  {
+		                    style: S.compactInput,
+		                    type: "text",
+		                    autoComplete: "off",
+		                    spellCheck: false,
+		                    value: invite.email,
+		                    placeholder: t("community.placeholder.email"),
+		                    onChange: (e) => setInvite({ ...invite, email: e.target.value })
+		                  }
+		                ),
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                  "input",
+		                  {
+		                    style: S.compactInput,
+		                    type: "text",
+		                    autoComplete: "off",
+		                    spellCheck: false,
+		                    value: invite.displayName,
+		                    placeholder: t("community.placeholder.displayName"),
+		                    onChange: (e) => setInvite({ ...invite, displayName: e.target.value })
+		                  }
+		                ),
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                  "button",
+		                  {
+		                    type: "button",
+		                    style: {
+		                      ...S.primaryBtn,
+		                      opacity: invite.code.trim() && invite.email.trim() && invite.displayName.trim() && !busy ? 1 : 0.55
+		                    },
+		                    disabled: !invite.code.trim() || !invite.email.trim() || !invite.displayName.trim() || busy,
+		                    onClick: () => void register(),
+		                    children: busy ? t("community.action.registering") : t("community.action.register")
+		                  }
+		                ),
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                  "button",
+		                  {
+		                    type: "button",
+		                    style: S.ghostBtn,
+		                    title: `${t("community.action.applyInviteTip")}（${serverUrl}）`,
+		                    onClick: openServerHome,
+		                    children: t("community.action.applyInvite")
+		                  }
+		                )
+		              ] }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.hint.inviteRule") })
+		            ] }) : null
+		          ] })
+		        ) : (
+		          /* 服务器设置：地址来自环境配置（开发 = 本机服务器，生产 = 线上） */
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.label, children: t("community.server.address") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                "input",
+		                {
+		                  style: S.compactInput,
+		                  type: "text",
+		                  spellCheck: false,
+		                  autoComplete: "off",
+		                  value: serverDraft,
+		                  placeholder: state?.defaultServerUrl ?? "",
+		                  title: t("community.server.title", { url: state?.defaultServerUrl ?? "" }),
+		                  onChange: (e) => setServerDraft(e.target.value)
+		                }
+		              ),
+		              state?.serverPresets ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                  ServerPresetButton,
+		                  {
+		                    t,
+		                    icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(DevServerGlyph, {}),
+		                    label: t("community.server.presetDev"),
+		                    url: state.serverPresets.development,
+		                    result: serverProbes.development ?? { state: "idle", reason: null },
+		                    active: activeServerUrl === stripSlash(state.serverPresets.development),
+		                    onPick: (url) => void pickServerPreset("development", url)
+		                  }
+		                ),
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                  ServerPresetButton,
+		                  {
+		                    t,
+		                    icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(InternetGlyph, {}),
+		                    label: t("community.server.presetProd"),
+		                    url: state.serverPresets.production,
+		                    result: serverProbes.production ?? { state: "idle", reason: null },
+		                    active: activeServerUrl === stripSlash(state.serverPresets.production),
+		                    onPick: (url) => void pickServerPreset("production", url)
+		                  }
+		                )
+		              ] }) : null,
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                "button",
+		                {
+		                  type: "button",
+		                  style: { ...S.iconBtn, flex: "0 0 auto" },
+		                  title: `${t("community.server.inviteCode")} · ${t("community.action.applyInviteTip")} · ${serverUrl}`,
+		                  "aria-label": t("community.server.inviteCode"),
+		                  onClick: openServerHome,
+		                  children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(InviteCodeGlyph, {})
+		                }
+		              )
+		            ] }),
+		            serverChanged ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("community.badge.addressChanged") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, flex: "1 1 auto" }, children: t("community.hint.addressChanged") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                "button",
+		                {
+		                  type: "button",
+		                  style: { ...S.primaryBtn, flex: "0 0 auto", opacity: busy ? 0.55 : 1 },
+		                  disabled: busy,
+		                  onClick: () => void saveServerAddress(),
+		                  children: busy ? t("community.action.saving") : t("community.action.saveAddress")
+		                }
+		              )
+		            ] }) : null,
+		            state?.serverUrlMismatch ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: 11.5, lineHeight: 1.6, color: "var(--dsw-alias-state-warn-primary)" }, children: state.environment === "production" ? t("community.hint.mismatchProduction") : t("community.hint.mismatchDevelopment") }) : null
+		          ] })
+		        ),
+		        failure ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "error", children: failure.code }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            "span",
+		            {
+		              style: {
+		                color: "var(--dsw-alias-state-error-primary)",
+		                fontSize: 12,
+		                lineHeight: 1.6,
+		                flex: "1 1 320px",
+		                minWidth: 0
+		              },
+		              children: failure.message
+		            }
+		          ),
+		          configured ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            "button",
+		            {
+		              type: "button",
+		              style: { ...S.ghostBtn, opacity: busy ? 0.55 : 1 },
+		              disabled: busy,
+		              onClick: () => void verify(),
+		              children: t("community.action.retryVerify")
+		            }
+		          ) : null
+		        ] }) : null
+		      ] }) : null
+		    ] }),
+		    dialog ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      PublishDialog,
+		      {
+		        t,
+		        data: dialog.data,
+		        selection: dialog.selection,
+		        remember: dialog.remember,
+		        expanded: dialog.expanded,
+		        busy: publishing !== null,
+		        progress: publishProgress,
+		        onToggleCategory: (categoryId, files, next) => setDialog((d) => {
+		          if (!d) return d;
+		          const sel = new Set(d.selection);
+		          for (const f of files) {
+		            if (next) sel.add(f);
+		            else sel.delete(f);
+		          }
+		          return { ...d, selection: sel };
+		        }),
+		        onToggleFile: (relPath, next) => setDialog((d) => {
+		          if (!d) return d;
+		          const sel = new Set(d.selection);
+		          if (next) sel.add(relPath);
+		          else sel.delete(relPath);
+		          return { ...d, selection: sel };
+		        }),
+		        onToggleExpand: (categoryId) => setDialog((d) => {
+		          if (!d) return d;
+		          const ex = new Set(d.expanded);
+		          if (ex.has(categoryId)) ex.delete(categoryId);
+		          else ex.add(categoryId);
+		          return { ...d, expanded: ex };
+		        }),
+		        onRemember: (next) => setDialog((d) => d ? { ...d, remember: next } : d),
+		        onCancel: () => setDialog(null),
+		        onConfirm: () => {
+		          if (!dialog) return;
+		          void doPublish(dialog.work, dialog.direction, [...dialog.selection], dialog.remember);
+		        }
+		      }
+		    ) : null,
+		    briefConfirm ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      BriefConfirmDialog,
+		      {
+		        t,
+		        title: briefConfirm.title,
+		        balance: state?.tokens?.available ?? null,
+		        onCancel: () => setBriefConfirm(null),
+		        onConfirm: () => {
+		          const target = briefConfirm;
+		          setBriefConfirm(null);
+		          void toggleBrief(target);
+		        }
+		      }
+		    ) : null,
+		    proposeTarget ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      ProposeDialog,
+		      {
+		        t,
+		        title: proposeTarget.title,
+		        fee: proposeFee,
+		        busy: proposeBusy,
+		        error: proposeError,
+		        variant: proposeTarget.direction === "SEEK_STUDENT" ? "researcher" : "mentor",
+		        onCancel: () => {
+		          setProposeTarget(null);
+		          setProposeError(null);
+		        },
+		        onSubmit: (input) => void submitPropose(input)
+		      }
+		    ) : null,
+		    menuFor ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        "div",
+		        {
+		          style: { position: "fixed", inset: 0, zIndex: 998 },
+		          onClick: () => setMenuFor(null)
+		        }
+		      ),
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        "div",
+		        {
+		          style: {
+		            position: "fixed",
+		            left: Math.max(8, menuFor.x - 110),
+		            top: menuFor.y + 4,
+		            minWidth: 110,
+		            zIndex: 999,
+		            background: "var(--dsw-alias-bg-layer-1)",
+		            border: "1px solid var(--dsw-alias-border-l2)",
+		            borderRadius: 8,
+		            boxShadow: "0 6px 18px rgba(0,0,0,.18)",
+		            overflow: "hidden"
+		          },
+		          children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            "button",
+		            {
+		              type: "button",
+		              style: {
+		                display: "block",
+		                width: "100%",
+		                textAlign: "left",
+		                padding: "7px 12px",
+		                border: "none",
+		                background: "transparent",
+		                color: "var(--dsw-alias-label-primary)",
+		                fontSize: 12.5,
+		                cursor: "pointer"
+		              },
+		              onClick: () => {
+		                const target = menuFor.proposal;
+		                setMenuFor(null);
+		                void rejectProposal(target);
+		              },
+		              children: t("community.action.reject")
+		            }
+		          )
+		        }
+		      )
+		    ] }) : null,
+		    download ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      DownloadDialog,
+		      {
+		        t,
+		        proposal: download.proposal,
+		        fileName: download.fileName,
+		        workspaces: download.workspaces,
+		        workspacesAvailable: download.available,
+		        workspacesReason: download.reason,
+		        selection: download.selection,
+		        files: download.files,
+		        bytes: download.bytes,
+		        busy: downloadBusy,
+		        received: downloadReceived,
+		        notice: download.notice,
+		        targets: download.targets,
+		        currentWorkspaceId: download.currentWorkspaceId,
+		        done: download.done,
+		        onSelect: (id) => setDownload((prev) => prev ? { ...prev, selection: id } : prev),
+		        onDownload: () => void runDownload(),
+		        onClose: () => setDownload(null),
+		        onFill: () => {
+		          const prompt = download.done?.prompt;
+		          if (!prompt || !session?.setDraft) return;
+		          session.setDraft(prompt);
+		          setDownload(
+		            (prev) => prev?.done ? { ...prev, done: { ...prev.done, filled: true } } : prev
+		          );
+		          setMentorNotice({ tone: "success", text: t("community.merge.filled") });
+		        },
+		        onCopy: () => {
+		          const prompt = download.done?.prompt;
+		          if (!prompt) return;
+		          void copyText(prompt).then((copied) => {
+		            setMentorNotice({
+		              tone: "success",
+		              text: copied ? t("community.merge.copied") : t("community.merge.copyFailed")
+		            });
+		          });
+		        },
+		        onRefill: () => {
+		          const corrected = download.done?.correctedPrompt;
+		          if (!corrected) return;
+		          if (download.done?.canFill && session?.setDraft) session.setDraft(corrected);
+		          setDownload(
+		            (prev) => prev?.done ? {
+		              ...prev,
+		              done: {
+		                ...prev.done,
+		                prompt: corrected,
+		                correctedPrompt: null,
+		                filled: prev.done.filled || prev.done.canFill
+		              }
+		            } : prev
+		          );
+		          setMentorNotice({ tone: "success", text: t("community.merge.filled") });
+		        }
+		      }
+		    ) : null,
+		    exchange?.mode === "upload" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      UploadDialog,
+		      {
+		        t,
+		        proposal: exchange.proposal,
+		        workspaces: uploadWorkspaces,
+		        workspacesAvailable: uploadRegistry?.available ?? false,
+		        workspacesReason: uploadRegistry?.reason ?? null,
+		        workspaceId: uploadWorkspaceId,
+		        currentWorkspaceId: uploadCurrentWorkspaceId,
+		        plan: uploadPlan,
+		        planLoading: uploadPlanLoading,
+		        selection: uploadSelected,
+		        expanded: uploadExpanded,
+		        busy: exchangeBusy,
+		        progress: uploadProgress,
+		        notice: exchangeNotice,
+		        onSelectWorkspace: (id) => void selectUploadWorkspace(id),
+		        onToggleCategory: toggleUploadCategory,
+		        onToggleFile: toggleUploadFile,
+		        onToggleExpand: toggleUploadExpand,
+		        onUpload: () => void runUpload(),
+		        onClose: () => setExchange(null)
+		      }
+		    ) : null,
+		    profileTarget ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      PartyProfileDialog,
+		      {
+		        t,
+		        party: profileTarget.party,
+		        isMentor: profileTarget.view.counterpartyIsMentor,
+		        status: profileTarget.proposal.status,
+		        onClose: () => setProfileTarget(null)
+		      }
+		    ) : null,
+		    acceptConfirm ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      AcceptConfirmDialog,
+		      {
+		        t,
+		        proposal: acceptConfirm,
+		        party: viewOf(acceptConfirm).counterparty ?? { id: "", displayName: "" },
+		        partyIsMentor: viewOf(acceptConfirm).counterpartyIsMentor,
+		        iPayer: !viewOf(acceptConfirm).iAmOwner,
+		        balance: state?.tokens?.available ?? null,
+		        onCancel: () => setAcceptConfirm(null),
+		        onConfirm: () => void confirmAccept()
+		      }
+		    ) : null,
+		    tokenDialog ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      TokenDialog,
+		      {
+		        t,
+		        tokens: state?.tokens ?? null,
+		        requests: rechargeRequests,
+		        loading: rechargeLoading || refreshingBalance,
+		        amount: rechargeAmount,
+		        reason: rechargeReason,
+		        submitting: rechargeSubmitting,
+		        error: rechargeError,
+		        receipt: rechargeReceipt,
+		        onAmount: setRechargeAmount,
+		        onReason: setRechargeReason,
+		        onApply: () => void applyRecharge(),
+		        onRefresh: () => {
+		          void refreshBalance();
+		          void loadRechargeRequests();
+		        },
+		        onClose: () => setTokenDialog(false)
+		      }
+		    ) : null,
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { marginRight: 4 }, children: t("community.work.title") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(MiniTab, { active: workTab === "mine", count: mine?.length ?? null, onClick: () => setWorkTab("mine"), children: t("community.tab.mine") }),
+		        canMentor ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(MiniTab, { active: workTab === "mentor", count: works?.length ?? null, onClick: () => setWorkTab("mentor"), children: t("community.tab.mentor") }) : null,
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(MiniTab, { active: workTab === "joinable", count: joinable?.length ?? null, onClick: () => setWorkTab("joinable"), children: t("community.tab.joinable") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(MiniTab, { active: workTab === "mentorship", count: proposals?.length ?? null, onClick: () => setWorkTab("mentorship"), children: t("community.tab.mentorship") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        workTab === "mine" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RefreshIconButton, { t, busy: mineLoading, onClick: () => void loadMine() }) : null,
+		        workTab === "mentor" && account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RefreshIconButton, { t, busy: worksLoading, onClick: () => void loadWorks("SEEK_MENTOR") }) : null,
+		        workTab === "joinable" && account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RefreshIconButton, { t, busy: joinableLoading, onClick: () => void loadWorks("SEEK_STUDENT") }) : null,
+		        workTab === "mentorship" && account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RefreshIconButton, { t, busy: proposalsLoading, onClick: () => void loadProposals() }) : null,
+		        workTab === "joinable" && !account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.badge.sample") }) : null
+		      ] }),
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardBody, children: [
+		        publishNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: publishNotice.tone === "success" ? "success" : "error", children: publishNotice.tone === "success" ? t("community.badge.published") : publishNotice.code ?? t("community.badge.published") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		            "span",
+		            {
+		              style: {
+		                color: publishNotice.tone === "success" ? "var(--dsw-alias-label-secondary)" : "var(--dsw-alias-state-error-primary)",
+		                fontSize: 12,
+		                lineHeight: 1.6,
+		                flex: "1 1 320px",
+		                minWidth: 0
+		              },
+		              children: [
+		                publishNotice.text,
+		                publishNotice.missing && publishNotice.missing.length ? ` ${t("community.hint.publishMissing", { fields: publishNotice.missing.join(" / ") })}` : ""
+		              ]
+		            }
+		          )
+		        ] }) : null,
+		        chargeNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "brand", children: t("community.badge.charged") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.hint, children: chargeNotice })
+		        ] }) : null,
+		        mentorNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: mentorNotice.tone === "success" ? "success" : "error", children: mentorNotice.tone === "success" ? t("community.mentor.badgeDone") : t("community.mentor.badgeFailed") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            "span",
+		            {
+		              style: mentorNotice.tone === "success" ? S.hint : { ...S.hint, color: "var(--dsw-alias-state-error-primary)" },
+		              children: mentorNotice.text
+		            }
+		          )
+		        ] }) : null,
+		        worksError ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "error", children: worksError.code }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            "span",
+		            {
+		              style: {
+		                color: "var(--dsw-alias-state-error-primary)",
+		                fontSize: 12,
+		                lineHeight: 1.6,
+		                flex: "1 1 320px",
+		                minWidth: 0
+		              },
+		              children: worksError.message
+		            }
+		          )
+		        ] }) : null,
+		        joinableError ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "error", children: joinableError.code }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            "span",
+		            {
+		              style: {
+		                color: "var(--dsw-alias-state-error-primary)",
+		                fontSize: 12,
+		                lineHeight: 1.6,
+		                flex: "1 1 320px",
+		                minWidth: 0
+		              },
+		              children: joinableError.message
+		            }
+		          )
+		        ] }) : null,
+		        workTab === "mentorship" ? (
+		          /* ── 指导中：**一个**列表跟踪指导关系状态（不再分「我收到的 / 我发起的」）──
+		           *
+		           * 用户拍板（2026-09）：这一页的主职是**跟踪状态**，所以只留三样东西 ——
+		           *   ① 对方是谁（我收到的 → 导师姓名；我发起的 → 项目标题）
+		           *   ② 状态角标
+		           *   ③ 费用数字
+		           * 指导范围 / 成功条件 / 导师简介 / 机构 / 研究方向这些**描述性文字全部去掉**
+		           * （导师简介留在「接受指导」的确认框里 —— 那是真正要做判断的地方）。
+		           */
+		          !account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("community.badge.signInRequired") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.hint, children: t("community.hint.mentorSignIn") })
+		          ] }) : proposalsError ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "error", children: proposalsError.code }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              "span",
+		              {
+		                style: {
+		                  color: "var(--dsw-alias-state-error-primary)",
+		                  fontSize: 12,
+		                  lineHeight: 1.6,
+		                  flex: "1 1 320px",
+		                  minWidth: 0
+		                },
+		                children: proposalsError.message
+		              }
+		            ),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => void loadProposals(), children: t("community.action.retry") })
+		          ] }) : proposals === null ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: proposalsLoading ? t("community.hint.loading") : t("community.hint.noData") }) : trackItems.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.hint.mentorEmpty") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.list, children: trackItems.map(({ p, view }, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            "div",
+		            {
+		              style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
+		              children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.listRow, children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		                  "div",
+		                  {
+		                    style: {
+		                      minWidth: 0,
+		                      flex: "1 1 auto",
+		                      display: "flex",
+		                      flexDirection: "column",
+		                      gap: 2
+		                    },
+		                    children: [
+		                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: view.iAmAcceptor ? view.counterparty?.displayName ?? t("community.mentor.unknownParty") : proposalWorkLabel(p) ?? t("community.mentor.untitledProject") }),
+		                      (() => {
+		                        const line = view.iAmAcceptor ? proposalWorkLabel(p) ?? t("community.mentor.untitledProject") : view.counterparty?.displayName ?? "";
+		                        return line ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: line }) : null;
+		                      })(),
+		                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: feeText(p) }),
+		                      sideSyncHint(t, p, view) ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-warn-primary)" }, children: sideSyncHint(t, p, view) }) : null
+		                    ]
+		                  }
+		                ),
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		                  "div",
+		                  {
+		                    style: {
+		                      display: "flex",
+		                      alignItems: "center",
+		                      gap: 6,
+		                      flex: "0 0 auto",
+		                      flexWrap: "nowrap"
+		                    },
+		                    children: [
+		                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: proposalTone(p.status), children: translateOr(t, progressLabelKey(p, view), p.status) }),
+		                      canDownloadProposal(p, view) ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                        "button",
+		                        {
+		                          type: "button",
+		                          style: S.ghostBtn,
+		                          title: t("community.tip.download"),
+		                          onClick: () => void requestDownload(p),
+		                          children: t("community.action.download")
+		                        }
+		                      ) : null,
+		                      p.status === "ACCEPTED" && !view.iAmOwner ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                        "button",
+		                        {
+		                          type: "button",
+		                          style: { ...S.accentBtn, opacity: 0.85 },
+		                          title: t("community.tip.upload"),
+		                          onClick: () => void openExchange(p),
+		                          children: t("community.action.upload")
+		                        }
+		                      ) : null,
+		                      view.counterparty?.profile !== void 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                        "button",
+		                        {
+		                          type: "button",
+		                          style: S.ghostBtn,
+		                          title: t(
+		                            view.counterpartyIsMentor ? "community.mentor.profileTitle" : "community.mentor.profileTitleResearcher"
+		                          ),
+		                          onClick: () => setProfileTarget({ proposal: p, view, party: view.counterparty }),
+		                          children: t(view.counterpartyIsMentor ? "community.action.viewMentor" : "community.action.viewStudent")
+		                        }
+		                      ) : null,
+		                      view.iAmAcceptor && p.status === "PROPOSED" ? (
+		                        /*
+		                         * `alignItems: 'stretch'` 让右段**自动**跟左段等高。
+		                         *
+		                         * 为什么不能用 padding 硬凑：`▾`（U+25BE）的字形行高和中文不同，
+		                         * 两段各自按内容撑高就会一高一低，看着不齐；写死 height 又要跟着
+		                         * 字号/内边距维护。stretch 让高度由左段决定，右下段没有纵向 padding。
+		                         */
+		                        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "inline-flex", alignItems: "stretch" }, children: [
+		                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                            "button",
+		                            {
+		                              type: "button",
+		                              style: {
+		                                ...S.accentBtn,
+		                                borderTopRightRadius: 0,
+		                                borderBottomRightRadius: 0,
+		                                opacity: mentorBusy !== null ? 0.55 : 1
+		                              },
+		                              disabled: mentorBusy !== null,
+		                              onClick: () => {
+		                                setMenuFor(null);
+		                                requestAccept(p);
+		                              },
+		                              children: mentorBusy?.id === p.id && mentorBusy.action === "accept" ? t("community.action.loading") : t("community.action.accept")
+		                            }
+		                          ),
+		                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                            "button",
+		                            {
+		                              type: "button",
+		                              style: {
+		                                ...S.accentBtn,
+		                                borderTopLeftRadius: 0,
+		                                borderBottomLeftRadius: 0,
+		                                // 纵向 padding 归零（高度靠 stretch 撑），横向加宽到近方形，
+		                                // 免得箭头段细成一条、跟左段不成比例
+		                                padding: "0 11px",
+		                                display: "inline-flex",
+		                                alignItems: "center",
+		                                justifyContent: "center",
+		                                opacity: mentorBusy !== null ? 0.55 : 1
+		                              },
+		                              disabled: mentorBusy !== null,
+		                              title: t("community.action.more"),
+		                              "aria-label": t("community.action.more"),
+		                              onClick: (e) => {
+		                                const r = e.currentTarget.getBoundingClientRect();
+		                                setMenuFor(
+		                                  (prev) => prev?.id === p.id ? null : { id: p.id, proposal: p, x: r.right, y: r.bottom }
+		                                );
+		                              },
+		                              children: "▾"
+		                            }
+		                          )
+		                        ] })
+		                      ) : null
+		                    ]
+		                  }
+		                )
+		              ] })
+		            },
+		            p.id
+		          )) })
+		        ) : workTab === "mine" ? (
+		          /* ── 我的：本机研究项目 ── */
+		          mineError ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "error", children: mineError.code }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              "span",
+		              {
+		                style: {
+		                  color: "var(--dsw-alias-state-error-primary)",
+		                  fontSize: 12,
+		                  lineHeight: 1.6,
+		                  flex: "1 1 320px",
+		                  minWidth: 0
+		                },
+		                children: mineError.message
+		              }
+		            ),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => void loadMine(), children: t("community.action.retry") })
+		          ] }) : mineRegistry && !mineRegistry.available ? (
+		            // 注册表读不到（≠ 没有研究项目）：把原因原样说出来，便于定位
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("community.badge.registryUnavailable") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.hint, children: mineRegistry.reason ?? t("community.hint.registryUnavailable") })
+		            ] })
+		          ) : mine === null ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: mineLoading ? t("community.hint.loading") : t("community.hint.noData") }) : mine.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.hint.mineEmpty") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.list, children: mine.map((w, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            "div",
+		            {
+		              style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
+		              children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.listRow, alignItems: "flex-start" }, children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 4 }, children: [
+		                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: workLabelOf(w) }),
+		                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.hint, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }, children: [
+		                    w.stage ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: translateOr(t, `progress.stage.${w.stage.id}`, w.stage.label) }) : null,
+		                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ProgressBar, { value: w.overall }),
+		                    w.paper ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: t("community.hint.paper") }) : null,
+		                    w.counts.filter((c) => c.value > 0).slice(0, 4).map((c) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
+		                      translateOr(t, `progress.count.${c.key}`, c.key),
+		                      " ",
+		                      c.value
+		                    ] }, c.key))
+		                  ] }),
+		                  w.counts.some((c) => c.value > 0 && c.detail) ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, display: "flex", gap: 10, flexWrap: "wrap" }, children: w.counts.filter((c) => c.value > 0 && c.detail).slice(0, 4).map((c) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: t(`progress.count.${c.detail.code}`, { count: c.detail.count }) }, `d-${c.key}`)) }) : null,
+		                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		                    "div",
+		                    {
+		                      style: {
+		                        ...S.mono,
+		                        color: "var(--dsw-alias-label-tertiary)",
+		                        display: "flex",
+		                        gap: 8,
+		                        flexWrap: "wrap"
+		                      },
+		                      title: w.researchRoot,
+		                      children: [
+		                        w.workId ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: w.workId }) : null,
+		                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: w.path })
+		                      ]
+		                    }
+		                  )
+		                ] }),
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		                  "div",
+		                  {
+		                    style: {
+		                      display: "flex",
+		                      alignItems: "center",
+		                      gap: 6,
+		                      flex: "0 0 auto"
+		                    },
+		                    children: [
+		                      w.published.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "success", children: t("community.badge.inNetwork") }) : null,
+		                      (() => {
+		                        const plan = publishActionPlan(
+		                          canMentor,
+		                          w.published.map((r) => r.direction)
+		                        );
+		                        const busyHere = publishing?.id === w.id || dialogLoading?.id === w.id;
+		                        const busyLabel = publishing?.id === w.id ? (
+		                          /* 无对话框的「更新文件」路径也要看得见进度（附件仍在传） */
+		                          `${t("community.action.publishing")}${publishProgress && publishProgress.totalBytes > 0 ? ` ${Math.min(100, Math.round(publishProgress.sentBytes / publishProgress.totalBytes * 100))}%` : ""}`
+		                        ) : t("community.action.loading");
+		                        const disabled = !account || publishing !== null || dialogLoading !== null;
+		                        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { opacity: account && !busyHere && disabled ? 0.55 : 1 }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                          PublishButton,
+		                          {
+		                            t,
+		                            item: plan.primary,
+		                            more: plan.more,
+		                            busyHere,
+		                            busyLabel,
+		                            disabled,
+		                            onPick: (direction) => void openPublish(w, direction)
+		                          }
+		                        ) });
+		                      })()
+		                    ]
+		                  }
+		                )
+		              ] })
+		            },
+		            w.id
+		          )) })
+		        ) : workTab === "joinable" ? (
+		          /* ── 可加入：导师发布的选题（`SEEK_STUDENT`）──
+		           *
+		           * 与【可指导】**同一个形状**（同一份发现列表、同一套两级披露、同一个
+		           * WorkRow），差别只有三处：
+		           *   ① 未登录时给示例数据（原来是【可指导】承担的，v0.6.0 起那个 Tab
+		           *      对非导师不显示）；
+		           *   ② 行上的动作是【出价】（学生出价，导师接受）；
+		           *   ③ 空态/提示文案说"导师发布的选题"。
+		           */
+		          !account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.list, children: SAMPLE_WORKS.map((w, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              "div",
+		              {
+		                style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
+		                children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                  WorkRow,
+		                  {
+		                    t,
+		                    title: t(w.titleKey),
+		                    fields: [t(w.fieldsKey)],
+		                    stage: w.stage,
+		                    progress: w.progress,
+		                    disabled: true,
+		                    busy: null,
+		                    expanded: false,
+		                    onSummary: () => void 0,
+		                    onBrief: () => void 0
+		                  }
+		                )
+		              },
+		              w.titleKey
+		            )) }),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.hint.sampleFootnote") })
+		          ] }) : joinable === null ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: joinableLoading ? t("community.hint.loadingWork") : t("community.hint.noData") }) : joinable.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.hint.noJoinable") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.list, children: joinable.map((w, i) => {
+		            const expanded = open?.projectId === w.projectId;
+		            const busyKind = detailBusy?.projectId === w.projectId ? detailBusy.kind : null;
+		            const bidded = myResearcherProposalByProject.get(w.projectId);
+		            const canBid = detailRead.has(w.projectId) || briefFree(w);
+		            return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		              "div",
+		              {
+		                style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
+		                children: [
+		                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                    WorkRow,
+		                    {
+		                      t,
+		                      title: workLabelOf(w),
+		                      author: w.owner?.displayName ?? null,
+		                      fields: w.researchFields,
+		                      stage: w.stage,
+		                      progress: w.progress,
+		                      updatedAt: w.updatedAt,
+		                      disabled: false,
+		                      busy: busyKind,
+		                      expanded,
+		                      briefFree: briefFree(w),
+		                      onSummary: () => void toggleSummary(w),
+		                      onBrief: () => requestBrief(w),
+		                      below: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "inline-flex", alignItems: "center", gap: 6 }, children: [
+		                        bidded ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: proposalTone(bidded.status), children: translateOr(t, progressLabelKey(bidded, proposalView(bidded, myAccountId)), bidded.status) }) : null,
+		                        canBid ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                          "button",
+		                          {
+		                            type: "button",
+		                            style: { ...S.accentBtn, opacity: bidded ? 0.55 : 1 },
+		                            disabled: Boolean(bidded) || proposeBusy,
+		                            title: bidded ? t("community.tip.bidded") : t("community.tip.bid"),
+		                            onClick: () => void openPropose(w),
+		                            children: t("community.action.bid")
+		                          }
+		                        ) : null
+		                      ] })
+		                    }
+		                  ),
+		                  expanded && detail?.projectId === w.projectId ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(WorkDetail, { t, work: detail.work, brief: detail.brief }) : null
+		                ]
+		              },
+		              w.projectId
+		            );
+		          }) })
+		        ) : works === null ? (
+		          /* ── 可指导：学生发布的研究工作（`SEEK_MENTOR`，只对导师显示这个 Tab）── */
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: worksLoading ? t("community.hint.loadingWork") : t("community.hint.noData") })
+		        ) : works.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.hint.noDiscoverable") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.list, children: works.map((w, i) => {
+		          const expanded = open?.projectId === w.projectId;
+		          const busyKind = detailBusy?.projectId === w.projectId ? detailBusy.kind : null;
+		          const proposed = myMentorProposalByProject.get(w.projectId);
+		          const canPropose = detailRead.has(w.projectId) || briefFree(w);
+		          return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		            "div",
+		            {
+		              style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
+		              children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                  WorkRow,
+		                  {
+		                    t,
+		                    title: workLabelOf(w),
+		                    author: w.owner?.displayName ?? null,
+		                    fields: w.researchFields,
+		                    stage: w.stage,
+		                    progress: w.progress,
+		                    updatedAt: w.updatedAt,
+		                    disabled: false,
+		                    busy: busyKind,
+		                    expanded,
+		                    briefFree: briefFree(w),
+		                    onSummary: () => void toggleSummary(w),
+		                    onBrief: () => requestBrief(w),
+		                    below: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "inline-flex", alignItems: "center", gap: 6 }, children: [
+		                      proposed ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: proposalTone(proposed.status), children: translateOr(
+		                        t,
+		                        progressLabelKey(proposed, proposalView(proposed, myAccountId)),
+		                        proposed.status
+		                      ) }) : null,
+		                      canPropose ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                        "button",
+		                        {
+		                          type: "button",
+		                          style: { ...S.accentBtn, opacity: proposed ? 0.55 : 1 },
+		                          disabled: Boolean(proposed) || proposeBusy,
+		                          title: proposed ? t("community.tip.proposed") : t("community.tip.propose"),
+		                          onClick: () => void openPropose(w),
+		                          children: t("community.action.propose")
+		                        }
+		                      ) : null
+		                    ] })
+		                  }
+		                ),
+		                expanded && detail?.projectId === w.projectId ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(WorkDetail, { t, work: detail.work, brief: detail.brief }) : null
+		              ]
+		            },
+		            w.projectId
+		          );
+		        }) })
+		      ] })
+		    ] })
 		  ] });
 		}
 		function SystemTab({
@@ -773,7 +6331,8 @@ window.__ModuleLoader__.load({
 		  tectonic,
 		  onRecheck,
 		  scope,
-		  onNotice
+		  onNotice,
+		  t
 		}) {
 		  const [draft, setDraft] = import_react.default.useState("");
 		  const [busy, setBusy] = import_react.default.useState(false);
@@ -788,9 +6347,12 @@ window.__ModuleLoader__.load({
 		    try {
 		      await scope.set("openalexApiKey", draft.trim());
 		      setDraft("");
-		      onNotice({ tone: "success", text: "已保存 OpenAlex API Key" });
+		      onNotice({ tone: "success", text: t("system.retrieval.saved") });
 		    } catch (e) {
-		      onNotice({ tone: "error", text: `保存失败：${e instanceof Error ? e.message : String(e)}` });
+		      onNotice({
+		        tone: "error",
+		        text: t("system.retrieval.saveFailed", { detail: e instanceof Error ? e.message : String(e) })
+		      });
 		    } finally {
 		      setBusy(false);
 		    }
@@ -800,9 +6362,12 @@ window.__ModuleLoader__.load({
 		    try {
 		      await scope.unset("openalexApiKey");
 		      setDraft("");
-		      onNotice({ tone: "success", text: "已清除 OpenAlex API Key" });
+		      onNotice({ tone: "success", text: t("system.retrieval.cleared") });
 		    } catch (e) {
-		      onNotice({ tone: "error", text: `清除失败：${e instanceof Error ? e.message : String(e)}` });
+		      onNotice({
+		        tone: "error",
+		        text: t("system.retrieval.clearFailed", { detail: e instanceof Error ? e.message : String(e) })
+		      });
 		    } finally {
 		      setBusy(false);
 		    }
@@ -813,76 +6378,67 @@ window.__ModuleLoader__.load({
 		      const next = await onRecheck();
 		      setDep(next);
 		      if (next?.available) {
-		        onNotice({ tone: "success", text: `tectonic 可用${next.version ? `：${next.version}` : ""}` });
+		        onNotice({
+		          tone: "success",
+		          text: t("system.dependency.available", { version: next.version ? `: ${next.version}` : "" })
+		        });
 		      } else {
-		        onNotice({ tone: "error", text: "未找到 tectonic，请按下方说明安装后重新检查" });
+		        onNotice({ tone: "error", text: t("system.dependency.missing") });
 		      }
 		    } finally {
 		      setChecking(false);
 		    }
 		  };
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
-		        "🧩 本地依赖",
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        dep === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: "未知" }) : dep.available ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "success", children: "已安装" }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: "未安装" })
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		        "🧩 ",
+		        t("system.dependency.title"),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        dep === null ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("system.status.unknown") }) : dep.available ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "success", children: t("system.status.installed") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("system.status.notInstalled") })
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.mono, children: "tectonic" }),
-		          dep?.version ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.hint, children: dep.version }) : null,
-		          dep?.path ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, opacity: 0.7 }, children: dep.path }) : null,
-		          dep?.viaEnv ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: S.hint, children: [
-		            "（由 ",
-		            dep.envVar,
-		            " 指定）"
-		          ] }) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardBody, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.mono, children: "tectonic" }),
+		          dep?.version ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.hint, children: dep.version }) : null,
+		          dep?.path ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, opacity: 0.7 }, children: dep.path }) : null,
+		          dep?.viaEnv ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.hint, children: t("system.dependency.viaEnv", { envVar: dep.envVar }) }) : null,
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		            "button",
 		            {
 		              type: "button",
 		              style: { ...S.ghostBtn, opacity: checking ? 0.55 : 1 },
 		              disabled: checking,
 		              onClick: () => void recheck(),
-		              children: checking ? "检查中…" : "重新检查"
+		              children: checking ? t("system.dependency.checking") : t("system.dependency.recheck")
 		            }
 		          )
 		        ] }),
-		        dep && !dep.available ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.hint, lineHeight: 2, marginTop: 8 }, children: [
-		          "论文编译成 PDF 需要本机的 ",
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.mono, children: "tectonic" }),
-		          "（不是 npm 依赖）。安装任一即可：",
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("br", {}),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.mono, children: "brew install tectonic" }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("br", {}),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.mono, children: "mamba install -c conda-forge tectonic" }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("br", {}),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.mono, children: "cargo install tectonic" }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("br", {}),
-		          "装在别处就设 ",
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.mono, children: dep.envVar || "CONVFUSION_TECTONIC" }),
-		          " ",
-		          "指向它，再点「重新检查」。首次编译会下载宏包（约 40 MB），之后复用。"
+		        dep && !dep.available ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.hint, lineHeight: 2, marginTop: 8 }, children: [
+		          t("system.dependency.installIntro"),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("br", {}),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.mono, children: "brew install tectonic" }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("br", {}),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.mono, children: "mamba install -c conda-forge tectonic" }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("br", {}),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.mono, children: "cargo install tectonic" }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("br", {}),
+		          t("system.dependency.installOutro", { envVar: dep.envVar || "CONVFUSION_TECTONIC" })
 		        ] }) : null
 		      ] })
 		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
-		        "⌕ 文献检索",
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        configured ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "success", children: "已配置" }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: "未配置" })
+		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		        "⌕ ",
+		        t("system.retrieval.title"),
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        configured ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "success", children: t("system.status.configured") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("system.status.notConfigured") })
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hint, children: [
-		          "文献检索使用 OpenAlex。请前往 ",
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.mono, children: "openalex.org" }),
-		          " 免费注册并复制 API Key。 未配置时仍可通过公共池检索，但速率较低。"
-		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.field, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: "OpenAlex API Key" }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardBody, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.field, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.label, children: "OpenAlex API Key" }),
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		            "input",
 		            {
 		              style: S.input,
@@ -890,34 +6446,42 @@ window.__ModuleLoader__.load({
 		              autoComplete: "off",
 		              spellCheck: false,
 		              value: draft,
-		              placeholder: configured ? "已设置，输入新值可覆盖" : "粘贴 API Key",
+		              placeholder: configured ? t("system.retrieval.placeholderReplace") : t("system.retrieval.placeholderPaste"),
+		              title: t("system.retrieval.secretHint"),
 		              onChange: (e) => setDraft(e.target.value)
 		            }
 		          ),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hint, children: [
-		            "留空则不修改。密钥仅保存在本机，不会发送到浏览器。",
-		            source === "env" ? ` 当前使用环境变量 ${envVar}。` : ""
-		          ] })
+		          !configured ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hint, children: [
+		            t("system.retrieval.notConfigured"),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.mono, children: "openalex.org" }),
+		            "  ",
+		            t("system.retrieval.notConfiguredAction")
+		          ] }) : source === "env" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hint, children: [
+		            t("system.retrieval.envFrom"),
+		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.mono, children: envVar }),
+		            "  ",
+		            t("system.retrieval.envFromAction")
+		          ] }) : null
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
-		          source === "settings" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
+		          source === "settings" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		            "button",
 		            {
 		              type: "button",
 		              style: { ...S.ghostBtn, opacity: busy ? 0.55 : 1 },
 		              disabled: busy,
 		              onClick: () => void clear(),
-		              children: "清除"
+		              children: t("system.retrieval.clear")
 		            }
 		          ) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		            "button",
 		            {
 		              type: "button",
 		              style: { ...S.primaryBtn, opacity: draft.trim() && !busy ? 1 : 0.55 },
 		              disabled: !draft.trim() || busy,
 		              onClick: () => void save(),
-		              children: busy ? "保存中…" : "保存"
+		              children: busy ? t("settings.editor.saving") : t("settings.editor.save")
 		            }
 		          )
 		        ] })
@@ -925,7 +6489,7 @@ window.__ModuleLoader__.load({
 		    ] })
 		  ] });
 		}
-		
+
 		// src/client/nav-icon.ts
 		var NAV_ICON_MARK = "data-convfusion-nav-icon";
 		var NAV_SECTION_LABEL = "ConvFusion";
@@ -991,46 +6555,74 @@ window.__ModuleLoader__.load({
 		    };
 		  }
 		}
-		
-		// src/client/progress-card.tsx
-		var import_react2 = require("react");
-		var import_jsx_runtime3 = require("react/jsx-runtime");
-		var researchSessions = /* @__PURE__ */ new Map();
-		var activeSessionId;
-		function resetProgressCardState(active) {
-		  researchSessions.clear();
-		  activeSessionId = active;
+
+		// src/client/community-view.tsx
+		var import_jsx_runtime4 = require("react/jsx-runtime");
+		var pickDraftEmpty = (state) => (state?.draft ?? "").trim() === "";
+		var noInputHook = (_selector) => true;
+		function CommunityView({ t, sessionId, inputActions, useInput }) {
+		  const readDraftEmpty = useInput ?? noInputHook;
+		  const draftEmpty = readDraftEmpty(pickDraftEmpty);
+		  const session = sessionId ? {
+		    sessionId,
+		    // 拿不到 inputActions（旧宿主）→ 只给「复制提示词」，不假装能填
+		    ...inputActions ? { setDraft: (text) => inputActions.setDraft(text) } : {},
+		    draftEmpty
+		  } : void 0;
+		  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+		    "div",
+		    {
+		      "data-convfusion-community-view": "1",
+		      style: {
+		        flex: "1 1 auto",
+		        minHeight: 0,
+		        overflowY: "auto",
+		        background: "var(--dsw-alias-bg-base, #ffffff)",
+		        color: "var(--dsw-alias-label-primary, #0f1115)"
+		      },
+		      children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+		        "div",
+		        {
+		          style: {
+		            boxSizing: "border-box",
+		            width: "100%",
+		            maxWidth: "880px",
+		            margin: "0 auto",
+		            padding: "16px 24px 28px"
+		          },
+		          children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: 14 }, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(CommunityTab, { send: fetchSettingsSend, initial: null, t, session }) })
+		        }
+		      )
+		    }
+		  );
 		}
-		function selectResearchTurn() {
-		  const id = activeSessionId;
-		  if (!id) return null;
-		  return researchSessions.get(id) === true ? { sessionId: id } : null;
+
+		// src/client/progress-panel.tsx
+		var import_react2 = __toESM(require("react"), 1);
+		var import_jsx_runtime5 = require("react/jsx-runtime");
+		function readProgressValue(res) {
+		  const envelope = res;
+		  if (envelope?.ok !== true) return { kind: "hidden" };
+		  const value = envelope.value ?? {};
+		  if (value.protocol !== 27) return { kind: "hidden" };
+		  if (value.research !== true) return { kind: "hidden" };
+		  return {
+		    kind: "shown",
+		    workspace: value.workspace ?? null,
+		    report: value.report ?? null,
+		    lastTurn: value.lastTurn ?? null
+		  };
 		}
-		function ResearchProgressWarmer({ sessionId }) {
-		  (0, import_react2.useEffect)(() => {
-		    if (!sessionId) return;
-		    activeSessionId = sessionId;
-		    if (researchSessions.has(sessionId)) return;
-		    let cancelled = false;
-		    void (async () => {
-		      try {
-		        const res = await fetchSettingsSend("progress/session", { sessionId });
-		        if (cancelled) return;
-		        researchSessions.set(sessionId, res?.ok === true && res.value?.research === true);
-		      } catch {
-		        if (!cancelled) researchSessions.set(sessionId, false);
-		      }
-		    })();
-		    return () => {
-		      cancelled = true;
-		    };
-		  }, [sessionId]);
-		  return null;
+		function shortenPath(path) {
+		  if (!path) return "";
+		  const parts = path.split(/[\\/]/).filter(Boolean);
+		  return parts.slice(-2).join("/");
 		}
 		var pct = (v) => `${Math.round(v * 100)}%`;
+		var PROGRESS_REFRESH_MS = 6e4;
 		function Bar({ scale }) {
 		  const width = `${Math.max(0, Math.min(1, scale)) * 100}%`;
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
 		    "span",
 		    {
 		      style: {
@@ -1038,140 +6630,613 @@ window.__ModuleLoader__.load({
 		        width: "88px",
 		        height: "7px",
 		        borderRadius: "4px",
-		        background: "var(--dsw-alias-fill-tertiary, rgba(127,127,127,0.22))",
+		        background: "var(--dsw-alias-interactive-bg-hover, rgba(15,17,21,0.08))",
 		        overflow: "hidden",
 		        verticalAlign: "middle"
 		      },
-		      children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { display: "block", width, height: "100%", background: "var(--dsw-alias-brand-primary, #4b7bec)" } })
+		      children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+		        "span",
+		        {
+		          style: {
+		            display: "block",
+		            width,
+		            height: "100%",
+		            background: "var(--dsw-alias-state-business-primary, #4176e6)"
+		          }
+		        }
+		      )
 		    }
 		  );
 		}
-		function delta(before, after) {
-		  const d = Math.round((after - before) * 100);
-		  if (d > 0) return `↑${d}%`;
-		  if (d < 0) return `↓${Math.abs(d)}%`;
-		  return "—";
+		function clarityText(t, clarity) {
+		  return t(`progress.clarity.${clarity}`);
 		}
-		function ResearchProgressCard({ sessionId, turn, seq }) {
-		  const [report, setReport] = (0, import_react2.useState)(null);
-		  const turnNo = turn?.turn;
+		function stageText(t, stage) {
+		  return translateOr(t, `progress.stage.${stage.id}`, stage.label);
+		}
+		function gapText(t, gap) {
+		  switch (gap.code) {
+		    case "stagePending":
+		      return t("progress.gap.stagePending", { stage: stageText(t, gap.stage) });
+		    case "processComplete":
+		      return t("progress.gap.processComplete");
+		    case "unsupportedClaims":
+		      return t("progress.gap.unsupportedClaims", { count: gap.count });
+		    case "missingArtifacts":
+		      return t("progress.gap.missingArtifacts", { count: gap.count });
+		    case "openQuestions":
+		      return t("progress.gap.openQuestions", { count: gap.count });
+		  }
+		}
+		function basisText(t, need, stage) {
+		  if (!need.basisCode) return need.basis;
+		  const params = { ...need.basisParams ?? {} };
+		  if (need.basisCode === "stagePending" && stage) {
+		    params.stage = stageText(t, stage);
+		    params.evidence = translateOr(
+		      t,
+		      `progress.stageEvidence.${stage.id}`,
+		      String(need.basisParams?.evidence ?? "")
+		    );
+		  }
+		  return translateOr(t, `progress.basis.${need.basisCode}`, need.basis).replace(
+		    /\{(\w+)\}/g,
+		    (match, name) => name in params ? String(params[name]) : match
+		  );
+		}
+		function nextStepText(t, text, stage) {
+		  return stage ? translateOr(t, `progress.stageOutput.${stage.id}`, text) : text;
+		}
+		function decisionText(t, need) {
+		  if (need.decisionCode) {
+		    return translateOr(t, `progress.decision.${need.decisionCode}`, need.needsUserDecision ?? "");
+		  }
+		  return need.needsUserDecision;
+		}
+		function workGapText(t, next) {
+		  const key = `progress.work.gap.${next.code}`;
+		  const text = t(key, next.target ? { target: next.target } : {});
+		  return text === key ? next.code : text;
+		}
+		function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, showTurnReport = true }) {
+		  const [probe, setProbe] = (0, import_react2.useState)({ kind: "loading" });
+		  const [busy, setBusy] = (0, import_react2.useState)(false);
+		  const [workId, setWorkId] = (0, import_react2.useState)("");
+		  const shownWorkIds = (probe.kind === "shown" ? probe.report?.works ?? [] : []).map((w) => w.id).join("\0");
 		  (0, import_react2.useEffect)(() => {
-		    if (!sessionId) return;
-		    let cancelled = false;
-		    void (async () => {
-		      try {
-		        const res = await fetchSettingsSend("progress/latest", { sessionId });
-		        if (cancelled) return;
-		        setReport(res?.ok === true ? res.value?.report ?? null : null);
-		      } catch {
-		        if (!cancelled) setReport(null);
-		      }
-		    })();
-		    return () => {
-		      cancelled = true;
+		    if (workId && !shownWorkIds.split("\0").includes(workId)) setWorkId("");
+		  }, [workId, shownWorkIds]);
+		  const load = (0, import_react2.useCallback)(async () => {
+		    if (!sessionId) {
+		      setProbe({ kind: "hidden" });
+		      return;
+		    }
+		    setBusy(true);
+		    try {
+		      const res = await send("progress/workspace", { sessionId });
+		      setProbe(readProgressValue(res));
+		    } catch {
+		      setProbe({ kind: "hidden" });
+		    } finally {
+		      setBusy(false);
+		    }
+		  }, [sessionId, send]);
+		  (0, import_react2.useEffect)(() => {
+		    void load();
+		  }, [load]);
+		  (0, import_react2.useEffect)(() => {
+		    const timer = window.setInterval(() => void load(), PROGRESS_REFRESH_MS);
+		    const onVisible = () => {
+		      if (document.visibilityState === "visible") void load();
 		    };
-		  }, [sessionId, turnNo, seq]);
-		  if (!report) return null;
-		  const muted = "var(--dsw-alias-label-tertiary, #8a8f98)";
-		  const box = {
-		    margin: "8px 0 4px",
-		    padding: "10px 14px 12px",
-		    border: "1px solid var(--dsw-alias-border-secondary, rgba(127,127,127,0.22))",
-		    borderRadius: "10px",
-		    background: "var(--dsw-alias-bg-elevated, rgba(127,127,127,0.06))",
-		    fontSize: "12.5px",
-		    lineHeight: 1.6
-		  };
-		  const head = {
-		    display: "flex",
-		    alignItems: "baseline",
-		    gap: "8px",
-		    flexWrap: "wrap"
-		  };
-		  const section = { marginTop: "8px" };
-		  const sectionTitle = { color: muted, fontSize: "11.5px", letterSpacing: "0.04em" };
+		    document.addEventListener("visibilitychange", onVisible);
+		    return () => {
+		      window.clearInterval(timer);
+		      document.removeEventListener("visibilitychange", onVisible);
+		    };
+		  }, [load]);
+		  const muted = "var(--dsw-alias-label-tertiary, #81858c)";
 		  const mono = {
-		    fontFamily: "var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace)",
-		    fontSize: "11.5px"
+		    fontFamily: "var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace)"
 		  };
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: box, "data-convfusion-progress-card": "1", "data-turn": report.turn, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: head, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { fontSize: "14px" }, children: "📊" }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("strong", { children: "本轮研究进展" }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { color: muted, ...mono }, children: [
-		        "成熟度折算 ",
-		        pct(report.overall.before),
-		        " → ",
-		        pct(report.overall.after)
+		  if (probe.kind !== "shown") {
+		    return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { "data-convfusion-progress-view": "1", style: { color: muted }, children: probe.kind === "loading" ? t("progress.reading") : t("progress.noReport") });
+		  }
+		  const report = probe.report;
+		  const lastTurn = probe.lastTurn;
+		  const works = report?.works ?? [];
+		  const multi = works.length > 1;
+		  const work = multi ? works.find((w) => w.id === workId) ?? null : null;
+		  const section = {
+		    marginTop: "10px",
+		    padding: "9px 11px 10px",
+		    borderRadius: "9px",
+		    border: "1px solid var(--dsw-alias-border-l2, rgba(15,17,21,0.10))",
+		    background: "var(--dsw-alias-interactive-bg-hover, rgba(15,17,21,0.035))"
+		  };
+		  const sectionTitle = {
+		    color: muted,
+		    letterSpacing: "0.04em",
+		    fontWeight: 600,
+		    marginBottom: "7px"
+		  };
+		  const iconButton = {
+		    border: "none",
+		    background: "transparent",
+		    color: "inherit",
+		    cursor: "pointer",
+		    padding: "0 4px",
+		    borderRadius: "4px",
+		    font: "inherit",
+		    lineHeight: 1
+		  };
+		  const tabStrip = {
+		    display: "flex",
+		    flexWrap: "wrap",
+		    gap: "2px",
+		    marginTop: "8px",
+		    borderBottom: "1px solid var(--dsw-alias-border-l2, rgba(15,17,21,0.10))"
+		  };
+		  const tab = (active) => ({
+		    border: "none",
+		    background: "transparent",
+		    color: active ? "var(--dsw-alias-label-primary, #0f1115)" : muted,
+		    cursor: "pointer",
+		    padding: "4px 9px 6px",
+		    marginBottom: "-1px",
+		    fontWeight: active ? 600 : 400,
+		    lineHeight: 1.4,
+		    fontFamily: "inherit",
+		    maxWidth: "180px",
+		    whiteSpace: "nowrap",
+		    overflow: "hidden",
+		    textOverflow: "ellipsis",
+		    borderBottom: active ? "2px solid var(--dsw-alias-state-business-primary, #4176e6)" : "2px solid transparent"
+		  });
+		  const workRow = (label, value, note) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { display: "flex", gap: "8px" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { minWidth: "92px", whiteSpace: "nowrap", ...mono }, children: label }),
+		    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: mono, children: value }),
+		    note ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted }, children: note }) : null
+		  ] }, label);
+		  const aggCell = (key, value, extra, extraLabel, alwaysTitle = false) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { title: extra > 0 || alwaysTitle ? extraLabel : void 0, children: extra > 0 ? `${value} (${extra})` : String(value) }, key);
+		  const aggRow = (row, totals) => {
+		    const c = totals ?? row?.counts;
+		    if (!c) return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_react2.default.Fragment, {}, "empty");
+		    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_react2.default.Fragment, { children: [
+		      row ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+		        "span",
+		        {
+		          title: row.active ? `${row.title} · ${t("progress.works.active")}` : row.title,
+		          style: {
+		            color: row.active ? void 0 : muted,
+		            overflow: "hidden",
+		            textOverflow: "ellipsis",
+		            whiteSpace: "nowrap"
+		          },
+		          children: row.active ? `● ${row.short}` : row.short
+		        }
+		      ) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted }, children: t("progress.works.totals", { count: report?.aggregate?.works ?? 0 }) }),
+		      row ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { title: row.maturitySource === "derived" ? t("progress.works.derived") : void 0, children: pct(row.overall) }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", {}),
+		      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { children: `${c.sectionsWithContent}/${c.sections}` }),
+		      aggCell(
+		        "claims",
+		        c.claims,
+		        c.claimsWithoutEvidence,
+		        t("progress.work.count.claimsWithoutEvidence", { count: c.claimsWithoutEvidence })
+		      ),
+		      aggCell(
+		        "evidence",
+		        c.evidence,
+		        c.evidenceUsedInManuscript,
+		        // 证据库是全工作区共用的：合计里只报一份（宿主已如此），悬停说明免得看成"漏加了"
+		        `${t("progress.works.evidenceShared")} · ${t("progress.work.count.evidenceUsed", {
+		          count: c.evidenceUsedInManuscript
+		        })}`,
+		        true
+		      ),
+		      aggCell("gaps", c.gaps, c.gapsHigh, t("progress.work.count.gapsHigh", { count: c.gapsHigh })),
+		      aggCell("proposals", c.openProposals, 0, "")
+		    ] }, row ? row.id : "totals");
+		  };
+		  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { "data-convfusion-progress-view": "1", children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { display: "flex", alignItems: "baseline", gap: "8px", flexWrap: "wrap" }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("strong", { children: t("progress.name") }),
+		      report ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { style: { color: muted, ...mono }, children: [
+		        t("progress.summary", { percent: pct(work ? work.overall : report.overall) }),
+		        work ? ` · ${t("progress.work.meta", { version: work.version, status: work.status })}` : report.progress.stage ? t("progress.currentStage", { stage: stageText(t, report.progress.stage) }) : ""
+		      ] }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted }, children: t("progress.noData") }),
+		      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { style: { marginLeft: "auto", display: "inline-flex", gap: "2px" }, children: [
+		        busy ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted, ...mono }, children: t("progress.reading") }) : null,
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+		          "button",
+		          {
+		            type: "button",
+		            style: { ...iconButton, opacity: busy ? 0.5 : 1 },
+		            "aria-label": t("progress.refresh"),
+		            title: t("progress.refresh"),
+		            disabled: busy,
+		            onClick: () => void load(),
+		            children: "⟳"
+		          }
+		        )
+		      ] })
+		    ] }),
+		    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { color: muted, ...mono }, children: [
+		      shortenPath(probe.workspace),
+		      work ? ` · ${work.id}` : ""
+		    ] }),
+		    multi ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { role: "tablist", "aria-label": t("progress.name"), style: tabStrip, "data-convfusion-progress-tabs": "1", children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+		        "button",
+		        {
+		          type: "button",
+		          role: "tab",
+		          "aria-selected": work === null,
+		          title: t("progress.works.overview"),
+		          style: tab(work === null),
+		          onClick: () => setWorkId(""),
+		          children: t("progress.works.overview")
+		        }
+		      ),
+		      works.map((w) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+		        "button",
+		        {
+		          type: "button",
+		          role: "tab",
+		          "aria-selected": work?.id === w.id,
+		          title: w.active ? `${w.title} · ${t("progress.works.active")}` : w.title,
+		          style: tab(work?.id === w.id),
+		          onClick: () => setWorkId(w.id),
+		          children: w.active ? `● ${w.short}` : w.short
+		        },
+		        w.id
+		      ))
+		    ] }) : null,
+		    report && work ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_jsx_runtime5.Fragment, { children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: section, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: sectionTitle, children: [
+		          t("progress.work.section.maturity"),
+		          work.maturitySource === "derived" ? t("progress.work.maturityDerived") : ""
+		        ] }),
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "2px 16px" }, children: work.maturity.map((d) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { minWidth: "92px", whiteSpace: "nowrap", ...mono }, children: translateOr(t, `maturity.paper.${d.dimension}`, d.dimension) }),
+		          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Bar, { scale: d.scale }),
+		          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted, whiteSpace: "nowrap", ...mono }, children: maturityLevelText(t, d.level) })
+		        ] }, d.dimension)) })
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { color: report.moved ? "var(--dsw-alias-brand-primary, #4b7bec)" : muted, ...mono }, children: delta(report.overall.before, report.overall.after) }),
-		      report.progress.stage ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { color: muted }, children: [
-		        "· 当前阶段 ",
-		        report.progress.stage
+		      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: section, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: sectionTitle, children: t("progress.work.section.assets") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "2px 16px" }, children: [
+		          workRow(
+		            t("progress.work.count.sections"),
+		            `${work.counts.sectionsWithContent}/${work.counts.sections}`
+		          ),
+		          workRow(
+		            t("progress.work.count.claims"),
+		            String(work.counts.claims),
+		            work.counts.claimsWithoutEvidence > 0 ? t("progress.work.count.claimsWithoutEvidence", { count: work.counts.claimsWithoutEvidence }) : void 0
+		          ),
+		          workRow(
+		            t("progress.work.count.evidence"),
+		            String(work.counts.evidence),
+		            t("progress.work.count.evidenceUsed", { count: work.counts.evidenceUsedInManuscript })
+		          ),
+		          workRow(
+		            t("progress.work.count.gaps"),
+		            String(work.counts.gaps),
+		            work.counts.gapsHigh > 0 ? t("progress.work.count.gapsHigh", { count: work.counts.gapsHigh }) : void 0
+		          ),
+		          work.counts.openProposals > 0 ? workRow(t("progress.work.count.proposals"), String(work.counts.openProposals)) : null
+		        ] })
+		      ] }),
+		      work.next ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: section, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: sectionTitle, children: t("progress.work.section.next") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { children: t("progress.work.nextStep", { text: workGapText(t, work.next) }) }),
+		        work.next.skill ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { color: muted }, children: t("progress.work.nextSkill", { skill: skillText(t, work.next.skill, work.next.skill) }) }) : null
 		      ] }) : null
-		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: section, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: sectionTitle, children: "A · 研究成熟度（等级折算，非测量值）" }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "2px 18px" }, children: report.progress.dimensions.map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { minWidth: "92px", ...mono }, children: d.dimension }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Bar, { scale: d.scale }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { color: muted, ...mono }, children: d.level })
-		      ] }, d.dimension)) })
-		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: section, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: sectionTitle, children: "B · 本轮变化" }),
-		      report.changes.changed ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("ul", { style: { margin: "2px 0 0", paddingLeft: "18px" }, children: [
-		        report.changes.maturity.map((m) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("li", { children: [
-		          "成熟度 ",
-		          m.dimension,
-		          "：",
-		          m.from,
-		          " → ",
-		          m.to
-		        ] }, `m-${m.dimension}`)),
-		        report.changes.counts.map((c) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("li", { children: [
-		          c.label,
-		          "：",
-		          c.from,
-		          " → ",
-		          c.to,
-		          "（",
-		          c.to - c.from > 0 ? "+" : "",
-		          c.to - c.from,
-		          "）"
-		        ] }, `c-${c.key}`))
-		      ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { color: muted }, children: "本轮没有形成新的可验证研究资产（讨论/澄清不产生资产，这是正常的）。" })
-		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: section, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: sectionTitle, children: "C · 当前缺口与推进判定" }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("ul", { style: { margin: "2px 0 0", paddingLeft: "18px" }, children: report.need.gaps.map((g) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("li", { children: g }, g)) }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { marginTop: "2px" }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { color: muted }, children: "推进判定：" }),
-		        report.need.clarity === "clear" ? "方向明确 → 可直接推进" : report.need.clarity === "ambiguous" ? "需要你选一个方向" : report.need.clarity === "blocked" ? "等你拍板（阻塞）" : "（未判定）",
-		        report.need.basis ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { color: muted }, children: [
-		          "（依据：",
-		          report.need.basis,
-		          "）"
-		        ] }) : null
+		    ] }) : report ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_jsx_runtime5.Fragment, { children: [
+		      multi && report.aggregate ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: section, "data-convfusion-progress-aggregate": "1", children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: sectionTitle, children: t("progress.works.section.aggregate") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+		          "div",
+		          {
+		            style: {
+		              display: "grid",
+		              gridTemplateColumns: "minmax(84px, 1.5fr) repeat(6, minmax(42px, 0.7fr))",
+		              gap: "3px 6px",
+		              alignItems: "baseline",
+		              ...mono
+		            },
+		            children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted }, children: t("progress.works.col.work") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted }, children: t("progress.works.col.maturity") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted }, children: t("progress.works.col.sections") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted }, children: t("progress.works.col.claims") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted }, children: t("progress.works.col.evidence") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted }, children: t("progress.works.col.gaps") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted }, children: t("progress.works.col.proposals") }),
+		              report.aggregate.rows.map((row) => aggRow(row)),
+		              aggRow(null, report.aggregate.totals)
+		            ]
+		          }
+		        )
+		      ] }) : null,
+		      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: section, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: sectionTitle, children: t("progress.section.maturity") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "2px 16px" }, children: report.progress.dimensions.map((d) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { minWidth: "92px", whiteSpace: "nowrap", ...mono }, children: maturityDimensionText(t, d.dimension) }),
+		          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Bar, { scale: d.scale }),
+		          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted, whiteSpace: "nowrap", ...mono }, children: maturityLevelText(t, d.level) })
+		        ] }, d.dimension)) })
 		      ] }),
-		      report.need.nextStep ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-		        "下一步：",
-		        report.need.nextStep
+		      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: section, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: sectionTitle, children: t("progress.section.assets") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "2px 16px" }, children: [
+		          report.counts.map((row) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { display: "flex", gap: "8px" }, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { minWidth: "92px", whiteSpace: "nowrap", ...mono }, children: progressCountText(t, row.key) }),
+		            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: mono, children: row.value }),
+		            row.detail ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted }, children: t(`progress.count.${row.detail.code}`, { count: row.detail.count }) }) : null
+		          ] }, row.key)),
+		          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { display: "flex", gap: "8px" }, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { minWidth: "92px", ...mono }, children: t("progress.paper") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted }, children: report.paper ? t("progress.paper.present") : t("progress.paper.absent") })
+		          ] })
+		        ] }),
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { color: muted }, children: t("progress.stateVersion", { version: report.stateVersion }) })
+		      ] }),
+		      showTurnReport ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: section, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: sectionTitle, children: t("progress.section.turn") }),
+		        lastTurn ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { color: muted, ...mono }, children: t("progress.turn.summary", {
+		            turn: lastTurn.turn,
+		            before: pct(lastTurn.overall.before),
+		            after: pct(lastTurn.overall.after),
+		            assetChange: lastTurn.changes.counts.length > 0 ? t("progress.turn.assetChange", { count: lastTurn.changes.counts.length }) : t("progress.turn.noAssetChange")
+		          }) }),
+		          lastTurn.changes.changed ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("ul", { style: { margin: "2px 0 0", paddingLeft: "18px" }, children: [
+		            lastTurn.changes.maturity.map((m) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("li", { children: t("progress.turn.maturityChange", {
+		              dimension: maturityDimensionText(t, m.dimension),
+		              from: maturityLevelText(t, m.from),
+		              to: maturityLevelText(t, m.to)
+		            }) }, `m-${m.dimension}`)),
+		            lastTurn.changes.counts.map((c) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("li", { children: t("progress.turn.countChange", {
+		              label: progressCountText(t, c.key),
+		              from: c.from,
+		              to: c.to,
+		              delta: `${c.to - c.from > 0 ? "+" : ""}${c.to - c.from}`
+		            }) }, `c-${c.key}`))
+		          ] }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { color: muted }, children: t("progress.turn.noChange") })
+		        ] }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { color: muted }, children: t("progress.turn.unavailable") })
 		      ] }) : null,
-		      report.need.needsUserDecision ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-		        "待你决定：",
-		        report.need.needsUserDecision
-		      ] }) : null,
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { marginTop: "4px", color: muted }, children: "以上是 Research State 暴露出的研究需求，不是必须执行的下一步。你可以接受，也可以继续自由对话。" })
-		    ] })
+		      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: section, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: sectionTitle, children: t("progress.section.need") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("ul", { style: { margin: "2px 0 0", paddingLeft: "18px" }, children: report.need.gaps.map((g, index) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("li", { children: gapText(t, g) }, `${g.code}-${index}`)) }),
+		        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { style: { marginTop: "2px" }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted }, children: t("progress.need.assessment") }),
+		          clarityText(t, report.need.clarity),
+		          report.need.basis ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: muted }, children: t("progress.need.basis", { basis: basisText(t, report.need, report.progress.stage) }) }) : null
+		        ] }),
+		        report.need.nextStep ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { children: t("progress.need.nextStep", {
+		          text: nextStepText(t, report.need.nextStep, report.progress.stage)
+		        }) }) : null,
+		        decisionText(t, report.need) ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { children: t("progress.need.decision", { text: decisionText(t, report.need) }) }) : null
+		      ] })
+		    ] }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { marginTop: "8px", color: muted }, children: t("progress.noReport") }),
+		    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { style: { marginTop: "10px", color: muted }, children: t("progress.footnote") })
 		  ] });
 		}
-		
+		function ResearchProgressView({ sessionId, t }) {
+		  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+		    "div",
+		    {
+		      "data-convfusion-progress-page": "1",
+		      style: {
+		        flex: "1 1 auto",
+		        minHeight: 0,
+		        overflowY: "auto",
+		        background: "var(--dsw-alias-bg-base, #ffffff)",
+		        color: "var(--dsw-alias-label-primary, #0f1115)"
+		      },
+		      children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+		        "div",
+		        {
+		          style: {
+		            boxSizing: "border-box",
+		            width: "100%",
+		            maxWidth: "880px",
+		            margin: "0 auto",
+		            padding: "16px 24px 28px"
+		          },
+		          children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(ResearchProgressPanel, { sessionId, t })
+		        }
+		      )
+		    }
+		  );
+		}
+
+		// src/client/convfusion-tab.ts
+		var PROGRESS_VIEW_ID = "convfusion-progress";
+		var PROGRESS_VIEW_ORDER = 19;
+		var COMMUNITY_VIEW_ID = "convfusion-community";
+		var COMMUNITY_VIEW_ORDER = 20;
+		var CONVFUSION_VIEW_SLOT = "conversation.view";
+		function asSessions(value) {
+		  const candidate = value;
+		  const list = candidate?.list;
+		  if (typeof list?.getSnapshot !== "function" || typeof list.subscribe !== "function") return void 0;
+		  return candidate;
+		}
+		function readSessions(host) {
+		  return asSessions(host.get?.("sessions"));
+		}
+		function currentMainSessionId(list) {
+		  const rows = list?.byId;
+		  if (!rows) return void 0;
+		  for (const row of Object.values(rows)) {
+		    if ((row?.retainedBy?.mainView ?? 0) > 0 && typeof row.id === "string") return row.id;
+		  }
+		  return void 0;
+		}
+		function percentText(overall) {
+		  return typeof overall === "number" && Number.isFinite(overall) ? `${Math.round(overall * 100)}%` : void 0;
+		}
+		async function defaultProbe(sessionId) {
+		  try {
+		    const probe = readProgressValue(await fetchSettingsSend("progress/workspace", { sessionId }));
+		    if (probe.kind !== "shown") return { research: false };
+		    return { research: true, percent: percentText(probe.report?.overall) };
+		  } catch {
+		    return { research: false };
+		  }
+		}
+		function convfusionTabSpecs(t) {
+		  return [
+		    {
+		      id: PROGRESS_VIEW_ID,
+		      order: PROGRESS_VIEW_ORDER,
+		      label: (percent) => percent === void 0 ? t("progress.name") : t("progress.tab.label", { percent }),
+		      component: ResearchProgressView
+		    },
+		    {
+		      id: COMMUNITY_VIEW_ID,
+		      order: COMMUNITY_VIEW_ORDER,
+		      label: () => t("community.entry.label"),
+		      component: CommunityView
+		    }
+		  ];
+		}
+		function visibilitySource() {
+		  const doc = globalThis.document;
+		  if (doc === void 0 || typeof doc.addEventListener !== "function") {
+		    return { onVisible: () => () => {
+		    } };
+		  }
+		  return {
+		    onVisible: (callback) => {
+		      const handler = () => {
+		        if (doc.visibilityState === "visible") callback();
+		      };
+		      doc.addEventListener("visibilitychange", handler);
+		      return () => doc.removeEventListener("visibilitychange", handler);
+		    }
+		  };
+		}
+		function installConvFusionTabs(host, options) {
+		  const immediate = options.sessions ?? readSessions(host);
+		  if (immediate !== void 0) {
+		    attach(host, immediate, options);
+		    return;
+		  }
+		  if (typeof host.inject === "function") {
+		    host.inject(["sessions"], (scope) => {
+		      const late = readSessions(scope);
+		      if (late !== void 0) attach(host, late, options);
+		      else host.logger?.warn?.("[convfusion] sessions service has an unexpected shape: session tabs not registered.");
+		    });
+		    return;
+		  }
+		  host.logger?.warn?.("[convfusion] sessions service unavailable: session tabs not registered.");
+		}
+		function attach(host, sessions, options) {
+		  const probe = options.probe ?? defaultProbe;
+		  const tabs = options.tabs ?? convfusionTabSpecs(options.t);
+		  const cache = /* @__PURE__ */ new Map();
+		  const { onVisible } = visibilitySource();
+		  host.slots.inject(CONVFUSION_VIEW_SLOT, () => {
+		    let disposeEntries = [];
+		    let registeredPercent;
+		    let disposed = false;
+		    let generation = 0;
+		    let poll;
+		    const show = (percent) => {
+		      if (disposed || disposeEntries.length > 0) return;
+		      registeredPercent = percent;
+		      for (const spec of tabs) {
+		        disposeEntries.push(
+		          host.slots.register(
+		            {
+		              name: CONVFUSION_VIEW_SLOT,
+		              id: spec.id,
+		              order: spec.order,
+		              // label 是**读取时求值**的 thunk，所以它必须读"当前"百分比；
+		              // 数值变化由 `applyAnswer()` 用重注册来触发 roster 重算。
+		              label: () => spec.label(registeredPercent),
+		              locale: CONVFUSION_LOCALE_NS
+		            },
+		            spec.component
+		          )
+		        );
+		      }
+		    };
+		    const hide = () => {
+		      for (const dispose of disposeEntries) dispose();
+		      disposeEntries = [];
+		      registeredPercent = void 0;
+		    };
+		    const applyAnswer = (answer) => {
+		      if (!answer.research) {
+		        hide();
+		        return;
+		      }
+		      if (disposeEntries.length > 0 && answer.percent === registeredPercent) return;
+		      hide();
+		      show(answer.percent);
+		    };
+		    const decide = async (force = false) => {
+		      const generationAt = ++generation;
+		      try {
+		        const sessionId = currentMainSessionId(sessions.list.getSnapshot());
+		        if (sessionId === void 0) {
+		          hide();
+		          return;
+		        }
+		        const known = force ? void 0 : cache.get(sessionId);
+		        if (known !== void 0) {
+		          applyAnswer(known);
+		          return;
+		        }
+		        hide();
+		        const answer = await probe(sessionId);
+		        if (disposed || generationAt !== generation) return;
+		        cache.set(sessionId, answer);
+		        applyAnswer(answer);
+		      } catch (error) {
+		        hide();
+		        host.logger?.warn?.(`[convfusion] session tab decision failed: ${String(error)}`);
+		      }
+		    };
+		    const offList = sessions.list.subscribe(() => {
+		      void decide();
+		    });
+		    const offVisible = onVisible(() => {
+		      void decide(true);
+		    });
+		    poll = globalThis.setInterval(() => {
+		      void decide(true);
+		    }, PROGRESS_REFRESH_MS);
+		    void decide();
+		    return () => {
+		      disposed = true;
+		      generation += 1;
+		      if (poll !== void 0) globalThis.clearInterval(poll);
+		      poll = void 0;
+		      offList();
+		      offVisible();
+		      hide();
+		    };
+		  });
+		}
+
 		// src/client/index.tsx
-		var inject = ["slots", "settingsScope"];
+		var inject = ["slots", "configForms", "locale", "sessions"];
 		var SECTION_ORDER = 60;
 		function apply(ctx) {
-		  const scope = ctx.settingsScope.bind({ namespace: "convfusion" });
+		  ctx.effect(
+		    () => ctx.locale.register(CONVFUSION_LOCALE_NS, dictionaries),
+		    "convfusion: browser dictionaries"
+		  );
+		  const t = ctx.locale.bind(CONVFUSION_LOCALE_NS);
+		  const scope = ctx.configForms.get("convfusion");
 		  ctx.slots.inject(
 		    "settings.section",
 		    () => ctx.slots.register(
@@ -1179,27 +7244,14 @@ window.__ModuleLoader__.load({
 		        name: "settings.section",
 		        id: "convfusion",
 		        order: SECTION_ORDER,
-		        // label 由注册方本地化；这里直接给中文名，与 DSH 设置壳的其余中文项一致
-		        label: () => "ConvFusion",
+		        label: () => t("settings.nav"),
+		        locale: CONVFUSION_LOCALE_NS,
 		        inject: () => ({ scope })
 		      },
 		      ConvFusionProjectSettings
 		    )
 		  );
-		  ctx.slots.inject(
-		    "conversation.input.dock",
-		    () => ctx.slots.register(
-		      { name: "conversation.input.dock", id: "convfusion-progress-warm", order: 900 },
-		      ResearchProgressWarmer
-		    )
-		  );
-		  ctx.slots.inject(
-		    "conversation.chat.turnTail",
-		    () => ctx.slots.register(
-		      { name: "conversation.chat.turnTail", id: "convfusion-progress-card", order: -100, select: selectResearchTurn },
-		      ResearchProgressCard
-		    )
-		  );
+		  installConvFusionTabs(ctx, { t });
 		  try {
 		    installNavIcon(favicon_default);
 		  } catch {

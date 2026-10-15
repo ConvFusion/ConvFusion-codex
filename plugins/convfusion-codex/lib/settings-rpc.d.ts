@@ -49,13 +49,13 @@
  *
  * 用户拍板：**设置里只配置文件名**，定制内容存独立文件。理由是可验证的：
  * 设置文档（`$DSH_HOME/settings.yaml`）每次提交都会整体序列化并落盘，
- * 47 个 Skill × 6 个可定制章节的正文塞进去会让它膨胀到不可读、不可手改。
+ * 55 个 Skill × 7 个可定制章节的正文塞进去会让它膨胀到不可读、不可手改。
  *
  * 因此本渠道分两类端点，不要混淆：
  *
  * | 类 | 落盘位置 | 端点 |
  * |---|---|---|
- * | **配置**（文件名 / 目录） | settings 文档（客户端经 `settingsScope` 读写，不经本渠道） | — |
+ * | **配置**（文件名 / 目录） | profile 条目 `convfusion` 的 config（客户端经 `configForms` 读写，不经本渠道） | — |
  * | **定制内容**（章节覆盖文本） | `$DSH_HOME/convfusion/<file>.json` | `customization/*` |
  *
  * ## v2 与 v0.1.5 的结构差异（重建时最容易错的地方）
@@ -73,7 +73,15 @@
  * `customizations[skillId][section]` —— 存储形态没变，变的只是键的语义。
  */
 import type { SkillCustomizationStore } from './research/skill-customization.js';
+import type { PaidBriefStore } from './research/paid-briefs.js';
+import { type WorkIdentityStore, type WorkspaceStatus } from './research/work-identity.js';
+import type { SyncWatermarkStore } from './research/sync-watermarks.js';
+import type { SyncNoteStore } from './research/sync-note.js';
 import type { Config } from './config.js';
+import { type SecretField } from './config.js';
+import { type FetchLike, type ProjectDirection, type TokenBalance } from './server-client.js';
+import type { ProgressCountRow } from './research/progress.js';
+import { type PublishedStore } from './research/published-store.js';
 /**
  * 设置面的 HTTP 路由前缀（客户端必须用同一个）。
  *
@@ -141,6 +149,238 @@ export interface RetrievalKeyStatus {
     envVar: string;
 }
 /**
+ * 把宿主工作区注册表的**原始实体**归一成纯数据。
+ *
+ * 规则照抄 `dsh-additive` 的 `listWorkspaces`（那套已经在跑，行为经过验证）：
+ *
+ * ```text
+ * ① path 必填，取不到 → 跳过该条
+ * ② id 缺失 → 回退为 path
+ * ③ 去重：id 或 path 任一已出现 → 跳过
+ * ④ 顺序 = 注册表顺序（list() 不重排），与侧边栏那份清单一致
+ * ```
+ *
+ * 只做纯数据归一：目录是否存在 / 真身路径由 fs 探测（见 `work/mine`），
+ * 标题的友好缺省也留给端点（研究根永远叫 `workspace`，不能拿它当标题）。
+ */
+export declare function normalizeWorkspaceEntities(entities: ReadonlyArray<{
+    id?: unknown;
+    title?: unknown;
+    path?: unknown;
+    updatedAt?: unknown;
+}>): Array<{
+    id: string;
+    title: string;
+    path: string;
+    updatedAt: string;
+}>;
+/** 一个候选目标工作区查盘后的现状。 */
+export interface DownloadTargetInfo {
+    /** 目录还在吗。 */
+    exists: boolean;
+    /** 真身路径（注册表存的是登记值，可能是符号链接；与 `collectLocalWorks` 同一纪律）。 */
+    canonical: string;
+    /**
+     * 研究根（真身路径上）：**已有研究**时是它自身，**还没有研究**时是"将会成为研究根"的
+     * 那个目录（`<ws>/workspace`）—— 提示词要用它当解压目标，所以不能是 `null`。
+     * 目录本身不存在（`missing`）时才是 `null`。
+     */
+    researchRoot: string | null;
+    /** 布局：`nested` = `<ws>/workspace`（现行）；`legacy` = 研究直接在 `<ws>`。 */
+    layout: 'nested' | 'legacy' | null;
+}
+/**
+ * 查一个候选目标工作区。
+ *
+ * 与 `collectLocalWorks` 的**区别**（所以没复用它）：那个只保留"有效研究项目"，
+ * 而下载目标必须**包含没有研究的工作区** —— "空工作区"正是最常见的合法目标
+ * （导师第一次指导学生、或另存为新研究根）。
+ */
+export declare function inspectDownloadTarget(path: string): DownloadTargetInfo;
+/** 送到客户端的一项（不含 `canonical`：客户端不需要真身路径）。 */
+export interface DownloadTargetItem {
+    id: string;
+    title: string;
+    path: string;
+    exists: boolean;
+    /**
+     * 研究根绝对路径（**已有或将会是**；目录不存在时为 `null`）。整理提示词用它当解压目标。
+     */
+    researchRoot: string | null;
+    /** 实际布局：`nested` / `legacy`；`null` = **还没有**研究工作区（状态必然是 `new`）。 */
+    layout: 'nested' | 'legacy' | null;
+    status: WorkspaceStatus;
+    /** 本地读到的标识（判定的依据；`null` = 读不到）。 */
+    localWorkspaceId: string | null;
+    /** 工作区内标记与插件注册表**冲突**（都读到了、但值不同）。 */
+    identityConflict: boolean;
+}
+/** 一个候选目标 + 它的真身路径（`canonical` 只在宿主侧用来对"当前会话的工作区"）。 */
+export interface BuiltDownloadTarget extends DownloadTargetItem {
+    canonical: string;
+}
+/**
+ * 把"注册表条目 + 服务器给的标识"判成一个目标项。
+ *
+ * @param item 注册表条目（id/title/path）。
+ * @param remoteWorkspaceId 本次下载项在服务器上的标识；`null` = 服务器没给（老服务器）。
+ * @param store 插件侧注册表（第二级身份）；缺省 = 只有工作区内标记这一级。
+ */
+export declare function buildDownloadTarget(item: {
+    id: string;
+    title: string;
+    path: string;
+}, remoteWorkspaceId: string | null, store?: Pick<WorkIdentityStore, 'get'> | undefined): BuiltDownloadTarget;
+/** 去掉宿主侧的 `canonical` 再回给界面。 */
+export declare function toWireTarget(built: BuiltDownloadTarget): DownloadTargetItem;
+/**
+ * **本机**的一项研究工作（【研究工作 · 我的】的一行）。
+ *
+ * 与 {@link WorkItem} 的区别：那个是**服务器上**别人公开的研究工作，这个是
+ * **本机工作区**里的研究项目 —— 数据全部来自磁盘，不需要登录、不发网络请求。
+ */
+export interface LocalWorkItem {
+    /** 工作区注册表 id（稳定；路径可能被重命名）。**仅作内部键**，不是"这是哪项研究"的判据。 */
+    id: string;
+    /** 注册表标题（会话工作区目录名）。**只作兜底**：界面显示的是 {@link workName}。 */
+    title: string;
+    /**
+     * **这项研究工作自己的名字**（论文标题 > 已采纳主题 > 注册表标题兜底）。
+     *
+     * ⚠️ 界面**必须**显示它而不是 `title`：`title` 是会话工作区目录名（如 `ConvFusion-dsh`），
+     * 同一个会话工作区里可以有多项研究，用目录名区分不了（2026-10 用户要求）。
+     */
+    workName: string;
+    /**
+     * **这项研究工作的身份** `workspace_id`（`ws_<32 hex>`）。`null` = 本机还不知道。
+     *
+     * 新建的本机研究有名字但**没有** id；发布之后由服务器返回并落盘
+     * （`<研究根>/.convfusion/work.json` + 插件侧注册表），此后它就是
+     * "这是哪一项研究"的唯一判据 —— 用 id 区分，而不是用工作区名。
+     */
+    workId: string | null;
+    /** 会话工作区路径（用户的工作区）。 */
+    path: string;
+    /** 研究根目录（`<会话工作区>/workspace`，旧布局下可能是会话工作区本身）。 */
+    researchRoot: string;
+    /** 注册表里的目录已消失。 */
+    missingDir: boolean;
+    /**
+     * 研究阶段：稳定 `id` + 宿主给的原始 `label`。
+     *
+     * ⚠️ 展示名**由客户端按 locale 翻译**（上游约定：宿主只给稳定 code/数值），
+     * 客户端用 `translateOr(t, \`progress.stage.${id}\`, label)`，与「研究进展」面板同款。
+     */
+    stage: {
+        id: string;
+        label: string;
+    } | null;
+    /** 成熟度均值（0..1），与「研究进展」面板同一个数。 */
+    overall: number;
+    /** 可数资产（证据 / 主张 / 计划 …）：稳定 key + 计数 + 结构化 detail，与进展面板同一份口径。 */
+    counts: ProgressCountRow[];
+    /** 是否已有论文正文。 */
+    paper: boolean;
+    /** 当前推进判定（clear / ambiguous / blocked / unknown）。 */
+    clarity: 'clear' | 'ambiguous' | 'blocked' | 'unknown';
+    /** 注册表最近一次变更时刻（ISO）。 */
+    updatedAt: string;
+    /**
+     * 本机这个工作区在**网络上的发布状态**，一个方向一条（`[]` = 还没发布过）。
+     *
+     * ⚠️ 为什么是**数组**（v0.6.0）：一个工作区可以同时在两个方向发布 ——
+     * 【寻找指导】（`SEEK_MENTOR`，学生求指导）与【寻找学生】（`SEEK_STUDENT`，
+     * 导师出题）。它们是**服务器上两个不同的项目**，所以要有两条记录、两个标记；
+     * 早先的单对象形状表达不了"两个方向各有各的状态"。
+     *
+     * ⚠️ 每一行的判据是**服务器**（`GET /projects/{id}`），不是本地映射：本地记录只说明
+     * "我传过"，服务器删项目或取消发布时它不会自己更新。核对不通（离线/未登录）时退回
+     * 本地记录，因为"读不到"不等于"服务器上没有"。
+     */
+    published: Array<{
+        /** 这条对应哪个方向（界面按它把按钮文案切成「更新指导」/「更新学生」）。 */
+        direction: ProjectDirection;
+        projectId: string;
+        version: number;
+        updatedAt: string;
+        /** 记录属于哪台服务器（与当前生效地址不一致时界面要提示）。 */
+        serverUrl: string;
+        /** 记录属于哪个账号。 */
+        accountId: string;
+    }>;
+}
+/** 服务器上的账号（`GET /api/v1/auth/me`）。**不含任何凭据。** */
+export interface AccountWire {
+    id: string;
+    email: string;
+    displayName: string;
+    status: string;
+    /** `RESEARCHER` / `MENTOR` / `ADMIN`（可多个）。 */
+    roles: string[];
+}
+/**
+ * 【ConvFusion.com】的登录状态 —— **回给浏览器的那一份**。
+ *
+ * ⚠️ 这里只有"有没有凭据 + 是哪个账号"，**永远不会**出现 `cf_live_…` 明文。
+ * 明文只在宿主内存里被 {@link resolveConvFusionApiKey} 取出、直接用于 HTTP 请求头。
+ *
+ * `account` 只有在**联网验证过**之后才非空：
+ *
+ * - `account/state` 不联网（服务器挂了也要能打开设置页）→ `account: null`；
+ * - `account/verify` / `login` / `register` 联网成功 → 填入账号。
+ */
+export interface AccountState {
+    /** 生效的服务器地址（不含 `/api/v1`）。 */
+    serverUrl: string;
+    /** 当前环境的**默认**地址（界面占位符 / 提示用）。 */
+    defaultServerUrl: string;
+    /** 这个地址是哪来的：设置文档 / 环境变量 / 环境配置文件 / 内置兜底。 */
+    serverUrlSource: 'settings' | 'env' | 'config' | 'default';
+    /**
+     * **两个环境的地址**（开发 / 生产），给设置页那两个快捷按钮用。
+     *
+     * ⚠️ 由宿主按配置文件解析（`serverUrlPresets`）—— 界面不自己写死域名，
+     * 否则部署把地址换成自有域名后按钮会指错地方。
+     */
+    serverPresets: Record<'development' | 'production', string>;
+    /**
+     * 当前环境（开发 / 生产）。
+     *
+     * ⚠️ **地址随环境而变**：开发是 `http://localhost:8000`、生产是
+     * `https://convfusion.apibrowser.com:4747`（见 `src/server-env.ts`）。界面必须说清现在连的是哪一边，
+     * 否则"在本机测通了"和"线上能用"会被混为一谈。
+     */
+    environment: 'development' | 'production';
+    /** 地址与环境互相矛盾（生产却指向本机 / 开发却指向线上）。 */
+    serverUrlMismatch: boolean;
+    /** 是否已有可用凭据（**只报可用性，不回传凭据**）。 */
+    keyConfigured: boolean;
+    keySource: 'settings' | 'env' | 'none';
+    /** 凭据的环境变量名（仅提示）。 */
+    apiKeyEnvVar: string;
+    /** 已认证账号；未验证或未登录时为 null。 */
+    account: AccountWire | null;
+    /**
+     * Token 余额（登录后显示；未验证时为 null）。
+     *
+     * ⚠️ **尽力而为**：余额接口单独失败（网络抖动）不会让登录失败 —— 那种时候这里是 null，
+     * 界面不显示余额，用户点「重新验证」即可。**绝不**把拿不到余额显示成 0。
+     */
+    tokens: TokenBalance | null;
+}
+/**
+ * 组装登录状态（纯函数，可离线验证）。
+ *
+ * @param config 生效配置（**可含明文 Key** —— 本函数只读它的"有没有"，不把它放进结果）
+ * @param env 环境变量（测试注入）
+ * @param account 已验证的账号（未验证传 null）
+ * @param options.fresh 忽略环境配置文件的进程内缓存（测试用）
+ */
+export declare function buildAccountState(config: Config, env?: NodeJS.ProcessEnv, account?: AccountWire | null, options?: {
+    fresh?: boolean;
+    tokens?: TokenBalance | null;
+}): AccountState;
+/**
  * 一个**本地外部依赖**的可用性（目前只有 tectonic —— 它不在 Node 生态里，用户可能没装）。
  *
  * 论文写到最后要出 LaTeX/PDF，编译由 tectonic 完成；它不是 npm 依赖，装没装只有本机能查。
@@ -159,8 +399,8 @@ export interface LocalDependencyStatus {
     viaEnv: boolean;
     /** 覆盖用的环境变量名。 */
     envVar: string;
-    /** 用途一句话（设置页直接展示，避免用户不知道为什么要装）。 */
-    purpose: string;
+    /** 稳定用途码；展示文字由浏览器 locale 决定。 */
+    purposeCode: string;
 }
 /** 本机外部依赖的检测结果。 */
 export interface LocalDependencyReport {
@@ -176,12 +416,14 @@ export declare function describeLocalDependencies(env?: NodeJS.ProcessEnv): Loca
 export interface SettingsState {
     /** 宿主协议版本；与客户端内联值不一致 = 宿主未重启。 */
     protocol: number;
+    /** 插件版本（package.json 单一来源；UA / 徽章 / 更新检查共用）。 */
+    version: string;
     /**
      * 生效配置（文件名的权威来源仍是 settings 文档）。
      *
      * ⚠️ **已剔除 secret**（见 {@link redactConfig}）：这个对象会经 HTTP 返回浏览器。
      */
-    config: Omit<Config, 'openalexApiKey'>;
+    config: Omit<Config, SecretField>;
     /** 定制文件的解析结果（展示"定制存在哪里"）。 */
     file: {
         path: string;
@@ -206,6 +448,8 @@ export interface SettingsState {
      * 远端读取会被 `redactSecrets` 摘掉，界面也从不持有明文。
      */
     retrieval: RetrievalKeyStatus;
+    /** 【ConvFusion.com】的登录状态（服务器地址 + 是否有凭据 + 已验证的账号）。 */
+    account: AccountState;
     /** 本地外部依赖（tectonic 等）的可用性 —— 【系统设置】页展示。 */
     dependencies: LocalDependencyReport;
 }
@@ -214,7 +458,27 @@ export interface SettingsState {
  *
  * 分组在这里做，客户端只负责渲染 —— 设置页不该自己理解 Skill 的存储结构。
  */
-export declare function buildSettingsState(config: Config, store: SkillCustomizationStore, resolvePath?: (c: Config) => string, probeDependencies?: () => LocalDependencyReport): SettingsState;
+export declare function buildSettingsState(config: Config, store: SkillCustomizationStore, resolvePath?: (c: Config) => string, probeDependencies?: () => LocalDependencyReport, env?: NodeJS.ProcessEnv, version?: string): SettingsState;
+/**
+ * 上传一批文件时估算的**最低吞吐**（50 KB/s），只用来把"总超时"折算成体积的函数。
+ *
+ * 为什么不能沿用 `SERVER_TIMEOUT_MS`（8 秒）：那个常数管的是"服务器还活着吗"，
+ * 对表单查询合适；而上传是**整批读完才回响应**，8 秒连 1 MB 都传不完。
+ * 实测那条细链路约 120 KB/s —— 30 MB 的一批要 4 分钟以上，用 8 秒超时只会
+ * 让每一次回传都稳定失败（而且看起来像"服务器挂了"）。
+ *
+ * 取 50 KB/s 而不是 120 KB/s：宁可等久一点，也不要在大文件上假失败。
+ */
+export declare const MIN_UPLOAD_BYTES_PER_SEC: number;
+/** 单批上传的硬上限（30 分钟）：再慢也该报错，不能无限挂着。 */
+export declare const UPLOAD_TIMEOUT_MAX_MS: number;
+/**
+ * 一批文件的**总超时**（毫秒）：`基础超时 + 体积/最低吞吐`。
+ *
+ * 判据是"这批字节在最慢可接受的链路下要多久" —— 与下载那次修复同一个思路：
+ * **慢 ≠ 死**，超时阈值必须跟着体积走，否则大文件永远传不上去。
+ */
+export declare function uploadTimeoutForBytes(bytes: number, minBytesPerSec?: number): number;
 /** 设置面依赖（由插件入口注入，便于离线测试）。 */
 export interface SettingsRpcDeps {
     /** 当前生效配置（每次调用重新取，文件改名后立即生效）。 */
@@ -231,7 +495,92 @@ export interface SettingsRpcDeps {
      * （2026-09 实测发生）。
      */
     resolveSessionWorkspace?: (sessionId: string) => string | undefined;
+    /**
+     * 把配置补丁写回 **profile 条目 config**（保存 API Key / 服务器地址）。
+     *
+     * 由插件入口接到 `ctx.settings.update(entryId, patch)`（DSH 0.2.0 的
+     * `SettingsForms`）。缺省 = 设置存储不可用 —— 这时登录必须
+     * **明确失败**（`storage-unavailable`），而不是"看着登录成功、重启后没了"。
+     */
+    setConfig?: (patch: Partial<Config>) => Promise<void>;
+    /**
+     * 连接 ConvFusion.com 用的网络实现（测试注入假 fetch）。
+     *
+     * ⚠️ 插件自身**从不**在浏览器侧发这些请求：服务器未开 CORS，且凭据是 secret。
+     * 见 `server-client.ts` 文件头。
+     */
+    fetchImpl?: FetchLike;
+    /**
+     * 插件版本（package.json 单一来源；由入口注入 `pkg.version`）。
+     * 缺省 `'0.0.0'` —— 仅测试 / 精简环境会用到，正式装配永远带上真值。
+     */
+    version?: string;
+    /** 环境变量（测试注入；缺省 `process.env`）。 */
+    env?: NodeJS.ProcessEnv;
+    /**
+     * 「这一项简报已经买过」的本地记录（`paid-briefs.ts`）。
+     *
+     * 服务器只在 `/brief` 的响应里给 `charged_tokens`，列表/摘要**不含**这个状态，
+     * 所以"点之前要不要提醒"只能靠这份本地记忆。缺省 = 没有记忆（每次都提醒，
+     * 行为保守但不静默扣费）。
+     */
+    paidBriefStore?: PaidBriefStore;
+    /**
+     * 上一次**归档响应**的水位（`sync-watermarks.ts`）：`X-Source-Updated-At` / `X-File-Count`。
+     *
+     * `mentor/download` 写、`mentor/list` 读 —— 两者一比就是"学生更新了工作区吗"。
+     * 缺省 = 没有记忆：`mentor/list` 对所有行都回 `sync: null`（界面不提示，
+     * **不**编造"有更新"）。
+     */
+    syncStore?: SyncWatermarkStore;
+    /** 服务器请求超时（测试用小值）。 */
+    serverTimeoutMs?: number;
+    /**
+     * 「本机研究工作 ↔ 服务器项目」的映射存储。
+     *
+     * 缺省 = 内存表（重启即失，只用于精简环境/测试）——真正的落盘由插件入口注入。
+     */
+    publishedStore?: PublishedStore;
+    /**
+     * 本机**工作区注册表**里的条目（DSH `ctx.workspaceRegistry.list()` 的投影）。
+     *
+     * 用于【研究工作 · 我的】：只列**含有效 research workspace** 的工作区
+     * （过滤与进度计算在本文件里做，入口只负责把注册表读出来）。
+     * 缺省 = 这台机器上没有工作区注册表（列表为空，不报错）。
+     */
+    listLocalWorkspaces?: () => Promise<{
+        /** DSH 是否真的提供了工作区注册表（false = 精简 profile / 服务缺失）。 */
+        available: boolean;
+        /** 不可用时的原因（直接给界面看，用于区分"没数据"和"读不到"）。 */
+        reason?: string;
+        items: Array<{
+            id: string;
+            title: string;
+            path: string;
+            updatedAt: string;
+        }>;
+    }>;
+    /**
+     * 「本机工作区 ↔ 服务器上的**一项研究工作**」（`workspace_id`）。
+     *
+     * 【下载】要用它回答"这个工作区里已有的 `workspace/` 和我下的是不是同一项研究"：
+     * 同一个 → 允许下载、之后融合；另一个 → **拒绝**（否则两份研究会被搅在一起）。
+     * 缺省 = 没有第二级记录（只剩工作区内标记这一级）。
+     */
+    workIdentity?: WorkIdentityStore;
+    /**
+     * 下载便签：记下"这个 ZIP 是服务器上的哪项研究"。
+     *
+     * `/research sync @这个.zip` 靠它判定"同一项研究 → 融合 / 另一项 → 先备份再换"。
+     * 没配也能用：那时判定退化为 `unverifiable`（技能里"先盘查再判断"那一支）。
+     */
+    syncNotes?: SyncNoteStore;
 }
+/**
+ * 比较两个版本串（容忍 `v` 前缀与 `-rc.x` 后缀）：按点分数字段比较，
+ * 返回 `-1 | 0 | 1`。解析失败按 0 处理（防御即可，版本串都是自己维护的）。
+ */
+export declare function compareVersions(a: string, b: string): number;
 /**
  * 建立一个端点分发器。
  *
@@ -241,10 +590,59 @@ export interface SettingsRpcDeps {
  * |---|---|---|
  * | `state` | `{}` | 整页状态（类别 → Skill → 章节） |
  * | `dependencies/check` | `{}` | 重新探测本地外部依赖（tectonic），供【系统设置】的"重新检查" |
+ * | `version/check` | `{}` | 插件更新检查（GitHub Releases `latest`；离线/无 release 时 `latest:null`） |
  * | `customization/save` | `{ skillId, section, text }` | 写入覆盖（空文本 = 清除） |
  * | `customization/reset` | `{ skillId, section }` | 清除一个章节的覆盖 |
  * | `customization/resetSkill` | `{ skillId }` | 清除一个 Skill 的全部覆盖 |
  * | `customization/resetAll` | `{}` | 清除全部定制（回到全系统原文） |
+ * | `account/state` | `{}` | 【ConvFusion.com】登录状态（**不联网**） |
+ * | `account/probe` | `{ serverUrl? }` | **只测连通性**（匿名 `/health`，最长 8 秒）；`reachable` 是结果不是错误 |
+ * | `account/serverUrl` | `{ serverUrl }` | 保存服务器地址（空串 = 跟随环境配置）；只改地址**不动凭据** |
+ * | `account/login` | `{ apiKey, serverUrl? }` | 用 API Key 登录（联网验证后落盘） |
+ * | `account/register` | `{ invitationCode, email, displayName, serverUrl? }` | 凭邀请码注册并登录 |
+ * | `account/verify` | `{}` | 用已保存的凭据重新验证身份（联网） |
+ * | `account/logout` | `{}` | 清除凭据（账号信息随之消失） |
+ * | `account/tokens` | `{}` | 重新读 Token 余额（登录后显示 / 花完 Token 后刷新） |
+ * | `account/usage` | `{}` | 用量与配额（存储空间已用 / 总额 + 项目阶梯 + 下次发布花费）；读不到 = `usage:null` |
+ * | `account/recharge-request` | `{ amount, reason? }` | 提交**续费申请**（只记录意向，不改余额；管理员事后批准） |
+ * | `account/recharge-requests` | `{}` | 查看**本人**的续费申请记录（判断有没有待处理的） |
+ * | `work/mine` | `{}` | **本机**研究工作（有效研究项目的工作区；不联网、不需登录） |
+ * | `work/uploadPlan` | `{ id }` | 发布前的**上传计划**（分类/体积/默认选择）+ 用量与配额 |
+ * | `work/publish` | `{ id, selection?, remember? }` | 发布：建项目 → 传状态 → **传附件** → 发布 |
+ * | `work/list` | `{}` | 研究网络里已公开的研究工作（需登录；条数由服务器定） |
+ * | `work/summary` | `{ projectId }` | 一项研究工作的摘要（免费） |
+ * | `work/brief` | `{ projectId, intentKey }` | 一项研究工作的简报（非 owner 花 1 Token） |
+ * | `mentor/fee-suggestion` | `{}` | 默认指导费用建议（100 / 20 / 80，导师可改） |
+ * | `mentor/propose` | `{ projectId, guidanceScope, totalFee, depositAmount, successPaymentAmount, successCondition }` | 发起指导提案（免费；同一项目同一导师只能有一个生效提案） |
+ * | `mentor/list` | `{}` | 我涉及的指导提案（我发起的 + 我收到的）；ACCEPTED 的带 `reviewFiles`（导师已上传几份，服务器 `review_files`）与 **`sync`**（"学生更新了工作区吗"：与本地水位比对的结果，`null` = 无从判断） |
+ * | `mentor/accept` | `{ proposalId, intentKey }` | 接受指导（研究者）→ **冻结押金**、建合同与关系 |
+ * | `mentor/reject` | `{ proposalId }` | 拒绝指导（研究者） |
+ * | `mentor/downloadState` | `{ projectId, prefix, source? }` | 【下载】对话框一次拿齐：预检（文件数 / 体积 / 预计文件名）+ **全部**可选工作区（`source` 选哪一侧，省略 = `owner`） |
+ * | `mentor/download` | `{ projectId, workspaceId, prefix, source? }` | 只把 ZIP 存进所选工作区（**流式落盘、不解压、不覆盖**，同名加序号） |
+ * | `mentor/downloadProgress` | `{ projectId }` | 下载期间的实时进度 `{ received, running }`（界面按秒问；本地读，不触网） |
+ * | `mentor/uploadState` | `{}` | 【上传】对话框的工作区下拉：本机**含研究定义**的工作区（`<ws>/workspace/` 或旧布局 `<ws>`） |
+ * | `mentor/uploadPlan` | `{ workspaceId }` | 所选工作区的**文件清单**（`mentor` 口径分类 + 默认勾选 + 体积 + 超限项） |
+ * | `mentor/upload` | `{ projectId, workspaceId, paths, source? }` | 回传"我这一份工作区"：与**自己那一侧**的 `sha256` 比对 → 只传变化的 → 分批上传 |
+ * | `mentor/uploadProgress` | `{ projectId }` | 上传期间的实时进度 `{ doneFiles, totalFiles, sentBytes, totalBytes, running }`（本地读、不触网） |
+ *
+ * ⚠️ **两侧并存**（协议 v20，服务器 `?source=owner|mentor`）：项目文件空间里同一路径可以
+ * 同时存在学生自己那份（`owner`）与导师回传那份（`mentor`），**互不覆盖**。规矩是
+ * **比对自己那一侧、下载对方那一侧**（表见 `server-client.ts` 的 `FileSource`）。
+ * 不带 `source` → 一律按 `owner`（= 服务器默认，也是 v19 界面的行为：不会出错，
+ * 但学生读不到导师那份）。
+ *
+ * ⚠️ 回传**按原相对路径**写进项目文件空间的**导师那一侧**（v20 起两侧并存，
+ * 与学生那份同名而互不覆盖）—— 因此需要服务器允许导师写 `review/` 之外的路径
+ * （见 `server-client.ts` 的 `MENTOR_REVIEW_PREFIX` 与
+ * `dev-notes/v0.5.4-mentor-workspace-upload.md`）。旧服务器上会拿到 403
+ * `FILE_PATH_RESERVED` → `path-reserved`，界面**如实说**"服务器需放开"。
+ *
+ * ℹ️ v19 删除了 `mentor/pickDirectory` 与 `mentor/scanReview`：上传源不再是"用户手选的
+ * 磁盘目录 + 只扫 `review/`"，而是**注册表里的工作区 + 研究根全量清单**。
+ *
+ * ⚠️ **凭据纪律**（改动这里前先读 `server-client.ts` 文件头）：
+ * 服务器地址与 API Key 只出现在**宿主**与**服务器**之间；本渠道的任何返回值都不得
+ * 包含 `cf_live_…`。`account/*` 一律返回 {@link AccountState}（只有可用性 + 账号信息）。
  */
 export declare function createSettingsRpcHandler(deps: SettingsRpcDeps): (endpoint: string, payload: unknown) => Promise<SettingsRpcResult>;
 /** 最小化的 node:http 请求/响应视图（避免为了类型而依赖 @types/node 之外的东西）。 */
@@ -258,7 +656,9 @@ interface RouteResponse {
     statusCode: number;
     setHeader(name: string, value: string): void;
     writeHead(status: number, headers?: Record<string, string>): void;
-    end(payload?: string): void;
+    /** 流式写（归档下载用）。真实对象是 `node:http` 的 ServerResponse。 */
+    write(chunk: Uint8Array): void;
+    end(payload?: string | Uint8Array): void;
 }
 export interface SettingsRouteDeps extends SettingsRpcDeps {
     /**

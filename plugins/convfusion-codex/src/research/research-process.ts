@@ -19,7 +19,7 @@
  *
  * ## 过程定义本身是一个 Skill（用户可定制）
  *
- * 阶段列表**不再硬编码**：它来自 `research-process` 这个能力（`skills/research-management/
+ * 阶段列表**不再硬编码**：它来自 `research-process` 这个能力（`skills/research-planning/
  * research-process.md`）里的一段机器可读围栏块。用户可以在【设置】-【ConvFusion】-【本地研究方法】
  * 里覆盖该能力的 `Research Method` 章节，**规定自己的研究进展过程** —— 不同学科的过程确实不同。
  *
@@ -36,33 +36,12 @@
  * 否则一个笔误就会让"当前阶段"永远判不出来。信号留空/写错 → 该阶段不参与判定。
  */
 
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
-import { listClaims, listDecisions } from './claims.js'
-import { listEvidence } from './evidence.js'
-import { listPlanDocuments } from './plans.js'
-import { loadProjectFile } from './project.js'
-import { DEFAULT_PAPER_ID } from './paper-data.js'
-import { paperDir } from './paper.js'
+import { STAGE_SIGNALS, buildSignalContext, judgeSignal, type StageSignal } from './stage-signals.js'
+import { STATE_DIMENSIONS, type StateDimension } from './research-data.js'
 
-/**
- * 判定信号词表。
- *
- * ⚠️ 固定词表是刻意的：用户能改**过程**，但改不了**判定逻辑**。
- * 允许任意表达式会让一个笔误把"当前阶段"永久判错，而且无法校验。
- */
-export const STAGE_SIGNALS = [
-  'problem-defined',
-  'literature-evidence',
-  'claims',
-  'method-plan',
-  'experiments',
-  'settled-evidence',
-  'decisions',
-  'manuscript',
-] as const
-
-export type StageSignal = (typeof STAGE_SIGNALS)[number]
+// 信号词表与判定逻辑抽到 `stage-signals.ts` 共享（阶段模型 + 技能前置依赖共用同一份）。
+// 这里重新导出，保持 `PROC.STAGE_SIGNALS` 等既有引用不变。
+export { STAGE_SIGNALS, buildSignalContext, judgeSignal, type StageSignal } from './stage-signals.js'
 
 /** 科研过程的一个阶段（与能力类别对应）。 */
 export interface ResearchStage {
@@ -76,6 +55,21 @@ export interface ResearchStage {
   signal?: StageSignal
   /** 这个阶段要产出什么（用于"最缺什么"的说明）。 */
   produces: string
+  /**
+   * 本阶段的结论该写回 **Research State** 的哪些维度。
+   *
+   * 这是"自进化"那条链的落点（架构 §：`Evidence is produced → Paper evolves →
+   * Research State changes → Harness decides again`）：阶段定义了"产出什么"，
+   * 这个字段定义"产出之后状态里该出现什么"。
+   *
+   * 两件事用它：
+   *   ① 注入的上下文会把它说出来（`Current stage: … → Research State dimensions: X`），
+   *      让 Agent 知道这一步的结论要落到哪个维度；
+   *   ② `research/state-sync.ts` 的**产物汇总自动同步**按它决定维度是否需要重写。
+   *
+   * 留空 = 这个阶段没有对应的状态维度（如「资源评估」的产物是计划、「论文写作」的产物是论文）。
+   */
+  state?: readonly StateDimension[]
 }
 
 /**
@@ -86,13 +80,13 @@ export interface ResearchStage {
  */
 /** 默认过程（兜底）：与 `research-process` 能力里的默认块保持一致。 */
 export const DEFAULT_STAGES: readonly ResearchStage[] = [
-  { id: 'problem', label: '理解问题', category: 'research-understanding', signal: 'problem-defined', produces: '可证伪的研究问题与范围（`project.md`）' },
-  { id: 'literature', label: '文献调研', category: 'literature', signal: 'literature-evidence', produces: '实际检索到的文献证据（`research/evidence/`）' },
-  { id: 'innovation', label: '创新假设', category: 'innovation', signal: 'claims', produces: '可检验的假设与主张（`research/claims/`）' },
-  { id: 'method', label: '方法设计', category: 'methodology', signal: 'method-plan', produces: '可被第三方实现的方法设计' },
-  { id: 'experiment', label: '实验验证', category: 'experiment', signal: 'experiments', produces: '实验产物（`experiments/<name>/results/`）' },
-  { id: 'analysis', label: '分析论证', category: 'analysis', signal: 'settled-evidence', produces: '经确认的结果证据（Evidence 状态 supported/verified）' },
-  { id: 'decision', label: '研究决策', category: 'research-decision', signal: 'decisions', produces: '已记录理由的研究决策（`research/decisions/`）' },
+  { id: 'topics', label: '提出话题', category: 'research-understanding', signal: 'topic-proposed', produces: '研究话题（`research/topics.md`）', state: ['Problem'] },
+  { id: 'literature', label: '文献调研', category: 'literature', signal: 'literature-evidence', produces: '实际检索到的文献证据（`research/evidence/`）', state: ['Literature', 'Current Knowledge'] },
+  { id: 'innovation', label: '创新假设', category: 'innovation', signal: 'claims', produces: '已确定的研究问题与主题、可检验的假设与主张（`project.md` / `research/claims/`）', state: ['Innovation', 'Hypotheses'] },
+  { id: 'planning', label: '计划管理', category: 'research-planning', signal: 'method-plan', produces: '可执行的研究计划与方法设计（`research/plans/`）', state: ['Method'] },
+  { id: 'resource', label: '资源评估', category: 'resource-estimation', signal: 'resource-estimate', produces: '资源需求、成本与可行性估计（`research/plans/`）' },
+  { id: 'decision', label: '研究决策', category: 'research-decision', signal: 'decisions', produces: '已记录理由的研究决策（`research/decisions/`）', state: ['Decisions'] },
+  { id: 'experiment', label: '实验验证', category: 'experiment', signal: 'experiments', produces: '实验产物与经确认的结果证据（`experiments/<name>/results/`）', state: ['Experiments', 'Evidence'] },
   { id: 'writing', label: '论文写作', category: 'academic-writing', signal: 'manuscript', produces: '论文正文（`papers/<id>/paper.md`）' },
 ]
 
@@ -112,6 +106,25 @@ export const PROCESS_SKILL_ID = 'research-process'
  *
  * @returns 解析出的阶段；没有可解析的块时返回 `undefined`（调用方退回默认过程）
  */
+/**
+ * 解析阶段定义里的第 6 段 `state=A,B`（可选）。
+ *
+ * 只收**已知维度名**（`STATE_DIMENSIONS`），写错的名字直接丢掉：维度名是闭合词表，
+ * 一个笔误不该让"这个阶段该写回哪个维度"变成半对半错。
+ */
+function parseStateDimensions(field: string | undefined): StateDimension[] {
+  const raw = (field ?? '').trim()
+  if (!raw) return []
+  const body = /^state\s*[:=]\s*(.*)$/i.exec(raw)?.[1] ?? raw
+  const out: StateDimension[] = []
+  for (const piece of body.split(/[,，;；]/).map((x) => x.trim())) {
+    if (!piece) continue
+    const hit = STATE_DIMENSIONS.find((d) => d.toLowerCase() === piece.toLowerCase())
+    if (hit && !out.includes(hit)) out.push(hit)
+  }
+  return out
+}
+
 export function parseStages(content: string | undefined): ResearchStage[] | undefined {
   if (!content) return undefined
   const stages: ResearchStage[] = []
@@ -124,15 +137,18 @@ export function parseStages(content: string | undefined): ResearchStage[] | unde
       continue
     }
     const parts = m[1].split('|').map((x) => x.trim())
-    const [id, label, category, signal, produces] = parts
+    const [id, label, category, signal, produces, stateField] = parts
     if (!id || !label || !category) continue
     const known = (STAGE_SIGNALS as readonly string[]).includes(signal ?? '')
+    // 第 6 段可选：`state=Problem,Hypotheses`（旧的过程定义没有这一段 → 不改行为）
+    const state = parseStateDimensions(stateField)
     stages.push({
       id,
       label,
       category: category.split('/')[0] ?? category,
       ...(known ? { signal: signal as StageSignal } : {}),
       produces: produces || `${label} 阶段的产出`,
+      ...(state.length > 0 ? { state } : {}),
     })
   }
   return stages.length > 0 ? stages : undefined
@@ -178,64 +194,10 @@ export function assessResearchProcess(
 
 /** 用给定的阶段列表评估（与"阶段从哪来"解耦，便于测试）。 */
 export function assessWithStages(workspace: string, stages: readonly ResearchStage[]): ProcessAssessment {
-  const project = loadProjectFile(workspace)
-  const evidence = listEvidence(workspace)
-  const claims = listClaims(workspace)
-  const decisions = listDecisions(workspace)
-  const plans = listPlanDocuments(workspace)
-
-  const literatureEvidence = evidence.filter((e) => e.sourceKind === 'literature')
-  const settledEvidence = evidence.filter((e) => e.status === 'supported' || e.status === 'verified')
-  const hasExperiments = existsSync(join(workspace, 'experiments'))
-  const hasManuscript = existsSync(join(paperDir(workspace, DEFAULT_PAPER_ID), 'paper.md'))
-
-  /** 判定信号 → (是否落地, 依据)。 */
-  const judge = (signal: StageSignal | undefined): { satisfied: boolean; evidence: string } => {
-    switch (signal) {
-      case 'problem-defined': {
-        const questions = project?.questions?.length ?? 0
-        return {
-          satisfied: questions > 0 && Boolean(project?.domain),
-          evidence: questions > 0 ? `${questions} 个研究问题${project?.domain ? '、已定领域' : '（缺领域）'}` : '尚无研究问题',
-        }
-      }
-      case 'literature-evidence':
-        return {
-          satisfied: literatureEvidence.length > 0,
-          evidence: literatureEvidence.length > 0 ? `${literatureEvidence.length} 条文献证据` : '尚无文献证据（只有检索计划不算）',
-        }
-      case 'claims':
-        return { satisfied: claims.length > 0, evidence: claims.length > 0 ? `${claims.length} 条主张` : '尚无主张／假设' }
-      case 'method-plan': {
-        const methodPlans = plans.filter((p) => /method|approach|design/i.test(p.id) || /方法|设计/.test(p.name))
-        return {
-          satisfied: methodPlans.length > 0,
-          evidence: methodPlans.length > 0 ? `方法相关 Plan：${methodPlans.map((p) => p.id).join(', ')}` : '尚无方法设计的 Plan',
-        }
-      }
-      case 'experiments':
-        return { satisfied: hasExperiments, evidence: hasExperiments ? '存在 `experiments/`' : '尚无实验目录' }
-      case 'settled-evidence':
-        return {
-          satisfied: settledEvidence.length > 0,
-          evidence:
-            settledEvidence.length > 0
-              ? `${settledEvidence.length} 条已确认证据`
-              : `尚无 confirmed 证据（现有 ${evidence.length} 条，均未确认）`,
-        }
-      case 'decisions':
-        return { satisfied: decisions.length > 0, evidence: decisions.length > 0 ? `${decisions.length} 条决策记录` : '尚无决策记录' }
-      case 'manuscript':
-        return { satisfied: hasManuscript, evidence: hasManuscript ? '存在论文正文' : '尚无论文正文' }
-      default:
-        // 信号缺省/未知：**不参与判定** —— 用户自定义的阶段不会造成假的"缺口"，
-        // 但仍会展示，也会推荐该阶段的能力。
-        return { satisfied: true, evidence: '该阶段未声明判定信号，不参与"当前阶段"判定' }
-    }
-  }
+  const ctx = buildSignalContext(workspace)
 
   const statuses: StageStatus[] = stages.map((stage) => {
-    const { satisfied, evidence: basis } = judge(stage.signal)
+    const { satisfied, evidence: basis } = judgeSignal(ctx, stage.signal)
     return { stage, satisfied, evidence: basis }
   })
 

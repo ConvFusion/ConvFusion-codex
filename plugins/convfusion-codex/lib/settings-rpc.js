@@ -49,13 +49,13 @@
  *
  * 用户拍板：**设置里只配置文件名**，定制内容存独立文件。理由是可验证的：
  * 设置文档（`$DSH_HOME/settings.yaml`）每次提交都会整体序列化并落盘，
- * 47 个 Skill × 6 个可定制章节的正文塞进去会让它膨胀到不可读、不可手改。
+ * 55 个 Skill × 7 个可定制章节的正文塞进去会让它膨胀到不可读、不可手改。
  *
  * 因此本渠道分两类端点，不要混淆：
  *
  * | 类 | 落盘位置 | 端点 |
  * |---|---|---|
- * | **配置**（文件名 / 目录） | settings 文档（客户端经 `settingsScope` 读写，不经本渠道） | — |
+ * | **配置**（文件名 / 目录） | profile 条目 `convfusion` 的 config（客户端经 `configForms` 读写，不经本渠道） | — |
  * | **定制内容**（章节覆盖文本） | `$DSH_HOME/convfusion/<file>.json` | `customization/*` |
  *
  * ## v2 与 v0.1.5 的结构差异（重建时最容易错的地方）
@@ -72,13 +72,24 @@
  * 所以 v0.1.5 的 `methodTemplates[module][promptId]` 在 v2 里就是
  * `customizations[skillId][section]` —— 存储形态没变，变的只是键的语义。
  */
-import { existsSync } from 'node:fs';
-import { OPENALEX_API_KEY_ENV } from './config.js';
+import { existsSync, realpathSync, statSync } from 'node:fs';
+import { basename, resolve } from 'node:path';
+import { CONVFUSION_API_KEY_ENV, OPENALEX_API_KEY_ENV, defaultServerUrl, serverUrlPresets, serverSlotOf, serverAddressKey, } from './config.js';
 import { HOST_PROTOCOL, HOST_PROTOCOL_FIELD } from './protocol.js';
+import { checkSideChange } from './research/sync-watermarks.js';
+import { judgeWorkspace, makeWorkIdentity, normalizeWorkspaceId, readLocalIdentity, writeWorkMarker, } from './research/work-identity.js';
 import { CUSTOMIZABLE_SECTIONS, clearAllCustomizations, listCustomizationPoints, systemLibraryStatus, } from './research/skill-customization.js';
-import { describeOpenAlexKey, redactConfig, resolveCustomizationPath } from './config.js';
+import { effectiveSkillContentById } from './research/library.js';
+import { openDownloadPart, readResearchFile, safeDirName, } from './research/workspace-sync.js';
+import { describeConvFusionKey, describeOpenAlexKey, redactConfig, resolveConvFusionApiKey, resolveCustomizationPath, resolveServerUrl, } from './config.js';
+import { acceptInvitation, createProject, fetchAcceptProposal, fetchAccount, fetchProjectArchive, fetchProjectFiles, fetchProjectFilesWithIdentity, fetchFeeSuggestion, fetchProposals, fetchPropose, fetchRejectProposal, fetchTokenBalance, fetchWorkBrief, fetchWorkList, fetchWorkSummary, normalizeApiKey, normalizeBaseUrl, fetchUsage, fetchProject, probeServerHealth, publishProject, readStateVersion, updateProject, submitRechargeRequest, fetchRechargeRequests, PROJECT_DIRECTIONS, SERVER_TIMEOUT_MS, ServerError, uploadProjectFiles, uploadWorkspaceFiles, uploadResearchState, } from './server-client.js';
 import { isResearchWorkspace, researchWorkspaceOf } from './research/workspace.js';
 import { latestTurnReport } from './research/progress-bridge.js';
+import { buildWorkspaceProgress, captureProgress } from './research/progress.js';
+import { buildPublishContent } from './research/publish-content.js';
+import { researchWorkName } from './research/work-name.js';
+import { buildUploadPlan, planUploadBatches, } from './research/upload-selection.js';
+import { createMemoryPublishedStore, parsePublishedStoreKey, } from './research/published-store.js';
 import { findTectonic, tectonicVersion, TECTONIC_ENV } from './research/latex-compile.js';
 /**
  * 设置面的 HTTP 路由前缀（客户端必须用同一个）。
@@ -88,8 +99,145 @@ import { findTectonic, tectonicVersion, TECTONIC_ENV } from './research/latex-co
 export const SETTINGS_ROUTE_PREFIX = '/dsh-convfusion';
 /** 请求体上限（状态是只读的，写请求也很小；4 MiB 足够且能挡住误用）。 */
 export const SETTINGS_MAX_BODY_BYTES = 4 * 1024 * 1024;
+/** 更新检查：GitHub Releases API（`releases/latest`；尚无任何 release 时返回 404）。 */
+const GITHUB_LATEST_RELEASE_URL = 'https://api.github.com/repos/ConvFusion/ConvFusion-codex/releases/latest';
+/** 更新检查结果缓存时长（进一次设置页就打一次 GitHub 没必要）。 */
+const VERSION_CHECK_TTL_MS = 10 * 60 * 1000;
+/** 更新检查单次请求超时（GitHub 不可达时静默降级，绝不阻塞设置页）。 */
+const VERSION_CHECK_TIMEOUT_MS = 5000;
 function fail(code, message) {
     return { ok: false, error: { code, message, details: {} } };
+}
+/**
+ * 把宿主工作区注册表的**原始实体**归一成纯数据。
+ *
+ * 规则照抄 `dsh-additive` 的 `listWorkspaces`（那套已经在跑，行为经过验证）：
+ *
+ * ```text
+ * ① path 必填，取不到 → 跳过该条
+ * ② id 缺失 → 回退为 path
+ * ③ 去重：id 或 path 任一已出现 → 跳过
+ * ④ 顺序 = 注册表顺序（list() 不重排），与侧边栏那份清单一致
+ * ```
+ *
+ * 只做纯数据归一：目录是否存在 / 真身路径由 fs 探测（见 `work/mine`），
+ * 标题的友好缺省也留给端点（研究根永远叫 `workspace`，不能拿它当标题）。
+ */
+export function normalizeWorkspaceEntities(entities) {
+    const out = [];
+    const seen = new Set();
+    for (const entity of entities) {
+        const path = typeof entity?.path === 'string' ? entity.path.trim() : '';
+        if (!path)
+            continue;
+        const id = (typeof entity?.id === 'string' && entity.id.trim() ? entity.id : path).trim();
+        if (seen.has(id) || seen.has(path))
+            continue;
+        seen.add(id);
+        seen.add(path);
+        out.push({
+            id,
+            title: typeof entity?.title === 'string' ? entity.title : '',
+            path,
+            updatedAt: typeof entity?.updatedAt === 'string' ? entity.updatedAt : '',
+        });
+    }
+    return out;
+}
+/**
+ * 查一个候选目标工作区。
+ *
+ * 与 `collectLocalWorks` 的**区别**（所以没复用它）：那个只保留"有效研究项目"，
+ * 而下载目标必须**包含没有研究的工作区** —— "空工作区"正是最常见的合法目标
+ * （导师第一次指导学生、或另存为新研究根）。
+ */
+export function inspectDownloadTarget(path) {
+    let canonical = resolve(path);
+    let isDir = false;
+    try {
+        canonical = realpathSync(path);
+        isDir = statSync(canonical).isDirectory();
+    }
+    catch {
+        isDir = false;
+    }
+    // 无研究定义时 researchWorkspaceOf 会返回 `<ws>/workspace`（还不存在的路径）—— 靠 isResearchWorkspace 区分
+    const root = isDir ? researchWorkspaceOf(canonical) : null;
+    const hasResearch = root !== null && isResearchWorkspace(root);
+    const layout = !hasResearch
+        ? null
+        : root === canonical
+            ? 'legacy'
+            : 'nested';
+    return {
+        exists: isDir,
+        canonical,
+        // ⚠️ 没有研究时**也**给出根目录（"将会是"）：整理提示词的目标就是它
+        researchRoot: root,
+        layout,
+    };
+}
+/**
+ * 把"注册表条目 + 服务器给的标识"判成一个目标项。
+ *
+ * @param item 注册表条目（id/title/path）。
+ * @param remoteWorkspaceId 本次下载项在服务器上的标识；`null` = 服务器没给（老服务器）。
+ * @param store 插件侧注册表（第二级身份）；缺省 = 只有工作区内标记这一级。
+ */
+export function buildDownloadTarget(item, remoteWorkspaceId, store) {
+    const info = inspectDownloadTarget(item.path);
+    // 只有**真的有研究根**时才去读身份：`new` 时那个路径还不存在，读到什么都是噪声
+    const identity = info.layout !== null && info.researchRoot
+        ? readLocalIdentity(info.researchRoot, store)
+        : { workspaceId: null, source: null, conflict: false };
+    const status = judgeWorkspace({
+        exists: info.exists,
+        hasResearch: info.layout !== null,
+        localWorkspaceId: identity.workspaceId,
+        remoteWorkspaceId,
+    });
+    return {
+        id: item.id,
+        title: item.title,
+        path: item.path,
+        exists: info.exists,
+        researchRoot: info.researchRoot,
+        layout: info.layout,
+        status,
+        localWorkspaceId: identity.workspaceId,
+        identityConflict: identity.conflict,
+        canonical: info.canonical,
+    };
+}
+/** 去掉宿主侧的 `canonical` 再回给界面。 */
+export function toWireTarget(built) {
+    const { canonical: _canonical, ...wire } = built;
+    return wire;
+}
+/**
+ * 组装登录状态（纯函数，可离线验证）。
+ *
+ * @param config 生效配置（**可含明文 Key** —— 本函数只读它的"有没有"，不把它放进结果）
+ * @param env 环境变量（测试注入）
+ * @param account 已验证的账号（未验证传 null）
+ * @param options.fresh 忽略环境配置文件的进程内缓存（测试用）
+ */
+export function buildAccountState(config, env = process.env, account = null, options = {}) {
+    const server = resolveServerUrl(config, env, options);
+    const key = describeConvFusionKey(config, env);
+    return {
+        serverUrl: server.url,
+        defaultServerUrl: defaultServerUrl(env),
+        serverUrlSource: server.source,
+        serverPresets: serverUrlPresets(env, options),
+        environment: server.environment,
+        serverUrlMismatch: server.mismatched,
+        keyConfigured: key.configured,
+        keySource: key.source,
+        apiKeyEnvVar: CONVFUSION_API_KEY_ENV,
+        account,
+        tokens: options.tokens ?? null,
+    };
 }
 /**
  * 检测本地外部依赖。
@@ -107,7 +255,7 @@ export function describeLocalDependencies(env = process.env) {
             ...(bin ? { version: tectonicVersion(bin) } : {}),
             viaEnv: Boolean(override && bin === override),
             envVar: TECTONIC_ENV,
-            purpose: '把论文的 LaTeX 源码编译成 PDF（研究论文最终交付格式）。',
+            purposeCode: 'latex-pdf-compile',
         },
     };
 }
@@ -116,7 +264,7 @@ export function describeLocalDependencies(env = process.env) {
  *
  * 分组在这里做，客户端只负责渲染 —— 设置页不该自己理解 Skill 的存储结构。
  */
-export function buildSettingsState(config, store, resolvePath = resolveCustomizationPath, probeDependencies = describeLocalDependencies) {
+export function buildSettingsState(config, store, resolvePath = resolveCustomizationPath, probeDependencies = describeLocalDependencies, env = process.env, version = '0.0.0') {
     const customizations = store.load();
     const path = resolvePath(config);
     const categories = listCustomizationPoints('', customizations).map((cat) => {
@@ -164,6 +312,7 @@ export function buildSettingsState(config, store, resolvePath = resolveCustomiza
     return {
         // 宿主内存中的协议版本（与客户端 bundle 内联的那份对比，见 protocol.ts）
         [HOST_PROTOCOL_FIELD]: HOST_PROTOCOL,
+        version,
         // 注意 redactConfig：这条路不经过 DSH 的远端脱敏，必须自己摘掉 secret
         config: redactConfig(config),
         file: { path, exists, skillCount: Object.keys(customizations).length, entryCount },
@@ -174,11 +323,148 @@ export function buildSettingsState(config, store, resolvePath = resolveCustomiza
             ...describeOpenAlexKey(config),
             envVar: OPENALEX_API_KEY_ENV,
         },
+        // 【ConvFusion.com】：只给"服务器地址 + 有没有凭据"。⚠️ 不联网、不带凭据。
+        account: buildAccountState(config, env),
         dependencies: probeDependencies(),
     };
 }
+/* ════════════════════════════════════════════════════════════════════════
+ * 分发
+ * ════════════════════════════════════════════════════════════════════════ */
+/** 文件内容指纹（与服务器 `FileMetadata.sha256` 同格式）。 */
+async function fileDigest(absPath) {
+    const { createHash } = await import('node:crypto');
+    const { readFile } = await import('node:fs/promises');
+    const buf = await readFile(absPath);
+    return `sha256:${createHash('sha256').update(buf).digest('hex')}`;
+}
+/**
+ * 上传一批文件时估算的**最低吞吐**（50 KB/s），只用来把"总超时"折算成体积的函数。
+ *
+ * 为什么不能沿用 `SERVER_TIMEOUT_MS`（8 秒）：那个常数管的是"服务器还活着吗"，
+ * 对表单查询合适；而上传是**整批读完才回响应**，8 秒连 1 MB 都传不完。
+ * 实测那条细链路约 120 KB/s —— 30 MB 的一批要 4 分钟以上，用 8 秒超时只会
+ * 让每一次回传都稳定失败（而且看起来像"服务器挂了"）。
+ *
+ * 取 50 KB/s 而不是 120 KB/s：宁可等久一点，也不要在大文件上假失败。
+ */
+export const MIN_UPLOAD_BYTES_PER_SEC = 50 * 1024;
+/** 单批上传的硬上限（30 分钟）：再慢也该报错，不能无限挂着。 */
+export const UPLOAD_TIMEOUT_MAX_MS = 30 * 60 * 1000;
+/**
+ * 一批文件的**总超时**（毫秒）：`基础超时 + 体积/最低吞吐`。
+ *
+ * 判据是"这批字节在最慢可接受的链路下要多久" —— 与下载那次修复同一个思路：
+ * **慢 ≠ 死**，超时阈值必须跟着体积走，否则大文件永远传不上去。
+ */
+export function uploadTimeoutForBytes(bytes, minBytesPerSec = MIN_UPLOAD_BYTES_PER_SEC) {
+    const byVolume = Math.ceil((Math.max(0, bytes) / minBytesPerSec) * 1000);
+    return Math.min(UPLOAD_TIMEOUT_MAX_MS, SERVER_TIMEOUT_MS + byVolume);
+}
 function asString(v) {
     return typeof v === 'string' ? v.trim() : '';
+}
+/**
+ * 归一 `source`（服务器 `?source=owner|mentor`，见 `server-client.ts` 的 {@link FileSource}）。
+ *
+ * 缺省 = `owner`：这与服务器的默认一致，也是旧客户端（不带这个字段）的行为 ——
+ * 新宿主配旧界面时只会"读到学生那一侧"，不会因为参数缺失而报错。
+ * 其他取值一律当缺省处理（服务器那边会 422，轮不到我们递奇怪的值过去）。
+ */
+function asSource(v) {
+    return asString(v) === 'mentor' ? 'mentor' : 'owner';
+}
+/**
+ * 归一研究方向（`SEEK_MENTOR` / `SEEK_STUDENT`）。
+ *
+ * 缺省 = `SEEK_MENTOR`：这是"学生发布研究求指导"的方向，也是**今天唯一存在的行为**
+ * —— 旧界面（不带这个字段）点【寻找指导】时走的正是它。
+ * 其它取值一律当缺省处理，不把奇怪的值递给服务器。
+ */
+function asDirection(v) {
+    return asString(v) === 'SEEK_STUDENT' ? 'SEEK_STUDENT' : 'SEEK_MENTOR';
+}
+/** 正整数（费用类字段：0 / 负数 / 非数字一律视为无效）。 */
+function asInt(v) {
+    return typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : 0;
+}
+/** 普通对象读取（非对象 → null，不抛）。 */
+function asRecordLike(v) {
+    return v !== null && typeof v === 'object' && !Array.isArray(v)
+        ? v
+        : null;
+}
+/**
+ * 比较两个版本串（容忍 `v` 前缀与 `-rc.x` 后缀）：按点分数字段比较，
+ * 返回 `-1 | 0 | 1`。解析失败按 0 处理（防御即可，版本串都是自己维护的）。
+ */
+export function compareVersions(a, b) {
+    const parse = (v) => v
+        .trim()
+        .replace(/^[vV]/, '')
+        .split(/[-+]/)[0]
+        .split('.')
+        .concat(v.match(/-codex\.(\d+)(?:\+.*)?$/)?.[1] ?? '0')
+        .map((n) => {
+        const x = Number.parseInt(n, 10);
+        return Number.isNaN(x) ? 0 : x;
+    });
+    const pa = parse(a);
+    const pb = parse(b);
+    const len = Math.max(pa.length, pb.length);
+    for (let i = 0; i < len; i++) {
+        const x = pa[i] ?? 0;
+        const y = pb[i] ?? 0;
+        if (x > y)
+            return 1;
+        if (x < y)
+            return -1;
+    }
+    return 0;
+}
+/**
+ * 查 GitHub 上最新的 Release（`releases/latest`）。
+ *
+ * ⚠️ 失败（离线 / 超时 / 尚无任何 release → 404）一律返回 null：
+ * 更新检查是**增值**能力，绝不能因 GitHub 不可达而让设置页报错或变慢。
+ */
+async function fetchLatestRelease(fetchImpl, timeoutMs) {
+    if (typeof fetchImpl !== 'function')
+        return null;
+    const controller = new AbortController();
+    let timer;
+    const timeout = new Promise((_resolve, reject) => {
+        timer = setTimeout(() => {
+            controller.abort();
+            reject(new Error('timeout'));
+        }, timeoutMs);
+    });
+    try {
+        const res = (await Promise.race([
+            fetchImpl(GITHUB_LATEST_RELEASE_URL, {
+                headers: { accept: 'application/vnd.github+json', 'user-agent': 'dsh-convfusion' },
+                signal: controller.signal,
+            }),
+            timeout,
+        ]));
+        if (!res || !res.ok || res.status === 404)
+            return null;
+        const body = (await res.json());
+        if (typeof body?.tag_name !== 'string' || !body.tag_name)
+            return null;
+        return {
+            // 统一去掉 `v` 前缀：客户端渲染时自己加 `v`，两边口径一致
+            latest: body.tag_name.replace(/^[vV]/, ''),
+            url: typeof body.html_url === 'string' ? body.html_url : '',
+        };
+    }
+    catch {
+        return null;
+    }
+    finally {
+        if (timer !== undefined)
+            clearTimeout(timer);
+    }
 }
 /**
  * 建立一个端点分发器。
@@ -189,13 +475,541 @@ function asString(v) {
  * |---|---|---|
  * | `state` | `{}` | 整页状态（类别 → Skill → 章节） |
  * | `dependencies/check` | `{}` | 重新探测本地外部依赖（tectonic），供【系统设置】的"重新检查" |
+ * | `version/check` | `{}` | 插件更新检查（GitHub Releases `latest`；离线/无 release 时 `latest:null`） |
  * | `customization/save` | `{ skillId, section, text }` | 写入覆盖（空文本 = 清除） |
  * | `customization/reset` | `{ skillId, section }` | 清除一个章节的覆盖 |
  * | `customization/resetSkill` | `{ skillId }` | 清除一个 Skill 的全部覆盖 |
  * | `customization/resetAll` | `{}` | 清除全部定制（回到全系统原文） |
+ * | `account/state` | `{}` | 【ConvFusion.com】登录状态（**不联网**） |
+ * | `account/probe` | `{ serverUrl? }` | **只测连通性**（匿名 `/health`，最长 8 秒）；`reachable` 是结果不是错误 |
+ * | `account/serverUrl` | `{ serverUrl }` | 保存服务器地址（空串 = 跟随环境配置）；只改地址**不动凭据** |
+ * | `account/login` | `{ apiKey, serverUrl? }` | 用 API Key 登录（联网验证后落盘） |
+ * | `account/register` | `{ invitationCode, email, displayName, serverUrl? }` | 凭邀请码注册并登录 |
+ * | `account/verify` | `{}` | 用已保存的凭据重新验证身份（联网） |
+ * | `account/logout` | `{}` | 清除凭据（账号信息随之消失） |
+ * | `account/tokens` | `{}` | 重新读 Token 余额（登录后显示 / 花完 Token 后刷新） |
+ * | `account/usage` | `{}` | 用量与配额（存储空间已用 / 总额 + 项目阶梯 + 下次发布花费）；读不到 = `usage:null` |
+ * | `account/recharge-request` | `{ amount, reason? }` | 提交**续费申请**（只记录意向，不改余额；管理员事后批准） |
+ * | `account/recharge-requests` | `{}` | 查看**本人**的续费申请记录（判断有没有待处理的） |
+ * | `work/mine` | `{}` | **本机**研究工作（有效研究项目的工作区；不联网、不需登录） |
+ * | `work/uploadPlan` | `{ id }` | 发布前的**上传计划**（分类/体积/默认选择）+ 用量与配额 |
+ * | `work/publish` | `{ id, selection?, remember? }` | 发布：建项目 → 传状态 → **传附件** → 发布 |
+ * | `work/list` | `{}` | 研究网络里已公开的研究工作（需登录；条数由服务器定） |
+ * | `work/summary` | `{ projectId }` | 一项研究工作的摘要（免费） |
+ * | `work/brief` | `{ projectId, intentKey }` | 一项研究工作的简报（非 owner 花 1 Token） |
+ * | `mentor/fee-suggestion` | `{}` | 默认指导费用建议（100 / 20 / 80，导师可改） |
+ * | `mentor/propose` | `{ projectId, guidanceScope, totalFee, depositAmount, successPaymentAmount, successCondition }` | 发起指导提案（免费；同一项目同一导师只能有一个生效提案） |
+ * | `mentor/list` | `{}` | 我涉及的指导提案（我发起的 + 我收到的）；ACCEPTED 的带 `reviewFiles`（导师已上传几份，服务器 `review_files`）与 **`sync`**（"学生更新了工作区吗"：与本地水位比对的结果，`null` = 无从判断） |
+ * | `mentor/accept` | `{ proposalId, intentKey }` | 接受指导（研究者）→ **冻结押金**、建合同与关系 |
+ * | `mentor/reject` | `{ proposalId }` | 拒绝指导（研究者） |
+ * | `mentor/downloadState` | `{ projectId, prefix, source? }` | 【下载】对话框一次拿齐：预检（文件数 / 体积 / 预计文件名）+ **全部**可选工作区（`source` 选哪一侧，省略 = `owner`） |
+ * | `mentor/download` | `{ projectId, workspaceId, prefix, source? }` | 只把 ZIP 存进所选工作区（**流式落盘、不解压、不覆盖**，同名加序号） |
+ * | `mentor/downloadProgress` | `{ projectId }` | 下载期间的实时进度 `{ received, running }`（界面按秒问；本地读，不触网） |
+ * | `mentor/uploadState` | `{}` | 【上传】对话框的工作区下拉：本机**含研究定义**的工作区（`<ws>/workspace/` 或旧布局 `<ws>`） |
+ * | `mentor/uploadPlan` | `{ workspaceId }` | 所选工作区的**文件清单**（`mentor` 口径分类 + 默认勾选 + 体积 + 超限项） |
+ * | `mentor/upload` | `{ projectId, workspaceId, paths, source? }` | 回传"我这一份工作区"：与**自己那一侧**的 `sha256` 比对 → 只传变化的 → 分批上传 |
+ * | `mentor/uploadProgress` | `{ projectId }` | 上传期间的实时进度 `{ doneFiles, totalFiles, sentBytes, totalBytes, running }`（本地读、不触网） |
+ *
+ * ⚠️ **两侧并存**（协议 v20，服务器 `?source=owner|mentor`）：项目文件空间里同一路径可以
+ * 同时存在学生自己那份（`owner`）与导师回传那份（`mentor`），**互不覆盖**。规矩是
+ * **比对自己那一侧、下载对方那一侧**（表见 `server-client.ts` 的 `FileSource`）。
+ * 不带 `source` → 一律按 `owner`（= 服务器默认，也是 v19 界面的行为：不会出错，
+ * 但学生读不到导师那份）。
+ *
+ * ⚠️ 回传**按原相对路径**写进项目文件空间的**导师那一侧**（v20 起两侧并存，
+ * 与学生那份同名而互不覆盖）—— 因此需要服务器允许导师写 `review/` 之外的路径
+ * （见 `server-client.ts` 的 `MENTOR_REVIEW_PREFIX` 与
+ * `dev-notes/v0.5.4-mentor-workspace-upload.md`）。旧服务器上会拿到 403
+ * `FILE_PATH_RESERVED` → `path-reserved`，界面**如实说**"服务器需放开"。
+ *
+ * ℹ️ v19 删除了 `mentor/pickDirectory` 与 `mentor/scanReview`：上传源不再是"用户手选的
+ * 磁盘目录 + 只扫 `review/`"，而是**注册表里的工作区 + 研究根全量清单**。
+ *
+ * ⚠️ **凭据纪律**（改动这里前先读 `server-client.ts` 文件头）：
+ * 服务器地址与 API Key 只出现在**宿主**与**服务器**之间；本渠道的任何返回值都不得
+ * 包含 `cf_live_…`。`account/*` 一律返回 {@link AccountState}（只有可用性 + 账号信息）。
  */
 export function createSettingsRpcHandler(deps) {
-    const state = () => buildSettingsState(deps.getConfig(), deps.store, deps.resolvePath ?? resolveCustomizationPath);
+    const env = () => deps.env ?? process.env;
+    const state = () => buildSettingsState(deps.getConfig(), deps.store, deps.resolvePath ?? resolveCustomizationPath, describeLocalDependencies, env(), deps.version);
+    /** 服务器请求参数（统一注入 fetch / 超时 / 环境变量）。 */
+    const netOptions = () => ({
+        ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
+        ...(deps.serverTimeoutMs === undefined ? {} : { timeoutMs: deps.serverTimeoutMs }),
+    });
+    /**
+     * 【下载】的**实时进度**（`mentor/downloadProgress` 读它）。
+     *
+     * 为什么要有：浏览器↔宿主是**一次请求一次响应**，而下载一个十几 MB 的工作区快照
+     * 在细链路上要一两分钟 —— 那段时间里界面只有一句「读取中…」，用户分不清慢和死
+     * （2026-09 真实反馈）。宿主是下载的那一方，只有它知道"已经收了多少字节"，
+     * 所以它在自己进程里记着，界面按秒来问。
+     *
+     * 只记**最近一次**下载：同一时刻界面只允许开一个下载对话框（按钮 busy 期间禁用）。
+     */
+    let downloadProgress = null;
+    /**
+     * 【上传】的**实时进度**（`mentor/uploadProgress` 读它）。
+     *
+     * 与下载对称、理由相同：传一整个工作区是"几十个文件 / 几十 MB"的一串请求，
+     * 浏览器那一次 `post` 要等到**全部批次**做完才返回。没有进度的话，用户面对的
+     * 就是一分钟以上的「上传中…」——分不清慢和死（2026-09 下载那次的原话）。
+     *
+     * ⚠️ **两个流程共用这一份记录**（都按 `projectId` 区分，所以不会互相读到）：
+     *   1. 导师回传文件（`mentor/upload`）；
+     *   2. **发布研究工作**（`work/publish` 的附件阶段）。
+     * 界面把两者画成同一根进度条 —— 之前只有 (1) 上报，于是【我的】里发布一个带附件的
+     * 工作时完全没有进度（2026-10 用户实测报告）。
+     *
+     * 只记**最近一次上传**：界面在 busy 期间禁用按钮，同一时刻只有一次。
+     */
+    let uploadProgress = null;
+    /**
+     * 开始记录一次文件上传（返回**正在被递增的那个对象**，调用方按批更新它）。
+     *
+     * `totalFiles` / `totalBytes` 允许先给 0（"还不知道要传什么，但活已经开始了"）：
+     * 界面据此先显示"进行中"的进度条，等文件清单算出来再变成确定的百分比。
+     */
+    const beginUploadProgress = (keys, totalFiles, totalBytes) => {
+        const record = { keys: [...new Set(keys.filter(Boolean))], doneFiles: 0, totalFiles, sentBytes: 0, totalBytes, running: true };
+        uploadProgress = record;
+        return record;
+    };
+    /**
+     * 更新检查：进程内缓存 + 静默降级（见 {@link fetchLatestRelease}）。
+     * 缓存失败结果同样防抖 —— 不可达时也不能每次进设置页都重试。
+     */
+    let versionCheckCache = null;
+    const checkGitHubVersion = async () => {
+        const current = deps.version ?? '0.0.0';
+        const now = Date.now();
+        const cached = versionCheckCache && now - versionCheckCache.at < VERSION_CHECK_TTL_MS ? versionCheckCache : null;
+        if (cached) {
+            return {
+                current,
+                latest: cached.latest,
+                outdated: cached.latest !== null && compareVersions(cached.latest, current) > 0,
+                url: cached.url,
+                checkedAt: new Date(cached.at).toISOString(),
+            };
+        }
+        const found = await fetchLatestRelease(deps.fetchImpl, VERSION_CHECK_TIMEOUT_MS);
+        versionCheckCache = { at: now, latest: found?.latest ?? null, url: found?.url ?? null };
+        return {
+            current,
+            latest: versionCheckCache.latest,
+            outdated: versionCheckCache.latest !== null && compareVersions(versionCheckCache.latest, current) > 0,
+            url: versionCheckCache.url,
+            checkedAt: new Date(now).toISOString(),
+        };
+    };
+    /**
+     * 当前凭据对应的账号 id（"这一项简报买过没有"要按**账号**分开记）。
+     *
+     * 缓存的键**含凭据**：同一台服务器换账号登录绝不会命中上一个人的记录 ——
+     * 复用别人的"已买过"会导致**静默扣费**，正是要避免的事。
+     *
+     * 解析失败一律返回 `null`（= 不知道）：界面照常弹确认框。宁可多问一次。
+     */
+    const accountIdCache = new Map();
+    const resolveAccountId = async (base, apiKey) => {
+        const cacheKey = `${base}\u0000${apiKey}`;
+        const cached = accountIdCache.get(cacheKey);
+        if (cached)
+            return cached;
+        try {
+            const me = await fetchAccount(base, apiKey, netOptions());
+            accountIdCache.set(cacheKey, me.id);
+            return me.id;
+        }
+        catch {
+            return null;
+        }
+    };
+    /**
+     * 给列表补上"这一项的简报已经买过"（本地记忆，见 `paid-briefs.ts`）。
+     *
+     * 拿不到账号时**不标注**（`briefOpened` 保持缺省）—— 界面会照常提醒，
+     * 只是多问一次，而不会漏问。
+     */
+    const annotateOpenedBriefs = async (base, apiKey, items) => {
+        if (!deps.paidBriefStore || items.length === 0)
+            return items;
+        const accountId = await resolveAccountId(base, apiKey);
+        if (!accountId)
+            return items;
+        return items.map((item) => ({
+            ...item,
+            briefOpened: deps.paidBriefStore.has(base, accountId, item.projectId),
+        }));
+    };
+    /**
+     * 把凭据（以及可选的服务器地址）写回设置，并返回**写完之后**的登录状态。
+     *
+     * ⚠️ 不能写回后再 `getConfig()` 读一遍：`settings.update()` 是异步提交，
+     * 宿主还要等下一轮才把新值写进 volatile 引用 —— 立刻重读会拿到旧值，
+     * 界面会显示"未登录"，看起来像失败。
+     * 所以这里用 patch 与旧配置**显式合并**出返回值。
+     */
+    const persist = async (patch, account, tokens = null) => {
+        if (!deps.setConfig) {
+            return fail('storage-unavailable', '设置存储当前不可用，无法保存 ConvFusion.com 凭据。请检查 DSH 的设置服务是否正常。');
+        }
+        try {
+            await deps.setConfig(patch);
+        }
+        catch (e) {
+            return fail('storage-unavailable', `保存凭据失败：${e instanceof Error ? e.message : String(e)}`);
+        }
+        const merged = { ...deps.getConfig(), ...patch };
+        return { ok: true, value: buildAccountState(merged, env(), account, { tokens }) };
+    };
+    /**
+     * 读余额，**尽力而为**：失败返回 null（不抛出）。
+     *
+     * 余额是登录成功的"附加信息"：把它做成硬依赖，会让一次网络抖动把已经成功的登录
+     * 变成失败（用户看到的是"登录失败"，实际凭据已经验证通过并落盘）——
+     * 那是最容易让人误判的形态。拿不到就不显示，用户点「重新验证」即可。
+     */
+    const tryBalance = async (base, apiKey) => {
+        try {
+            return await fetchTokenBalance(base, apiKey, netOptions());
+        }
+        catch {
+            return null;
+        }
+    };
+    /** 把 `ServerError` 变成设置面的失败信封（code 原样带出，界面据此给动作）。 */
+    const serverFail = (e) => {
+        if (e instanceof ServerError)
+            return fail(e.code, e.message);
+        return fail('internal', e instanceof Error ? e.message : String(e));
+    };
+    /**
+     * 定这次登录/注册要连哪台服务器。
+     *
+     * 请求里给了地址就用它（用户在界面上改过），否则用**当前生效**的地址 ——
+     * 即 `resolveServerUrl` 的完整优先级（设置文档 > 环境变量 > 环境配置文件 > 内置兜底）。
+     * 不能退化成"内置兜底"：那会让"没填地址"在生产环境里指向开发机。
+     *
+     * @throws {ServerError} `bad-url`
+     */
+    const requestBase = (raw) => {
+        const given = typeof raw === 'string' ? raw.trim() : '';
+        if (given)
+            return normalizeBaseUrl(given);
+        return normalizeBaseUrl(resolveServerUrl(deps.getConfig(), env()).url);
+    };
+    /**
+     * 把一把 Key 写进**它所属服务器**的槽，并顺手完成旧单值结构（`convfusionApiKey`）的迁移。
+     *
+     * 背景（2026-09 用户报的 bug）：凭据是**绑定在服务器上**的，但配置里只有一份。
+     * 换到线上后宿主仍把那份开发 Key 发过去，服务器当然不认，用户看到的却是一句
+     * 「API Key 无效或不存在，请核对后重试」—— 话没说错，但完全指错了方向。
+     * 现在分两个槽（`convfusionDevApiKey` / `convfusionProdApiKey`），按地址取用。
+     *
+     * ⚠️ **迁移方向：旧单值字段 → 开发槽**。单值时代只有开发服务器（生产域名当时还没开通），
+     * 那份 Key 必然属于开发服务器。写进开发槽有两个好处：① 保住它，切回本机就能直接用；
+     * ② 绝不会被发到线上 —— 把开发 Key 发给线上服务器就是白送凭据。
+     *
+     * 槽的赋值排在迁移**之后**，保证本次登录的 Key 一定落到正确的槽里，不被迁移覆盖。
+     */
+    const credentialPatch = (config, base, apiKey) => {
+        const slot = serverSlotOf(base, env());
+        const legacy = (config.convfusionApiKey ?? '').trim();
+        const migration = {};
+        if (legacy) {
+            if (!(config.convfusionDevApiKey ?? '').trim())
+                migration.convfusionDevApiKey = legacy;
+            // 迁移完成：旧字段清空，避免同一份凭据在两处长期并存（也就不再被误读）
+            migration.convfusionApiKey = '';
+        }
+        return {
+            ...migration,
+            serverUrl: base,
+            ...(slot === 'development' ? { convfusionDevApiKey: apiKey } : { convfusionProdApiKey: apiKey }),
+        };
+    };
+    /**
+     * 本机研究工作的映射存储。
+     *
+     * 入口会注入**落盘**的实现；没注入时退回内存表（重启即失）——
+     * 这样精简 profile / 测试里插件仍能工作，只是不会记住"已发布"。
+     */
+    const publishedStore = deps.publishedStore ?? createMemoryPublishedStore();
+    /**
+     * 与"上次已上传的指纹"对比，算出**新增/变化**的文件。
+     *
+     * ⚠️ 服务器**不去重**（同路径重复上传 = 新行 + 新字节），所以「更新」只能靠
+     * 本地指纹做增量 —— 否则每点一次「更新」，185 个文件就在服务器上多一份。
+     */
+    const diffAgainstUploaded = async (researchRoot, record) => {
+        const known = record?.files ?? {};
+        const changed = [];
+        const unchanged = [];
+        for (const [relPath, digest] of Object.entries(known)) {
+            const abs = resolve(researchRoot, relPath);
+            if (!existsSync(abs))
+                continue; // 本地已删除：这里不处理（服务器侧删除要显式 DELETE）
+            const now = await fileDigest(abs);
+            if (now === digest)
+                unchanged.push(relPath);
+            else
+                changed.push(relPath);
+        }
+        return { changed, unchanged };
+    };
+    /**
+     * 收集本机研究工作（注册表 → 有效研究项目 → 进展快照）。
+     *
+     * `work/mine` 与 `work/publish` 共用：**进度只算一次**（读盘不便宜），
+     * 发布时就地把同一份快照组装成服务器的内容 Envelope。
+     */
+    const collectLocalWorks = async () => {
+        const listed = deps.listLocalWorkspaces
+            ? await deps.listLocalWorkspaces()
+            : { available: false, reason: '宿主未提供工作区注册表读取接口', items: [] };
+        const skillContent = (id) => effectiveSkillContentById(id, deps.store);
+        const items = [];
+        const sources = new Map();
+        for (const w of listed.items) {
+            /**
+             * 目录真身 + 是否存在。
+             *
+             * ⚠️ 用 `realpath` 而不是直接用注册表里的字符串：注册表存的是**登记时的路径**，
+             * 它可能是符号链接。Additive 的 `inspectWorkspaceDir` 就是同一语义 ——
+             * 列表显示登记值，**实际读写走真身**。
+             */
+            let canonical = resolve(w.path);
+            let isDir = false;
+            try {
+                canonical = realpathSync(w.path);
+                isDir = statSync(canonical).isDirectory();
+            }
+            catch {
+                isDir = false;
+            }
+            const missingDir = !isDir;
+            const root = researchWorkspaceOf(canonical);
+            // 只列**有效**研究项目：目录不在、或没有 project.md / research-state.md 的都跳过
+            if (missingDir || !isResearchWorkspace(root))
+                continue;
+            let progress = null;
+            try {
+                progress = buildWorkspaceProgress(captureProgress(root, skillContent));
+            }
+            catch {
+                /* 读不动就当"未知"，不把这个工作区从列表里抹掉 */
+            }
+            const title = w.title.trim() || basename(canonical);
+            /*
+             * 两个方向各读一条记录 —— 一个工作区可以**同时**是"学生求指导的研究"和
+             * "导师招学生的选题"（服务器上是两个项目）。没有的方向就不出现在数组里，
+             * 界面据此把该按钮显示成「寻找…」而不是「更新…」。
+             */
+            const published = PROJECT_DIRECTIONS.flatMap((direction) => {
+                const record = publishedStore.get(root, direction);
+                return record
+                    ? [{
+                            direction,
+                            projectId: record.projectId,
+                            version: record.version,
+                            updatedAt: record.updatedAt,
+                            serverUrl: record.serverUrl,
+                            accountId: record.accountId,
+                        }]
+                    : [];
+            });
+            if (progress)
+                sources.set(w.id, { root, title, progress });
+            /*
+             * 研究工作自己的名字与身份。
+             *
+             * - 名字：论文标题 > 已采纳主题 > 注册表标题兜底（与发布时上送的名字**同源**，
+             *   所以界面上看到的与网络里看到的是同一个名字）；
+             * - 身份：本机标记/注册表里的 `workspace_id`；新建的研究还没有 → `null`
+             *   （发布之后由服务器返回并落盘）。
+             */
+            const workName = researchWorkName(root, title).name;
+            const workId = readLocalIdentity(root, deps.workIdentity).workspaceId;
+            items.push({
+                id: w.id,
+                // 缺省标题用**会话工作区**的目录名（`.../proj-b`），不是研究根
+                // —— 研究根永远叫 `workspace`，拿它当标题等于每个项目同名
+                title,
+                workName,
+                workId,
+                // path 保留注册表里的**登记值**；researchRoot 是真身路径上的研究根
+                path: w.path,
+                researchRoot: root,
+                missingDir,
+                stage: progress?.progress.stage ?? null,
+                overall: progress?.overall ?? 0,
+                counts: progress?.counts ?? [],
+                paper: progress?.paper ?? false,
+                clarity: progress?.need.clarity ?? 'unknown',
+                updatedAt: w.updatedAt,
+                published,
+            });
+        }
+        return {
+            available: listed.available,
+            ...(listed.reason ? { reason: listed.reason } : {}),
+            items,
+            sources,
+        };
+    };
+    /**
+     * 让「已在网络中」这个标记**以服务器为准**（本地记录只能说明"我传过"）。
+     *
+     * 服务器删了项目、或把项目取消发布，本地文件不会自己知道 —— 于是界面会一直挂着
+     * 一个已经不存在的项目，点「更新」还会去写一个死掉的 `project_id`。所以列
+     * 【研究工作 · 我的】时核一次（每个已记录的工作区一次 `GET /projects/{id}`）：
+     *
+     * | 服务器回答 | 显示标记 | 本地记录 |
+     * |---|---|---|
+     * | `visibility = PUBLISHED` | 是 | 回写 `serverVisibility` + `checkedAt` |
+     * | 其它 visibility（如 `PRIVATE`） | 否 | 回写（下次发布仍复用同一项目） |
+     * | `404`（项目已删） | 否 | **删掉**（否则永远撞死 id） |
+     * | 查不通（离线/未登录/超时） | 按本地记录 | 不动 —— "读不到"不等于"服务器上没有" |
+     */
+    const verifyPublished = async (items, apiKey, base) => {
+        /*
+         * ① 先按**当前服务器**归位，这一步**与有没有凭据无关**。
+         *
+         * ⚠️ 早先的写法是"没凭据就直接原样返回"，于是切到另一台服务器（那里还没登录）时，
+         * 【我的】仍然带着**上一台服务器**的发布记录 —— 界面显示"已在网络中"，
+         * 而当前这台服务器上其实什么都没有。用户看到的和服务实际连的不是同一台。
+         *
+         * ⚠️ 逐**方向**过滤：两个方向的记录可能分属两台服务器（先在开发服发布、
+         * 后在生产服发布），不能一起丢。
+         */
+        const baseKey = serverAddressKey(base);
+        const scoped = items.map((it) => ({
+            ...it,
+            published: it.published.filter((r) => serverAddressKey(r.serverUrl) === baseKey),
+        }));
+        if (!apiKey)
+            return scoped;
+        const targets = scoped.flatMap((it) => it.published.map((r) => ({ item: it, record: r })));
+        if (targets.length === 0)
+            return scoped;
+        const checkedAt = new Date().toISOString();
+        const checks = await Promise.all(targets.map(async ({ item, record }) => {
+            try {
+                const project = await fetchProject(base, apiKey, record.projectId, netOptions());
+                return { item, record, visibility: project.visibility, workspaceId: project.workspaceId, gone: false };
+            }
+            catch (e) {
+                // 只有"服务器明确说不存在"才算消失；网络/超时/其它错误一律不下结论
+                return {
+                    item,
+                    record,
+                    visibility: null,
+                    workspaceId: undefined,
+                    gone: e instanceof ServerError && e.code === 'not-found',
+                };
+            }
+        }));
+        // 服务器说什么就写回什么（`serverVisibility` / `checkedAt`）—— 本地记录里的
+        // "我传过什么"（files / selection / version）在核对时不改
+        for (const c of checks) {
+            if (c.visibility === null && !c.gone)
+                continue;
+            const record = publishedStore.get(c.item.researchRoot, c.record.direction);
+            if (!record)
+                continue;
+            if (c.gone)
+                publishedStore.remove(c.item.researchRoot, c.record.direction);
+            else
+                publishedStore.set(c.item.researchRoot, { ...record, serverVisibility: c.visibility, checkedAt });
+        }
+        /*
+         * ② 顺带**对齐身份**：这次核对本来就回查了项目（`GET /projects/{id}`），
+         * 而它是规格里"回查已发布项目时对齐身份"的那一处。
+         *
+         * 为什么必须有：界面要按 **work_id** 区分研究工作（不是按会话工作区目录名），
+         * 而"老版本插件发布的工作"本机没有 id —— 不对齐的话那份工作永远显示不出身份，
+         * 直到用户再点一次发布。**本机已经有值时不覆盖**：值不同属于冲突，
+         * 交给既有冲突判定去说（见 `readLocalIdentity` 的纪律），这里不静默改。
+         */
+        for (const c of checks) {
+            if (!c.workspaceId)
+                continue;
+            try {
+                if (readLocalIdentity(c.item.researchRoot, deps.workIdentity).workspaceId)
+                    continue;
+                const identity = makeWorkIdentity({
+                    workspaceId: c.workspaceId,
+                    projectId: c.record.projectId,
+                    serverUrl: base,
+                    accountId: c.record.accountId,
+                    role: 'owner',
+                });
+                deps.workIdentity?.set(c.item.researchRoot, identity);
+                writeWorkMarker(c.item.researchRoot, identity);
+            }
+            catch {
+                /* 记账失败不该让列表失败 */
+            }
+        }
+        for (const c of checks) {
+            // 服务器上没有 / 已取消发布 → 这个方向不再显示"已在网络中"
+            const visible = !c.gone && (c.visibility === null || c.visibility === 'PUBLISHED');
+            if (!visible)
+                c.item.published = c.item.published.filter((r) => r !== c.record);
+        }
+        /*
+         * 身份是**上一步刚写下去的**（本次调用里 `items` 是在此之前构造的），
+         * 所以这里补一次：否则界面要等下一次刷新才看得到 work_id。
+         */
+        for (const it of scoped) {
+            if (it.workId)
+                continue;
+            it.workId = readLocalIdentity(it.researchRoot, deps.workIdentity).workspaceId;
+        }
+        return scoped;
+    };
+    /**
+     * 读**当前服务器**的发布记录（服务器不匹配就等于"没发布过"）。
+     *
+     * ⚠️ 发布记录是**绑定在服务器上**的（`record.serverUrl`）。同一个工作区在两台服务器上
+     * 都发布过时，拿另一台的记录去做"增量上传"会**漏传** —— `previousFiles[relPath]` 里那些
+     * 指纹是在**另一台**上传出来的，新服务器上根本没有这些附件，但比对结果是"没变化"，
+     * 于是被跳过。界面上的"已在网络中"同样会是假的。
+     *
+     * ⚠️ 方向也要对得上：两个方向是服务器上**两个不同的项目**，拿"求指导"那份记录去给
+     * "找学生"做增量，比对的项目根本不是同一个。
+     *
+     * 地址比较走 `serverAddressKey`：配置文件里可能带末尾斜杠，字符串直接比会错判成两台。
+     */
+    const recordOn = (root, base, direction) => {
+        const record = publishedStore.get(root, direction);
+        if (!record)
+            return undefined;
+        return serverAddressKey(record.serverUrl) === serverAddressKey(base) ? record : undefined;
+    };
+    /**
+     * 服务器的工作列表（【可指导】/【可加入】）也是**服务器**的状态；顺带把本地记录对齐。
+     *
+     * 列表里出现的项目必然是"在网络上可见"的，所以若它的 `project_id` 正好是本机
+     * 一条发布记录（自己的工作也出现在列表里），就把那条记录刷新为 `PUBLISHED`。
+     * 列表是抽样、不是全集，所以**只在命中时更新，绝不由"没出现"推断删除**。
+     */
+    const syncRecordsFromWorkList = (items) => {
+        if (items.length === 0)
+            return;
+        const ids = new Set(items.map((it) => it.projectId));
+        const checkedAt = new Date().toISOString();
+        for (const [key, record] of Object.entries(publishedStore.all())) {
+            if (!ids.has(record.projectId))
+                continue;
+            if (record.serverVisibility === 'PUBLISHED' && record.checkedAt)
+                continue;
+            const { researchRoot, direction } = parsePublishedStoreKey(key);
+            publishedStore.set(researchRoot, { ...record, direction, serverVisibility: 'PUBLISHED', checkedAt });
+        }
+    };
     return async (endpoint, payload) => {
         const p = (payload ?? {});
         try {
@@ -210,36 +1024,60 @@ export function createSettingsRpcHandler(deps) {
                  */
                 case 'dependencies/check':
                     return { ok: true, value: describeLocalDependencies() };
-                /* ── 研究进展（对话流尾部的进度卡）─────────────────────────────────
+                /**
+                 * 插件更新检查：比较当前版本与 GitHub 最新 Release。
                  *
-                 * `v2-Progress.md`：对话结束后、在**对话流**里显示本轮研究进展。
-                 * 报告由宿主在 `agent/turn-stopping` 算好（只来自磁盘真实资产），
-                 * 客户端在 `conversation.chat.turnTail` 渲染 —— 这里只负责把数据交出去，
-                 * 并按**会话自己的工作区**判定要不要显示。
+                 * 离线 / 超时 / 尚无任何 release → `latest: null`（界面不显示更新提醒），
+                 * 这是**增值**能力，GitHub 不可达绝不能让设置页报错或变慢。
                  */
-                case 'progress/session': {
+                case 'version/check':
+                    return { ok: true, value: await checkGitHubVersion() };
+                /* ── 研究进展（顶部「研究进展」按钮的面板）─────────────────────────
+                 *
+                 * `v2-Progress.md` 的三段式，但改由**顶部按钮**承载（2026-09 用户拍板）：
+                 * 回合尾部的链式槽位（`conversation.chat.turnTail`）的 selector **拿不到会话身份**
+                 * （owner 只有 `{turn, seq, openFile}`），只能靠进程级全局变量猜"当前是不是研究会话"，
+                 * 于是会命中**所有**会话；按钮挂在 `conversation.session.header.utilities`
+                 * （session 作用域，组件拿得到自己的 `sessionId`），判定天然按会话正确。
+                 *
+                 * 端点只落在**当前会话自己的工作区**上（`ctx.sessions.get(id).header.cwd`）：
+                 *
+                 * ```text
+                 * research=false → report/lastTurn 都是 null，界面连按钮都不显示
+                 * research=true  → report = 从磁盘重算的"现在到哪了"
+                 *                  lastTurn = 本会话最近一轮的"这轮改变了什么"（可能还没有）
+                 * ```
+                 */
+                case 'progress/workspace': {
                     const sessionId = asString(p.sessionId);
-                    const workspace = deps.resolveSessionWorkspace?.(sessionId);
+                    const sessionWorkspace = deps.resolveSessionWorkspace?.(sessionId);
+                    // 研究根目录（新布局 = 会话工作区下的 `workspace/`，见 workspace.ts）
+                    const root = sessionWorkspace ? researchWorkspaceOf(sessionWorkspace) : undefined;
+                    if (!root || !isResearchWorkspace(root)) {
+                        return {
+                            ok: true,
+                            value: {
+                                protocol: HOST_PROTOCOL,
+                                sessionId,
+                                workspace: sessionWorkspace ?? null,
+                                research: false,
+                                report: null,
+                                lastTurn: null,
+                            },
+                        };
+                    }
+                    // 过程判定要读**生效**的能力正文（用户可在设置里定制 `research-process`）
+                    const skillContent = (id) => effectiveSkillContentById(id, deps.store);
+                    const snapshot = captureProgress(root, skillContent);
                     return {
                         ok: true,
                         value: {
+                            protocol: HOST_PROTOCOL,
                             sessionId,
-                            workspace: workspace ?? null,
-                            research: workspace ? isResearchWorkspace(researchWorkspaceOf(workspace)) : false,
-                        },
-                    };
-                }
-                case 'progress/latest': {
-                    const sessionId = asString(p.sessionId);
-                    const workspace = deps.resolveSessionWorkspace?.(sessionId);
-                    const research = workspace ? isResearchWorkspace(researchWorkspaceOf(workspace)) : false;
-                    return {
-                        ok: true,
-                        value: {
-                            sessionId,
-                            workspace: workspace ?? null,
-                            research,
-                            report: research ? (latestTurnReport(sessionId) ?? null) : null,
+                            workspace: root,
+                            research: true,
+                            report: buildWorkspaceProgress(snapshot),
+                            lastTurn: latestTurnReport(sessionId) ?? null,
                         },
                     };
                 }
@@ -274,6 +1112,1487 @@ export function createSettingsRpcHandler(deps) {
                 case 'customization/resetAll': {
                     clearAllCustomizations(deps.store);
                     return { ok: true, value: state() };
+                }
+                /* ── ConvFusion.com 登录（账号）──────────────────────────────────────
+                 *
+                 * 服务器**没有口令登录**：账号是邀请制，唯一凭据是 API Key。所以这里的两条入口是
+                 * 「已有 Key → 验证身份」与「有邀请码 → 注册并直接拿到 Key」。
+                 *
+                 * 三件事必须始终成立：
+                 *   ① 网络请求只在这里发（宿主侧；服务器未开 CORS）；
+                 *   ② 明文 Key 只在 `deps.getConfig()` / patch 里流动，**绝不进入返回值**；
+                 *   ③ 任何失败都**不改动**已保存的凭据（只有成功才写盘）。
+                 */
+                case 'account/state':
+                    // 不联网：服务器挂了也要能打开设置页（因此也没有余额）
+                    return { ok: true, value: buildAccountState(deps.getConfig(), env(), null) };
+                case 'account/probe': {
+                    /*
+                     * **只测连通性**（设置页两个服务器快捷按钮上色用：通了=绿）。
+                     *
+                     * 与 `account/verify` 的区别：这里是**匿名**的 —— 一个字节的凭据都不带。
+                     * 换地址发生在"还没登录 / 正要换账号"的时候，那时凭据可能根本不属于这台服务器；
+                     * 而且把 Key 发到用户手输的地址上就是白送凭据。
+                     *
+                     * 返回 `ok: true` + `reachable`（"连不上"是**结果**，不是 RPC 失败）；只有地址
+                     * 本身非法才是 `bad-request`。失败原因原样带回，界面放进悬浮提示。
+                     */
+                    let base;
+                    try {
+                        base = requestBase(p.serverUrl);
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                    try {
+                        const opts = netOptions() ?? {};
+                        await probeServerHealth(base, {
+                            ...opts,
+                            // 探活是**按钮上的一次反馈**，不能让人等 30 秒：最长 8 秒就下结论
+                            timeoutMs: Math.min(opts.timeoutMs ?? SERVER_TIMEOUT_MS, SERVER_TIMEOUT_MS),
+                        });
+                        return { ok: true, value: { reachable: true, url: base, reason: null } };
+                    }
+                    catch (e) {
+                        return {
+                            ok: true,
+                            value: { reachable: false, url: base, reason: e instanceof Error ? e.message : String(e) },
+                        };
+                    }
+                }
+                /*
+                 * ── 保存服务器地址（2026-09 用户要求）──────────────────────────────
+                 *
+                 * 之前地址**只在登录 / 注册时**才落盘，于是"点【互联网服务器】按钮 → 刷新又变回
+                 * localhost"——按钮看起来生效了，其实只改了输入框里的草稿（`serverDraft`），
+                 * 一个字都没写进配置。这条端点把"改地址"做成一个**独立动作**。
+                 *
+                 * 语义：
+                 *   - 有值 → 归一后落盘（用户可能粘贴带 `/api`、`/docs` 的地址）；
+                 *   - 空串 → **清除覆盖**，回到"跟随环境配置"（界面清空输入框就是这个意思）。
+                 *
+                 * ⚠️ 只改地址、**不动凭据**。换服务器后原 Key 很可能不属于那台服务器，但清掉它
+                 * 是破坏性的（用户会失去已保存的 Key，切回去还得重新输入）。所以这里落盘后返回
+                 * `account: null`（**不猜**身份），由界面紧接着调一次 `account/verify` 去实打实
+                 * 验证 —— 通了显示"已登录"，没通就把服务器的原因摆出来。
+                 */
+                case 'account/serverUrl': {
+                    const raw = asString(p.serverUrl).trim();
+                    let base = '';
+                    if (raw) {
+                        try {
+                            base = requestBase(raw);
+                        }
+                        catch (e) {
+                            return serverFail(e);
+                        }
+                    }
+                    return await persist({ serverUrl: base }, null);
+                }
+                case 'account/login': {
+                    const apiKey = normalizeApiKey(asString(p.apiKey));
+                    if (!apiKey)
+                        return fail('bad-request', '请填写 ConvFusion.com 的 API Key（cf_live_…）。');
+                    // 地址先归一（用户可能粘贴带 /api 或 /docs 的地址）；非法地址在联网前就报错
+                    let base;
+                    try {
+                        base = requestBase(p.serverUrl);
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                    try {
+                        const account = await fetchAccount(base, apiKey, netOptions());
+                        // 余额与身份一起拿到（失败不影响登录成功）
+                        const tokens = await tryBalance(base, apiKey);
+                        // 只有验证通过才落盘 —— 失败绝不留下一份坏凭据
+                        return await persist(credentialPatch(deps.getConfig(), base, apiKey), account, tokens);
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'account/register': {
+                    const invitationCode = asString(p.invitationCode);
+                    const email = asString(p.email);
+                    const displayName = asString(p.displayName);
+                    if (!invitationCode)
+                        return fail('bad-request', '请填写邀请码（cf_inv_…）。');
+                    if (!email)
+                        return fail('bad-request', '请填写邮箱（必须与邀请码指定的邮箱一致）。');
+                    if (!displayName)
+                        return fail('bad-request', '请填写显示名。');
+                    let base;
+                    try {
+                        base = requestBase(p.serverUrl);
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                    try {
+                        // 注册成功即拿到一次性明文 Key → 直接存下来，用户不需要再复制粘贴一次
+                        const { account, apiKey } = await acceptInvitation(base, { invitationCode, email, displayName }, netOptions());
+                        // 新账号余额为 0，但仍然要问一次服务器（不要自己假定）
+                        const tokens = await tryBalance(base, apiKey);
+                        return await persist(credentialPatch(deps.getConfig(), base, apiKey), account, tokens);
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'account/verify': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    const base = resolveServerUrl(config, env()).url;
+                    try {
+                        const account = await fetchAccount(base, apiKey, netOptions());
+                        const tokens = await tryBalance(base, apiKey);
+                        return { ok: true, value: buildAccountState(config, env(), account, { tokens }) };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'account/tokens': {
+                    // 单独刷新余额：读完简报（扣 1 Token）之后界面用它把数字改对
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    const base = resolveServerUrl(config, env()).url;
+                    try {
+                        const tokens = await fetchTokenBalance(base, apiKey, netOptions());
+                        return { ok: true, value: { tokens } };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                /*
+                 * 用量与配额（`GET /usage`）：存储空间已用 / 总额、项目阶梯、下次发布花费。
+                 * 【账号】卡片的仪表板用它画"存储空间 / 项目"那两块。
+                 *
+                 * ⚠️ 与发布预检（`work/uploadPlan`）里那一份是**同一个调用**（`fetchUsage`），
+                 * 而它是**尽力而为**的：失败返回 null（服务器没答 / 字段不对）。
+                 * 这里也照此返回 `{ usage: null }` —— 界面显示"未知"，**绝不**画成 0
+                 * （把"读不到"画成"还剩 0 字节"是同一类假信息，见协议 v7 的余额口径）。
+                 */
+                case 'account/usage': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    const base = resolveServerUrl(config, env()).url;
+                    const usage = await fetchUsage(base, apiKey, netOptions());
+                    return { ok: true, value: { usage } };
+                }
+                case 'account/logout': {
+                    /*
+                     * 只清凭据，保留服务器地址（下次登录还要用）。
+                     *
+                     * ⚠️ 只清**当前服务器那一槽**：账号行显示的是当前地址上的身份，登出就登出这一个。
+                     * 把两槽都清掉会顺带把另一台服务器的登录态也抹掉 —— 用户没要求、还会丢凭据。
+                     *
+                     * ⚠️ 清开发槽时必须**连旧单值字段一起清**：迁移期那份旧 Key 也算开发槽的凭据
+                     * （见 `resolveConvFusionApiKey`），只清新字段的话它会立刻"复活" —— 用户点了登出
+                     * 却还是登录状态。
+                     */
+                    const config = deps.getConfig();
+                    const slot = serverSlotOf(resolveServerUrl(config, env()).url, env());
+                    return await persist(slot === 'development'
+                        ? { convfusionDevApiKey: '', convfusionApiKey: '' }
+                        : { convfusionProdApiKey: '' }, null);
+                }
+                /*
+                 * ── 续费申请（Token 不够时向管理员要）──────────────────────────────
+                 *
+                 * 两个动作都不动余额：`submit` 只往服务器的 `token_recharge_requests` 写一条
+                 * `PENDING`，真正发 Token 要等管理员批准（服务器侧 `admin/users/{id}/recharge-requests/*`）。
+                 *
+                 * ⚠️ 服务器 `submit` **不幂等**（每次 POST 新增一条），所以防重复申请是**客户端**
+                 * 的责任：先 `list` 看有没有还没处理的 `PENDING`，有就不让再提交。
+                 * 这里不在宿主侧做去重 —— 宿主无状态，跨会话/多窗口去重会漏。
+                 */
+                case 'account/recharge-request': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    // 数量在宿主侧就校验：非法值不必往服务器跑一趟（也能给出具体理由）
+                    const amount = Number(p.amount);
+                    if (!Number.isInteger(amount) || amount <= 0) {
+                        return fail('bad-request', '申请数量必须是正整数。');
+                    }
+                    const reason = asString(p.reason).trim();
+                    if (reason.length > 500) {
+                        return fail('bad-request', '申请理由最多 500 字。');
+                    }
+                    const base = resolveServerUrl(config, env()).url;
+                    try {
+                        const request = await submitRechargeRequest(base, apiKey, { amount, ...(reason ? { reason } : {}) }, netOptions());
+                        return { ok: true, value: { request } };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'account/recharge-requests': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    const base = resolveServerUrl(config, env()).url;
+                    try {
+                        const items = await fetchRechargeRequests(base, apiKey, netOptions());
+                        return { ok: true, value: { items } };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                /* ── 研究工作（发现网络）──────────────────────────────────────────
+                 *
+                 * 服务器的分享对象是**研究项目**，披露分三层：摘要（免费）/ 简报（1 Token）/
+                 * 完整状态（需导师关系）。本轮接前两层 —— 完整状态需要关系，没有入口就先不做。
+                 *
+                 * 这三条都需要凭据：未登录时界面**自己**显示示例列表（不发请求），
+                 * 所以这里的 `not-configured` 是给"凭据刚被清掉"这种竞态兜底的。
+                 */
+                /* ── 研究工作 · 我的（**本机**）───────────────────────────────────
+                 *
+                 * 数据源是 DSH 的工作区注册表（`ctx.workspaceRegistry`），过滤条件是
+                 * "该工作区里存在有效的 research workspace"（`project.md` 或
+                 * `research-state.md`，见 `isResearchWorkspace`）。
+                 *
+                 * ⚠️ 这一条**不联网、不需要登录**：本机有哪几个研究项目是本地事实。
+                 * 服务器上"我发布了什么"是另一回事（需要先有上传 / 发布流程）。
+                 */
+                /* ── 研究工作 · 我的（**本机**）───────────────────────────────────
+                 *
+                 * 数据源是 DSH 的工作区注册表（`ctx.workspaceRegistry`），过滤条件是
+                 * "该工作区里存在有效的 research workspace"（`project.md` 或
+                 * `research-state.md`，见 `isResearchWorkspace`）。
+                 *
+                 * ⚠️ 这一条**不联网、不需要登录**：本机有哪几个研究项目是本地事实。
+                 * 服务器上"我发布了什么"是另一回事（见 `work/publish`）。
+                 */
+                case 'work/mine': {
+                    const listed = await collectLocalWorks();
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    const items = await verifyPublished(listed.items, apiKey, resolveServerUrl(config, env()).url);
+                    return {
+                        ok: true,
+                        value: {
+                            items,
+                            registry: {
+                                available: listed.available,
+                                ...(listed.reason ? { reason: listed.reason } : {}),
+                            },
+                        },
+                    };
+                }
+                /* ── 发布本机研究到网络（「寻找指导」）──────────────────────────────
+                 *
+                 * 用户的点法：在【研究工作 · 我的】里点**这一项**的「寻找指导」——
+                 * **只有这时**才把该项目的研究状态发到服务器（不是后台自动上传）。
+                 *
+                 * 顺序照 `docs/projects.md` §6：建项目 → 传状态 → 发布。
+                 * 文档明确警告：**不要发布没有状态的项目**（网络里会出现空卡片），
+                 * 所以这里把三件事当成一次操作，上传失败就绝不发布。
+                 */
+                /* ── 发布前的上传计划（对话框的数据源）────────────────────────────
+                 *
+                 * 返回**体积核算 + 默认选择 + 记住的选择 + 用量/成本**，一次拿全 ——
+                 * 对话框打开即可显示"这次传什么、多少、要花几个 Token、服务器还剩多少空间"。
+                 *
+                 * ⚠️ 计划里包含 `excluded` 分类（机器产物），但**界面不显示它们**
+                 * （2026-09 用户要求：排除项直接不出现，不影响选择）。保留在数据里是为了
+                 * 对账（"全部 = 推荐 + 可选 + 排除"）与将来做"高级模式"。
+                 */
+                case 'work/uploadPlan': {
+                    const id = asString(p.id);
+                    if (!id)
+                        return fail('bad-request', '缺少研究工作 id。');
+                    const direction = asDirection(p.direction);
+                    const listed = await collectLocalWorks();
+                    const source = listed.sources.get(id);
+                    if (!source)
+                        return fail('not-found', '找不到这个本机研究项目（或其研究状态读不出来）。');
+                    const plan = buildUploadPlan(source.root);
+                    /*
+                     * 对话框头部显示**要发布到网络的那个名字**（这项研究工作自己的名字），
+                     * 而不是本机工作区名 —— 用户点的是【寻找指导/寻找学生】，他看到的名字
+                     * 应该就是网络上会出现的那个。本机工作区名另给（`workspaceTitle`），
+                     * 界面在两者不同时用一行提示说明"这是哪个本机工作区"。
+                     */
+                    const workName = researchWorkName(source.root, source.title);
+                    // ⚠️ 只认**当前服务器 + 当前方向**的记录：别的服务器、另一个方向的"已上传指纹"
+                    // 在这里都不成立（会漏传，或把两个项目的附件算在一起）
+                    const base = resolveServerUrl(deps.getConfig(), env()).url;
+                    const record = recordOn(source.root, base, direction);
+                    // 记住的选择 ∪ 规则推荐（新文件自动并入，否则新增证据会静默漏传）
+                    const remembered = record?.selection ?? null;
+                    const recommended = plan.categories
+                        .filter((c) => c.decision === 'recommended')
+                        .flatMap((c) => c.files.filter((f) => !f.relPath.endsWith('/')).map((f) => f.relPath));
+                    const exist = new Set([...recommended, ...plan.categories.filter((c) => c.decision === 'optional').flatMap((c) => c.files.map((f) => f.relPath))]);
+                    const effective = remembered === null
+                        ? recommended
+                        : [...new Set([...remembered.filter((r) => exist.has(r)), ...recommended])];
+                    const diff = await diffAgainstUploaded(source.root, record);
+                    // "变化" = 已记录但内容变了 + 选择里从未上传过的（新增文件）
+                    const knownFiles = record?.files ?? {};
+                    const added = effective.filter((r) => !(r in knownFiles));
+                    const changedAll = [...new Set([...diff.changed, ...added])];
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    const usage = apiKey
+                        ? await fetchUsage(resolveServerUrl(config, env()).url, apiKey, netOptions())
+                        : null;
+                    return {
+                        ok: true,
+                        value: {
+                            projectId: id,
+                            root: source.root,
+                            /** 要发布的名字 = 这项研究工作自己的名字（有论文用论文标题）。 */
+                            title: workName.name,
+                            /** 本机工作区名（注册表标题）—— 与 `title` 不同时界面用它指认"是哪个工作区"。 */
+                            workspaceTitle: source.title,
+                            /** 名字是从哪来的（`paper` / `topic` / `fallback`），诊断与回执用。 */
+                            workNameSource: workName.source,
+                            /** 本次要发布到哪个方向（界面把它显示在标题上，免得两个按钮分不清）。 */
+                            direction,
+                            plan,
+                            /** 对话框的初始勾选。 */
+                            selection: effective,
+                            remembered: remembered !== null,
+                            /** 与"上次已上传"相比的变化（新增 + 内容变化）；空数组 = 无变化。 */
+                            changed: changedAll,
+                            unchangedCount: diff.unchanged.filter((r) => effective.includes(r)).length,
+                            usage,
+                        },
+                    };
+                }
+                case 'work/publish': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    const id = asString(p.id);
+                    if (!id)
+                        return fail('bad-request', '缺少研究工作 id。');
+                    /*
+                     * 发布到哪个方向（【寻找指导】/【寻找学生】）—— 由界面在按钮上决定。
+                     *
+                     * ⚠️ 两个方向是服务器上**两个不同的项目**（各自一条本地记录、各自一套已上传
+                     * 指纹），所以 `direction` 从查记录、建项目到回写记录**全程都要带上**。
+                     */
+                    const direction = asDirection(p.direction);
+                    const listed = await collectLocalWorks();
+                    const source = listed.sources.get(id);
+                    if (!source)
+                        return fail('not-found', '找不到这个本机研究项目（或其研究状态读不出来）。');
+                    const base = resolveServerUrl(config, env()).url;
+                    /**
+                     * 附件选择：界面在对话框里确认后传进来。
+                     *
+                     * - 显式给了 `selection`（含空数组）→ 就用它；
+                     * - 没给 → 沿用**记住的选择**；再没有 → 用规则推荐集（`work/uploadPlan` 的默认）。
+                     *   （「更新」路径不弹窗时走的是这条，所以不能退化成"什么都不传"。）
+                     */
+                    const selectionProvided = Array.isArray(p.selection);
+                    const remember = p.remember !== false;
+                    try {
+                        const me = await fetchAccount(base, apiKey, netOptions());
+                        const { content, missing, workName } = buildPublishContent({
+                            researchRoot: source.root,
+                            workspaceTitle: source.title,
+                            progress: source.progress,
+                            generatedAt: new Date().toISOString(),
+                        });
+                        // ⚠️ 同上：另一台服务器 / 另一个方向的记录不能当"上次传过"用
+                        const previous = recordOn(source.root, base, direction);
+                        /*
+                         * 一个研究工作**只属于一个方向**（2026-10 用户拍板）。
+                         *
+                         * "求指导"与"招学生"不是同一份工作的两种发布方式，而是**两种身份**：
+                         * 前者是学生发布自己的工作，后者是导师发布一个选题。同一个工作不可能
+                         * 既是这个又是那个，所以发布过一种就**不允许**再发另一种
+                         * （否则网络上同一个工作会以两个身份各出现一次，状态与附件还各传一份）。
+                         *
+                         * 拒绝而不是静默再建项目：界面上已经不会再给另一个方向的按钮，
+                         * 但缓存过的旧界面 / 别的客户端仍可能发过来 —— 那时必须明确说清原因。
+                         * ⚠️ 判据按**服务器**分：换一台服务器是另一个网络，两边各自成立。
+                         */
+                        const otherDirection = PROJECT_DIRECTIONS.find((d) => d !== direction);
+                        const otherRecord = otherDirection ? recordOn(source.root, base, otherDirection) : undefined;
+                        if (otherRecord && !previous) {
+                            const otherLabel = otherDirection === 'SEEK_STUDENT' ? '导师出题（招学生）' : '学生发布工作（求指导）';
+                            return fail('already-published', `这项工作已经以「${otherLabel}」发布过了。一个研究工作只能属于一个方向 —— ` +
+                                `要继续更新请点同一个按钮（【更新】），不能改发到另一个方向。`);
+                        }
+                        // 只有同一台服务器 + 同一个账号才重用项目；否则新建
+                        // （服务器 GET /projects/{id} 是 owner-only，重用别人的 id 只会 404）
+                        const reusable = previous && previous.serverUrl === base && previous.accountId === me.id;
+                        let projectId = reusable ? previous.projectId : '';
+                        let created = false;
+                        /** 改名失败的原因（`null` = 改名成功或不需要改名）—— 回执要如实说。 */
+                        let renameFailed = null;
+                        /*
+                         * 这项研究**在本机的身份**（`<研究根>/.convfusion/work.json` → 插件侧注册表）。
+                         *
+                         * 用途有三个，缺一不可：
+                         *   ① 建项目时**沿用**已有身份（否则同一项研究重新发布会被服务器当成"另一项研究"）；
+                         *   ② 新建项目后把服务器**返回**的身份写回本机（下次就有了）；
+                         *   ③ 界面上用它区分"这是哪一项研究"（工作区名区分不了 —— 同一个会话工作区里
+                         *      可以有多项研究，见 2026-10 用户要求）。
+                         */
+                        const localIdentity = readLocalIdentity(source.root, deps.workIdentity);
+                        /** 把服务器给的身份落到本机（标记 + 注册表）；没有值就**什么都不写**。 */
+                        const rememberIdentity = (workspaceId) => {
+                            const id = normalizeWorkspaceId(workspaceId);
+                            if (!id)
+                                return;
+                            const identity = makeWorkIdentity({
+                                workspaceId: id,
+                                projectId,
+                                serverUrl: base,
+                                accountId: me.id,
+                                // 发布方 = 这项研究的 owner（学生自己的工作是 owner；导师出题也是 owner）
+                                role: 'owner',
+                            });
+                            try {
+                                deps.workIdentity?.set(source.root, identity);
+                            }
+                            catch {
+                                /* 记账失败不该让发布失败：状态与附件都已经发出去了 */
+                            }
+                            writeWorkMarker(source.root, identity);
+                        };
+                        const create = async () => {
+                            const project = await createProject(base, apiKey, {
+                                // **这项研究工作自己的名字**（有论文用论文标题）——不是本机工作区名：
+                                // 网络里的列表都显示它，而看列表的人本机不一定有这份 workspace。
+                                title: workName,
+                                description: content.summary ? content.summary : undefined,
+                                // 只在非默认方向时显式发：默认方向归服务器所有（见 createProject 注释）
+                                ...(direction === 'SEEK_STUDENT' ? { direction } : {}),
+                                // 已有身份 → 沿用（服务器保证同一 id 跨项目生命周期不变）
+                                ...(localIdentity.workspaceId ? { workspaceId: localIdentity.workspaceId } : {}),
+                            }, netOptions());
+                            created = true;
+                            // 服务器给的才是权威：本机没有就记下，本机有但不同则**以服务器为准**（同一次发布）
+                            rememberIdentity(project.workspaceId);
+                            return project.id;
+                        };
+                        if (!projectId)
+                            projectId = await create();
+                        /*
+                         * 复用旧项目、但本机**没有**身份（老版本插件发的，或标记文件被删）→ 回查一次对齐。
+                         *
+                         * 只在确实缺身份时才发这一次请求：已经有身份时它对发布没有任何影响，
+                         * 而"缺身份"会让界面无法区分这项研究、也会让下一次发布被服务器当成新研究。
+                         */
+                        if (!created && !localIdentity.workspaceId) {
+                            try {
+                                rememberIdentity((await fetchProject(base, apiKey, projectId, netOptions())).workspaceId);
+                            }
+                            catch {
+                                /* 回查失败不影响发布：下一次发布还会再试 */
+                            }
+                        }
+                        // 一次保存意图一个幂等键；因 409 重基后 payload 变了 → 换新键
+                        const saveState = async (baseVersion) => uploadResearchState(base, apiKey, projectId, {
+                            baseVersion,
+                            content: content,
+                            intentKey: crypto.randomUUID(),
+                        }, netOptions());
+                        const saveStateWithRebase = async (version) => {
+                            try {
+                                return await saveState(version);
+                            }
+                            catch (e) {
+                                if (!(e instanceof ServerError) || e.code !== 'version-conflict')
+                                    throw e;
+                                // 409：拉最新版本，基于它**重新上传**（换新 key —— payload 已变）
+                                const latest = e.currentVersion ?? (await readStateVersion(base, apiKey, projectId, netOptions()));
+                                return await saveState(latest);
+                            }
+                        };
+                        // 以**服务器**的当前版本为准（本地记录可能过期：另一个客户端也传过）
+                        let uploaded;
+                        try {
+                            uploaded = await saveStateWithRebase(await readStateVersion(base, apiKey, projectId, netOptions()));
+                        }
+                        catch (e) {
+                            // 映射指向的项目已被服务器删除（本地记录不会自己知道）：忘掉它、新建项目重来一次
+                            if (!reusable || !(e instanceof ServerError) || e.code !== 'not-found')
+                                throw e;
+                            publishedStore.remove(source.root, direction);
+                            projectId = await create();
+                            uploaded = await saveStateWithRebase(await readStateVersion(base, apiKey, projectId, netOptions()));
+                        }
+                        // ── 附件：状态传完再传（服务器要求 state_version 存在）──────────
+                        const plan = buildUploadPlan(source.root);
+                        const recommendedFiles = plan.categories
+                            .filter((c) => c.decision === 'recommended')
+                            .flatMap((c) => c.files.filter((f) => !f.relPath.endsWith('/')).map((f) => f.relPath));
+                        const optionalFiles = plan.categories
+                            .filter((c) => c.decision === 'optional')
+                            .flatMap((c) => c.files.map((f) => f.relPath));
+                        const selectable = new Set([...recommendedFiles, ...optionalFiles]);
+                        const selected = selectionProvided
+                            ? p.selection.filter((x) => typeof x === 'string')
+                            : (previous?.selection ?? []).length > 0
+                                ? [...new Set([...(previous?.selection ?? []).filter((r) => selectable.has(r)), ...recommendedFiles])]
+                                : recommendedFiles;
+                        // 增量：只传新增/变化的（服务器不去重，重复传会翻倍占空间）
+                        const previousFiles = previous?.files ?? {};
+                        const toUpload = [];
+                        const digests = { ...previousFiles };
+                        for (const relPath of selected) {
+                            const abs = resolve(source.root, relPath);
+                            let digest;
+                            try {
+                                digest = await fileDigest(abs);
+                            }
+                            catch {
+                                continue; // 文件不存在/读不动：跳过，不阻塞发布
+                            }
+                            digests[relPath] = digest;
+                            if (previousFiles[relPath] !== digest)
+                                toUpload.push(relPath);
+                        }
+                        const { batches, skipped } = planUploadBatches(source.root, toUpload);
+                        /*
+                         * 发布也**上报进度**（与导师回传同一根进度条）。
+                         *
+                         * 为什么必须报：附件阶段是"几十个文件 / 几十 MB"的一串请求，浏览器那一次
+                         * `post('work/publish')` 要等全部批次做完才返回 —— 之前这里什么都不报，
+                         * 【我的】里发布一个带附件的工作时就只有按钮上的「发布中…」。
+                         */
+                        const sizes = new Map();
+                        for (const c of plan.categories)
+                            for (const f of c.files)
+                                sizes.set(f.relPath, f.size);
+                        const skippedSet = new Set(skipped.map((x) => x.relPath));
+                        const sending = toUpload.filter((rel) => !skippedSet.has(rel));
+                        // 两个 id 都放进去：界面用**本机工作区 id** 轮询（那时服务器 id 还不知道）
+                        const progress = beginUploadProgress([projectId, id], sending.length, sending.reduce((n, rel) => n + (sizes.get(rel) ?? 0), 0));
+                        let uploadedFiles = 0;
+                        let uploadedBytes = 0;
+                        for (const batch of batches) {
+                            const payload = [];
+                            for (const relPath of batch) {
+                                try {
+                                    const { readFile } = await import('node:fs/promises');
+                                    payload.push({ relPath, bytes: await readFile(resolve(source.root, relPath)) });
+                                }
+                                catch {
+                                    /* 读不到就跳过该文件 */
+                                }
+                            }
+                            if (payload.length === 0)
+                                continue;
+                            const results = await uploadProjectFiles(base, apiKey, projectId, payload, {
+                                stateVersion: uploaded.version,
+                                ...netOptions(),
+                            });
+                            uploadedFiles += results.length;
+                            uploadedBytes += results.reduce((n, r) => n + r.size, 0);
+                            progress.doneFiles = uploadedFiles;
+                            progress.sentBytes = uploadedBytes;
+                        }
+                        // 附件传完 → 不再"进行中"（后面的发布/改名很快，不需要进度条）
+                        progress.running = false;
+                        // 上传成功后才发布（顺序不能反：先发布会留下空卡片）。
+                        // 幂等键由 (项目, 版本) 决定：同一次发布的重试不会重复扣费。
+                        const { visibility, chargedTokens } = await publishProject(base, apiKey, projectId, {
+                            intentKey: `convfusion-dsh-publish-${projectId}-v${uploaded.version}`,
+                            ...netOptions(),
+                        });
+                        /*
+                         * 名字会在**论文起名 / 主题演进**之后变化，而项目标题只在建项目时写过一次。
+                         * 复用时按需改名：不改的话网络里那个名字永远停在第一次发布的样子。
+                         *
+                         * ⚠️ 判据用**上次存下的标题**（`previous.title`），不是先 GET 一次项目：
+                         * 一次额外往返换一个几乎总是"没变"的结论不划算；代价是"别的客户端改了名字"
+                         * 时我们会把它改回来（这本来也是我们要的语义 —— 本机是这项工作的发布方）。
+                         * 老记录没有 `title`（v0.6.0 之前）→ 无从比较，改一次并记下来。
+                         */
+                        if (reusable && previous?.title !== workName) {
+                            try {
+                                await updateProject(base, apiKey, projectId, { title: workName }, netOptions());
+                            }
+                            catch (e) {
+                                /*
+                                 * ⚠️ 改名**不是发布的前提**：它失败不该让整次发布失败（状态与附件都还没传）。
+                                 *
+                                 * 两种情形分开：
+                                 *   · `not-found`：项目已被删（本地记录不知道）→ 下面的状态上传会走
+                                 *     "忘掉旧映射、新建项目"那条路，而**新建时本来就带正确的名字**，
+                                 *     所以这一支是自愈的，不算失败；
+                                 *   · 其它（5xx / 超时 / 服务器不接受 PUT）：名字没改成，但工作照发 ——
+                                 *     回执里如实说一句，用户下次发布还会再试。
+                                 */
+                                if (!(e instanceof ServerError && e.code === 'not-found')) {
+                                    renameFailed = e instanceof ServerError ? e.message : String(e);
+                                }
+                            }
+                        }
+                        const now = new Date().toISOString();
+                        const record = {
+                            direction,
+                            projectId,
+                            // 这次用的名字（下次用它判断"要不要改名"）
+                            title: workName,
+                            serverUrl: base,
+                            accountId: me.id,
+                            version: uploaded.version,
+                            contentHash: uploaded.contentHash,
+                            publishedAt: reusable ? previous?.publishedAt || now : now,
+                            updatedAt: now,
+                            // 已上传附件的指纹（增量上传的依据）
+                            files: digests,
+                            // 「记住这次选择」：下次不弹窗时沿用它（新文件仍会按规则并入）
+                            ...(remember ? { selection: selected } : {}),
+                        };
+                        publishedStore.set(source.root, record);
+                        return {
+                            ok: true,
+                            value: {
+                                published: {
+                                    /** 本次发布到哪个方向（界面据此把回执说对）。 */
+                                    direction,
+                                    /** 这次在网络里用的名字（回执显示它 —— 用户点完就知道名字对不对）。 */
+                                    title: workName,
+                                    /**
+                                     * 名字**没改成功**的原因（`null` / 缺省 = 改好了或不需要改）。
+                                     *
+                                     * 界面据此如实补一句 —— 否则回执会显示一个新名字，而网络里还是旧名字。
+                                     */
+                                    ...(renameFailed ? { renameFailed } : {}),
+                                    projectId,
+                                    version: uploaded.version,
+                                    visibility,
+                                    created,
+                                    updatedAt: now,
+                                    /** 本次真实扣费（0 = 该项目此前已付费，重复发布免费）。 */
+                                    chargedTokens,
+                                },
+                                /** 本次附件上传统计（增量：`skippedExisting` = 内容未变、跳过的）。 */
+                                attachments: {
+                                    selected: selected.length,
+                                    uploaded: uploadedFiles,
+                                    uploadedBytes,
+                                    skippedExisting: selected.length - toUpload.length,
+                                    /** 超过服务器单文件上限（100 MB）而没能上传的。 */
+                                    oversize: skipped,
+                                },
+                                /** 本机没有的字段（界面据此如实说明"网络上只看得到哪几项"）。 */
+                                missing,
+                            },
+                        };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'work/list': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    /*
+                     * 要哪个方向的列表：省略 = `SEEK_MENTOR`（【可指导】，= 今天的行为）。
+                     * 【可加入】传 `SEEK_STUDENT`（导师发布的选题）。
+                     *
+                     * ⚠️ 旧服务器不认识这个参数 → 会**原样返回同一个列表**。这是可接受的降级
+                     * （那份列表确实是"网络里已公开的研究工作"，只是方向没分开），
+                     * 界面不为此额外辩解；服务器落地后自动正确。
+                     */
+                    const direction = p.direction === undefined ? undefined : asDirection(p.direction);
+                    try {
+                        const base = resolveServerUrl(config, env()).url;
+                        // ⚠️ 不传 limit：列表条数与抽样策略由**服务器**决定（见 fetchWorkList 注释）
+                        const items = await fetchWorkList(base, apiKey, netOptions(), direction);
+                        // 顺带把命中的本地发布记录对齐到服务器的可见性
+                        syncRecordsFromWorkList(items);
+                        // 「这一项简报买过没有」服务器列表里没有，补本地记忆 →
+                        // 界面据此决定还要不要弹"要花 1 Token"的确认框
+                        return { ok: true, value: { items: await annotateOpenedBriefs(base, apiKey, items) } };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'work/summary': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    const projectId = asString(p.projectId);
+                    if (!projectId)
+                        return fail('bad-request', '缺少 projectId。');
+                    try {
+                        const base = resolveServerUrl(config, env()).url;
+                        const work = await fetchWorkSummary(base, apiKey, projectId, netOptions());
+                        return { ok: true, value: { work } };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'work/brief': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    const projectId = asString(p.projectId);
+                    if (!projectId)
+                        return fail('bad-request', '缺少 projectId。');
+                    // ⚠️ intentKey 由界面持有：402 之后充值再用**同一个** key 重试，不会重复扣费。
+                    // 这里不做任何自动重试 —— 402 是业务事实，重试只会刷日志。
+                    const intentKey = asString(p.intentKey);
+                    if (!intentKey)
+                        return fail('bad-request', '缺少 intentKey（一次查看意图的幂等键）。');
+                    try {
+                        const base = resolveServerUrl(config, env()).url;
+                        const brief = await fetchWorkBrief(base, apiKey, projectId, intentKey, netOptions());
+                        // 成功读过 ⇒ 服务器已保证"同一项以后不再扣费"（`has_paid_brief`）。
+                        // 记下来，下次直接读、不再弹确认框。
+                        const accountId = await resolveAccountId(base, apiKey);
+                        if (accountId)
+                            deps.paidBriefStore?.mark(base, accountId, projectId);
+                        return { ok: true, value: { brief } };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'mentor/fee-suggestion': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    try {
+                        const base = resolveServerUrl(config, env()).url;
+                        const suggestion = await fetchFeeSuggestion(base, apiKey, netOptions());
+                        return { ok: true, value: { suggestion } };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'mentor/propose': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    const projectId = asString(p.projectId);
+                    if (!projectId)
+                        return fail('bad-request', '缺少 projectId。');
+                    const guidanceScope = asString(p.guidanceScope);
+                    if (!guidanceScope)
+                        return fail('bad-request', '指导范围不能为空。');
+                    const totalFee = asInt(p.totalFee);
+                    const depositAmount = asInt(p.depositAmount);
+                    const successPaymentAmount = asInt(p.successPaymentAmount);
+                    const condition = asRecordLike(p.successCondition);
+                    if (!totalFee || !depositAmount || !condition) {
+                        return fail('bad-request', '费用或成功条件不完整。');
+                    }
+                    if (depositAmount + successPaymentAmount !== totalFee) {
+                        return fail('bad-request', '押金 + 成功付款必须等于总费用。');
+                    }
+                    const type = asString(condition.type);
+                    if (!type)
+                        return fail('bad-request', '缺少成功条件类型。');
+                    try {
+                        const base = resolveServerUrl(config, env()).url;
+                        const proposal = await fetchPropose(base, apiKey, projectId, {
+                            guidanceScope,
+                            totalFee,
+                            depositAmount,
+                            successPaymentAmount,
+                            successCondition: { type, description: asString(condition.description) || null },
+                        }, netOptions());
+                        return { ok: true, value: { proposal } };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'mentor/list': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    try {
+                        const base = resolveServerUrl(config, env()).url;
+                        const proposals = await fetchProposals(base, apiKey, netOptions());
+                        /*
+                         * 指导进展（导师传了几份指导结果）—— **服务器已经在列表里给出了**
+                         * （`review_files`，三态 `n` / `0` / `null`），所以「指导中」刷新
+                         * 只需这一条请求。
+                         *
+                         * 只有**旧服务器**（`review_files` 落地之前的版本）才退回老办法：
+                         * 对每个 ACCEPTED 提案各读一次 `/files`，自己数 `review/` 前缀
+                         * （1 + N 次请求，其中一次差点是 482 KB —— 正是这条路径慢的原因）。
+                         *
+                         * 判据是**字段在不在**，不是值好不好看：
+                         *   · `reviewFiles` 是 `undefined` → 这个响应里没有这个字段 → 旧服务器 → 兜底；
+                         *   · 是 `null` → 服务器说"不可知"（无读权限 / 项目已软删除）→ **不要去问**，
+                         *     问也是 403；照抄 `null`，界面保守处理；
+                         *   · 是 `0` / `n` → 服务器已经数过了，直接用（去重口径还比本地数行更准）。
+                         */
+                        const withReview = await Promise.all(proposals.map(async (p) => {
+                            if (p.status !== 'ACCEPTED')
+                                return p;
+                            if (p.reviewFiles !== undefined)
+                                return p;
+                            try {
+                                // ⚠️ 读**导师那一侧**（v20 起两侧并存）：旧服务器忽略 `source`
+                                // （那时导师的交付就在同一侧），新服务器上则正是导师回传的那一份。
+                                const files = await fetchProjectFiles(base, apiKey, p.projectId, {
+                                    source: 'mentor',
+                                    ...netOptions(),
+                                });
+                                return { ...p, reviewFiles: files.filter((f) => f.relativePath.startsWith('review/')).length };
+                            }
+                            catch {
+                                return { ...p, reviewFiles: null };
+                            }
+                        }));
+                        /*
+                         * "对方更新了工作区吗"（要提示**重新下载**）—— 判据在宿主：
+                         * 服务器给**两侧各自**的水位与计数，宿主与**本地存的水位**
+                         * （上一次归档响应的 `X-Source-Updated-At` / `X-File-Count`）**按侧**比对。
+                         *
+                         * | 侧 | 列表字段 |
+                         * |---|---|
+                         * | `owner`（项目所有者写的） | `workspace_updated_at` / `workspace_files` |
+                         * | `mentor`（另一方写的） | `counterpart_updated_at` / `review_files` |
+                         *
+                         * ⚠️ **两侧都算好**、由界面取自己那一侧（`otherSide`）：
+                         *   ① 宿主不知道"我"是谁，为此多发一次 `fetchAccount` 正是 review_files
+                         *      那轮刚消掉的 1+N 里的那个 N；
+                         *   ② 更要紧的是**方向决定谁下载哪一侧**：方向 A 的导师下 owner 侧，
+                         *      方向 B 的导师下 `mentor` 侧（学生交付的进展）。所以只有一侧不够用。
+                         *
+                         * ⚠️ 三态纪律：从没下载过 / 旧服务器没这些字段 / 服务器说不可知 → `null`，
+                         * 界面**不提示**（查不到 ≠ 没更新，也不编造"有更新"）。
+                         */
+                        const withSync = withReview.map((p) => {
+                            if (p.status !== 'ACCEPTED')
+                                return p;
+                            /*
+                             * 没有水位存储（精简环境 / 离线测试）= 这台机器**记不住下载过什么** →
+                             * 两侧都 `null`（无从判断）。这与"没有水位记录"是两件事：后者是**记得**、
+                             * 只是没下过 → `{ neverDownloaded: true }`（该下载）。
+                             */
+                            if (!deps.syncStore)
+                                return { ...p, syncBySide: null };
+                            return {
+                                ...p,
+                                syncBySide: {
+                                    owner: checkSideChange(deps.syncStore.get(base, p.projectId, 'owner'), p.workspaceUpdatedAt, p.workspaceFiles),
+                                    mentor: checkSideChange(deps.syncStore.get(base, p.projectId, 'mentor'), p.counterpartUpdatedAt, p.reviewFiles),
+                                },
+                            };
+                        });
+                        return { ok: true, value: { proposals: withSync } };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'mentor/accept': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    const proposalId = asString(p.proposalId);
+                    if (!proposalId)
+                        return fail('bad-request', '缺少 proposalId。');
+                    // ⚠️ 幂等键由界面持有：402（押金不足）之后拿到 Token 再用**同一个** key 重试，
+                    // 服务器据此回放、不会重复冻结。这里不做自动重试。
+                    const intentKey = asString(p.intentKey);
+                    if (!intentKey)
+                        return fail('bad-request', '缺少 intentKey（一次接受意图的幂等键）。');
+                    try {
+                        const base = resolveServerUrl(config, env()).url;
+                        const contract = await fetchAcceptProposal(base, apiKey, proposalId, intentKey, netOptions());
+                        return { ok: true, value: { contract } };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'mentor/reject': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    const proposalId = asString(p.proposalId);
+                    if (!proposalId)
+                        return fail('bad-request', '缺少 proposalId。');
+                    try {
+                        const base = resolveServerUrl(config, env()).url;
+                        const proposal = await fetchRejectProposal(base, apiKey, proposalId, netOptions());
+                        return { ok: true, value: { proposal } };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'mentor/uploadState': {
+                    /*
+                     * 【上传】对话框的**工作区下拉**：本机有哪些工作区可以回传。
+                     *
+                     * 只列**含研究定义**的（`<ws>/workspace/project.md|research-state.md`，旧布局则是
+                     * `<ws>` 本身）：别的 DSH 工作区里没有研究工作，列出来只会让导师猜
+                     * "为什么这个传上去是空的"。
+                     *
+                     * 目录是否存在 / 真身路径全在宿主侧判定（与 `mentor/download` 同一条纪律：
+                     * 客户端只能递**注册表 id**，递不进路径）。
+                     */
+                    const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : null;
+                    const items = [];
+                    for (const w of listed?.items ?? []) {
+                        let canonical = resolve(w.path);
+                        try {
+                            canonical = realpathSync(w.path);
+                            if (!statSync(canonical).isDirectory())
+                                continue;
+                        }
+                        catch {
+                            continue; // 目录已被删/搬走：不列出来（选了也没法读）
+                        }
+                        const root = researchWorkspaceOf(canonical);
+                        if (!isResearchWorkspace(root))
+                            continue;
+                        items.push({ id: w.id, title: w.title, path: canonical, root });
+                    }
+                    /*
+                     * **当前会话的工作区**（与 `mentor/downloadState` 同一判据）：界面用它把下拉
+                     * **默认选中"我正在用的这一个"** —— 导师回传的通常就是手上这份研究，默认落到
+                     * 别的工作区会让导师以为传错了。比对走 `realpath`（注册表存的是登记路径，
+                     * 可能是符号链接）。`null` = 会话工作区不在可回传列表里（此时界面不预选）。
+                     */
+                    const sessionId = asString(p.sessionId);
+                    const sessionWorkspace = sessionId ? deps.resolveSessionWorkspace?.(sessionId) : undefined;
+                    let currentCanonical = null;
+                    if (sessionWorkspace) {
+                        try {
+                            currentCanonical = realpathSync(sessionWorkspace);
+                        }
+                        catch {
+                            currentCanonical = null;
+                        }
+                    }
+                    const current = currentCanonical ? items.find((it) => it.path === currentCanonical) : undefined;
+                    return {
+                        ok: true,
+                        value: {
+                            available: listed?.available ?? false,
+                            // ⚠️ 读不到 ≠ 没有：`reason` 必须说清是"读不到"（否则界面会显示成"本机没有研究工作区"）
+                            reason: listed?.reason ?? (listed ? null : '宿主未提供工作区注册表读取接口'),
+                            items,
+                            /** 当前会话所在工作区的注册表 id（界面预选用）；`null` = 会话工作区不可回传。 */
+                            currentWorkspaceId: current?.id ?? null,
+                        },
+                    };
+                }
+                case 'mentor/uploadPlan': {
+                    /*
+                     * 选中某个工作区之后，把它的**文件清单**一次拿全：分类（`mentor` 口径）、
+                     * 默认勾选（= 推荐级）、体积、超单文件上限的项 —— 对话框据此渲染勾选框，
+                     * 并在底部显示"已选 N 个文件 · X MB"。
+                     *
+                     * 扫描是**读盘**（可能上千个文件），所以与 `uploadState` 分开：下拉列表要秒开，
+                     * 清单只算选中的那一个工作区。
+                     */
+                    const workspaceId = asString(p.workspaceId);
+                    if (!workspaceId)
+                        return fail('bad-request', '请先选择要回传的工作区。');
+                    const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : null;
+                    const target = listed?.items.find((it) => it.id === workspaceId);
+                    if (!target)
+                        return fail('not-found', '找不到这个工作区（可能已被删除）。刷新后重试。');
+                    let canonical = resolve(target.path);
+                    try {
+                        canonical = realpathSync(target.path);
+                    }
+                    catch {
+                        return fail('not-found', '这个工作区的目录已经不存在了。');
+                    }
+                    const root = researchWorkspaceOf(canonical);
+                    if (!isResearchWorkspace(root)) {
+                        return fail('no-research', '这个工作区里没有研究工作（需要 <工作区>/workspace/ 下有 project.md 或 research-state.md）。');
+                    }
+                    try {
+                        const plan = buildUploadPlan(root, 'mentor');
+                        return {
+                            ok: true,
+                            value: { workspaceId, title: target.title, path: canonical, root, plan },
+                        };
+                    }
+                    catch (e) {
+                        return fail('bad-request', e instanceof Error ? e.message : String(e));
+                    }
+                }
+                case 'mentor/upload': {
+                    /*
+                     * 回传"我这一份工作区"：按**原相对路径**写进学生的项目文件空间。
+                     *
+                     * 用户要的语义是"替换掉学生原来那份"（学生在自己的 workspace/ 之外没有别的副本），
+                     * 而服务器按路径覆盖（latest-per-path）—— 所以逐文件上传就等于替换，
+                     * 且**不需要**先删除（删了就可能在半途把学生的东西弄丢）。
+                     *
+                     * 三条硬约束（都是既有的纪律，不是新发明）：
+                     *   1. 工作区按**注册表 id** 在宿主侧解析，客户端递不进任意路径；
+                     *   2. 上传路径必须是**扫描结果**里的（`allowed` 白名单），不接受界面递来的路径；
+                     *   3. **增量**：本地 `sha256` 与服务器该路径最新一版一致就跳过 ——
+                     *      服务器不去重（同路径再传 = 新行 + 新字节，配额照涨），而回传的多数文件没动过。
+                     *      旧服务器不给 `sha256` 时比对必然不等 → 保守地全传（宁可多传，不可漏传）。
+                     */
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    const projectId = asString(p.projectId);
+                    if (!projectId)
+                        return fail('bad-request', '缺少 projectId。');
+                    const workspaceId = asString(p.workspaceId);
+                    if (!workspaceId)
+                        return fail('bad-request', '请先选择要回传的工作区。');
+                    const wanted = Array.isArray(p.paths) ? p.paths.map((x) => asString(x)).filter(Boolean) : [];
+                    if (wanted.length === 0)
+                        return fail('bad-request', '没有选择要回传的文件。');
+                    const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : null;
+                    const target = listed?.items.find((it) => it.id === workspaceId);
+                    if (!target)
+                        return fail('not-found', '找不到这个工作区（可能已被删除）。刷新后重试。');
+                    let canonical = resolve(target.path);
+                    try {
+                        canonical = realpathSync(target.path);
+                    }
+                    catch {
+                        return fail('not-found', '这个工作区的目录已经不存在了。');
+                    }
+                    const root = researchWorkspaceOf(canonical);
+                    if (!isResearchWorkspace(root)) {
+                        return fail('no-research', '这个工作区里没有研究工作，无法回传。');
+                    }
+                    try {
+                        // 白名单 = 扫描得到的**可选**文件（recommended / optional 两级；机器产物不收）
+                        const plan = buildUploadPlan(root, 'mentor');
+                        const allowed = new Set(plan.categories
+                            .filter((c) => c.decision !== 'excluded')
+                            .flatMap((c) => c.files.map((f) => f.relPath))
+                            .filter((rel) => !rel.endsWith('/')));
+                        const picked = wanted.filter((rel) => allowed.has(rel));
+                        if (picked.length === 0) {
+                            return fail('bad-request', '选择的文件不在这个工作区的研究目录里（或属于机器产物）。');
+                        }
+                        const base = resolveServerUrl(config, env()).url;
+                        /*
+                         * 增量比对要读**自己那一侧**（v20 起服务器按"谁写的"分两侧，同名互不覆盖）：
+                         * 导师回传 → `mentor` 侧；学生上传 → `owner` 侧（默认）。
+                         * 服务器上"每个路径的最新一版"：`list_for_project` 按 created_at asc，后者覆盖前者。
+                         */
+                        const source = asSource(p.source);
+                        const remote = await fetchProjectFiles(base, apiKey, projectId, { source, ...netOptions() });
+                        const onServer = new Map();
+                        for (const f of remote)
+                            onServer.set(f.relativePath, f.sha256);
+                        const changed = [];
+                        /** 内容与服务器**当前那一版**一致的文件数（不重传，但也不算"失败"）。 */
+                        let unchanged = 0;
+                        /** 相对路径 → 体积（进度与"本次传了多少"都用扫描给的数字，不再重复 stat）。 */
+                        const sizes = new Map();
+                        for (const c of plan.categories)
+                            for (const f of c.files)
+                                sizes.set(f.relPath, f.size);
+                        for (const rel of picked) {
+                            let digest;
+                            try {
+                                digest = await fileDigest(resolve(root, rel));
+                            }
+                            catch {
+                                // 读不动 / 已被删除：既不算"已传"也不算"未变"，直接略过（不阻塞其余文件）
+                                continue;
+                            }
+                            if (onServer.get(rel) === digest)
+                                unchanged += 1;
+                            else
+                                changed.push(rel);
+                        }
+                        const { batches, skipped } = planUploadBatches(root, changed);
+                        const totalBytes = changed.reduce((n, rel) => n + (sizes.get(rel) ?? 0), 0);
+                        // 超单文件上限的会被 planUploadBatches 摘掉，不该算进"要传的"
+                        const progress = beginUploadProgress([projectId], changed.length - skipped.length, totalBytes);
+                        let uploadedFiles = 0;
+                        let uploadedBytes = 0;
+                        try {
+                            for (const batch of batches) {
+                                const payload = [];
+                                let batchBytes = 0;
+                                for (const rel of batch) {
+                                    try {
+                                        payload.push({ relPath: rel, bytes: readResearchFile(root, rel) });
+                                        batchBytes += sizes.get(rel) ?? 0;
+                                    }
+                                    catch {
+                                        /* 读不到就跳过该文件 */
+                                    }
+                                }
+                                if (payload.length === 0)
+                                    continue;
+                                const results = await uploadWorkspaceFiles(base, apiKey, projectId, payload, {
+                                    // 慢 ≠ 死：这批字节按最低吞吐折算超时（见 uploadTimeoutForBytes）
+                                    timeoutMs: uploadTimeoutForBytes(batchBytes),
+                                    ...netOptions(),
+                                });
+                                uploadedFiles += results.length;
+                                uploadedBytes += results.reduce((n, r) => n + r.size, 0);
+                                progress.doneFiles = uploadedFiles;
+                                progress.sentBytes = uploadedBytes;
+                            }
+                        }
+                        finally {
+                            progress.running = false;
+                        }
+                        return {
+                            ok: true,
+                            value: {
+                                /** 选中的文件数（界面据此说"其中 N 个没变，跳过"）。 */
+                                selected: picked.length,
+                                uploaded: uploadedFiles,
+                                uploadedBytes,
+                                /** 内容与服务器一致、没有重复上传的。 */
+                                skippedExisting: unchanged,
+                                /** 超过服务器单文件上限（100 MB）而传不上去的。 */
+                                oversize: skipped,
+                            },
+                        };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'mentor/uploadProgress': {
+                    /*
+                     * 上传进度（界面在上传期间按秒问）。
+                     *
+                     * 只回**这一次上传**的数字：项目对不上就回 0/未在跑 —— 免得把上一次的
+                     * 计数当成这一次的。这个端点不做网络与磁盘操作，慢链路下也必须秒回。
+                     */
+                    const projectId = asString(p.projectId);
+                    const mine = uploadProgress && projectId && uploadProgress.keys.includes(projectId) ? uploadProgress : null;
+                    // ⚠️ 回**副本**：`uploadProgress` 还在被上传循环改，直接把引用递出去
+                    // 会让调用方看到"未来的值"（离线测试实测踩到：第二批问到的却是最终状态）。
+                    // 也**不回 `keys`**：那是宿主内部的认领键，界面契约里没有它。
+                    return {
+                        ok: true,
+                        value: mine
+                            ? {
+                                doneFiles: mine.doneFiles,
+                                totalFiles: mine.totalFiles,
+                                sentBytes: mine.sentBytes,
+                                totalBytes: mine.totalBytes,
+                                running: mine.running,
+                            }
+                            : { doneFiles: 0, totalFiles: 0, sentBytes: 0, totalBytes: 0, running: false },
+                    };
+                }
+                case 'mentor/downloadState': {
+                    /*
+                     * 【下载】对话框要的三样：可选工作区列表、预检（多少文件/多大）、
+                     * 以及**预计保存成什么文件名**（服务器命名 `<owner>-<title>.zip`）。
+                     * 合成一次调用：少一次往返，也少一处不一致。
+                     */
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    const projectId = asString(p.projectId);
+                    if (!projectId)
+                        return fail('bad-request', '缺少 projectId。');
+                    try {
+                        const base = resolveServerUrl(config, env()).url;
+                        /*
+                         * 预检读**要下哪一侧**（v20）：导师下学生的工作区 → 默认 `owner`；
+                         * 学生取导师的交付 → `mentor`。口径与下载本身必须一致 ——
+                         * 否则会出现"预检说有 3 个文件、点下去 404"。
+                         */
+                        const source = asSource(p.source);
+                        /*
+                         * 读列表**连同这一侧的身份**（`workspace_id`，服务器可选给）。
+                         *
+                         * ⚠️ 老服务器不返回它 → `remoteWorkspaceId = null` → 每一项都会判成
+                         * `unverifiable`（**允许下载，但界面明说"无法校验"**）—— 不阻塞，
+                         * 也不假装校验过。字段在不在决定行为，插件不看服务器版本号。
+                         */
+                        const page = await fetchProjectFilesWithIdentity(base, apiKey, projectId, {
+                            source,
+                            ...netOptions(),
+                        });
+                        const files = page.files;
+                        const remoteWorkspaceId = page.workspaceId;
+                        /*
+                         * 口径必须与**归档**一致：`/files` 返回的是全部历史行（`file_metadata` 不可变、
+                         * 不覆盖，同一路径重复上传会留多行），而服务器打包时是"每个 `relative_path`
+                         * 只取最新"（`build_archive` 的 latest-per-path）。按行相加会高估
+                         * 文件数与体积，界面那个「N 个文件 · X MB」也就跟着虚高。
+                         *
+                         * 顺序与服务器同源：`list_for_project` 按 `created_at asc`，所以**后者覆盖前者**。
+                         */
+                        const latest = new Map();
+                        for (const f of files)
+                            latest.set(f.relativePath, f.size);
+                        const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : null;
+                        /*
+                         * **逐项校验目标工作区**（这一步是 v23 的全部意义）：
+                         *   · 有研究工作区 + 标识相同 → `same`（允许，之后融合）
+                         *   · 有研究工作区 + 标识不同 → `other`（**禁止**）
+                         *   · 没有研究工作区           → `new`（允许，按新建处理）
+                         *   · 判不出来（缺一端）       → `unknown` / `unverifiable`（不猜成"不同"）
+                         */
+                        const built = (listed?.items ?? []).map((it) => buildDownloadTarget(it, remoteWorkspaceId, deps.workIdentity));
+                        /*
+                         * **当前会话的工作区**：界面用它（a）预选、（b）判断"下载完能不能把整合提示词
+                         * 填进这个会话的输入框"（只有目标 == 当前会话的工作区时，agent 才写得进去 ——
+                         * DSH 的写权限按会话自己的工作区收窄）。
+                         * 比对走 `realpath`：注册表里存的是登记路径，可能是符号链接。
+                         */
+                        const sessionId = asString(p.sessionId);
+                        const sessionWorkspace = sessionId ? deps.resolveSessionWorkspace?.(sessionId) : undefined;
+                        const currentCanonical = sessionWorkspace
+                            ? inspectDownloadTarget(sessionWorkspace).canonical
+                            : null;
+                        const current = currentCanonical
+                            ? built.find((it) => it.canonical === currentCanonical)
+                            : undefined;
+                        return {
+                            ok: true,
+                            value: {
+                                files: latest.size,
+                                bytes: [...latest.values()].reduce((sum, size) => sum + size, 0),
+                                available: listed?.available ?? false,
+                                reason: listed?.reason ?? null,
+                                /*
+                                 * 文件名只有**预检**能提前看到；真正的名字以服务器响应头为准。
+                                 * 导师那一侧加 `-mentor` 后缀（与学生自己那份区分开）—— 与服务器
+                                 * `archive_download_name` 同一规则。
+                                 */
+                                expectedName: `${safeDirName(asString(p.prefix), 'workspace')}${source === 'mentor' ? '-mentor' : ''}.zip`,
+                                items: built.map(toWireTarget),
+                                /** 本次下载项在服务器上的身份；`null` = 服务器没给（界面按"无法校验"处理）。 */
+                                remoteWorkspaceId,
+                                /** 当前会话所在工作区的注册表 id（界面预选 + 决定提示词能不能填）。 */
+                                currentWorkspaceId: current?.id ?? null,
+                                /**
+                                 * 宿主协议号：界面据此判断"这个宿主会不会校验"。
+                                 * < 23 的旧宿主不返回这一坨字段 → 界面**完全不显示状态**（退回旧行为，
+                                 * 不假装校验过）。
+                                 */
+                                [HOST_PROTOCOL_FIELD]: HOST_PROTOCOL,
+                            },
+                        };
+                    }
+                    catch (e) {
+                        return serverFail(e);
+                    }
+                }
+                case 'mentor/download': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    const projectId = asString(p.projectId);
+                    if (!projectId)
+                        return fail('bad-request', '缺少 projectId。');
+                    const workspaceId = asString(p.workspaceId);
+                    if (!workspaceId)
+                        return fail('bad-request', '请先选择要保存到的工作区。');
+                    /*
+                     * **只把 ZIP 存下来，其余交给用户**（2026-09 用户拍板）。
+                     *
+                     * 因此这里没有解压、没有 scope、没有"这个工作区里有没有研究"的判断：
+                     *   · 目标目录按**注册表 id 在宿主侧解析**（客户端递不进任意路径）；
+                     *   · 文件写在**工作区根目录**（用户材料，不进 `<工作区>/workspace/` 研究数据区）；
+                     *   · 同名**不覆盖**，自动加序号 → 所选工作区里原有的东西一个都不动，
+                     *     所以任何工作区都能选，不需要禁用。
+                     * 文件名用服务器给的（`<owner>-<title>.zip`）；服务器没给才用客户端传的前缀兜底。
+                     */
+                    const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : null;
+                    const target = listed?.items.find((it) => it.id === workspaceId);
+                    if (!target) {
+                        return fail('not-found', '找不到这个工作区（可能已被删除）。刷新后重试。');
+                    }
+                    /*
+                     * **写盘前再判一次**（v23）。
+                     *
+                     * 打开对话框 → 点下载之间用户可能已经把**另一项研究**解压进了这个工作区；
+                     * 预检时是 `new`，此刻已经是 `other`。判定结果**不拦下载**（2026-10 用户拍板：
+                     * 插件端只构建提示词），但必须**在落盘那一刻准确** —— 它决定填进输入框的那段
+                     * 提示词是"融合"、"备份后新建"还是"先盘查再定"。
+                     */
+                    const remoteClaimed = normalizeWorkspaceId(p.remoteWorkspaceId);
+                    const inspected = buildDownloadTarget({ id: target.id, title: target.title, path: target.path }, remoteClaimed, deps.workIdentity);
+                    const fallback = `${safeDirName(asString(p.prefix), 'workspace')}.zip`;
+                    /*
+                     * **边收边写**：临时文件 `.part` 先接字节，校验通过才改名成正式名字。
+                     *
+                     * 这一步是 2026-09 那次「一直读取中」的直接产物 —— 旧写法 `arrayBuffer()`
+                     * 收完再写，一个 13.6 MB 的快照在细链路上要两分钟，那两分钟里磁盘上空空如也、
+                     * 界面也只有一个转圈。现在进度是真的（字节确实在盘上），失败也**不留半成品**。
+                     */
+                    const source = asSource(p.source);
+                    const part = openDownloadPart(target.path, fallback);
+                    const progress = { projectId, received: 0, running: true };
+                    downloadProgress = progress;
+                    try {
+                        const base = resolveServerUrl(config, env()).url;
+                        const { received, filename, fileCount, sourceUpdatedAt, workspaceId: archivedId, } = await fetchProjectArchive(base, apiKey, projectId, part, {
+                            source,
+                            ...netOptions(),
+                            onProgress: (n) => {
+                                progress.received = n;
+                            },
+                        });
+                        /*
+                         * **归档头是权威**：服务器在响应头里再报一次身份（`X-Workspace-Id`），
+                         * 与预检那边是同一个值。两端都有值且**不一致**时，以**归档**为准重算一次判定 ——
+                         * 提示词必须描述"我实际下到的这份"，而不是"我以为要下的那份"。
+                         *
+                         * 不报错、不放弃（插件不拦下载）：最坏情况下提示词会退化成"先盘查再定"，
+                         * 由 agent 在只读盘查那一步看实际情况，比在这里硬猜准。
+                         */
+                        const authoritative = archivedId ?? remoteClaimed;
+                        const settled = archivedId && remoteClaimed && archivedId !== remoteClaimed
+                            ? buildDownloadTarget({ id: target.id, title: target.title, path: target.path }, archivedId, deps.workIdentity)
+                            : inspected;
+                        // 校验（ZIP 完整性 + 条目数）在这一步：不合格会抛错，半成品同时被清掉
+                        const saved = part.commit(filename ?? fallback, { fileCount });
+                        /*
+                         * 存下**这一版**的水位 —— 两个值都取自**本次归档响应**本身，
+                         * 不取下载前后列表里的：下载前的可能比 ZIP 旧（多提示一次、不漏），
+                         * 下载后再拉的可能比 ZIP 新（**会漏文件**，对方在下载途中又传了一个）。
+                         *
+                         * ⚠️ **按侧存**（v0.6.0）：下载的是哪一侧，就记哪一侧的水位。
+                         * 方向 A 的导师下 owner 侧、方向 B 的导师下 `mentor` 侧 —— 同一台机器上
+                         * 两个方向的水位不能互相顶掉（顶掉的结果是该提示时不提示、或误提示）。
+                         * 老服务器没有 `X-Source-Updated-At` → 不写：保持"未知"比写一个错的水位强。
+                         */
+                        if (sourceUpdatedAt) {
+                            deps.syncStore?.set(base, projectId, source, {
+                                updatedAt: sourceUpdatedAt,
+                                fileCount,
+                                downloadedAt: new Date().toISOString(),
+                            });
+                        }
+                        /*
+                         * **落身份**（v23）：把"这个工作区属于哪一项研究"记下来，下次下载就能判定。
+                         *
+                         * 两级都写（研究根已存在时）：
+                         *   · 插件注册表 —— 解压**之前**就能判定（下一次打开对话框时立刻有效）；
+                         *   · 工作区内标记 `<研究根>/.convfusion/work.json` —— **权威且可移植**：
+                         *     工作区被复制、搬到另一台机器后仍然自证身份。
+                         * 目标还没有研究根（新工作区）→ 什么都不写：等整合提示词让 agent 建根时一起落
+                         * （提示词里带着同一份 JSON，见 `markerJson`）。
+                         *
+                         * 身份取归档响应头（权威）优先，其次取客户端回传的预检值；两者都没有 → 不写
+                         * （保持"未知"比写一个错的强）。
+                         */
+                        const identityId = authoritative;
+                        /*
+                         * ⚠️ **只在 `same` 时写**。
+                         *
+                         * 身份记录的含义是"这个工作区属于哪一项研究"。`other` 时这个工作区里现在还是
+                         * **另一项**研究的内容（要等 agent 备份 + 解压之后才换过来），此时写下去等于
+                         * 把两项研究认成一项 —— 下一次下载的判定就全错了。`unknown` / `unverifiable`
+                         * 同理：还没确认，就不写（由提示词里的 agent 在整合完成后写）。
+                         */
+                        if (identityId && settled.status === 'same' && settled.layout !== null && settled.researchRoot) {
+                            const identity = makeWorkIdentity({
+                                workspaceId: identityId,
+                                projectId,
+                                serverUrl: base,
+                                accountId: (await resolveAccountId(base, apiKey)) ?? '',
+                                // 下 `owner` 侧 = 我在别人的研究里当导师（拿的是学生的工作区）；反之亦然
+                                role: source === 'owner' ? 'mentor' : 'owner',
+                            });
+                            try {
+                                deps.workIdentity?.set(settled.researchRoot, identity);
+                            }
+                            catch {
+                                /* 记账失败不该让下载失败：文件已经在盘上了 */
+                            }
+                            writeWorkMarker(settled.researchRoot, identity);
+                        }
+                        /*
+                         * 记一张**待同步便签**：`/research sync @这个.zip` 靠它知道"这是服务器上的哪项研究"。
+                         *
+                         * 为什么必须在这里记：本机那份研究读得到标识（`.convfusion/work.json`），
+                         * 而**下载的这份**只有此刻才知道 —— 它来自归档响应头（`identityId`）。
+                         * 查不到便签也不致命：那时同步退化为"先只读盘查、再判断"那一支；
+                         * 记账失败更不该让下载失败（ZIP 已经在盘上了）。
+                         */
+                        try {
+                            deps.syncNotes?.put({
+                                zipPath: saved.path,
+                                remoteWorkspaceId: identityId,
+                                projectId,
+                                projectTitle: asString(p.projectTitle) || null,
+                                serverUrl: base,
+                                source,
+                                savedAt: new Date().toISOString(),
+                            });
+                        }
+                        catch {
+                            /* 便签只是"更好的判定"，不是下载的一部分 */
+                        }
+                        progress.received = received;
+                        progress.running = false;
+                        return {
+                            ok: true,
+                            value: {
+                                dir: target.path,
+                                ...saved,
+                                // 界面用它组织"整合提示词"（目标研究根 / 身份 / 是不是新建）
+                                researchRoot: settled.researchRoot,
+                                workspaceStatus: settled.status,
+                                /** 布局（提示词在旧布局下要换一套备份说法）。 */
+                                workspaceLayout: settled.layout,
+                                workspaceId: identityId,
+                            },
+                        };
+                    }
+                    catch (e) {
+                        part.abort();
+                        progress.running = false;
+                        return serverFail(e);
+                    }
+                }
+                case 'mentor/downloadProgress': {
+                    /*
+                     * 下载进度（界面在下载期间按秒问）。
+                     *
+                     * 只回**这一次下载**的数字：项目对不上就回 0/未在跑 —— 免得把上一次下载的
+                     * 字节数当成这一次的。这个端点不做任何网络与磁盘操作，慢链路下也必须秒回。
+                     */
+                    const projectId = asString(p.projectId);
+                    const mine = downloadProgress && downloadProgress.projectId === projectId ? downloadProgress : null;
+                    return {
+                        ok: true,
+                        value: { received: mine?.received ?? 0, running: mine?.running ?? false },
+                    };
                 }
                 default:
                     return fail('unknown-endpoint', `未知端点：${endpoint}`);
@@ -336,11 +2655,8 @@ export function createSettingsRouteHandler(deps) {
             sendJson(res, 404, { ok: false, error: { code: 'not-found', message: '未知路径。' } });
             return;
         }
-        if (method !== 'POST') {
-            sendJson(res, 405, { ok: false, error: { code: 'method-not-allowed', message: '只接受 POST。' } });
-            return;
-        }
-        // Harness 的信任 / 鉴权栅栏：没有它就是一个本机可写的裸端点
+        // Harness 的信任 / 鉴权栅栏：没有它就是一个本机可写的裸端点。
+        // ⚠️ 必须在**任何**分支（含下面的 GET 下载）之前过一遍。
         if (deps.reject) {
             const rejection = deps.reject(req);
             if (rejection !== undefined) {
@@ -350,6 +2666,10 @@ export function createSettingsRouteHandler(deps) {
                 });
                 return;
             }
+        }
+        if (method !== 'POST') {
+            sendJson(res, 405, { ok: false, error: { code: 'method-not-allowed', message: '只接受 POST。' } });
+            return;
         }
         let payload;
         try {

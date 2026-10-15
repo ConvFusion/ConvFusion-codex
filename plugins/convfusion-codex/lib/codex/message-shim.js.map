@@ -1,1 +1,1 @@
-{"version":3,"file":"message-shim.js","sourceRoot":"","sources":["../../src/codex/message-shim.ts"],"names":[],"mappings":"AAAA,uEAAuE;AACvE,MAAM,UAAU,iBAAiB,CAAmB,OAAU;IAC5D,OAAO,EAAE,IAAI,EAAE,MAAM,EAAE,GAAG,OAAO,EAAE,CAAA;AACrC,CAAC"}
+{"version":3,"file":"message-shim.js","sourceRoot":"","sources":["../../src/codex/message-shim.ts"],"names":[],"mappings":"AAAA,mFAAmF;AACnF,OAAO,EAAE,iBAAiB,EAAE,MAAM,sBAAsB,CAAA"}

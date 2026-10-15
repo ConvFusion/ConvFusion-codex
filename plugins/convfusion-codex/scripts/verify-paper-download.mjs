@@ -277,10 +277,10 @@ console.log('\n[7] 工具层注册与执行')
 /* ── 8. Skill 指向真实工具 ────────────────────────────────────────── */
 console.log('\n[8] paper-fulltext-download Skill 指向真实工具')
 {
-  const skill = readFileSync(join(ROOT, 'skills', 'literature', 'paper-fulltext-download.md'), 'utf8')
+  const skill = readFileSync(join(ROOT, 'skills', 'convfusion-research', 'references', 'literature', 'paper-fulltext-download.md'), 'utf8')
   assert(skill.includes('research_paper_download'), 'Skill 正文提到该工具')
   assert(skill.includes('placeholder'), 'Skill 讲清占位处理')
-  const snap = readFileSync(join(ROOT, 'skills', '.sources', 'paper-fulltext-download.json'), 'utf8')
+  const snap = readFileSync(join(ROOT, 'skills', 'convfusion-research', 'references', '.sources', 'paper-fulltext-download.json'), 'utf8')
   assert(snap.includes('paper-fulltext-download'), '.sources 快照存在')
 }
 

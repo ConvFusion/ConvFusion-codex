@@ -71,9 +71,35 @@ const PREAMBLE_PACKAGES = [
   '\\usepackage{float}',
 ].join('\n')
 
-/** 转义 LaTeX 中会引发编译问题的 Unicode 标点（旧版 `sanitize_unicode_chars`）。 */
+/**
+ * 转义 LaTeX 中会引发编译问题的 Unicode 标点与符号（旧版 `sanitize_unicode_chars`）。
+ *
+ * ⚠️ **为什么必须逐字符映射，而不是"过滤掉非 ASCII"**：
+ * LaTeX 对不认识的 Unicode 字符是**静默丢弃**的，而其中一些字符**承载语义**。
+ * 实测事故：消融表里的 `−0.207`（U+2212 减号）被丢弃后变成 `0.207`，
+ * 把"下降 0.207"渲染成"0.207"，直接反转结论方向；`≥2` 变成 `2`；
+ * `0→1e-3` 变成 `01e-3`；`Cohen's κ` 变成 `Cohen's `。
+ * 因此这里按"语义等价"映射，**绝不删除**既有信息的字符。
+ *
+ * 数学/希腊字母映射到数学模式命令（`amsmath`/`amssymb` 由模板提供）。
+ * emoji 无 LaTeX 字体支持，映射为文本标签以保留"是否达标"的判断。
+ */
 export function sanitizeUnicodeChars(text: string): string {
-  return text
+  // 先保护**已有**数学区域：替换会在文本里插入 `$...$`，若落在原有 `$...$` 内部
+  // 会产生嵌套定界符，改变数学模式边界。
+  const mathRegions: string[] = []
+  let out = text
+    .replace(/\$\$[\s\S]*?\$\$/g, (m) => {
+      mathRegions.push(m)
+      return `\u0000UMATH${mathRegions.length - 1}\u0000`
+    })
+    .replace(/\$[^$\n]*\$/g, (m) => {
+      mathRegions.push(m)
+      return `\u0000UMATH${mathRegions.length - 1}\u0000`
+    })
+
+  out = out
+    // ── 标点 ──
     .replace(/\u2014/g, '---') // em dash
     .replace(/\u2013/g, '--') // en dash
     .replace(/\u2019/g, "'") // ’
@@ -82,6 +108,98 @@ export function sanitizeUnicodeChars(text: string): string {
     .replace(/\u201d/g, "''") // ”
     .replace(/\u2022/g, '$\\bullet$') // •
     .replace(/\u00a0/g, ' ') // nbsp
+    .replace(/\u2026/g, '\\ldots{}') // …
+    .replace(/\u2032/g, "$'$") // ′
+    .replace(/\u2033/g, "$''$") // ″
+    // ── 数学关系与运算（缺失会导致语义反转）──
+    .replace(/\u2212/g, '-') // − minus sign（文本模式下即正确减号）
+    .replace(/\u2265/g, '$\\geq$') // ≥
+    .replace(/\u2264/g, '$\\leq$') // ≤
+    .replace(/\u2260/g, '$\\neq$') // ≠
+    .replace(/\u2248/g, '$\\approx$') // ≈
+    .replace(/\u2192/g, '$\\rightarrow$') // →
+    .replace(/\u2190/g, '$\\leftarrow$') // ←
+    .replace(/\u21d2/g, '$\\Rightarrow$') // ⇒
+    .replace(/\u00d7/g, '$\\times$') // ×
+    .replace(/\u00f7/g, '$\\div$') // ÷
+    .replace(/\u00b1/g, '$\\pm$') // ±
+    .replace(/\u2208/g, '$\\in$') // ∈
+    .replace(/\u2209/g, '$\\notin$') // ∉
+    .replace(/\u221e/g, '$\\infty$') // ∞
+    .replace(/\u221d/g, '$\\propto$') // ∝
+    .replace(/\u2211/g, '$\\sum$') // ∑
+    .replace(/\u220f/g, '$\\prod$') // ∏
+    .replace(/\u221a/g, '$\\surd$') // √
+    .replace(/\u222a/g, '$\\cup$') // ∪
+    .replace(/\u2229/g, '$\\cap$') // ∩
+    .replace(/\u2286/g, '$\\subseteq$') // ⊆
+    .replace(/\u2205/g, '$\\emptyset$') // ∅
+    .replace(/\u00b0/g, '$^\\circ$') // °
+    // ── 希腊字母（论文高频；amsmath/amssymb 提供）──
+    .replace(/\u03b1/g, '$\\alpha$')
+    .replace(/\u03b2/g, '$\\beta$')
+    .replace(/\u03b3/g, '$\\gamma$')
+    .replace(/\u03b4/g, '$\\delta$')
+    .replace(/\u03b5/g, '$\\epsilon$')
+    .replace(/\u03b6/g, '$\\zeta$')
+    .replace(/\u03b7/g, '$\\eta$')
+    .replace(/\u03b8/g, '$\\theta$')
+    .replace(/\u03b9/g, '$\\iota$')
+    .replace(/\u03ba/g, '$\\kappa$')
+    .replace(/\u03bb/g, '$\\lambda$')
+    .replace(/\u03bc/g, '$\\mu$')
+    .replace(/\u03bd/g, '$\\nu$')
+    .replace(/\u03be/g, '$\\xi$')
+    .replace(/\u03c0/g, '$\\pi$')
+    .replace(/\u03c1/g, '$\\rho$')
+    .replace(/\u03c2/g, '$\\varsigma$')
+    .replace(/\u03c3/g, '$\\sigma$')
+    .replace(/\u03c4/g, '$\\tau$')
+    .replace(/\u03c5/g, '$\\upsilon$')
+    .replace(/\u03c6/g, '$\\phi$')
+    .replace(/\u03c7/g, '$\\chi$')
+    .replace(/\u03c8/g, '$\\psi$')
+    .replace(/\u03c9/g, '$\\omega$')
+    .replace(/\u0393/g, '$\\Gamma$')
+    .replace(/\u0394/g, '$\\Delta$')
+    .replace(/\u0398/g, '$\\Theta$')
+    .replace(/\u039b/g, '$\\Lambda$')
+    .replace(/\u039e/g, '$\\Xi$')
+    .replace(/\u03a0/g, '$\\Pi$')
+    .replace(/\u03a3/g, '$\\Sigma$')
+    .replace(/\u03a6/g, '$\\Phi$')
+    .replace(/\u03a8/g, '$\\Psi$')
+    .replace(/\u03a9/g, '$\\Omega$')
+    // ── 排版/货币（用纯文本等价物，避免依赖额外宏包）──
+    .replace(/\u00a9/g, '(c)') // ©
+    .replace(/\u00ae/g, '(R)') // ®
+    .replace(/\u2122/g, '(TM)') // ™
+    .replace(/\u00a7/g, '\\S{}') // §
+    .replace(/\u00b6/g, '\\P{}') // ¶
+    .replace(/\u20ac/g, 'EUR') // €
+    .replace(/\u00a3/g, 'GBP') // £
+    .replace(/\u00a5/g, 'JPY') // ¥
+    // ── emoji / 状态标记 → 文本标签（保留语义，不静默丢弃）──
+    .replace(/\u26a0\ufe0f?/g, '[!]') // ⚠️
+    .replace(/\u2705/g, '[yes]') // ✅
+    .replace(/\u274c/g, '[no]') // ❌
+    .replace(/\u2b50/g, '[*]') // ⭐
+    .replace(/\u2714\ufe0f?/g, '[yes]') // ✔
+    .replace(/\u2717/g, '[no]') // ✗
+    .replace(/\ud83d\udd11/g, '[key]') // 🔑
+    .replace(/\ud83d\udcca/g, '[chart]') // 📊
+    .replace(/\ud83d\udcc4/g, '[file]') // 📄
+    .replace(/\ud83c\udfaf/g, '[target]') // 🎯
+    .replace(/\ud83d\udd0d/g, '[search]') // 🔍
+    // ── 零宽字符与变体选择符：无渲染意义，删除 ──
+    .replace(/[\u200b\u200c\u200d\u2060\ufeff]/g, '')
+    .replace(/\ufe0f/g, '')
+
+  // 还原被保护的数学区域
+  for (let i = 0; i < mathRegions.length; i++) {
+    out = out.split(`\u0000UMATH${i}\u0000`).join(mathRegions[i])
+  }
+  return out
 }
 
 /**
@@ -93,7 +211,9 @@ export function sanitizeUnicodeChars(text: string): string {
  * 旧版优先用 `pylatexenc`（可选依赖）；这里直接移植其 fallback 语义。
  */
 export function safeText(text: string | undefined): string {
-  const src = text ?? ''
+  // title / abstract / authors 与正文一样会带 Unicode（`≥`、`κ`、`⚠️` 等）。
+  // 不做这层映射，它们会在 PDF 里静默消失 —— 论文标题里少一个符号读者是看得见的。
+  const src = sanitizeUnicodeChars(text ?? '')
   const mathRegions: string[] = []
   const protect = (m: string): string => {
     mathRegions.push(m)
@@ -111,8 +231,19 @@ export function safeText(text: string | undefined): string {
     ['_', '\\_'],
     ['~', '\\textasciitilde{}'],
   ]
-  for (const [from, to] of table) out = out.split(from).join(to)
-  out = out.split('{').join('\\{').split('}').join('\\}').split('^').join('\\^{}')
+  // 转义 LaTeX 特殊字符，但**跳过已经转义的**。
+  // 旧实现是盲替换 `split(from).join(to)`，会把已经转义的 `\%` 变成 `\\%`；
+  // 而在 LaTeX 里 `\\` 是换行、`%` 开始注释，于是该行剩余内容被**静默吃掉**——
+  // 实测摘要结尾 "…in 41\% of main-matrix episodes…" 在 PDF 里只渲染到 "…in 41"。
+  // 花括号同理（`\{` 会被变成 `\\{`）。
+  const esc = (ch: string, to: string): void => {
+    const re = new RegExp(`(?<!\\\\)${ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g')
+    out = out.replace(re, to)
+  }
+  for (const [from, to] of table) esc(from, to)
+  esc('{', '\\{')
+  esc('}', '\\}')
+  esc('^', '\\^{}')
 
   for (let i = 0; i < mathRegions.length; i++) {
     out = out.split(`\u0000MATHREGION${i}\u0000`).join(mathRegions[i])
@@ -134,6 +265,22 @@ const MATH_ENVS =
  * 模板已提供 `\section`，正文里再出现 `#` / `**` 就是标记泄漏（也是旧版最常见的编译错误源）。
  * 同时清掉 v2 论文里常见的占位注释与统计行。
  */
+/**
+ * 行内强调**只匹配单行**（`([^*\n]+)`）。这是刻意的，并有一次失败尝试的记录。
+ *
+ * 已知缺陷：Markdown 里**跨行**的 `**bold**` 不匹配，会以字面 `**` 落进 PDF
+ * （LaTeX 不报错，属静默版面缺陷；实测 paper-d2 曾出现 5 处、纸面 10 个星号）。
+ *
+ * 2026-10-04 曾改成允许跨单个换行（`([^*\n]+(?:\n(?!\s*\n)[^*\n]*)*)` + 斜体加
+ * lookaround），自检 114 条全过，但**在真实论文上过度配对**：斜体分隔符错位到别的跨度上
+ * （`\textit{what}` 变成 `}what\textit{`），并让 `\subsection{...}` 变成
+ * `\subsection\textit{{...}`，导致 paper-d2 **编译失败**（`Missing \endcsname`）。
+ * 因为正文已把所有跨行粗体改写成单行，回退到单行版本没有代价，故回退。
+ *
+ * 若将来要再修：**判据必须是在真实 paper.md 上 compose 后逐字节 diff + 编译通过**，
+ * 只用构造用例的自检不足以拦住这类过度配对。
+ */
+
 /**
  * 把**行内** Markdown 强调转成 LaTeX 命令（旧版靠上游 sanitizer 做，v2 的 paper.md 里内联强调很多）。
  *
@@ -159,6 +306,41 @@ export function convertInlineEmphasis(text: string): string {
   return out
 }
 
+/**
+ * 覆盖前检查：`compose` 会用 `paper.md` **重新生成** `main.tex`。若旧 `main.tex` 里含有新产物
+ * 不会再出现的**实质内容**，就把它列出来（调用方据此拒绝写盘）。
+ *
+ * 事故背景（2026-10-04）：paper-d2 的 44 条 `\bibitem` 只写在 `main.tex` 里、`paper.md` 里没有
+ * References 节，首次 compose 把书目整段抹掉；那次靠自动备份 `main_bak_*.tex` 才恢复。此检查把
+ * 「静默丢失」变成「响亮拒绝」。
+ *
+ * 只比较**名字/键**（书目键、自定义宏名、宏包名），不比较正文与逐字文本：正常重排、样板改写、
+ * 引用编号变化都不该触发，避免把检查做成噪音而被人习惯性绕过。
+ */
+export function detectComposeLoss(oldTex: string, newTex: string): string[] {
+  const bibKeys = (s: string) => new Set([...s.matchAll(/\\bibitem\{([^}]+)\}/g)].map((m) => m[1]))
+  const macros = (s: string) => new Set([
+    ...[...s.matchAll(/\\(?:newcommand|renewcommand|providecommand)\*?\s*\{?\s*\\([A-Za-z@]+)/g)]
+      .map((m) => m[1]),
+    ...[...s.matchAll(/\\def\s*\\([A-Za-z@]+)/g)].map((m) => m[1]),
+  ])
+  const packages = (s: string) => new Set(
+    [...s.matchAll(/\\usepackage(?:\[[^\]]*\])?\{([^}]+)\}/g)]
+      .flatMap((m) => m[1].split(',').map((p) => p.trim())))
+  const lost: string[] = []
+  const report = (label: string, a: Set<string>, b: Set<string>) => {
+    const gone = [...a].filter((x) => !b.has(x))
+    if (gone.length) {
+      lost.push(`${label}: ${gone.length} would disappear — ${gone.slice(0, 8).join(', ')}` +
+        (gone.length > 8 ? ` … (+${gone.length - 8})` : ''))
+    }
+  }
+  report('bibliography entries (\\bibitem)', bibKeys(oldTex), bibKeys(newTex))
+  report('custom macros (\\newcommand/\\def)', macros(oldTex), macros(newTex))
+  report('preamble packages (\\usepackage)', packages(oldTex), packages(newTex))
+  return lost
+}
+
 export function stripMarkdownHeaders(text: string | undefined): string {
   if (text === undefined || text === null) return ''
   let out = text
@@ -169,7 +351,18 @@ export function stripMarkdownHeaders(text: string | undefined): string {
   out = out.replace(/^__(.+?)__/gm, '$1')
   // 转义后的版本 \*\*
   out = out.replace(/^\\\*\\\*(.+?)\\\*\\\*/gm, '$1')
-  // 行首 Markdown 标题（# / \#，含 "## 3. Method" 形态）
+  // 行首 Markdown 标题。分两类处理，因为它们的归宿不同：
+  //   `### X` / `#### X` 是**子小节**，在论文里承载真实结构（如 "3.1 Overview"）
+  //     → 转成 \subsection* / \subsubsection* 保留层次。
+  //     用**带星号**的形式：论文里的子小节标题自带编号（"3.1"、"4.2"），
+  //     若用自动编号的 \subsection，IEEEtran 会再加一层 "A."，渲染成 "A. 3.1 …"（实测冗余）。
+  //     作者自带编号也让正文里的 "Section 5.3" 一类引用与标题始终对得上。
+  //     此前这些行被无差别删除，导致子小节标题**全部消失**：正文段落还在，
+  //     读者却看不出方法被分成了哪几块。
+  //   `## X` / `# X` 是章节标题，已由模板的 \section 承载；正文里再出现即为标记泄漏，删除。
+  // 顺序要紧：先 4 个 #、再 3 个 #，最后才删除剩余的 1–2 个 #。
+  out = out.replace(/^####\s+(.+?)\s*$/gm, '\\subsubsection*{$1}')
+  out = out.replace(/^###\s+(.+?)\s*$/gm, '\\subsection*{$1}')
   out = out.replace(/^(?:\\#|#)+\s+.*$/gm, '')
   // 统计摘要行（旧版遗留）
   out = out.replace(/^.*?(Reference Count|Total Word Count|Number of Paragraphs).*$/gm, '')
@@ -210,6 +403,15 @@ export function sanitizeLatexMath(text: string): string {
   }
 
   let out = text
+  // 0) 命令参数里的**字面名字**（图片文件名 / 引用键 / 标签）：这些参数中的 `_`、`%`、`&`
+  //    是名字本身的一部分，不是排版符号。转义它们会让 LaTeX 找不到目标。
+  //    实测事故：`\includegraphics{figures/fig1_method.pdf}` 被转成
+  //    `figures/fig1\_method.pdf` —— **图片静默不渲染**：PDF 里只剩图注和空白，
+  //    而 `\includegraphics` 失败不报 error，编译仍然 0 错误。这类缺陷肉眼极难发现。
+  out = out.replace(
+    /(\\(?:includegraphics|label|ref|eqref|cite|citep|citet|input|include|bibliography)\s*(?:\[[^\]]*\])?\s*\{)([^}]*)(\})/g,
+    (_m: string, pre: string, arg: string, post: string) => `${pre}${protect(arg)}${post}`,
+  )
   // 1) 数学环境
   out = out.replace(new RegExp(`\\\\begin\\{${MATH_ENVS}\\}[\\s\\S]*?\\\\end\\{${MATH_ENVS}\\}`, 'g'), protect)
   // 2) display math
@@ -218,6 +420,12 @@ export function sanitizeLatexMath(text: string): string {
   out = out.replace(/\$[^$]*\$/g, protect)
   // 4) 裸下标 / 上标
   out = out.replace(/\b[a-zA-Z]+(?:_[a-zA-Z0-9]+|\^[a-zA-Z0-9]+)+\b/g, (m) => protect(`$${m}$`))
+  // 4.5) 原生表格环境（`table` / `table*`）：`&`、`%`、`_` 是表格语法本身，不能转义。
+  //      实测事故（2026-10-07）：`paper.md` 里手写的 `\begin{table*}` + `\multicolumn` 被转成
+  //      `\&`，编译报 `Misplaced \omit`、18 个错误，表格只能退回 markdown，因而做不出双行表头。
+  //      这里不影响 markdown 表格：那些由 `escapeTableCell` 在转义之后单独生成。
+  out = out.replace(/\\begin\{table\*?\}[\s\S]*?\\end\{table\*?\}/g, protect)
+
   // 5) 转义（跳过已转义字符）
   const escapes: Array<[string, string]> = [
     ['&', '\\&'],
@@ -229,8 +437,12 @@ export function sanitizeLatexMath(text: string): string {
   for (const [ch, to] of escapes) {
     out = out.replace(new RegExp(`(?<!\\\\)${ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'g'), to)
   }
-  // 6) 还原
-  for (let i = 0; i < regions.length; i++) {
+  // 6) 还原（**倒序**：外层先还原，内层再还原）
+  //    必须倒序：保护会嵌套（如整张原生 `table*` 里还有一个 `\label{...}` 被单独保护）。
+  //    升序还原时，内层 sentinel 已经替换完，但它嵌在"外层尚未还原的内容"里，
+  //    于是内层 sentinel 会原样留在产物中。实测事故（2026-10-07）：
+  //    `\label{\u0000MATH11\u0000}` 进了 main.tex，编译报 `Text line contains an invalid character`。
+  for (let i = regions.length - 1; i >= 0; i--) {
     out = out.split(sentinel(i)).join(regions[i])
   }
   return out
@@ -263,8 +475,11 @@ export function buildThebibliography(entries: readonly BibEntry[]): string {
 /**
  * 把引用占位符转成 `\cite{}`（旧版 `inject_citations` 的三层转换）。
  *
- *   1. `[key1, key2]` → `\cite{key1,key2}`
- *   2. `[alphaKey]` → `\cite{alphaKey}`（兜底，捕获 Agent 自由生成的引用）
+ *   1. `[key1, key2]` → `\cite{key1,key2}`；分隔符支持逗号或分号
+ *      （`[key1; key2; key3]`），并容忍 `arXiv:` / `doi:` 后缀注解
+ *      （`[key, arXiv:2609.02265]` → `\cite{key}`，编号已写在参考文献条目里）
+ *   2. `[alphaKey]` → `\cite{alphaKey}`（兜底；提供 knownKeys 时只转已知键，
+ *      避免 `[TBD]` / `[t]` 之类被误转）
  *   3. `[12]` / `[3-5]` → 按 numberToKey 映射 → `\cite{...}`
  *
  * 数学区（`$...$` / `$$...$$`）内不替换 —— `\cite` 不能在数学模式里用。
@@ -282,6 +497,20 @@ export function injectCitations(
 
   let out = text.replace(/\$\$[^$]*\$\$/g, protect).replace(/\$[^$]*\$/g, protect)
 
+  // 0) 引用组归一化：`[a; b]` → `[a, b]`；剥离 `, arXiv:xxxx` / `, doi:xxxx` 注解。
+  //    只在组内容「全是引用键（可带 arXiv:/doi: 注解）」时处理；其余（[TBD]、[t]、
+  //    [width=\textwidth]、含空格/标点的 prose 括号）原样保留。
+  out = out.replace(
+    /\[([a-zA-Z][a-zA-Z0-9]*(?:\s*[,;]\s*(?:[a-zA-Z][a-zA-Z0-9]*|(?:arXiv|doi):[^\s,;]+))+\s*)\]/g,
+    (m, group: string) => {
+      const keys = group
+        .split(/\s*[,;]\s*/)
+        .map((s) => s.replace(/^(?:arXiv|doi):.*$/i, '').trim())
+        .filter(Boolean)
+      return keys.length > 0 ? `[${keys.join(', ')}]` : m
+    },
+  )
+
   // 1) 多引用
   out = out.replace(/\[([a-zA-Z][a-zA-Z0-9]+(?:\s*,\s*[a-zA-Z][a-zA-Z0-9]+)+)\]/g, (m, group: string) => {
     const keys = group.split(/\s*,\s*/)
@@ -289,8 +518,11 @@ export function injectCitations(
     return valid.length > 0 ? `\\cite{${valid.join(',')}}` : m
   })
 
-  // 2) 单引用兜底
-  out = out.replace(/\[([a-zA-Z][a-zA-Z0-9]+)\]/g, '\\cite{$1}')
+  // 2) 单引用兜底（提供 knownKeys 时只转已知键）
+  out = out.replace(/\[([a-zA-Z][a-zA-Z0-9]+)\]/g, (m, key: string) => {
+    if (known && !known.has(key)) return m
+    return `\\cite{${key}}`
+  })
 
   // 3) 数字引用 → key
   if (opts.numberToKey && Object.keys(opts.numberToKey).length > 0) {
@@ -331,6 +563,195 @@ export function injectCitations(
 export interface FigureSpec {
   name: string
   caption: string
+}
+
+/**
+ * 把 Markdown 表格块转成 LaTeX `table` 环境（booktabs），并用哨兵保护正文，
+ * 避免后续 `sanitizeLatexMath` 把 `&` 分隔符转义、把 `fact_update` 包进数学区。
+ *
+ * 支持 GitHub 风格管道表格：`| a | b |` 表头行 + `|---|---|` 分隔行（可带 `:`
+ * 对齐标记）+ 数据行。表格上方紧邻的 `Table: <caption>` 行（或 `**Table N:**`）
+ * 作为题注消费掉。
+ *
+ * 列宽策略（对齐 visual-evidence-selection 的宽表规则）：
+ * - 估算各列最大视觉宽度（ASCII 1、CJK 2），总宽超过单栏阈值（约 62 字符）
+ *   或列数 ≥ 6 → `table*`（跨栏），长文本列用 `p{...}` 换行；否则单栏 `table`，
+ *   窄列用 `l` / `c` / `r`。
+ *
+ * 单元格内容按 LaTeX 转义（`& % # _ ^ $` 等），数学区（`$...$`）受保护。
+ * 返回带 `\u0000MDTABLE<i>\u0000` 哨兵的正文；用 {@link restoreMarkdownTables}
+ * 在净化/引用注入完成后还原。
+ */
+export function convertMarkdownTables(text: string, tables: string[] = []): string {
+  const lines = text.split('\n')
+  const out: string[] = []
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]
+    const isTableLine = /^\s*\|.*\|\s*$/.test(line)
+    const isSep = i + 1 < lines.length && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1])
+    if (isTableLine && isSep) {
+      // 收集表块（表头 + 分隔 + 数据行）
+      const block: string[] = [line]
+      let j = i + 1
+      while (j < lines.length && /^\s*\|.*\|\s*$/.test(lines[j])) {
+        block.push(lines[j])
+        j++
+      }
+      // 题注：表格上方的 `Table: ...` / `**Table N:** ...` 行
+      let caption = ''
+      let k = i - 1
+      while (k >= 0 && lines[k].trim() === '') k--
+      if (k >= 0) {
+        const capLine = lines[k]
+        const m = capLine.match(/^\s*(?:\*\*)?Table\s*\d*\.?:?\s*(.+?)\s*\*{0,2}$/i)
+        if (m) {
+          caption = m[1].trim()
+          lines[k] = '' // 消费题注行
+          // 实测事故：题注行位于表格**上方**，在主循环里早已被 push 进 out ——
+          // 只置空 lines[k] 不生效，正文里会残留一段 "Table: ..." 重复题注。
+          // 这里回溯 out，把最后一条非空行（必然就是该题注行）移除。
+          for (let oi = out.length - 1; oi >= 0; oi--) {
+            if (out[oi].trim() === '') continue
+            if (out[oi] === capLine) out.splice(oi, 1)
+            break
+          }
+        }
+      }
+      const idx = tables.length
+      tables.push(buildTableLatex(block, caption, idx))
+      out.push(`\u0000MDTABLE${idx}\u0000`)
+      i = j
+    } else {
+      out.push(line)
+      i++
+    }
+  }
+  return out.join('\n')
+}
+
+/** 把 `convertMarkdownTables` 留下的哨兵还原为 LaTeX 表格。 */
+export function restoreMarkdownTables(text: string, tables: readonly string[]): string {
+  let out = text
+  for (let i = 0; i < tables.length; i++) {
+    out = out.split(`\u0000MDTABLE${i}\u0000`).join(tables[i])
+  }
+  return out
+}
+
+/** 单元格内联 Markdown 残留清理 + LaTeX 转义（保护数学区）。 */
+function escapeTableCell(raw: string): string {
+  const regions: string[] = []
+  let out = raw
+    .replace(/\$\$[\s\S]*?\$\$/g, (m) => {
+      regions.push(m)
+      return `\u0000CELLMATH${regions.length - 1}\u0000`
+    })
+    .replace(/\$[^$]*\$/g, (m) => {
+      regions.push(m)
+      return `\u0000CELLMATH${regions.length - 1}\u0000`
+    })
+  out = out.replace(/\*\*([^*\n]+)\*\*/g, '\\textbf{$1}')
+  out = out.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '\\textit{$1}')
+  // 已转义的（作者手写 `\%` `\&` 等）不二次转义 —— 实测事故：题注 `95\%` 被转成
+  // `95\\%`，`\\` 是换行、`%` 把 `\caption{...}` 的收尾注释掉，整个编译以
+  // "Runaway argument" 中断。
+  out = out
+    .replace(/(?<!\\)&/g, '\\&').replace(/(?<!\\)%/g, '\\%').replace(/(?<!\\)#/g, '\\#')
+    .replace(/(?<!\\)_/g, '\\_').replace(/(?<!\\)\^/g, '\\^{}')
+  out = out.replace(/\$/g, '\\$') // 落单 $ 转义（数学区已保护）
+  for (let r = 0; r < regions.length; r++) out = out.split(`\u0000CELLMATH${r}\u0000`).join(regions[r])
+  return out
+}
+
+/** 估算字符串在 8pt IEEEtron 下的近似宽度（ASCII=1，CJK/宽字符=2）。 */
+function visualWidth(s: string): number {
+  let w = 0
+  for (const ch of s) {
+    const code = ch.codePointAt(0) ?? 0
+    // LaTeX 命令按字面长度算（\textbf{..} 等），已转义字符按剩余文本算
+    w += code > 0x2e7f || code === 0x2014 ? 2 : 1
+  }
+  return w
+}
+
+/** 解析一行管道表格 → 单元格数组（去掉首尾 `|`）。 */
+function parsePipeRow(line: string): string[] {
+  const trimmed = line.trim()
+  const inner = trimmed.replace(/^\|/, '').replace(/\|$/, '')
+  return inner.split('|').map((c) => c.trim())
+}
+
+/** 由分隔行推断对齐（`:---` 左、`---:` 右、`:---:` 中、默认左）。 */
+function alignFromSep(sep: string): 'l' | 'c' | 'r' {
+  const s = sep.replace(/-/g, '').trim()
+  const left = s.startsWith(':')
+  const right = s.endsWith(':')
+  if (left && right) return 'c'
+  if (right) return 'r'
+  return 'l'
+}
+
+/** 把表块（含题注行判断之外的 `|` 行）渲染成 LaTeX `table`/`table*`。 */
+function buildTableLatex(block: string[], caption: string, idx: number): string {
+  const header = parsePipeRow(block[0])
+  const sepRow = parsePipeRow(block[1] ?? '')
+  const dataRows = block.slice(2).map(parsePipeRow)
+  const nCols = Math.max(header.length, ...dataRows.map((r) => r.length))
+
+  // 各列最大视觉宽度
+  const colWidths: number[] = Array(nCols).fill(0)
+  for (const row of [header, ...dataRows]) {
+    for (let c = 0; c < nCols; c++) {
+      colWidths[c] = Math.max(colWidths[c], visualWidth(row[c] ?? ''))
+    }
+  }
+  const totalWidth = colWidths.reduce((a, b) => a + b, 0)
+  const wide = totalWidth > 62 || nCols >= 6
+
+  const aligns = Array.from({ length: nCols }, (_, c) => (sepRow[c] ? alignFromSep(sepRow[c]) : 'l'))
+  // 列规格：宽表的长列（>18 视觉宽）用 p{...}，其余用 l/c/r
+  /**
+   * 列宽预算：给**列间距**留出余量。
+   *
+   * 原来固定乘 0.92，没有扣掉 `\tabcolsep` —— 6 列时 10 个间距 ≈ 0.12\textwidth，
+   * 于是 6 列表稳定溢出（实测 Table II 超 30.7pt、Table I 超 34.9pt）。
+   * 预算 = 0.92 − 列数 × 0.012，并配合把列间距收到 4pt。
+   */
+  const pBudget = Math.max(0.6, 0.92 - 0.012 * nCols)
+  const colSpec = Array.from({ length: nCols }, (_, c) => {
+    const w = colWidths[c]
+    if (wide && w > 18) {
+      const frac = Math.max(0.1, Math.min(0.8, (w / Math.max(totalWidth, 1)) * pBudget))
+      return `p{${frac.toFixed(2)}\\textwidth}`
+    }
+    return aligns[c]
+  }).join(' ')
+
+  const fmtRow = (row: string[]): string =>
+    Array.from({ length: nCols }, (_, c) => escapeTableCell(row[c] ?? '')).join(' & ') + ' \\\\'
+
+  const env = wide ? 'table*' : 'table'
+  const lines: string[] = [
+    `\\begin{${env}}[t]`,
+    '\\centering',
+    ...(wide ? ['\\setlength{\\tabcolsep}{4pt}'] : []),
+  ]
+  if (caption) {
+    lines.push(`\\caption{${escapeTableCell(caption)}}`)
+    lines.push(`\\label{tab:md-${idx}}`)
+  }
+  lines.push(
+    `\\begin{tabular}{${colSpec}}`,
+    '\\toprule',
+    fmtRow(header),
+    '\\midrule',
+    ...dataRows.map(fmtRow),
+    '\\bottomrule',
+    '\\end{tabular}',
+    `\\end{${env}}`,
+  )
+  return lines.join('\n')
 }
 
 /** 从图名派生 label（旧版规则：去 .png、下划线转连字符）。 */
@@ -599,6 +1020,9 @@ export function composeDocument(input: ComposeInput): ComposeResult {
   for (const section of input.sections) {
     // 1) Markdown 残留
     let body = stripMarkdownHeaders(section.body)
+    // 1.5) Markdown 表格 → 哨兵（必须赶在数学净化之前：& 分隔符、snake_case 单元格）
+    const tables: string[] = []
+    body = convertMarkdownTables(body, tables)
     // 2) 图占位（保护 \ref 不被后续净化污染）
     body = embedFiguresInText(body, figures)
     // 3) 公式注入
@@ -608,11 +1032,15 @@ export function composeDocument(input: ComposeInput): ComposeResult {
     // 5) 图还原
     body = injectFigureCode(body, figures)
 
-    const intermediate = body
-    const final = injectCitations(body, {
+    const intermediate = restoreMarkdownTables(body, tables)
+    const citeOpts = {
       ...(input.knownKeys ? { knownKeys: input.knownKeys } : {}),
       ...(input.numberToKey ? { numberToKey: input.numberToKey } : {}),
-    })
+    }
+    // 表格在注入阶段还是哨兵（`restoreMarkdownTables` 之前不可见），所以**表内的引用键**
+    // 拿不到 `\cite` —— 第一轮只处理正文。还原之后再补一轮：对已经是 `\cite{...}` 的片段幂等，
+    // 因此不会二次转义，只是把表格里漏掉的键补上。
+    const final = injectCitations(restoreMarkdownTables(injectCitations(body, citeOpts), tables), citeOpts)
     chapters.push({ title: section.title, intermediate, final })
   }
 
@@ -642,9 +1070,14 @@ export function composeDocument(input: ComposeInput): ComposeResult {
     parts.push(`\\title{${title}}`)
     parts.push('')
     const authors = safeText(input.authors ?? 'Authors')
-    const affiliation = safeText(input.affiliation ?? 'Affiliation')
-    parts.push('\\author{\\IEEEauthorblockN{' + authors + '} \\\\')
-    parts.push('\\IEEEauthorblockA{' + affiliation + '}}')
+    const affiliation = safeText(input.affiliation ?? '')
+    // 没有单位信息时（arXiv 前置投稿）只出作者块，不留一行空的 "Affiliation"。
+    if (affiliation.length > 0) {
+      parts.push('\\author{\\IEEEauthorblockN{' + authors + '} \\\\')
+      parts.push('\\IEEEauthorblockA{' + affiliation + '}}')
+    } else {
+      parts.push('\\author{\\IEEEauthorblockN{' + authors + '}}')
+    }
     parts.push('')
     parts.push('\\maketitle')
     parts.push('')

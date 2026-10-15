@@ -1,0 +1,55 @@
+{
+  "entry": "codex-mcp.mjs",
+  "source": "scripts/convfusion-mcp.mjs",
+  "inputCount": 99,
+  "dependencies": [
+    {
+      "id": "@deepseek-ai/cordis@4.0.4",
+      "license": "MIT"
+    },
+    {
+      "id": "@deepseek-ai/cosmokit@1.8.5",
+      "license": "MIT"
+    },
+    {
+      "id": "@deepseek-ai/dsh-brand@0.2.0-rc.2",
+      "license": "MIT"
+    },
+    {
+      "id": "@deepseek-ai/dsh-llm@0.2.0-rc.2",
+      "license": "MIT"
+    },
+    {
+      "id": "@deepseek-ai/dsh-sandbox@0.2.0-rc.2",
+      "license": "MIT"
+    },
+    {
+      "id": "@deepseek-ai/dsh-scope@0.2.0-rc.2",
+      "license": "MIT"
+    },
+    {
+      "id": "@deepseek-ai/dsh-timeout@0.2.0-rc.2",
+      "license": "MIT"
+    },
+    {
+      "id": "@deepseek-ai/dsh-tools@0.2.0-rc.2",
+      "license": "MIT"
+    },
+    {
+      "id": "@deepseek-ai/dsh-typert-protocol@0.2.0-rc.2",
+      "license": "MIT"
+    },
+    {
+      "id": "@deepseek-ai/dsh-util-crypto@0.2.0-rc.2",
+      "license": "MIT"
+    },
+    {
+      "id": "@deepseek-ai/dsh-util-values@0.2.0-rc.2",
+      "license": "MIT"
+    },
+    {
+      "id": "@deepseek-ai/schemastery@3.18.4",
+      "license": "MIT"
+    }
+  ]
+}

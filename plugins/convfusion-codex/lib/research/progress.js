@@ -23,9 +23,18 @@
  *   - 进度条的位置由等级折算得到，**同时显示等级名**，并标注"折算"；
  *   - 可数的东西（证据/主张/决策/计划）**给真实计数**，不给百分比；
  *   - 未评估的维度显示 `Unknown`，绝不假装它是 0% 或某个中间值。
+ *
+ * ## 两个展示面（同一套数据，2026-09 改版）
+ *
+ * ```text
+ * 顶部「研究进展」按钮的面板（主）  ← `WorkspaceProgress`：任何时刻点开都看"现在到哪了"
+ * 回合尾部曾经注入的进度卡（已删）  ← `TurnProgressReport`：链式槽位的 selector 拿不到会话身份，
+ *                                    只能靠一个进程级全局变量猜，于是会命中所有会话
+ * ```
+ *
+ * `TurnProgressReport` 仍然保留：面板的"本轮变化"一节用它（哪个会话的哪一轮，
+ * 由 `progress-bridge.ts` 按会话 id 记录）。
  */
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { listClaims } from './claims.js';
 import { listDecisions } from './claims.js';
 import { listEvidence } from './evidence.js';
@@ -35,8 +44,10 @@ import { assessResearchProcess } from './research-process.js';
 import { assessAdvance } from './advance.js';
 import { MATURITY_DIMENSIONS } from './research-data.js';
 import { listAllOutputs } from './output.js';
-import { DEFAULT_PAPER_ID } from './paper-data.js';
-import { paperDir } from './paper.js';
+import { PAPER_MATURITY_DIMENSIONS, } from './paper-data.js';
+import { getActivePaperId, hasManuscript as hasManuscriptIn, listPapers } from './paper.js';
+import { paperStatusSummary, readPaperMaturity, suggestPaperMaturity } from './paper-evolution.js';
+import { detectPaperGaps, listPaperGaps, mergeDetectedGaps, paperTitle, prioritizeGaps } from './paper-gaps.js';
 /** 等级 → 进度条位置（**折算**，不是测量值）。 */
 export const MATURITY_SCALE = {
     Unknown: 0,
@@ -45,6 +56,143 @@ export const MATURITY_SCALE = {
     Strong: 0.75,
     Established: 1,
 };
+/**
+ * 短标题（tab 用）：优先取副标题之前的部分，再收成前 2 个词或 22 个字符。
+ *
+ * 论文标题常常很长（`A: B, and C`），整条塞进 tab 会撑爆面板；这里只做**显示**收缩，
+ * 完整标题仍在 `title` 里（悬停可见），所以不丢信息。
+ */
+export function shortWorkTitle(title, id) {
+    const source = (title || id).trim();
+    const head = source.split(/\s+[—–]\s+|:\s+/)[0]?.trim() || source;
+    const words = head.split(/\s+/).filter(Boolean);
+    const brief = words.length > 2 ? words.slice(0, 2).join(' ') : head;
+    const chars = [...brief];
+    return chars.length > 22 ? `${chars.slice(0, 22).join('')}…` : brief;
+}
+/** 采集每个研究工作自己的进展（纯读盘；依次复用 Stage 5 的既有 helper）。 */
+export function captureWorkProgress(workspace) {
+    const activeId = getActivePaperId(workspace);
+    const out = [];
+    // `listPapers`（不是 `listPaperIds`）：只有真的能读出论文的目录才算一个工作
+    // （`papers/__pycache__` 这类目录不是论文）。
+    for (const paper of listPapers(workspace)) {
+        const summary = paperStatusSummary(workspace, paper.id);
+        if (!summary)
+            continue;
+        const title = paperTitle(paper);
+        const recorded = readPaperMaturity(workspace, paper.id);
+        const recordedKnown = PAPER_MATURITY_DIMENSIONS.some((d) => recorded[d].status !== 'Unknown');
+        const maturity = recordedKnown ? recorded : suggestPaperMaturity(workspace, paper.id);
+        const dimensions = PAPER_MATURITY_DIMENSIONS.map((d) => ({
+            dimension: d,
+            level: maturity[d].status,
+            scale: MATURITY_SCALE[maturity[d].status],
+        }));
+        // 未解决缺口 = 已记录的 ∪ 规则检查实时发现的。
+        // ⚠️ `mergeDetectedGaps` 是**纯函数**（不写盘）—— 面板只读，绝不落 Gap 文件。
+        const open = prioritizeGaps(mergeDetectedGaps(listPaperGaps(workspace, paper.id), detectPaperGaps(workspace, paper.id)).gaps).filter((g) => !g.resolved);
+        const top = open[0];
+        const target = top?.relatedClaim ?? top?.relatedSection;
+        out.push({
+            id: paper.id,
+            title,
+            short: shortWorkTitle(title, paper.id),
+            active: paper.id === activeId,
+            status: summary.status,
+            version: summary.version,
+            overall: dimensions.reduce((a, d) => a + d.scale, 0) / dimensions.length,
+            maturitySource: recordedKnown ? 'recorded' : 'derived',
+            maturity: dimensions,
+            counts: {
+                sections: summary.sections.total,
+                sectionsWithContent: summary.sections.substantive,
+                claims: summary.claims.total,
+                claimsWithoutEvidence: summary.claims.withoutEvidence,
+                evidence: summary.evidence.total,
+                evidenceUsedInManuscript: summary.evidence.usedInManuscript,
+                gaps: open.length,
+                gapsHigh: open.filter((g) => g.priority === 'high').length,
+                openProposals: summary.openProposals,
+            },
+            ...(top
+                ? {
+                    next: {
+                        code: top.type,
+                        priority: top.priority,
+                        ...(target ? { target } : {}),
+                        ...(top.suggestedSkill ? { skill: top.suggestedSkill } : {}),
+                    },
+                }
+                : {}),
+        });
+    }
+    return out;
+}
+/** 工作计数的零元（逐项求和从它开始，保证键一个不少）。 */
+function zeroWorkCounts() {
+    return {
+        sections: 0,
+        sectionsWithContent: 0,
+        claims: 0,
+        claimsWithoutEvidence: 0,
+        evidence: 0,
+        evidenceUsedInManuscript: 0,
+        gaps: 0,
+        gapsHigh: 0,
+        openProposals: 0,
+    };
+}
+/** 逐项求和（**唯一**一处加法：界面与回归测试都用它，避免两处求和漂移）。 */
+export function sumWorkCounts(counts) {
+    const totals = zeroWorkCounts();
+    for (const c of counts) {
+        totals.sections += c.sections;
+        totals.sectionsWithContent += c.sectionsWithContent;
+        totals.claims += c.claims;
+        totals.claimsWithoutEvidence += c.claimsWithoutEvidence;
+        totals.evidence += c.evidence;
+        totals.evidenceUsedInManuscript += c.evidenceUsedInManuscript;
+        totals.gaps += c.gaps;
+        totals.gapsHigh += c.gapsHigh;
+        totals.openProposals += c.openProposals;
+    }
+    return totals;
+}
+/**
+ * 各工作报的**同一份**工作区证据库读数。
+ *
+ * 取最大值而不是求和：正常情况下每个工作的这个数都一样（都来自 `listEvidence(workspace)`），
+ * 万一将来出现不一致，报得出来也比静默少报好。
+ */
+export function sharedEvidenceCount(works) {
+    return works.reduce((max, w) => Math.max(max, w.counts.evidence), 0);
+}
+/**
+ * 由各工作构造汇总（纯函数：同一份 `works` 必得同一结果）。
+ *
+ * @returns 工作数 ≤ 1 时为 `null` —— 单工作没有"汇总"可言，界面照旧渲染今天的内容
+ */
+export function aggregateWorks(works) {
+    if (!Array.isArray(works) || works.length < 2)
+        return null;
+    const totals = sumWorkCounts(works.map((w) => w.counts));
+    // 见 `WorksAggregate.totals`：证据是**全工作区共用**的一份读数，相加会重复计数。
+    totals.evidence = sharedEvidenceCount(works);
+    return {
+        works: works.length,
+        totals,
+        rows: works.map((w) => ({
+            id: w.id,
+            title: w.title,
+            short: w.short,
+            active: w.active,
+            overall: w.overall,
+            maturitySource: w.maturitySource,
+            counts: { ...w.counts },
+        })),
+    };
+}
 /**
  * 从工作区真实资产采集一次快照。
  *
@@ -71,6 +219,7 @@ export function captureProgress(workspace, skillContent, advanceOptions = {}) {
         advance,
         stateVersion: state?.version ?? '—',
         maturity,
+        works: captureWorkProgress(workspace),
         counts: {
             evidence: evidence.length,
             evidenceSettled: evidence.filter((e) => e.status === 'supported' || e.status === 'verified').length,
@@ -82,7 +231,7 @@ export function captureProgress(workspace, skillContent, advanceOptions = {}) {
             plansReady: plans.filter((p) => p.status === 'ready' || p.status === 'refined').length,
             openQuestions: index.openQuestions.length,
             outputs: listAllOutputs(workspace).length,
-            paperPresent: existsSync(join(paperDir(workspace, DEFAULT_PAPER_ID), 'paper.md')),
+            paperPresent: hasManuscriptIn(workspace),
         },
         stage: process.current ? { id: process.current.stage.id, label: process.current.stage.label } : null,
     };
@@ -251,6 +400,23 @@ export function researchGaps(snapshot) {
         out.push(`${snapshot.counts.openQuestions} 个开放问题待解`);
     return out;
 }
+export function progressGapData(snapshot) {
+    const out = [];
+    if (snapshot.stage)
+        out.push({ code: 'stagePending', stage: snapshot.stage });
+    else
+        out.push({ code: 'processComplete' });
+    const unsupported = snapshot.counts.claims - snapshot.counts.claimsSupported;
+    if (unsupported > 0)
+        out.push({ code: 'unsupportedClaims', count: unsupported });
+    const noArtifact = snapshot.counts.evidence - snapshot.counts.evidenceWithArtifact;
+    if (noArtifact > 0)
+        out.push({ code: 'missingArtifacts', count: noArtifact });
+    if (snapshot.counts.openQuestions > 0) {
+        out.push({ code: 'openQuestions', count: snapshot.counts.openQuestions });
+    }
+    return out;
+}
 /** 由差异 + 快照构造界面用的回合报告。 */
 export function buildTurnReport(diff, turn, advance, at = new Date()) {
     const moved = diff.changed;
@@ -270,26 +436,74 @@ export function buildTurnReport(diff, turn, advance, at = new Date()) {
                 level: diff.after.maturity[d],
                 scale: MATURITY_SCALE[diff.after.maturity[d]],
             })),
-            stage: diff.after.stage?.label ?? null,
+            stage: diff.after.stage,
         },
         changes: {
             changed: moved,
             maturity: diff.maturityChanges.map((m) => ({ dimension: m.dimension, from: m.from, to: m.to })),
             counts: diff.countChanges.map((c) => ({
                 key: String(c.key),
-                label: countLabel(String(c.key)),
                 from: c.from,
                 to: c.to,
             })),
         },
         need: {
-            gaps: researchGaps(diff.after),
+            gaps: progressGapData(diff.after),
             clarity: advance?.clarity ?? 'unknown',
             basis: advance?.basis ?? '',
+            ...(advance?.basisCode ? { basisCode: advance.basisCode } : {}),
+            ...(advance?.basisParams ? { basisParams: advance.basisParams } : {}),
             ...(advance?.nextStep ? { nextStep: advance.nextStep } : {}),
             ...(advance?.needsUserDecision ? { needsUserDecision: advance.needsUserDecision } : {}),
+            ...(advance?.decisionCode ? { decisionCode: advance.decisionCode } : {}),
         },
         moved,
+    };
+}
+/** 可数资产 → 面板行（顺序固定，便于两次点开之间对照）。 */
+export function progressCountRows(snapshot) {
+    const c = snapshot.counts;
+    return [
+        { key: 'evidence', value: c.evidence, detail: { code: 'settled', count: c.evidenceSettled } },
+        { key: 'claims', value: c.claims, detail: { code: 'supported', count: c.claimsSupported } },
+        { key: 'decisions', value: c.decisions },
+        { key: 'plans', value: c.plans, detail: { code: 'ready', count: c.plansReady } },
+        { key: 'openQuestions', value: c.openQuestions },
+        { key: 'outputs', value: c.outputs },
+    ];
+}
+/** 由当前快照构造工作区报告（纯函数：同一份磁盘状态必得同一结果）。 */
+export function buildWorkspaceProgress(snapshot, at = new Date()) {
+    const advance = snapshot.advance;
+    const works = snapshot.works ?? [];
+    // 汇总只在**多于一个**工作时出现；单工作/零工作时连字段都不带（旧形状一字不变）
+    const aggregate = aggregateWorks(works);
+    return {
+        at: at.toISOString(),
+        stateVersion: snapshot.stateVersion,
+        overall: meanScale(snapshot.maturity),
+        works,
+        ...(aggregate ? { aggregate } : {}),
+        progress: {
+            dimensions: MATURITY_DIMENSIONS.map((d) => ({
+                dimension: d,
+                level: snapshot.maturity[d],
+                scale: MATURITY_SCALE[snapshot.maturity[d]],
+            })),
+            stage: snapshot.stage,
+        },
+        counts: progressCountRows(snapshot),
+        paper: snapshot.counts.paperPresent,
+        need: {
+            gaps: progressGapData(snapshot),
+            clarity: advance?.clarity ?? 'unknown',
+            basis: advance?.basis ?? '',
+            ...(advance?.basisCode ? { basisCode: advance.basisCode } : {}),
+            ...(advance?.basisParams ? { basisParams: advance.basisParams } : {}),
+            ...(advance?.nextStep ? { nextStep: advance.nextStep } : {}),
+            ...(advance?.needsUserDecision ? { needsUserDecision: advance.needsUserDecision } : {}),
+            ...(advance?.decisionCode ? { decisionCode: advance.decisionCode } : {}),
+        },
     };
 }
 /** 供 `/research` 状态展示用：紧凑的一行。 */

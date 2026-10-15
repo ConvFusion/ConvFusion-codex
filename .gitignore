@@ -25,3 +25,10 @@ package-lock.json
 # 忽略根目录开发文档，保留README和插件技能文档
 /*.md
 !README.md
+
+# Local ConvFusion server configuration
+convfusion.env.json
+
+# Python renderer cache
+__pycache__/
+*.pyc

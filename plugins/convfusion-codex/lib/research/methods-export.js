@@ -6,9 +6,9 @@
  * 把**全部研究方法（技能）及其提示词**拼成一个 Markdown 文件，按 `CxxPyy` 编号排序：
  *
  * ```text
- * ## C02 · 文献（Literature）
+ * ## C01 · 理解输入（Research Understanding）
  *
- * ### C02P01 · 文献 · Literature Search
+ * ### C01P01 · 理解输入 · 输入理解
  *
  * #### Purpose
  * …
@@ -23,15 +23,15 @@
  *
  * ## 导出的是什么内容
  *
- * - 默认：**6 个可定制章节**（Purpose / When to Use / Research Method / Reasoning Guidance /
- *   Evidence Requirements / Expected Output）的**生效版本** —— 用户定制过的部分会被标出来。
+ * - 默认：**7 个可定制章节**（Purpose / When to Use / Prerequisites / Research Method /
+ *   Reasoning Guidance / Evidence Requirements / Expected Output）的**生效版本** —— 用户定制过的部分会被标出来。
  *   这几节正是用户会编辑、会分享的部分，体量也适中（约 150–200 KB）。
  * - `full: true`：**完整生效正文**，含 `## Source Prompts`（逐字旧提示词，历史智能）。
  *   全部技能合计约 526 KB，所以默认不导。
  */
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { listSystemSkills } from './skills.js';
+import { isMethodSkill, listSystemSkills } from './skills.js';
 import { CATEGORY_CODES, categoryCodeInfo } from './skill-codes.js';
 import { CUSTOMIZABLE_SECTIONS, composeSkillContent, sectionBase, } from './skill-customization.js';
 /** 导出文件的默认落点（相对研究根）。 */
@@ -96,7 +96,9 @@ function renderSkillBody(doc, opts) {
  */
 export function buildMethodsExport(opts = {}) {
     const full = opts.full === true;
-    const docs = listSystemSkills(); // 已按 CxxPyy 排序
+    // 已按 CxxPyy 排序；**只导出研究方法** —— 操作类技能（`kind: 'operation'`）不是方法，
+    // 混进导出文件会让研究者的"方法集"里多出一条插件操作说明。
+    const docs = listSystemSkills().filter(isMethodSkill);
     const customizations = opts.store?.load() ?? {};
     const groups = groupByCategory(docs);
     const now = opts.now ?? new Date();
@@ -104,12 +106,12 @@ export function buildMethodsExport(opts = {}) {
     const head = [
         '# ConvFusion 研究方法导出',
         '',
-        `> 编号规则：\`CxxPyy\` —— 类别 \`C01\`–\`C09\` 按研究过程排序（理解问题 → 文献 → 创新与假设 → 方法 → 实验 → 分析 → 决策 → 写作 → 研究管理），类别内 \`P01\`–\`Pnn\`。`,
+        `> 编号规则：\`CxxPyy\` —— 类别 \`C01\`–\`C09\` 按研究过程排序（理解输入 → 文献调研 → 创新假设 → 研究计划 → 资源估计 → 研究决策 → 实验验证 → 论文写作 → 工作评阅），类别内 \`P01\`–\`Pnn\`。`,
         `> 导出时间：${now.toISOString()}`,
         `> 技能：${docs.length} · 类别：${groups.length} · 用户定制：${customizedCount} 处`,
         full
             ? '> 内容：**完整正文**（含 `Source Prompts` 逐字历史提示词）。'
-            : '> 内容：6 个可定制章节的生效版本（Purpose / When to Use / Research Method / Reasoning Guidance / Evidence Requirements / Expected Output）。如需完整正文，用 `/research 导出研究方法 --full`。',
+            : '> 内容：7 个可定制章节的生效版本（Purpose / When to Use / Prerequisites / Research Method / Reasoning Guidance / Evidence Requirements / Expected Output）。如需完整正文，用 `/research 导出研究方法 --full`。',
         '>',
         '> 导入/合并时以 `### CxxPyy` 为锚点按编号对齐。',
         '',

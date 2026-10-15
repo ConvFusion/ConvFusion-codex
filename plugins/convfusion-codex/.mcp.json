@@ -2,9 +2,22 @@
   "mcpServers": {
     "convfusion": {
       "command": "node",
-      "args": ["./scripts/convfusion-mcp.mjs"],
+      "args": [
+        "./lib/codex-mcp.mjs"
+      ],
       "cwd": ".",
-      "env_vars": ["OPENALEX_API_KEY", "OPENALEX_MAILTO"],
+      "env_vars": [
+        "OPENALEX_API_KEY",
+        "OPENALEX_MAILTO",
+        "CODEX_HOME",
+        "CONVFUSION_CODEX_HOME",
+        "CONVFUSION_SERVER_URL",
+        "CONVFUSION_API_KEY",
+        "CONVFUSION_ENV",
+        "CONVFUSION_ENV_FILE",
+        "CONVFUSION_PYTHON",
+        "CONVFUSION_TECTONIC"
+      ],
       "startup_timeout_sec": 20,
       "tool_timeout_sec": 180
     }

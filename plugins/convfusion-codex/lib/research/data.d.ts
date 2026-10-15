@@ -59,6 +59,13 @@ export interface ResearchProject {
     questions?: string[];
     /** 期望产出 / 目标描述。 */
     goal?: string;
+    /**
+     * 研究范围（`## Scope`）：这项研究**包含什么、明确不包含什么**。
+     *
+     * 与 `topic` 同属"研究定义"，但它是**判断**而非事实：只有研究者/方法技能能写，
+     * 插件不会从产物里推断（`syncProjectDefinition` 只在它仍是空占位时才用有来源的字段填）。
+     */
+    scope?: string;
     /** 创建与更新时间（ISO 8601）。 */
     createdAt?: string;
     updatedAt?: string;
@@ -81,9 +88,21 @@ export interface ResearchContext {
     rootPrefix?: string;
     /** 研究项目（缺失代表还没有 `project.md` —— 走通用助手模式）。 */
     project: ResearchProject | null;
-    /** 当前 Paper 的标题（来自 paper/ 下的一级标题；Stage 5 会扩展）。 */
+    /** 当前激活的论文ID */
+    activePaperId: string;
+    /** workspace下所有论文的精简列表 */
+    allPapers: Array<{
+        id: string;
+        title?: string;
+        status: string;
+        version: string;
+        track?: string;
+        type?: string;
+        active: boolean;
+    }>;
+    /** 当前激活 Paper 的标题（来自 paper/ 下的一级标题；Stage 5 会扩展）。 */
     paperTitle: string | null;
-    /** 当前 Paper 的正文（Stage 1 直接读 paper 文件；Stage 5 改为分段/状态驱动）。 */
+    /** 当前激活 Paper 的正文节选（Stage 1 直接读 paper 文件；Stage 5 改为分段/状态驱动）。 */
     paperExcerpt: string | null;
     /** 当前已就绪的 Plan（plans/*.md 的元数据，见 PlanHandoff）。 */
     plans: PlanSummary[];
@@ -109,9 +128,24 @@ export interface ResearchContext {
      * 用于能力选择与进展展示，不驱动执行。
      */
     process: ProcessAssessment;
-    /** Paper 状态摘要（Stage 5；null = 尚未建立 Paper）。 */
+    /**
+     * 研究者**自定义的全局流程**（C00「研究过程定义」里用户写的那部分正文）。
+     *
+     * 与 `process` 相反：这是**规定性的**，会被注入系统提示并要求照做 ——
+     * 它是研究者自己为这项研究定的推进方式（草稿导向、仿真先行……）。
+     * 没写自定义时为 `undefined`，行为与默认（只描述阶段、不规定顺序）完全一致。
+     */
+    processGuidance?: string;
+    /**
+     * 建议技能的前置依赖未满足项（skillId → 一行提示）。
+     *
+     * ⚠️ **提示性**：只告诉 Agent「这个能力的前置信号还没落地」，不阻塞、不驱动执行
+     * （与 `process` 同一条边界）。仅评估建议技能，不全量评估整个技能库。
+     */
+    prereqWarnings: Map<string, string>;
+    /** 当前激活 Paper 状态摘要（Stage 5；null = 尚未建立 Paper）。 */
     paper: PaperStatusSummary | null;
-    /** 当前未解决的 Paper 缺口（Stage 5 §14；只作提示，不触发执行）。 */
+    /** 当前激活 Paper 未解决的缺口（Stage 5 §14；只作提示，不触发执行）。 */
     paperGaps: PaperGap[];
     /** 研究产出（Stage 5.1；同一研究的其他表达形式）。 */
     outputs: Array<{

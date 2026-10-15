@@ -50,6 +50,16 @@ export declare const RESEARCH_CONTEXT_ORDER = 200;
 export declare const RESEARCH_GUIDE_ORDER = 400;
 /** 注入段名（Harness 要求唯一；重复注册会抛错）。 */
 export declare const RESEARCH_CONTEXT_NAME = "convfusion:research-context";
+/**
+ * Research State 文件引用（相对研究根）。
+ *
+ * ⚠️ 它必须与 `research-data.ts` 的 `RESEARCH_STATE_FILE` **字面一致** ——
+ * 这是唯一一处"告诉模型去哪儿找 / 写状态"的地方。曾经它写成
+ * `research/research-state.md`（多了 `research/` 一层），于是**按上下文给的路径写回
+ * 就会写到一个孤儿文件上**，`loadResearchState()` 永远读不到，技能结果看起来"没保存"。
+ * 自检见 `scripts/verify-stage4-research-state.mjs`（断言两者相等）。
+ */
+export declare const RESEARCH_STATE_REF = "research-state.md";
 export declare const RESEARCH_GUIDE_NAME = "convfusion:research-guide";
 /**
  * 科研模式指引（**稳定段**，不随 workspace 变化）。
@@ -58,6 +68,24 @@ export declare const RESEARCH_GUIDE_NAME = "convfusion:research-guide";
  * 因此这里只说明**身份与边界**，绝不写"先做 A 再做 B"（那是 workflow，§12 禁止）。
  */
 export declare const RESEARCH_GUIDE_TEXT: string;
+/**
+ * 取出研究者对 **C00 全局能力「研究过程定义」** 的自定义流程文本。
+ *
+ * ## 为什么必须单独取出来注入
+ *
+ * 这段文字是研究者自己规定的「这项研究怎么推进」（草稿导向、仿真先行、回退到补检索……）。
+ * 它本来只活在能力正文里，而能力正文要**按需加载**才被读到 —— 不注入的话，模型在
+ * 大部分回合里根本看不到它，于是只能靠用户每轮提醒才会照着推进。
+ *
+ * ## 为什么只取「用户写的那部分」
+ *
+ * 系统默认正文刻意只描述阶段、不规定顺序（v2 的 `Category ≠ Workflow`）。
+ * 注入用户覆盖段：写了自定义流程的人，规则**每轮生效**；没写的人，行为完全不变。
+ *
+ * 用户块由 `composeSkillContent` 拼在正文之前，形如 `## Research Method\n\n<正文>`；
+ * 这里优先只取 `Research Method` 那一段，避免把用户改的其它章节也塞进系统提示。
+ */
+export declare function extractProcessGuidance(composed: string | undefined): string | undefined;
 /** 组装 Research Context 所需的运行时输入。 */
 export interface ResearchContextSource {
     /** 当前**研究根目录**（ConvFusion 数据文件所在目录；绝对路径）。 */
@@ -119,6 +147,19 @@ export declare class ResearchContextService extends Service {
     get current(): string;
     /** 最近一次解析出的 workspace 路径。 */
     get workspace(): string;
+    /**
+     * 本次**组装所属会话**的研究根目录 + 会话工作区。
+     *
+     * ⚠️ 这里必须按会话解析，而不是用入口注入的全局解析（`resolveWorkspace`）：
+     * provider 是每次组装求值的，而全局解析依赖 `agent/pre-step` 同步的一个全局 cwd ——
+     * 多个会话并行时它可能已被别的会话覆盖，于是研究会话的上下文会注入到**普通对话**里
+     * （与进度卡"显示在所有对话里"同一类故障，2026-09 实测）。
+     *
+     * 权威来源是 `context.agent.id`（= SessionId）→ 会话存储里的 `header.cwd`
+     * （见 `session-workspace.ts`）。拿不到会话身份（诊断组装、子 Agent 尚未注册）时
+     * **退化**为旧的全局解析，保持可用性 —— 但绝不把"插件进程启动目录"当研究会话。
+     */
+    private targetsFor;
     /**
      * 注册到 Harness 的 system prompt 组装管线。
      *

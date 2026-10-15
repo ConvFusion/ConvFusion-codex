@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { isAbsolute, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { createCodexUiHost, UI_URI, UI_MIME } from './codex-ui-server.mjs'
 import { defineResearchTools } from '../lib/research/research-tools.js'
 import { researchWorkspaceOf } from '../lib/research/workspace.js'
 import { ensureWorkspaceLayout, inspectWorkspace } from '../lib/research/workspace-layout.js'
@@ -31,6 +32,8 @@ if (typeof packageInfo.name !== 'string' || typeof packageInfo.version !== 'stri
   throw new Error('package.json must define string name and version fields')
 }
 const SERVER_INFO = Object.freeze({ name: packageInfo.name, version: packageInfo.version })
+
+const uiHost = createCodexUiHost()
 
 function objectSchema(properties, required = []) {
   return { type: 'object', properties, required, additionalProperties: false }
@@ -192,23 +195,59 @@ const nativeTools = defineResearchTools(
     return agent.id
   },
   {
-    apiKey: () => process.env.OPENALEX_API_KEY ?? '',
+    apiKey: () => uiHost.getConfig().openalexApiKey || process.env.OPENALEX_API_KEY || '',
     mailto: () => process.env.OPENALEX_MAILTO,
     fetchImpl: globalThis.fetch,
   },
   { fetchImpl: globalThis.fetch },
 )
 
-const definitions = [workspaceTool, planTool, ...nativeTools]
+const codexTools = [
+  {
+    name: 'research_context',
+    description: 'Read the current research context, process guidance, stage, gaps and recommended methods before research work. Does not initialize a workspace.',
+    parameters: { input: { type: 'string', description: 'Current research request for relevant method selection.' } },
+    execute: (args) => ({ ok: true, context: uiHost.context(args.workspace_root, args.input ?? '') }),
+  },
+  {
+    name: 'research_methods',
+    description: 'List the current bundled methods, or read one effective method with the user customizations applied. Use this instead of bypassing the customization layer.',
+    parameters: { id: { type: 'string', description: 'Method id; omit to list all methods and operations.' } },
+    execute: (args) => ({ ok: true, methods: uiHost.methods(args.id) }),
+  },
+  {
+    name: 'research_sync',
+    description: 'Read-only preparation for synchronizing a downloaded research ZIP: verify the archive header, compare research identities, and return facts and the sync workflow. Never extracts or replaces research files automatically.',
+    parameters: { zip: { type: 'string', description: 'Downloaded research ZIP path, absolute or relative to the task workspace.' } },
+    execute: (args) => uiHost.prepareSync(args.workspace_root, args.zip ?? ''),
+  },
+  {
+    name: 'research_ui',
+    description: 'Open the ConvFusion workbench for research progress, method customization and ConvFusion.com accounts, research publishing, finding mentors/students and file exchange. Returns an MCP Apps UI and a local browser URL. Network publishing, paid actions and file selection are confirmed by the user in the UI.',
+    parameters: {},
+    _meta: { ui: { resourceUri: UI_URI }, 'openai/outputTemplate': UI_URI, 'openai/ui': { entrypoints: [{ type: 'thread' }] } },
+    execute: async (args) => ({ ok: true, ...await uiHost.open(args.workspace_root) }),
+  },
+  {
+    name: 'research_ui_action',
+    description: 'UI-only transport for the ConvFusion workbench. Credentials and paid actions are entered and confirmed by the human in the UI.',
+    parameters: { endpoint: { type: 'string' }, payload: { type: 'object', additionalProperties: true } },
+    _meta: { ui: { visibility: ['app'] } },
+    execute: (args) => uiHost.dispatch(args.workspace_root, args.endpoint, args.payload),
+  },
+]
+const taskTools = new Set([workspaceTool, planTool, ...codexTools])
+const definitions = [workspaceTool, planTool, ...nativeTools, ...codexTools]
 const byName = new Map(definitions.map((tool) => [tool.name, tool]))
 
 function advertisedTool(tool) {
   return {
     name: tool.name,
     description: tool.description,
+    ...(tool._meta ? { _meta: tool._meta } : {}),
     inputSchema: objectSchema(
-      { workspace_root: workspaceProperty(), ...tool.parameters },
-      ['workspace_root'],
+      { workspace_root: workspaceProperty(), ...(tool.parameters.type === 'object' ? tool.parameters.properties : tool.parameters) },
+      ['workspace_root', ...(tool.parameters.type === 'object' ? tool.parameters.required ?? [] : [])],
     ),
   }
 }
@@ -223,7 +262,7 @@ async function callTool(name, rawArgs) {
   const args = rawArgs && typeof rawArgs === 'object' && !Array.isArray(rawArgs) ? { ...rawArgs } : {}
   const root = researchRoot(args.workspace_root)
   delete args.workspace_root
-  const value = tool === workspaceTool || tool === planTool
+  const value = taskTools.has(tool)
     ? await tool.execute({ ...args, workspace_root: sessionRoot(rawArgs.workspace_root) })
     : await tool.execute(args, { agent: { id: root } })
   const structuredContent = jsonSafe(value)
@@ -242,12 +281,17 @@ export async function handleRequest(message) {
       id,
       result: {
         protocolVersion: params.protocolVersion ?? '2025-06-18',
-        capabilities: { tools: { listChanged: false } },
+        capabilities: { tools: { listChanged: false }, resources: {} },
         serverInfo: SERVER_INFO,
         instructions:
           'ConvFusion stores research data under the current task workspace. Every tool requires workspace_root; pass the absolute Codex task cwd, never this plugin installation directory.',
       },
     }
+  }
+  if (method === 'resources/list') return { jsonrpc: '2.0', id, result: { resources: [{ uri: UI_URI, name: 'ConvFusion workbench', mimeType: UI_MIME }] } }
+  if (method === 'resources/read') {
+    if (params.uri !== UI_URI) return { jsonrpc: '2.0', id, error: { code: -32602, message: 'Unknown UI resource' } }
+    return { jsonrpc: '2.0', id, result: { contents: [{ uri: UI_URI, mimeType: UI_MIME, text: uiHost.uiHtml(), _meta: { ui: { prefersBorder: true, csp: { connectDomains: [], resourceDomains: [] } } } }] } }
   }
   if (method === 'tools/list') {
     return { jsonrpc: '2.0', id, result: { tools: definitions.map(advertisedTool) } }
@@ -270,6 +314,8 @@ export async function handleRequest(message) {
   if (id === undefined || id === null) return null
   return { jsonrpc: '2.0', id, error: { code: -32601, message: `Method not found: ${method}` } }
 }
+
+export async function closeUiHost() { await uiHost.close() }
 
 export function serveStdio() {
   let buffer = ''

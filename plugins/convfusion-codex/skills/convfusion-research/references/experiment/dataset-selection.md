@@ -3,7 +3,7 @@ name: Dataset Selection & Data Pipeline Specification
 category: experiment/dataset-selection
 type: system
 status: active
-version: 1.0
+version: 1.1
 origin: experiment/dataset, experiment/method (data collection)
 ---
 
@@ -21,14 +21,33 @@ Use this skill when:
 - A candidate dataset is popular in the field but its domain, splits or licence may not match the claim.
 - You need a data pipeline whose processed outputs can be regenerated and inspected.
 
+## Prerequisites
+
+Each line is a precondition judged by an artifact signal — this skill is only advisable once the named signal has landed on disk. `/` = any-of; multiple lines = all-of.
+
+```text
+requires: method-plan | 需要什么数据由方法决定
+```
+
 ## Research Method
 
 1. **Derive dataset requirements from the claim, not from habit.** List the constructs that must be present (labels, modalities, domains, languages), the required scale, and any distribution the claim depends on. A dataset missing a required construct cannot support the claim no matter how standard it is.
 2. **Survey candidates and record provenance.** For each candidate record source, version or commit, licence and terms, size, available splits, known biases, and the works that use it. Prefer version-pinned, publicly downloadable, well-documented sources so the pipeline can be rerun.
-3. **Check comparability with the baselines.** Use the same data version, splits and preprocessing that produced the baseline numbers; where you deviate, state the deviation and why the comparison remains valid.
-4. **Design the split and guard against leakage.** Fix ratios and a seed, split by the correct unit (subject, document, time) so near-duplicates cannot cross splits, and verify that no test material informed training or tuning.
-5. **Specify preprocessing and statistics as requirements for the implementation.** The pipeline must be deterministic, must report per-split sample counts, class balance, missing-value and length distributions, and must write processed data in a documented format while retaining the raw source.
-6. **State the fallback when data is unavailable.** If a source cannot be downloaded or licensed, either substitute a documented alternative or generate a clearly-labelled synthetic dataset for dry runs. Never let fabricated values be presented later as measurements.
+3. **Prefer sources a program can fetch.** Rank candidates by fetchability before merit: a HuggingFace dataset id (or an equivalent pinned HTTP/DOI source) that the coding agent can download, preprocess and checksum unattended beats a richer corpus behind a manual application. The selection must therefore name the exact loading call — `load_dataset(<id>, revision=<rev>)` or its equivalent — plus the expected file layout, so the pipeline requirements handed downstream are generated *from the selection* rather than re-decided at coding time. A manual-only source is admissible only when the claim cannot be tested without it, and then the human access step is declared explicitly as a task with an owner, never left implicit.
+4. **Check comparability with the baselines.** Use the same data version, splits and preprocessing that produced the baseline numbers; where you deviate, state the deviation and why the comparison remains valid.
+5. **Design the split and guard against leakage.** Fix ratios and a seed, split by the correct unit (subject, document, time) so near-duplicates cannot cross splits, and verify that no test material informed training or tuning.
+6. **Specify preprocessing and statistics as requirements for the implementation.** The pipeline must be deterministic, must report per-split sample counts, class balance, missing-value and length distributions, and must write processed data in a documented format while retaining the raw source.
+7. **State the fallback when data is unavailable.** If a source cannot be downloaded or licensed, either substitute a documented alternative or generate a clearly-labelled synthetic dataset for dry runs. Self-built data is either a dry-run fallback or a first-class contribution, and which one it is must be decided here — at selection time — because the two demand very different evidence (see *When no public dataset can host the construct*). Never let fabricated values be presented later as measurements.
+
+### When no public dataset can host the construct
+
+1. **Run the construct check first.** Before designing tasks, ask whether the construct you intend to measure has a *measurable carrier* in public data — annotation fields that actually record it. List the closest public candidates and, for each, state why it cannot carry the measurement. A missing field is a reason; inconvenience is not.
+2. **Decide build versus adapt explicitly.** Adapt when the construct can be read out of existing annotations. Build when adapting would change the object under test — for example when the metric requires a representation the compared systems do not have. If adaptation changes the object, say so: then there is no head-to-head, only a mechanism-level instantiation.
+3. **If you build, fix three things before the first task is written**: the annotation schema (what is labelled, what is not, and the gold criterion); the target size; and the verification path (the machine-checkable parts **plus** independent human verification).
+4. **Say which of two things you are building — their requirements differ by an order of magnitude.**
+   - An **instrument**, built to answer your own question: a small size is acceptable, but the paper must declare that it is not a general benchmark.
+   - A **contribution**, meant to be used by others: this needs a size that supports external use, at least two independent non-author annotators with reported agreement, a documented annotation protocol, a benchmark card, a licence and version, and a stated acquisition path.
+5. **Never claim a dataset contribution without independent human verification of its labels.** Machine checks — walkthroughs, independent re-implementations, constructed counter-examples — are necessary and not sufficient.
 
 ## Reasoning Guidance
 

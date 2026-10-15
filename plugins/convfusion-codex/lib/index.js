@@ -33,11 +33,19 @@
  * 因此本插件**只使用** Harness 已有的 `user/message`（经 `agent.followup`）与
  * `system/message`（经 system prompt 段）通道；观测状态只留在**内存**。
  */
-import '@deepseek-ai/dsh-tools';
-import { resolve } from 'node:path';
-import { Config, OPENALEX_API_KEY_ENV, resolveConfig, resolveCustomizationPath, } from './config.js';
-import { SETTINGS_ROUTE_PREFIX, createSettingsRouteHandler } from './settings-rpc.js';
+import { dirname, join, resolve } from 'node:path';
+// 单一版本来源：UA / 标识字符串一律从 package.json 取，
+// 避免发版时漏改硬编码版本号（2026-09 事故：literature.ts 的 UA 停留在 0.2，
+// 包版本已是 0.3.1）。tsconfig 开启了 resolveJsonModule，tsc 会把该字段内联。
+import pkg from '../package.json' with { type: 'json' };
+import { Config, OPENALEX_API_KEY_ENV, resolveConfig, resolveCustomizationPath, resolveServerUrl, unwrapLiveConfig, } from './config.js';
+import { SETTINGS_ROUTE_PREFIX, createSettingsRouteHandler, normalizeWorkspaceEntities, } from './settings-rpc.js';
 import { createFileCustomizationStore } from './research/skill-customization.js';
+import { createFilePublishedStore } from './research/published-store.js';
+import { createFileWorkIdentityStore } from './research/work-identity.js';
+import { createFileSyncNoteStore } from './research/sync-note.js';
+import { createFilePaidBriefStore } from './research/paid-briefs.js';
+import { createFileSyncWatermarkStore } from './research/sync-watermarks.js';
 import { systemLibraryStatus } from './research/skill-customization.js';
 import { ResearchContextService } from './research/context.js';
 import { mountEventBridge } from './research/runtime-events.js';
@@ -74,19 +82,93 @@ export { Config };
  * 按需挂载，不在此列。
  */
 export const inject = ['tools', 'systemPrompt', 'skills'];
-export function apply(ctx, rawConfig = {}) {
+/**
+ * 本插件在 profile 里的**条目 id**（设置写入的命名空间）。
+ *
+ * ⚠️ 走结构读取、**不** import `@deepseek-ai/cordis-plugin-loader`：`fiber.entry`
+ * 是那个包对 cordis `Fiber` 的模块增强，把它写进依赖会给插件加一个硬依赖
+ * （同 `WebServerLike` / `ConnectionLike` 的理由）。取不到就返回 `undefined` ——
+ * 宁可不启用写入，也不要把凭据写到一个**猜出来的**命名空间上。
+ */
+function profileEntryId(ctx) {
+    const fiber = ctx.fiber;
+    const id = fiber?.entry?.options?.id;
+    return typeof id === 'string' && id.length > 0 ? id : undefined;
+}
+export function apply(ctx, liveConfig = {}) {
     // ── 配置：设置里只有「定制文件名」，内容存独立文件（设置文件不会变大）──
     //
-    // ⚠️ 配置必须**可被设置页改写**：用户在【设置】-【ConvFusion】-【本地研究方法】里改文件名后，
-    // 定制内容要立刻写到新文件。因此这里用 `source()` 这个**可替换的取值函数**：
-    // 装配时是入口配置；settings 命名空间一旦可用，就换成"设置文档 > 组合层"的解析结果。
-    const entryConfig = resolveConfig(rawConfig);
-    let source = () => entryConfig;
+    // ⚠️ **DSH 0.2.0 起配置模型变了**：设置文档 = 本插件 profile 条目
+    // （`cordis.patch.yml` 里的 `id: convfusion`）的 Cordis `config`，由宿主**直接传给
+    // `apply`**；标了 `.volatile()` 的字段是**稳定引用**，宿主只原地更新其值、**不重挂**
+    // 插件（`cordis-plugin-loader` 的 `_commitVolatile` → `updateVolatile`）。
+    //
+    // 于是 `source()` **每次都现取** → 天然实时：用户在设置页改文件名，下一次
+    // `currentConfig()` 就拿到新值（store 的路径本来就是延迟解析的）。旧版的
+    // `settings.register()` + `scope.watch()` 那套刷新机制在 0.2.0 已不存在。
+    const source = () => resolveConfig(unwrapLiveConfig(liveConfig));
     const currentConfig = () => source();
+    /**
+     * 把配置补丁写回 settings 用户层（【ConvFusion.com】登录后保存凭据用）。
+     *
+     * ⚠️ 声明在这里、赋值在下面的 `ctx.inject(['settings'])` 里，是因为两个注入块的
+     * 执行顺序**不保证**（路由块可能先跑）。缺省的实现**明确报错**而不是静默丢弃：
+     * "看着登录成功、重启后没了"是最坏的形态。
+     */
+    let persistConfig = async () => {
+        throw new Error('设置命名空间不可用（settings 服务未加载），无法保存凭据。');
+    };
     // store 的路径解析是**延迟求值**的：每次读写都按当时生效的文件名解析。
     const customizationStore = createFileCustomizationStore(() => resolveCustomizationPath(currentConfig()));
+    /**
+     * 「本机研究工作 ↔ 服务器项目」映射（发布过一次才写一行）。
+     *
+     * 与 Skill 定制同一个目录（都由 `config.ts` 解析），文件名固定：它记录的是
+     * **(本机, 本账号, 哪台服务器)** 下的 project_id，不属于研究内容，故不进工作区。
+     */
+    const publishedStore = createFilePublishedStore(() => join(dirname(resolveCustomizationPath(currentConfig())), 'published-projects.json'));
+    /**
+     * 「这一项简报已经买过」的本地记忆（与发布记录同目录）。
+     *
+     * 服务器按 `(viewer, project)` 只收一次钱，但**列表响应里不带这个状态**，
+     * 只有读过之后才知道 —— 没有这份记忆，界面会每次都弹"要花 1 Token"的确认框。
+     */
+    const paidBriefStore = createFilePaidBriefStore(() => join(dirname(resolveCustomizationPath(currentConfig())), 'paid-briefs.json'));
+    /**
+     * 上一次**归档响应**的水位（导师侧"学生更新了 → 重新下载"的判断依据）。
+     *
+     * 记录的是**这台服务器上这个项目**我下过的那一版（`X-Source-Updated-At` /
+     * `X-File-Count`），与已发布映射同一个目录（`$DSH_HOME/convfusion/`）——
+     * 它是本机运行记忆，不属于研究内容，故不进工作区。
+     */
+    const syncWatermarkStore = createFileSyncWatermarkStore(() => join(dirname(resolveCustomizationPath(currentConfig())), 'sync-watermarks.json'));
+    /**
+     * **本机工作区 ↔ 服务器上的"一项研究工作"**（`workspace_id`）。
+     *
+     * 【下载】要用它回答"这个工作区里已有的 `workspace/` 和我下的是不是同一项研究"。
+     * 与发布映射同一个目录（`$DSH_HOME/convfusion/`）—— 它记的是 (本机, 本账号, 哪台服务器)
+     * 下的事实，不属于研究内容，故不进工作区（工作区内的那份权威标记是
+     * `<研究根>/.convfusion/work.json`，见 `research/work-identity.ts`）。
+     */
+    const workIdentityStore = createFileWorkIdentityStore(() => join(dirname(resolveCustomizationPath(currentConfig())), 'work-identities.json'));
+    /*
+     * 「待同步便签」：下载成功时记下"这个 ZIP 是服务器上的哪项研究"，
+     * `/research sync @这个.zip` 据此判定（同一项 → 融合；另一项 → 先备份再换）。
+     * 与身份注册表同目录 —— 都是"本机事实"，不进研究工作区。
+     */
+    const syncNoteStore = createFileSyncNoteStore(() => join(dirname(resolveCustomizationPath(currentConfig())), 'pending-syncs.json'));
     ctx.logger?.info(`[convfusion] user customizations: ${customizationStore.description}` +
         ` · system skills: ${systemLibraryStatus().skillCount}`);
+    // ── 接入环境（开发 / 生产）─────────────────────────────────────────────
+    // 地址随环境而变（开发 localhost:8000 / 生产 convfusion.apibrowser.com:4747），来源可能是设置文档、
+    // 环境变量或配置文件（见 `server-env.ts`）。启动时把**结论**打进日志：
+    // "到底连的哪台服务器"是接入类问题里最常被搞错的一条，日志是第一现场。
+    {
+        const server = resolveServerUrl(currentConfig());
+        ctx.logger?.info(`[convfusion] server: ${server.url} · env=${server.environment} · source=${server.source}` +
+            (server.envFile ? ` · config=${server.envFile}` : ' · (no env config file)') +
+            (server.mismatched ? ' ⚠️ 地址与环境不一致，请确认是否要连这台' : ''));
+    }
     // ── workspace 解析（**每次求值**，不是启动时固定）──────────────────────
     // v2-Stage1 §6：Research Context 必须是运行时动态上下文。装配阶段拿不到会话，
     // 所以这里维护一个由 `agent/pre-step` 持续同步的 cwd，并返回动态解析函数。
@@ -168,7 +250,9 @@ export function apply(ctx, rawConfig = {}) {
     ctx.inject(['commands'], (cmdCtx) => {
         const disposers = [
             // 传定制 store：`/research 导出研究方法` 要导**生效版本**（基线 + 用户定制）
-            ...(defineResearchCommand(cmdCtx, resolveCurrentWorkspace, customizationStore) ?? []),
+            ...(defineResearchCommand(cmdCtx, resolveCurrentWorkspace, customizationStore,
+            // `/research sync @某.zip` 要用它们：便签（服务器标识）+ 本机标识注册表
+            syncNoteStore, workIdentityStore) ?? []),
         ];
         if (disposers.length === 0)
             return;
@@ -185,13 +269,17 @@ export function apply(ctx, rawConfig = {}) {
     });
     // ── 6. 研究资产工具（Evidence / Claim / Decision / Research State）─────
     // 让 Agent 有**正确通道**记录科研事实：ID 与双向引用由我们保证，
-    // 且 `research_state_propose` **只提案、不应用**（Stage 4 §20 / §21）。
+    // 且 `research_state_propose` 支持 propose / list / apply（Stage 4 §20 / §21）。
     ctx.effect(() => {
+        // OpenAlex / 论文下载的 UA：从 package.json 读版本，确保跟随发版。
+        // 形如 `ConvFusion/0.3.1`；mailto 部分由检索层按 deps.mailto() 追加。
+        const convfusionUA = `ConvFusion/${pkg.version}`;
         const disposers = defineResearchTools(resolveWorkspaceForAgent, {
             // OpenAlex Key 从设置（或 OPENALEX_API_KEY 环境变量）**每次调用时**读取：
             // 用户在设置页改完立即生效，不需要重启。
             apiKey: () => currentConfig().openalexApiKey || process.env[OPENALEX_API_KEY_ENV] || '',
-        }, 
+            userAgent: convfusionUA,
+        },
         // 论文全文下载依赖：复用全局 fetch（与 OpenAlex 检索同一网络栈）。
         // 不需要单独的 API Key —— 下载走论文的开放获取源（arXiv / ACL / OA）。
         // mailto 复用检索同款（进 polite pool），这里暂不注入，留待需要时扩展。
@@ -209,23 +297,58 @@ export function apply(ctx, rawConfig = {}) {
     }, 'convfusion:research-tools');
     // ── 7. 设置面：命名空间 + 定制内容 RPC ─────────────────────────────────
     // 【设置】-【ConvFusion】由两半组成，缺一不可：
-    //   host  ：注册 settings 命名空间（保存文件名）+ 提供 /convfusion RPC（读写定制文件）
+    //   host  ：提供 /dsh-convfusion RPC（读写定制文件）+ 把凭据写回 profile 配置
     //   client：注册 `settings.section`（浏览器里那一页）
     // 两半都走**可选注入**：精简 profile（无 settings / 无 web）下插件照常工作，
     // 只是没有设置界面 —— 而不是让整个 profile 起不来。
+    //
+    // ⚠️ **0.2.0 起不再"注册 settings 命名空间"**：配置由 profile 条目直接承载
+    // （见 `apply` 开头对 `source()` 的说明）。这里只保留"写回"这一件事。
     ctx.inject(['settings'], (sctx) => {
         // `ctx.get()` 而不是 `sctx.settings`：可选服务的读取统一走"不触发 inject 检查"的
         // 通道，避免"注释说可选、代码却硬访问"这种自相矛盾（客户端踩过一次）。
         const settings = sctx.get('settings');
-        if (!settings || typeof settings.register !== 'function')
+        if (!settings || typeof settings.update !== 'function')
             return;
-        const scope = settings.register('convfusion', Config, { base: entryConfig });
-        source = () => resolveConfig(scope.get());
-        // 用户在设置页改文件名后，定制内容立即改写到新文件（store 路径是延迟解析的）
-        scope.watch(() => {
-            source = () => resolveConfig(scope.get());
-            ctx.logger?.info(`[convfusion] customization file → ${resolveCustomizationPath(currentConfig())}`);
-        });
+        // 写入的命名空间 = **本插件的 profile 条目 id**（旧 `settings.yaml` 的
+        // `convfusion:` 段会被宿主按同 id 一次性导入，所以 id 必须保持一致）。
+        const entryId = profileEntryId(ctx);
+        if (entryId === undefined) {
+            ctx.logger?.warn('[convfusion] 取不到 profile 条目 id（非 Loader 装配），登录凭据无法保存。');
+            return;
+        }
+        // 【ConvFusion.com】登录成功后要把 `convfusionApiKey` / `serverUrl` 落到 profile 配置
+        // （凭据只在宿主内存与 profile 配置之间流动，绝不经过浏览器）
+        persistConfig = async (patch) => {
+            await settings.update(entryId, { ...patch });
+        };
+        // 本插件**自带**设置页 → 关掉"按 schema 自动生成表单"，避免同一个插件出现两份界面。
+        const { configure } = settings;
+        if (typeof configure === 'function') {
+            sctx.effect(() => configure({ auto: false }, ctx.fiber));
+        }
+    });
+    // ── 工作区注册表：**等它出现**，不要一次性探测 ─────────────────────────
+    //
+    // ⚠️ 真实踩过（2026-09）：`WorkspaceRegistry` 声明了
+    // `static inject = ['storageDomain','sessionPersistence']`（dsh-workspace/lib/index.js:314），
+    // 服务**要等依赖就绪才注册**；而路由是在 `ctx.inject(['webServer','connection'])` 里建的，
+    // 那个时刻更早 —— 一次性 `ctx.get('workspaceRegistry')` 拿到 undefined 后被永久缓存成
+    // "注册表不可用"。这与给 dsh-additive 诊断出的 `apply()` 里一次性 `ctx.get('webServer')`
+    // 是同一个毛病：**可选服务只能"等到"或"每次现取"，不能"开机探一次就记死"。**
+    let workspaceRegistryRef;
+    ctx.inject(['workspaceRegistry'], (rctx) => {
+        const registry = rctx.get('workspaceRegistry');
+        if (!registry || typeof registry.list !== 'function')
+            return;
+        workspaceRegistryRef = registry;
+        try {
+            rctx.logger?.info(`[convfusion] workspaceRegistry 就绪：${registry.list().length} 个工作区` +
+                '（【研究工作 · 我的】的数据源）');
+        }
+        catch (e) {
+            rctx.logger?.warn(`[convfusion] workspaceRegistry.list() 失败：${String(e)}`);
+        }
     });
     // ── /dsh-convfusion 路由（设置页的数据通道）──────────────────────────
     //
@@ -244,10 +367,112 @@ export function apply(ctx, rawConfig = {}) {
             return;
         }
         const connection = cctx.get('connection');
+        /**
+         * 取工作区注册表：**每次调用都现取**（inject 缓存 → 当前作用域 → 插件 ctx）。
+         * 三条都没命中才算不可用，并把**服务探测结果**带出去 —— 让界面显示
+         * "哪个服务看不见"，而不是一句没有信息量的"注册表不可用"。
+         */
+        const CANDIDATE_SERVICES = [
+            'workspaceRegistry',
+            'workspaceController',
+            'sessionPersistence',
+            'storageDomain',
+            'sessions',
+            'webServer',
+        ];
+        const probeServices = () => CANDIDATE_SERVICES.map((name) => {
+            let found = false;
+            for (const c of [cctx, ctx]) {
+                try {
+                    if (c.get(name) != null) {
+                        found = true;
+                        break;
+                    }
+                }
+                catch {
+                    /* 访问失败也算看不见 */
+                }
+            }
+            return `${name}=${found}`;
+        }).join(', ');
+        const findWorkspaceRegistry = () => {
+            if (workspaceRegistryRef && typeof workspaceRegistryRef.list === 'function') {
+                return workspaceRegistryRef;
+            }
+            for (const c of [cctx, ctx]) {
+                try {
+                    const found = c.get('workspaceRegistry');
+                    if (found && typeof found.list === 'function') {
+                        workspaceRegistryRef = found;
+                        return found;
+                    }
+                }
+                catch {
+                    /* 继续找下一处 */
+                }
+            }
+            return undefined;
+        };
         const handler = createSettingsRouteHandler({
             getConfig: currentConfig,
             store: customizationStore,
-            // 进度卡按**会话自己的工作区**判定是否研究项目（权威来源，见 session-workspace.ts）
+            // 发布映射（落盘）：同一工作区只建一个服务器项目
+            publishedStore,
+            // 「简报已经买过」的本地记忆：决定还要不要弹扣费确认框
+            paidBriefStore,
+            // 上一次归档响应的水位：mentor/list 据此提示"学生更新了，重新下载"
+            syncStore: syncWatermarkStore,
+            // 目标工作区的身份（判"同一项研究 / 另一项研究"，见 research/work-identity.ts）
+            workIdentity: workIdentityStore,
+            // 下载便签：写下来，之后 `/research sync @这个.zip` 才不用猜是哪项研究
+            syncNotes: syncNoteStore,
+            // 注册表读取放在这里（入口持有 ctx），过滤与进度计算在 settings-rpc 里
+            /**
+             * 读宿主的工作区注册表并归一成纯数据（**与 dsh-additive 的 `listWorkspaces` 同款做法**：
+             * 只按结构取服务、不 import 宿主包、不自己扫盘）。归一规则照抄那套已验证的行为：
+             *
+             *   ① `path` 必填，取不到 → 跳过该条；
+             *   ② `id` 缺失回退为 `path`；
+             *   ③ 去重：`id` 或 `path` 任一已出现 → 跳过；
+             *   ④ 顺序 = 注册表顺序（`list()` 不重排），与侧边栏那份清单一致。
+             *
+             * 目录是否存在（`missingDir`）与真身路径（realpath）留给 settings-rpc 用 fs 探测 ——
+             * 与 Additive 把 `inspectWorkspaceDir` 放在 store 层是同一个分层。
+             */
+            listLocalWorkspaces: async () => {
+                // ⚠️ 每次请求**现取**：注册表可能比本插件晚就绪（见上方注释）
+                const registry = findWorkspaceRegistry();
+                if (!registry) {
+                    return {
+                        available: false,
+                        reason: `读不到工作区注册表（app.get("workspaceRegistry") 为空）；当前可见服务：${probeServices()}`,
+                        items: [],
+                    };
+                }
+                let entities = [];
+                try {
+                    entities = registry.list();
+                }
+                catch (e) {
+                    // 列表读不出来 ≠ 没有工作区：如实上报原因（页面显示"注册表不可用"）
+                    return {
+                        available: false,
+                        reason: `工作区注册表读取失败：${e instanceof Error ? e.message : String(e)}`,
+                        items: [],
+                    };
+                }
+                // 归一 + 去重是**同一个函数**（`normalizeWorkspaceEntities`），由离线验证直接覆盖
+                return { available: true, items: normalizeWorkspaceEntities(entities) };
+            },
+            // 【ConvFusion.com】登录：保存凭据（走 settings 用户层）
+            setConfig: (patch) => persistConfig(patch),
+            // ConvFusion.com 请求在**宿主**侧发出：服务器未开 CORS，且凭据是 secret
+            // （见 `server-client.ts` 文件头）。这里注入全局 fetch，测试可替换。
+            fetchImpl: globalThis.fetch,
+            // 插件版本（package.json 单一来源）：设置页显示 + GitHub 更新检查共用。
+            // 与 UA 同源（`convfusionUA`），改版本只改 package.json 一处。
+            version: pkg.version,
+            // 「研究进展」按钮按**会话自己的工作区**判定是否研究项目（权威来源，见 session-workspace.ts）
             resolveSessionWorkspace: (sessionId) => resolveSessionWorkspace(ctx, sessionId),
             ...(connection && typeof connection.requestRejection === 'function'
                 ? {
