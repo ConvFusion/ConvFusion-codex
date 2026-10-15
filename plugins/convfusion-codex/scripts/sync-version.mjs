@@ -55,7 +55,6 @@ function shieldsVersion(version) {
 function expectedReadme(version) {
   return {
     badge: `https://img.shields.io/badge/version-${shieldsVersion(version)}-4a43ea" alt="Version ${version}"`,
-    text: `> 当前版本：\`${version}\`。`,
   }
 }
 
@@ -68,13 +67,7 @@ function updateReadme(version) {
     expected.badge,
     'README version badge',
   )
-  const updated = replaceExactlyOnce(
-    withBadge,
-    /> 当前版本：`[^`]+`。/,
-    expected.text,
-    'README current version',
-  )
-  writeFileSync(paths.readme, updated)
+  writeFileSync(paths.readme, withBadge)
 }
 
 function updatePackageLock(version) {
@@ -93,7 +86,7 @@ function assertSynchronized(version) {
 
   const readme = readFileSync(paths.readme, 'utf8')
   const expected = expectedReadme(version)
-  if (!readme.includes(expected.badge) || !readme.includes(expected.text)) {
+  if (!readme.includes(expected.badge)) {
     throw new Error(`README version markers do not match ${version}`)
   }
 
