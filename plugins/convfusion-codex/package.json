@@ -4,11 +4,11 @@
   "description": "ConvFusion research operating system as a Codex plugin with a native skill and bundled local MCP adapter.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/QuantumHW/ConvFusion-codex.git"
+    "url": "git+https://github.com/ConvFusion/ConvFusion-codex.git"
   },
-  "homepage": "https://github.com/QuantumHW/ConvFusion-codex",
+  "homepage": "https://github.com/ConvFusion/ConvFusion-codex",
   "bugs": {
-    "url": "https://github.com/QuantumHW/ConvFusion-codex/issues"
+    "url": "https://github.com/ConvFusion/ConvFusion-codex/issues"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -57,7 +57,7 @@
     "esbuild": "^0.24.0",
     "react": "^18.3.0"
   },
-  "license": "Apache-2.0",
+  "license": "MIT",
   "peerDependencies": {
     "react": "^18.0.0"
   },

@@ -9,7 +9,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-v0.2.0--codex.1-4a43ea" alt="Version 0.2.0-codex.1">
   <img src="https://img.shields.io/badge/Codex-plugin-4a43ea" alt="Codex Plugin">
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-22c55e" alt="Apache-2.0 License"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-22c55e" alt="MIT License"></a>
 </p>
 
 ---
@@ -18,7 +18,7 @@ ConvFusion 帮助研究者和开发者把研究计划、文献、证据、主张
 
 > 当前版本：`0.2.0-codex.1`。项目仍处于早期阶段，插件接口和工具参数可能继续演进，欢迎通过 Issue 和 Pull Request 参与改进。
 
-本项目由 [ConvFusion for DeepSeek Harness](https://github.com/ConvFusion/ConvFusion-dsh) 移植而来，保留了科研领域 Core，并使用 Codex Skill 与本地 STDIO MCP 替代 Cordis/DSH 宿主注册层。
+本项目是 [ConvFusion](https://github.com/ConvFusion) 面向 Codex 的官方插件，与 [ConvFusion for DeepSeek Harness](https://github.com/ConvFusion/ConvFusion-dsh) 共享科研领域 Core，通过 Codex Skill 与本地 STDIO MCP 提供科研工作流能力。
 
 ## 为什么使用 ConvFusion
 
@@ -69,7 +69,7 @@ ConvFusion 将这些关系保存在工作区内的 Markdown 和结构化元数�
 将 GitHub 仓库添加为 Codex Marketplace，然后安装插件：
 
 ```bash
-codex plugin marketplace add QuantumHW/ConvFusion-codex --ref main
+codex plugin marketplace add ConvFusion/ConvFusion-codex --ref main
 codex plugin add convfusion-codex@convfusion
 ```
 
@@ -84,7 +84,7 @@ codex plugin marketplace upgrade convfusion
 如需参与开发，可以克隆源码并进入插件目录：
 
 ```bash
-git clone https://github.com/QuantumHW/ConvFusion-codex.git
+git clone https://github.com/ConvFusion/ConvFusion-codex.git
 cd ConvFusion-codex/plugins/convfusion-codex
 ```
 
@@ -164,24 +164,36 @@ Codex
 
 ## 开发与验证
 
+以下命令均在仓库根目录执行。
+
 安装开发依赖：
 
 ```bash
-npm install
+npm --prefix plugins/convfusion-codex install
 ```
 
 执行类型检查和构建：
 
 ```bash
-npm run typecheck
-npm run build
+npm --prefix plugins/convfusion-codex run typecheck
+npm --prefix plugins/convfusion-codex run build
 ```
 
 验证 Codex MCP 适配器：
 
 ```bash
-npm run verify:codex
+npm --prefix plugins/convfusion-codex run verify:codex
 ```
+
+该验证会真实完成：
+
+1. MCP 初始化；
+2. 13 个工具发现；
+3. 临时研究工作区初始化；
+4. Evidence 和 Claim 写入；
+5. 最终工作区状态读取。
+
+版本使用 `v<DSH 版本>-codex.<迭代号>` 命名。例如，`v0.2.0-codex.1` 对应 DSH 的 `0.2.0`，`codex.1` 中的 `1` 表示 Codex 版本的迭代号；在该基础版本上继续优化时，依次使用 `v0.2.0-codex.2`、`v0.2.0-codex.3`。Git tag 使用 `v` 前缀，插件元数据中的版本号不带 `v`。
 
 插件版本以 `plugins/convfusion-codex/package.json` 为唯一来源。发布新版本时，在仓库根目录执行：
 
@@ -194,14 +206,6 @@ npm --prefix plugins/convfusion-codex run version:set -- 0.2.0-codex.2
 ```bash
 npm --prefix plugins/convfusion-codex run version:check
 ```
-
-该验证会真实完成：
-
-1. MCP 初始化；
-2. 13 个工具发现；
-3. 临时研究工作区初始化；
-4. Evidence 和 Claim 写入；
-5. 最终工作区状态读取。
 
 仓库还保留了针对 Skill Library、Plan、Research State、Paper Evolution 和 Output Transformation 的离线回归脚本，位于 `scripts/verify-*.mjs`。
 
@@ -217,7 +221,7 @@ npm --prefix plugins/convfusion-codex run version:check
 
 ## 当前限制
 
-以下 DeepSeek Harness 宿主能力尚未移植：
+当前 Codex 插件通过 Skill 与本地 MCP 提供能力，不提供以下 DSH 专用宿主接口：
 
 - Harness 设置页面、进度卡和 React slot
 - Cordis `ctx.*` 服务注入和 DSH 会话事件
@@ -234,18 +238,14 @@ npm --prefix plugins/convfusion-codex run version:check
 2. 保持科研 Core 与具体 Agent 宿主解耦；
 3. 不绕过 Evidence、Research State、Plan 和 Paper 的审核边界；
 4. 为行为变化补充相应验证；
-5. 运行 `npm run typecheck`、`npm run build` 和 `npm run verify:codex`。
+5. 运行 `npm --prefix plugins/convfusion-codex run typecheck`、`npm --prefix plugins/convfusion-codex run build` 和 `npm --prefix plugins/convfusion-codex run verify:codex`。
 
 涉及资产格式或工具参数的破坏性变更，请先通过 Issue 讨论迁移策略。
 
-## 来源与兼容性
+## 宿主入口与兼容性
 
-`plugins/convfusion-codex/src/index.ts`、`src/client/` 和 `cordis.patch.yml` 保留了上游 DSH Adapter，便于维护共享 Core 或继续探索双宿主兼容。Codex 不加载这些入口；Codex 的实际入口是插件目录中的 `.codex-plugin/plugin.json`、`skills/` 和 `.mcp.json`。
-
-原始项目：[ConvFusion/ConvFusion-dsh](https://github.com/ConvFusion/ConvFusion-dsh)
-
-Codex 移植版：[QuantumHW/ConvFusion-codex](https://github.com/QuantumHW/ConvFusion-codex)
+Codex 的插件入口是 `plugins/convfusion-codex/` 下的 `.codex-plugin/plugin.json`、`skills/` 和 `.mcp.json`。`src/index.ts`、`src/client/` 和 `cordis.patch.yml` 为 DSH 兼容代码，用于共享 Core 的开发与验证，Codex 不加载这些入口。
 
 ## 许可证
 
-本项目采用 [Apache License 2.0](LICENSE)。
+本项目采用 [MIT License](LICENSE)。
