@@ -1,6 +1,6 @@
 {
   "name": "convfusion-codex",
-  "version": "0.6.2-codex.3",
+  "version": "0.6.2-codex.4",
   "description": "ConvFusion research operating system as a Codex plugin with a native skill and bundled local MCP adapter.",
   "repository": {
     "type": "git",

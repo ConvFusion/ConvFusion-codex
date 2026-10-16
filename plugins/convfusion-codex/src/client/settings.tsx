@@ -1543,8 +1543,8 @@ function proposalTone(status: HostProposalStatus): 'brand' | 'success' | 'warn' 
  *
  * | 事实 | 学生看到 | 导师看到 |
  * |---|---|---|
- * | 对方那一侧还没有文件 | 等待指导意见 | 待我指导 |
- * | 对方那一侧有文件 | 导师已指导 | 我已指导 |
+ * | 导师那一侧还没有文件 | 等待指导意见 | 待我指导 |
+ * | 导师那一侧有文件 | 导师已指导 | 我已指导 |
  */
 
 /**
@@ -1628,12 +1628,12 @@ function progressLabelKey(p: HostProposal, view: HostProposalView): string {
     if (p.direction === 'SEEK_STUDENT') {
       return hasDelivered ? 'community.mentor.progress.iDelivered' : 'community.mentor.progress.iToDeliver'
     }
-    return hasDelivered ? 'community.mentor.progress.studentGot' : 'community.mentor.progress.studentWaiting'
+    return hasDelivered ? 'community.mentor.progress.mentorDone' : 'community.mentor.progress.mentorWaiting'
   }
   if (p.direction === 'SEEK_STUDENT') {
     return hasDelivered ? 'community.mentor.progress.studentDelivered' : 'community.mentor.progress.studentToDeliver'
   }
-  return hasDelivered ? 'community.mentor.progress.mentorDone' : 'community.mentor.progress.mentorWaiting'
+  return hasDelivered ? 'community.mentor.progress.studentGot' : 'community.mentor.progress.studentWaiting'
 }
 
 /**

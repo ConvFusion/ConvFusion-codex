@@ -2867,12 +2867,12 @@ window.__ModuleLoader__.load({
 		    if (p.direction === "SEEK_STUDENT") {
 		      return hasDelivered ? "community.mentor.progress.iDelivered" : "community.mentor.progress.iToDeliver";
 		    }
-		    return hasDelivered ? "community.mentor.progress.studentGot" : "community.mentor.progress.studentWaiting";
+		    return hasDelivered ? "community.mentor.progress.mentorDone" : "community.mentor.progress.mentorWaiting";
 		  }
 		  if (p.direction === "SEEK_STUDENT") {
 		    return hasDelivered ? "community.mentor.progress.studentDelivered" : "community.mentor.progress.studentToDeliver";
 		  }
-		  return hasDelivered ? "community.mentor.progress.mentorDone" : "community.mentor.progress.mentorWaiting";
+		  return hasDelivered ? "community.mentor.progress.studentGot" : "community.mentor.progress.studentWaiting";
 		}
 		function canDownloadProposal(p, view) {
 		  if (p.status !== "ACCEPTED") return false;

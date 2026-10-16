@@ -1802,22 +1802,49 @@ console.log('\n[12] 指导关系中：第三个 Tab + 接受冻结押金的二�
     /if \(!view\.iAmOwner\) \{/.test(src) && /if \(view\.iAmOwner\) return true/.test(src),
     '文案与下载可用性都按"我在哪一侧"（owner 侧 = 项目所有者）判',
   )
-  assert(
-    /return hasDelivered \? 'community\.mentor\.progress\.studentGot' : 'community\.mentor\.progress\.studentWaiting'/.test(src),
-    '方向 A 非 owner 侧（学生）：等待指导意见 / 导师已指导',
-  )
-  assert(
-    /return hasDelivered \? 'community\.mentor\.progress\.mentorDone' : 'community\.mentor\.progress\.mentorWaiting'/.test(src),
-    '方向 A owner 侧（导师）：我已指导 / 待我指导',
-  )
-  assert(
-    /return hasDelivered \? 'community\.mentor\.progress\.iDelivered' : 'community\.mentor\.progress\.iToDeliver'/.test(src),
-    '方向 B 非 owner 侧（学生）：我已交付 / 待我交付',
-  )
-  assert(
-    /return hasDelivered \? 'community\.mentor\.progress\.studentDelivered' : 'community\.mentor\.progress\.studentToDeliver'/.test(src),
-    '方向 B owner 侧（导师）：学生已交付 / 等待学生交付',
-  )
+  // 执行真实函数，串起账号 → 角色/侧别 → 文案；只检查源码里存在 key 会漏掉分支写反。
+  {
+    const { transform } = await import('esbuild')
+    const declarations = [
+      src.match(/^const PROPOSAL_STATUS_KEYS[^]*?^}/m)?.[0],
+      ...['proposalView', 'progressLabelKey'].map((name) =>
+        src.match(new RegExp(`^function ${name}\\([^]*?^}`, 'm'))?.[0]),
+    ]
+    if (declarations.some((code) => !code)) throw new Error('找不到指导状态计算函数')
+    const out = await transform(`${declarations.join('\n')}\nexport { proposalView, progressLabelKey }`, {
+      loader: 'ts', format: 'esm',
+    })
+    const { proposalView, progressLabelKey } = await import(
+      `data:text/javascript;base64,${Buffer.from(out.code).toString('base64')}`
+    )
+    const cases = [
+      ['SEEK_MENTOR', 'researcher', true, 'studentWaiting', 'studentGot'],
+      ['SEEK_MENTOR', 'mentor', false, 'mentorWaiting', 'mentorDone'],
+      ['SEEK_STUDENT', 'researcher', false, 'iToDeliver', 'iDelivered'],
+      ['SEEK_STUDENT', 'mentor', true, 'studentToDeliver', 'studentDelivered'],
+    ]
+    for (const [direction, role, isOwner, waiting, delivered] of cases) {
+      const p = {
+        direction, status: 'ACCEPTED',
+        mentor: { id: 'mentor-account' }, researcher: { id: 'researcher-account' },
+      }
+      const view = proposalView(p, `${role}-account`)
+      assertEq(view.myRole, role, `${direction} ${role}：账号角色正确`)
+      assertEq(view.iAmOwner, isOwner, `${direction} ${role}：文件侧别正确`)
+      for (const [reviewFiles, key] of [[0, waiting], [3, delivered]]) {
+        assertEq(
+          progressLabelKey({ ...p, reviewFiles }, view),
+          `community.mentor.progress.${key}`,
+          `${direction} ${role}：${reviewFiles ? '已交付' : '未交付'}的状态称呼正确`,
+        )
+      }
+      assertEq(
+        progressLabelKey({ ...p, status: 'PROPOSED', reviewFiles: 3 }, view),
+        'community.mentor.status.PROPOSED',
+        `${direction} ${role}：未接受的提案不显示交付进展`,
+      )
+    }
+  }
   for (const k of [
     'studentWaiting',
     'studentGot',
