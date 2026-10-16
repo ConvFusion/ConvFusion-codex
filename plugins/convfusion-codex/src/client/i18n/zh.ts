@@ -504,8 +504,11 @@ export const zh = {
   'system.retrieval.placeholderPaste': '粘贴 API Key',
   'system.retrieval.secretHint': '留空则不修改。密钥仅保存在本机，不会发送到浏览器。',
   'system.retrieval.clear': '清除',
+  'system.retrieval.clearing': '清除中…',
   'system.retrieval.saved': '已保存 OpenAlex API Key',
   'system.retrieval.cleared': '已清除 OpenAlex API Key',
+  'system.retrieval.savedRefreshFailed': 'API Key 已保存，但状态刷新失败，请点击上方“重试”。',
+  'system.retrieval.clearedRefreshFailed': 'API Key 已清除，但状态刷新失败，请点击上方“重试”。',
   'system.retrieval.saveFailed': '保存失败：{detail}',
   'system.retrieval.clearFailed': '清除失败：{detail}',
 

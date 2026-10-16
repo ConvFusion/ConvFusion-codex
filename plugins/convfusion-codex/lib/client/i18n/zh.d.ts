@@ -431,8 +431,11 @@ export declare const zh: {
     'system.retrieval.placeholderPaste': string;
     'system.retrieval.secretHint': string;
     'system.retrieval.clear': string;
+    'system.retrieval.clearing': string;
     'system.retrieval.saved': string;
     'system.retrieval.cleared': string;
+    'system.retrieval.savedRefreshFailed': string;
+    'system.retrieval.clearedRefreshFailed': string;
     'system.retrieval.saveFailed': string;
     'system.retrieval.clearFailed': string;
     'progress.name': string;

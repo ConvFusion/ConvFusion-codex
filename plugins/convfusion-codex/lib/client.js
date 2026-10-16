@@ -544,8 +544,11 @@ window.__ModuleLoader__.load({
 		  "system.retrieval.placeholderPaste": "Paste API Key",
 		  "system.retrieval.secretHint": "Leave blank to keep the current value. The key is stored locally and is never returned to the browser.",
 		  "system.retrieval.clear": "Clear",
+		  "system.retrieval.clearing": "Clearing…",
 		  "system.retrieval.saved": "OpenAlex API Key saved",
 		  "system.retrieval.cleared": "OpenAlex API Key cleared",
+		  "system.retrieval.savedRefreshFailed": "API Key saved, but the status could not be refreshed. Click Retry above.",
+		  "system.retrieval.clearedRefreshFailed": "API Key cleared, but the status could not be refreshed. Click Retry above.",
 		  "system.retrieval.saveFailed": "Save failed: {detail}",
 		  "system.retrieval.clearFailed": "Clear failed: {detail}",
 		  "progress.name": "Research progress",
@@ -1260,8 +1263,11 @@ window.__ModuleLoader__.load({
 		  "system.retrieval.placeholderPaste": "粘贴 API Key",
 		  "system.retrieval.secretHint": "留空则不修改。密钥仅保存在本机，不会发送到浏览器。",
 		  "system.retrieval.clear": "清除",
+		  "system.retrieval.clearing": "清除中…",
 		  "system.retrieval.saved": "已保存 OpenAlex API Key",
 		  "system.retrieval.cleared": "已清除 OpenAlex API Key",
+		  "system.retrieval.savedRefreshFailed": "API Key 已保存，但状态刷新失败，请点击上方“重试”。",
+		  "system.retrieval.clearedRefreshFailed": "API Key 已清除，但状态刷新失败，请点击上方“重试”。",
 		  "system.retrieval.saveFailed": "保存失败：{detail}",
 		  "system.retrieval.clearFailed": "清除失败：{detail}",
 		  "progress.name": "研究进展",
@@ -2671,13 +2677,11 @@ window.__ModuleLoader__.load({
 		    tab === "retrieval" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		      SystemTab,
 		      {
-		        configured: state?.retrieval.configured ?? false,
-		        source: state?.retrieval.source ?? "none",
-		        envVar: state?.retrieval.envVar ?? "OPENALEX_API_KEY",
+		        retrieval: state?.retrieval ?? { configured: false, source: "none", envVar: "OPENALEX_API_KEY" },
 		        tectonic: state?.dependencies?.tectonic ?? null,
 		        onRecheck: recheckDependencies,
 		        scope,
-		        onNotice: setNotice,
+		        onReload: async () => await call("state", {}) !== null,
 		        t
 		      }
 		    ) : null,
@@ -6335,65 +6339,83 @@ window.__ModuleLoader__.load({
 		  ] });
 		}
 		function SystemTab({
-		  configured,
-		  source,
-		  envVar,
+		  retrieval,
 		  tectonic,
 		  onRecheck,
 		  scope,
-		  onNotice,
+		  onReload,
 		  t
 		}) {
+		  const { configured, source, envVar } = retrieval;
 		  const [draft, setDraft] = import_react.default.useState("");
-		  const [busy, setBusy] = import_react.default.useState(false);
+		  const [busy, setBusy] = import_react.default.useState(null);
+		  const [notice, setNotice] = import_react.default.useState(null);
+		  const [dependencyNotice, setDependencyNotice] = import_react.default.useState(null);
+		  import_react.default.useEffect(() => {
+		    setNotice((previous) => previous?.refreshFailed ? null : previous);
+		  }, [retrieval]);
 		  const [checking, setChecking] = import_react.default.useState(false);
 		  const [dep, setDep] = import_react.default.useState(tectonic);
 		  import_react.default.useEffect(() => {
 		    setDep(tectonic);
 		  }, [tectonic]);
 		  const save = async () => {
-		    if (!draft.trim()) return;
-		    setBusy(true);
+		    if (busy || !draft.trim()) return;
+		    setBusy("save");
+		    setNotice(null);
 		    try {
 		      await scope.set("openalexApiKey", draft.trim());
 		      setDraft("");
-		      onNotice({ tone: "success", text: t("system.retrieval.saved") });
+		      const refreshed = await onReload();
+		      setNotice({
+		        tone: refreshed ? "success" : "error",
+		        text: t(refreshed ? "system.retrieval.saved" : "system.retrieval.savedRefreshFailed"),
+		        refreshFailed: !refreshed
+		      });
 		    } catch (e) {
-		      onNotice({
+		      setNotice({
 		        tone: "error",
 		        text: t("system.retrieval.saveFailed", { detail: e instanceof Error ? e.message : String(e) })
 		      });
 		    } finally {
-		      setBusy(false);
+		      setBusy(null);
 		    }
 		  };
 		  const clear = async () => {
-		    setBusy(true);
+		    if (busy) return;
+		    setBusy("clear");
+		    setNotice(null);
 		    try {
 		      await scope.unset("openalexApiKey");
 		      setDraft("");
-		      onNotice({ tone: "success", text: t("system.retrieval.cleared") });
+		      const refreshed = await onReload();
+		      setNotice({
+		        tone: refreshed ? "success" : "error",
+		        text: t(refreshed ? "system.retrieval.cleared" : "system.retrieval.clearedRefreshFailed"),
+		        refreshFailed: !refreshed
+		      });
 		    } catch (e) {
-		      onNotice({
+		      setNotice({
 		        tone: "error",
 		        text: t("system.retrieval.clearFailed", { detail: e instanceof Error ? e.message : String(e) })
 		      });
 		    } finally {
-		      setBusy(false);
+		      setBusy(null);
 		    }
 		  };
 		  const recheck = async () => {
 		    setChecking(true);
+		    setDependencyNotice(null);
 		    try {
 		      const next = await onRecheck();
 		      setDep(next);
 		      if (next?.available) {
-		        onNotice({
+		        setDependencyNotice({
 		          tone: "success",
 		          text: t("system.dependency.available", { version: next.version ? `: ${next.version}` : "" })
 		        });
 		      } else {
-		        onNotice({ tone: "error", text: t("system.dependency.missing") });
+		        setDependencyNotice({ tone: "error", text: t("system.dependency.missing") });
 		      }
 		    } finally {
 		      setChecking(false);
@@ -6425,6 +6447,14 @@ window.__ModuleLoader__.load({
 		            }
 		          )
 		        ] }),
+		        dependencyNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          "div",
+		          {
+		            role: dependencyNotice.tone === "error" ? "alert" : "status",
+		            style: { ...S.hint, color: `var(--dsw-alias-state-${dependencyNotice.tone}-primary)` },
+		            children: dependencyNotice.text
+		          }
+		        ) : null,
 		        dep && !dep.available ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.hint, lineHeight: 2, marginTop: 8 }, children: [
 		          t("system.dependency.installIntro"),
 		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("br", {}),
@@ -6446,7 +6476,7 @@ window.__ModuleLoader__.load({
 		        configured ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "success", children: t("system.status.configured") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("system.status.notConfigured") })
 		      ] }),
 		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardBody, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.field, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.field, flex: "initial" }, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.label, children: "OpenAlex API Key" }),
 		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		            "input",
@@ -6456,9 +6486,13 @@ window.__ModuleLoader__.load({
 		              autoComplete: "off",
 		              spellCheck: false,
 		              value: draft,
+		              disabled: busy !== null,
 		              placeholder: configured ? t("system.retrieval.placeholderReplace") : t("system.retrieval.placeholderPaste"),
 		              title: t("system.retrieval.secretHint"),
-		              onChange: (e) => setDraft(e.target.value)
+		              onChange: (e) => {
+		                setDraft(e.target.value);
+		                setNotice(null);
+		              }
 		            }
 		          ),
 		          !configured ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hint, children: [
@@ -6474,14 +6508,22 @@ window.__ModuleLoader__.load({
 		          ] }) : null
 		        ] }),
 		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
+		          notice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            "span",
+		            {
+		              role: notice.tone === "error" ? "alert" : "status",
+		              style: { marginRight: "auto", fontSize: 12, color: `var(--dsw-alias-state-${notice.tone}-primary)` },
+		              children: notice.text
+		            }
+		          ) : null,
 		          source === "settings" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		            "button",
 		            {
 		              type: "button",
 		              style: { ...S.ghostBtn, opacity: busy ? 0.55 : 1 },
-		              disabled: busy,
+		              disabled: busy !== null,
 		              onClick: () => void clear(),
-		              children: t("system.retrieval.clear")
+		              children: t(busy === "clear" ? "system.retrieval.clearing" : "system.retrieval.clear")
 		            }
 		          ) : null,
 		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
@@ -6489,9 +6531,9 @@ window.__ModuleLoader__.load({
 		            {
 		              type: "button",
 		              style: { ...S.primaryBtn, opacity: draft.trim() && !busy ? 1 : 0.55 },
-		              disabled: !draft.trim() || busy,
+		              disabled: !draft.trim() || busy !== null,
 		              onClick: () => void save(),
-		              children: busy ? t("settings.editor.saving") : t("settings.editor.save")
+		              children: busy === "save" ? t("settings.editor.saving") : t("settings.editor.save")
 		            }
 		          )
 		        ] })

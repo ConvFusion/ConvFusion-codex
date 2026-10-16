@@ -1270,13 +1270,11 @@ export function ConvFusionProjectSettings({
       {/* ── Tab 3：系统设置（OpenAlex 凭据 + 本地依赖检查）──────────── */}
       {tab === 'retrieval' ? (
         <SystemTab
-          configured={state?.retrieval.configured ?? false}
-          source={state?.retrieval.source ?? 'none'}
-          envVar={state?.retrieval.envVar ?? 'OPENALEX_API_KEY'}
+          retrieval={state?.retrieval ?? { configured: false, source: 'none', envVar: 'OPENALEX_API_KEY' }}
           tectonic={state?.dependencies?.tectonic ?? null}
           onRecheck={recheckDependencies}
           scope={scope}
-          onNotice={setNotice}
+          onReload={async () => (await call('state', {})) !== null}
           t={t}
         />
       ) : null}
@@ -7765,26 +7763,29 @@ export function CommunityTab({
  * ════════════════════════════════════════════════════════════════════════ */
 
 function SystemTab({
-  configured,
-  source,
-  envVar,
+  retrieval,
   tectonic,
   onRecheck,
   scope,
-  onNotice,
+  onReload,
   t,
 }: {
-  configured: boolean
-  source: 'settings' | 'env' | 'none'
-  envVar: string
+  retrieval: HostState['retrieval']
   tectonic: HostDependency | null
   onRecheck: () => Promise<HostDependency | null>
   scope: SettingsScopeLike
-  onNotice: (n: { tone: 'success' | 'error'; text: string } | null) => void
+  onReload: () => Promise<boolean>
   t: Translate
 }): JSX.Element {
+  const { configured, source, envVar } = retrieval
   const [draft, setDraft] = React.useState('')
-  const [busy, setBusy] = React.useState(false)
+  const [busy, setBusy] = React.useState<'save' | 'clear' | null>(null)
+  const [notice, setNotice] = React.useState<{ tone: 'success' | 'error'; text: string; refreshFailed?: boolean } | null>(null)
+  const [dependencyNotice, setDependencyNotice] = React.useState<{ tone: 'success' | 'error'; text: string } | null>(null)
+  // A successful manual retry replaces the retrieval snapshot, even if its values are unchanged.
+  React.useEffect(() => {
+    setNotice((previous) => previous?.refreshFailed ? null : previous)
+  }, [retrieval])
   const [checking, setChecking] = React.useState(false)
   // 本地点一份，避免"重新检查"后要等整页状态回填
   const [dep, setDep] = React.useState<HostDependency | null>(tectonic)
@@ -7793,50 +7794,64 @@ function SystemTab({
   }, [tectonic])
 
   const save = async (): Promise<void> => {
-    if (!draft.trim()) return
-    setBusy(true)
+    if (busy || !draft.trim()) return
+    setBusy('save')
+    setNotice(null)
     try {
       await scope.set('openalexApiKey', draft.trim())
       setDraft('') // 明文不留在界面状态里
-      onNotice({ tone: 'success', text: t('system.retrieval.saved') })
+      const refreshed = await onReload()
+      setNotice({
+        tone: refreshed ? 'success' : 'error',
+        text: t(refreshed ? 'system.retrieval.saved' : 'system.retrieval.savedRefreshFailed'),
+        refreshFailed: !refreshed,
+      })
     } catch (e) {
-      onNotice({
+      setNotice({
         tone: 'error',
         text: t('system.retrieval.saveFailed', { detail: e instanceof Error ? e.message : String(e) }),
       })
     } finally {
-      setBusy(false)
+      setBusy(null)
     }
   }
 
   const clear = async (): Promise<void> => {
-    setBusy(true)
+    if (busy) return
+    setBusy('clear')
+    setNotice(null)
     try {
       await scope.unset('openalexApiKey')
       setDraft('')
-      onNotice({ tone: 'success', text: t('system.retrieval.cleared') })
+      const refreshed = await onReload()
+      setNotice({
+        tone: refreshed ? 'success' : 'error',
+        text: t(refreshed ? 'system.retrieval.cleared' : 'system.retrieval.clearedRefreshFailed'),
+        refreshFailed: !refreshed,
+      })
     } catch (e) {
-      onNotice({
+      setNotice({
         tone: 'error',
         text: t('system.retrieval.clearFailed', { detail: e instanceof Error ? e.message : String(e) }),
       })
     } finally {
-      setBusy(false)
+      setBusy(null)
     }
   }
 
   const recheck = async (): Promise<void> => {
     setChecking(true)
+    setDependencyNotice(null)
     try {
       const next = await onRecheck()
       setDep(next)
       if (next?.available) {
-        onNotice({
+        setDependencyNotice({
           tone: 'success',
           text: t('system.dependency.available', { version: next.version ? `: ${next.version}` : '' }),
         })
       } else {
-        onNotice({ tone: 'error', text: t('system.dependency.missing') })
+        setDependencyNotice({ tone: 'error', text: t('system.dependency.missing') })
       }
     } finally {
       setChecking(false)
@@ -7878,6 +7893,15 @@ function SystemTab({
             </button>
           </div>
 
+          {dependencyNotice ? (
+            <div
+              role={dependencyNotice.tone === 'error' ? 'alert' : 'status'}
+              style={{ ...S.hint, color: `var(--dsw-alias-state-${dependencyNotice.tone}-primary)` }}
+            >
+              {dependencyNotice.text}
+            </div>
+          ) : null}
+
           {/* 未安装才展开：这时那些字才是用户真正需要的 */}
           {dep && !dep.available ? (
             <div style={{ ...S.hint, lineHeight: 2, marginTop: 8 }}>
@@ -7907,7 +7931,7 @@ function SystemTab({
           )}
         </div>
         <div style={S.cardBody}>
-          <div style={S.field}>
+          <div style={{ ...S.field, flex: 'initial' }}>
             <div style={S.label}>OpenAlex API Key</div>
             <input
               style={S.input}
@@ -7915,10 +7939,11 @@ function SystemTab({
               autoComplete="off"
               spellCheck={false}
               value={draft}
+              disabled={busy !== null}
               placeholder={configured ? t('system.retrieval.placeholderReplace') : t('system.retrieval.placeholderPaste')}
               // 凭据纪律与"留空 = 不修改"收进悬浮提示，不占版面
               title={t('system.retrieval.secretHint')}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => { setDraft(e.target.value); setNotice(null) }}
             />
             {/* 只在需要动作（未配置）或状态特殊（由环境变量提供）时给一行 */}
             {!configured ? (
@@ -7933,23 +7958,31 @@ function SystemTab({
           </div>
 
           <div style={S.footer}>
+            {notice ? (
+              <span
+                role={notice.tone === 'error' ? 'alert' : 'status'}
+                style={{ marginRight: 'auto', fontSize: 12, color: `var(--dsw-alias-state-${notice.tone}-primary)` }}
+              >
+                {notice.text}
+              </span>
+            ) : null}
             {source === 'settings' ? (
               <button
                 type="button"
                 style={{ ...S.ghostBtn, opacity: busy ? 0.55 : 1 }}
-                disabled={busy}
+                disabled={busy !== null}
                 onClick={() => void clear()}
               >
-                {t('system.retrieval.clear')}
+                {t(busy === 'clear' ? 'system.retrieval.clearing' : 'system.retrieval.clear')}
               </button>
             ) : null}
             <button
               type="button"
               style={{ ...S.primaryBtn, opacity: draft.trim() && !busy ? 1 : 0.55 }}
-              disabled={!draft.trim() || busy}
+              disabled={!draft.trim() || busy !== null}
               onClick={() => void save()}
             >
-              {busy ? t('settings.editor.saving') : t('settings.editor.save')}
+              {busy === 'save' ? t('settings.editor.saving') : t('settings.editor.save')}
             </button>
           </div>
         </div>

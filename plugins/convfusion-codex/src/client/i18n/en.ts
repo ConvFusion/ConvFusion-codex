@@ -484,8 +484,11 @@ export const en = {
   'system.retrieval.placeholderPaste': 'Paste API Key',
   'system.retrieval.secretHint': 'Leave blank to keep the current value. The key is stored locally and is never returned to the browser.',
   'system.retrieval.clear': 'Clear',
+  'system.retrieval.clearing': 'Clearing…',
   'system.retrieval.saved': 'OpenAlex API Key saved',
   'system.retrieval.cleared': 'OpenAlex API Key cleared',
+  'system.retrieval.savedRefreshFailed': 'API Key saved, but the status could not be refreshed. Click Retry above.',
+  'system.retrieval.clearedRefreshFailed': 'API Key cleared, but the status could not be refreshed. Click Retry above.',
   'system.retrieval.saveFailed': 'Save failed: {detail}',
   'system.retrieval.clearFailed': 'Clear failed: {detail}',
 

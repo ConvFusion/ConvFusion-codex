@@ -436,8 +436,11 @@ export declare const dictionaries: {
         'system.retrieval.placeholderPaste': string;
         'system.retrieval.secretHint': string;
         'system.retrieval.clear': string;
+        'system.retrieval.clearing': string;
         'system.retrieval.saved': string;
         'system.retrieval.cleared': string;
+        'system.retrieval.savedRefreshFailed': string;
+        'system.retrieval.clearedRefreshFailed': string;
         'system.retrieval.saveFailed': string;
         'system.retrieval.clearFailed': string;
         'progress.name': string;
@@ -1085,8 +1088,11 @@ export declare const dictionaries: {
         readonly 'system.retrieval.placeholderPaste': "Paste API Key";
         readonly 'system.retrieval.secretHint': "Leave blank to keep the current value. The key is stored locally and is never returned to the browser.";
         readonly 'system.retrieval.clear': "Clear";
+        readonly 'system.retrieval.clearing': "Clearing…";
         readonly 'system.retrieval.saved': "OpenAlex API Key saved";
         readonly 'system.retrieval.cleared': "OpenAlex API Key cleared";
+        readonly 'system.retrieval.savedRefreshFailed': "API Key saved, but the status could not be refreshed. Click Retry above.";
+        readonly 'system.retrieval.clearedRefreshFailed': "API Key cleared, but the status could not be refreshed. Click Retry above.";
         readonly 'system.retrieval.saveFailed': "Save failed: {detail}";
         readonly 'system.retrieval.clearFailed': "Clear failed: {detail}";
         readonly 'progress.name': "Research progress";
