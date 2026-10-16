@@ -210,7 +210,7 @@ section('[1] 地址与凭据归一')
     assertEq(SC.normalizeBaseUrl(input), want, `归一地址：${JSON.stringify(input)} → ${want}`)
   }
   // 空地址 → **当前环境**的默认地址（不是写死的某个地址）
-  assertEq(SC.normalizeBaseUrl(''), CFG.defaultServerUrl(TEST_ENV), '空地址 → 当前环境的默认地址')
+  assertEq(SC.normalizeBaseUrl(''), CFG.defaultServerUrl(), '空地址 → 当前环境的默认地址')
 
   let threw = null
   try {

@@ -3836,6 +3836,7 @@ export function DownloadDialog({
   onFill,
   onCopy,
   onRefill,
+  onRequest,
 }: {
   t: Translate
   proposal: HostProposal
@@ -3880,6 +3881,7 @@ export function DownloadDialog({
   onCopy: () => void
   /** 用**实际落盘的文件名**替换提示词（只在这两者不一致时出现）。 */
   onRefill: () => void
+  onRequest?: (() => void) | undefined
 }): JSX.Element {
   /*
    * **一个都不禁用**（2026-10 用户拍板："插件端全部设计成提示词构建"）。
@@ -4090,6 +4092,7 @@ export function DownloadDialog({
                 <button type="button" style={S.ghostBtn} onClick={onCopy}>
                   {t('community.merge.copy')}
                 </button>
+                {onRequest && done.phase === 'ready' && !busy ? <button type="button" style={S.primaryBtn} onClick={onRequest}>{t('community.merge.prepare')}</button> : null}
                 {done.canFill && !done.filled ? (
                   <button type="button" style={S.primaryBtn} onClick={onFill}>
                     {t('community.merge.fill')}
@@ -4478,6 +4481,7 @@ function ServerPresetButton({
  * session 标准 props 交给会话作用域槽位；设置页没有，所以那里只给「复制提示词」。
  */
 export interface SessionBridge {
+  prepareSync?: ((text: string) => void) | undefined
   /** Host-specific handoff text; Codex has no DSH slash command. */
   syncCommand?: ((zipPath: string) => string) | undefined
   /**
@@ -6896,6 +6900,12 @@ export function CommunityTab({
               })
             })
           }}
+          onRequest={session?.prepareSync && download.selection === download.currentWorkspaceId ? () => {
+            const prompt = download.done?.correctedPrompt ?? download.done?.prompt
+            if (!prompt || download.done?.phase !== 'ready') return
+            session.prepareSync?.(prompt)
+            setDownload(null)
+          } : undefined}
           onRefill={() => {
             const corrected = download.done?.correctedPrompt
             if (!corrected) return

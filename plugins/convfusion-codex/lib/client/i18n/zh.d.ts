@@ -1,5 +1,6 @@
 /** Simplified Chinese dictionary; the type rejects missing and extra keys. */
 export declare const zh: {
+    'community.merge.prepare': string;
     'settings.nav': string;
     'settings.version.updateAvailable': string;
     'settings.version.updateHint': string;

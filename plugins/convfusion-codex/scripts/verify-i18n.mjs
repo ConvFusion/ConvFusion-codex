@@ -65,7 +65,12 @@ const index = readFileSync(join(ROOT, 'src/client/index.tsx'), 'utf8')
 // 会话 Tab 的注册项写在 ./convfusion-tab.ts（条件注册，见 verify-progress [9c]），一并统计
 const convfusionTab = readFileSync(join(ROOT, 'src/client/convfusion-tab.ts'), 'utf8')
 const slotSources = index + convfusionTab
-assert(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-locale'), 'package 注入 dsh-client-locale')
+if (pkg.dsh) assert(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-locale'), 'package 注入 dsh-client-locale')
+else {
+  const codex = readFileSync(join(ROOT, 'src/client/codex-app.tsx'), 'utf8')
+  assert(codex.includes('dictionaries[language]'), 'Codex 工作台实际使用同一份中英字典')
+  assert(codex.includes('setLanguage'), 'Codex 工作台提供语言切换')
+}
 // `locale` 必须留在硬依赖里（文案跟随语言）；`sessions` 是 2026-10 为会话 Tab 加的（见 verify-progress [9c]）
 assert(/export const inject = \[[^\]]*'locale'[^\]]*\]/.test(index), '浏览器插件硬依赖 locale 服务')
 assert(/ctx\.locale\.register\(CONVFUSION_LOCALE_NS, dictionaries\)/.test(index), '字典注册到独立 namespace')

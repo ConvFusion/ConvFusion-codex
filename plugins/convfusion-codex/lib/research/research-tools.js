@@ -544,8 +544,8 @@ export function defineResearchTools(resolveWorkspace, literatureDeps, downloadDe
     const stateProposeTool = defineTool({
         name: STATE_PROPOSE_TOOL,
         description: 'Work with Research State updates (the self-evolving record of what the research currently is).\n' +
-            '`propose` records a pending proposal for explicit user review by default. ' +
-            'Set `apply: true` only when the user explicitly authorized applying this state change.\n' +
+            '`propose` writes the dimensions into research-state.md by default, archives the old version, ' +
+            'and records the disposition. Pass `apply: false` to leave a pending proposal for review.\n' +
             '`sync` re-derives the artifact-indexed dimensions (Decisions / Claims / Evidence / ' +
             'Literature / Experiments) from the files on disk — the same job the platform runs ' +
             'automatically after every `research_decision` / `research_claim` / `research_evidence` write.\n' +
@@ -559,7 +559,7 @@ export function defineResearchTools(resolveWorkspace, literatureDeps, downloadDe
             action: { type: 'string', description: 'One of: propose | list | apply | sync.', enum: ['propose', 'list', 'apply', 'sync'] },
             apply: {
                 type: 'boolean',
-                description: 'For `propose`: default false leaves a pending proposal. Set true only with explicit user authorization.',
+                description: 'For `propose`: default true writes and archives the state. Pass false for a pending proposal.',
             },
             changes: {
                 type: 'object',
@@ -716,8 +716,7 @@ export function defineResearchTools(resolveWorkspace, literatureDeps, downloadDe
                     ...(a.plan ? { plan: String(a.plan) } : {}),
                     actor: 'agent',
                 });
-                // Codex: judgment-bearing updates require explicit user review; artifact sync remains automatic.
-                const applyNow = a.apply === true;
+                const applyNow = a.apply !== false;
                 if (applyNow) {
                     const applied = applyStateUpdate(ws, { ...proposal, maturityChanges: proposal.maturityChanges }, { action: 'accepted', by: 'agent' });
                     if (isStateWriteError(applied))

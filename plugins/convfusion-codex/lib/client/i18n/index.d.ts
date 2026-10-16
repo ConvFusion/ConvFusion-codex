@@ -5,6 +5,7 @@ export type TranslateParams = Record<string, unknown>;
 export type Translate = (key: string, params?: TranslateParams) => string;
 export declare const dictionaries: {
     zh: {
+        'community.merge.prepare': string;
         'settings.nav': string;
         'settings.version.updateAvailable': string;
         'settings.version.updateHint': string;
@@ -653,6 +654,7 @@ export declare const dictionaries: {
         'taxonomy.skill.pre-submission-review': string;
     };
     en: {
+        readonly 'community.merge.prepare': "Prepare sync request";
         readonly 'settings.nav': "ConvFusion";
         readonly 'settings.version.updateAvailable': "(Update available: v{version})";
         readonly 'settings.version.updateHint': "It is recommended to update directly via DSH Launcher";

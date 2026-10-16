@@ -1,5 +1,6 @@
 /** English is the canonical key set for the ConvFusion browser UI. */
 export declare const en: {
+    readonly 'community.merge.prepare': "Prepare sync request";
     readonly 'settings.nav': "ConvFusion";
     readonly 'settings.version.updateAvailable': "(Update available: v{version})";
     readonly 'settings.version.updateHint': "It is recommended to update directly via DSH Launcher";

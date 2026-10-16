@@ -10,7 +10,11 @@ Every tool receives the task's absolute `workspace_root`. New research data belo
 
 Use `research_context` to obtain current research guidance and `research_methods` to read customized methods. The method library lives at `skills/convfusion-research/references/` and contains 57 methods plus the sync operation. The source library is read-only; personal customizations are separate.
 
-DSH-only registration, context injection and automatic continuation are not invoked by Codex. Research context is refreshed explicitly through tools and the skill. Shared DSH compatibility source remains available but is not the Codex UI entrypoint.
+Packaged native Hooks handle SessionStart, UserPromptSubmit, PreToolUse, Stop and Interrupt. Session/user/tool boundaries refresh the same effective context as `research_context`, including the shared research and language guide. Hooks register encountered task directories; the long-lived workbench refreshes that registry from disk. No internal Codex database or transcript format is assumed.
+
+Codex must trust the installed hook definitions before running them. Installation alone does not activate them. Without trusted hooks, explicit MCP and Skill entrypoints still work; automatic context, native-edit snapshot capture and turn reports cannot be claimed as active. Shared DSH compatibility source remains available but is not the Codex runtime entrypoint.
+
+Hook state is isolated by canonical task path and native session id. Only snapshots, bounded observation metadata, continuation disposition and progress reports are persisted in the private adapter home. Raw tool arguments and user prompts are not recorded. Stop reuses shared asset-diff and advance logic, enforces a bounded continuation budget, and delegates continuation to Codex's native Stop decision. Read-only prompts, Plan mode and user interrupts prevent research writes and continuation.
 
 ## Workbench
 
@@ -20,11 +24,13 @@ The MCP resource is `ui://convfusion/workbench-v1.html`, with MIME type `text/ht
 
 Local settings and network identity/cache files are stored under `$CONVFUSION_CODEX_HOME`, or `$CODEX_HOME/convfusion` (default `~/.codex/convfusion`). They are separate from DSH settings and the plugin cache. Credentials are stored with owner-only file permissions and are not returned in account state or research context.
 
-The app-only `research_ui_action` transports user interaction. It is not a model-facing shortcut for credentials, purchases, publishing or accepting paid guidance. Downloads remain ZIP files until the user authorizes the sync workflow.
+The app-only `research_ui_action` transports user interaction. It is not a model-facing shortcut for credentials, purchases, publishing or accepting paid guidance. Downloads remain ZIP files until the user authorizes the sync workflow. A task-bound MCP Apps view offers an editable sync request with an explicit send action; browsers and global views retain copy/paste. It never silently submits or replaces the host chat draft.
 
 ## Review and synchronization
 
-Artifact indexes synchronize automatically without replacing human-written state. Judgment-bearing state proposals remain pending by default in Codex. Explicitly authorized application uses `research_state_propose` with `apply: true` or `action: apply`.
+Artifact indexes synchronize automatically without replacing human-written state. As in DSH, authorized `research_state_propose` calls apply by default while archiving the old state and recording the disposition; `apply: false` retains a reviewable proposal. Read-only requests do not authorize either operation.
+
+Plan creation and mutation archive snapshots before/after changes. Native hook boundaries reconcile external Markdown edits during authorized research work. `research_plan` exposes revision, history, snapshot reading and reviewed handoff input; reads remain read-only. `research_methods action=export` and the workbench use the shared deterministic exporter, including user customizations and optional full source prompts.
 
 Sync prepares ZIP/identity facts with `research_sync`, then follows the sync method: read-only comparison, user confirmation, semantic merging or backup/replacement as appropriate. Do not equate downloading with synchronization.
 

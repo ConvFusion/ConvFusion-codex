@@ -1,0 +1,15 @@
+{
+  "entry": "codex-hooks.mjs",
+  "source": "scripts/convfusion-hooks.mjs",
+  "inputCount": 47,
+  "dependencies": [
+    {
+      "id": "@deepseek-ai/cordis@4.0.4",
+      "license": "MIT"
+    },
+    {
+      "id": "@deepseek-ai/cosmokit@1.8.5",
+      "license": "MIT"
+    }
+  ]
+}

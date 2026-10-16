@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm, realpath } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile, rm, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -148,10 +148,43 @@ try {
   })
 
   const stateBefore = await readFile(join(temp, 'workspace/research-state.md'), 'utf8')
-  const proposal = await call('research_state_propose', { action: 'propose', changes: { Problem: 'Reviewed research direction' }, rationale: 'Codex preserves explicit review.' })
+  const proposal = await call('research_state_propose', { action: 'propose', apply: false, changes: { Problem: 'Reviewed research direction' }, rationale: 'Explicit pending review.' })
   assert.equal(proposal.isError, false)
   assert.equal(await readFile(join(temp, 'workspace/research-state.md'), 'utf8'), stateBefore)
+  const applied = await call('research_state_propose', { action: 'propose', changes: { Problem: 'State follows the adopted direction' }, rationale: 'DSH default application semantics.' })
+  assert.equal(applied.isError, false)
+  assert.ok(applied.structuredContent.applied?.version)
+  assert.notEqual(await readFile(join(temp, 'workspace/research-state.md'), 'utf8'), stateBefore)
   assert.match((await call('research_context')).structuredContent.context, /Verify the Codex adapter/)
+  assert.match((await call('research_context')).structuredContent.context, /Write paper materials and data in English/)
+  assert.ok(!(await call('research_context')).structuredContent.context.includes('native skill list'))
+
+  const plan = await call('research_plan', { action: 'create', id: 'adapter-plan', name: 'Adapter plan', objective: 'Original objective' })
+  assert.equal(plan.isError, false)
+  const planPath = join(temp, 'workspace/plans/adapter-plan.md')
+  const originalPlan = await readFile(planPath, 'utf8')
+  const historyBefore = await call('research_plan', { action: 'history', id: 'adapter-plan' })
+  assert.equal(historyBefore.structuredContent.versions.length, 1, 'creation archives a baseline before native edits')
+  await writeFile(planPath, originalPlan.replace('Original objective', 'Native edit'))
+  assert.equal((await call('research_plan', { action: 'handoff', id: 'adapter-plan' })).isError, true, 'draft cannot execute without review')
+  const revised = await call('research_plan', { action: 'revise', id: 'adapter-plan', body: originalPlan.replace('Original objective', 'Reviewed revision'), note: 'Revision after native edit' })
+  assert.equal(revised.isError, false)
+  const versions = (await call('research_plan', { action: 'history', id: 'adapter-plan' })).structuredContent.versions
+  assert.equal(versions.length, 3)
+  assert.match((await call('research_plan', { action: 'read_version', id: 'adapter-plan', version: versions[1].version })).structuredContent.content, /Native edit/)
+  assert.equal((await call('research_plan', { action: 'read_version', id: 'adapter-plan', version: '../../project' })).isError, true)
+  await call('research_plan', { action: 'review', id: 'adapter-plan' })
+  await call('research_plan', { action: 'approve', id: 'adapter-plan' })
+  assert.match((await call('research_plan', { action: 'handoff', id: 'adapter-plan' })).structuredContent.text, /Execute the research plan/)
+  const custom = await uiCall({ endpoint: 'customization/save', payload: { skillId: 'literature-search', section: 'Research Method', text: 'Customized export marker' } })
+  assert.equal(custom.isError, false)
+  const exported = await call('research_methods', { action: 'export' })
+  assert.equal(exported.isError, false)
+  assert.equal(exported.structuredContent.skillCount, 57)
+  assert.match(await readFile(exported.structuredContent.path, 'utf8'), /Customized export marker/)
+  const fullExport = await call('research_methods', { action: 'export', full: true })
+  assert.match(await readFile(fullExport.structuredContent.path, 'utf8'), /Source Prompts/)
+  assert.equal(fullExport.structuredContent.markdown, undefined, 'export returns an artifact path instead of flooding model context')
 
   console.log(`Codex adapter verification passed (${names.length} MCP tools).`)
 } finally {

@@ -2,7 +2,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from '@modelcontextprotocol/ext-apps'
-import { CommunityTab, ConvFusionProjectSettings, type SettingsSend } from './settings.js'
+import { CommunityTab, ConvFusionProjectSettings, copyText, type SettingsSend } from './settings.js'
 import { ResearchProgressPanel } from './progress-panel.js'
 import { dictionaries, type Translate } from './i18n/index.js'
 import logo from '../../assets/favicon.svg'
@@ -42,17 +42,35 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
   const [current, setCurrent] = React.useState(initial)
   const [tab, setTab] = React.useState<'community' | 'progress' | 'methods'>('community')
   const [language, setLanguage] = React.useState<'zh' | 'en'>('zh')
+  const [syncDraft, setSyncDraft] = React.useState<string | null>(null)
+  const [sending, setSending] = React.useState(false)
+  const [sendError, setSendError] = React.useState('')
   React.useEffect(() => {
     // Supply directory selection as app data for the next turn, without sending a chat message.
     void app?.updateModelContext({ structuredContent: { plugin: 'ConvFusion', workspace_root: current.workspaceRoot, scope: current.uiScope } }).catch(() => {})
   }, [current.workspaceRoot, current.uiScope])
   const t: Translate = React.useCallback((key, params) => {
+    if (key === 'progress.turn.unavailable') return language === 'zh' ? '所选研究还没有回合报告。审核并信任 Hooks 后，完成一轮研究即可查看；当前研究状态始终可读。' : 'No turn report for this research yet. Trust the hooks and complete a research turn; current workspace state is always available.'
     const template = ((dictionaries[language] as Record<string, string>)[key] ?? key).replaceAll('DSH 设置', '插件设置').replaceAll('DSH settings', 'plugin settings').replaceAll('DSH', 'Codex').replaceAll('Harness', 'Codex')
     return template.replace(/\{(\w+)\}/g, (match, name: string) => params && name in params ? String(params[name]) : match)
   }, [language])
   const zh = language === 'zh'
-  const bridge = current.sessionId ? { sessionId: current.sessionId, draftEmpty: false, syncCommand: (zip: string) => `$convfusion-research 同步研究资料 ${JSON.stringify(zip)}` } : undefined
-  const selectWorkspace = (value: Session) => { session = value; setCurrent(value) }
+  const bridge = current.sessionId ? {
+    sessionId: current.sessionId, draftEmpty: false,
+    syncCommand: (zip: string) => `$convfusion-research 同步研究资料 ${JSON.stringify(zip)}`,
+    ...(app && current.uiScope === 'workspace' ? { prepareSync: (text: string) => { setSyncDraft(text); setSendError('') } } : {}),
+  } : undefined
+  const selectWorkspace = (value: Session) => { session = value; setCurrent(value); setSyncDraft(null) }
+  const sendSync = async () => {
+    if (!app || !syncDraft?.trim()) return
+    setSending(true); setSendError('')
+    try {
+      const result = await app.sendMessage({ role: 'user', content: [{ type: 'text', text: syncDraft }] })
+      if (result.isError) throw new Error(zh ? 'Codex 未接受请求，请复制后发送。' : 'Codex rejected the request. Copy it to the chat instead.')
+      setSyncDraft(null)
+    } catch (error) { setSendError(error instanceof Error ? error.message : String(error)) }
+    finally { setSending(false) }
+  }
   return <>
     <header className="header"><img src={logo} alt="" /><div><h1>ConvFusion</h1><small>{current.title} · {current.version}</small></div>
       <select aria-label="Language" value={language} onChange={(e) => setLanguage(e.target.value as 'zh' | 'en')}><option value="zh">简体中文</option><option value="en">English</option></select>
@@ -65,10 +83,58 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
     </nav>
     <main key={current.workspaceRoot ?? 'global'}>
       {tab === 'community' && <CommunityTab send={transport} initial={null} t={t} session={bridge} />}
-      {tab === 'progress' && (current.sessionId ? <ResearchProgressPanel sessionId={current.sessionId} t={t} send={transport} showTurnReport={false} /> : <p role="status">{zh ? '选择研究项目目录后查看进展。' : 'Select a research project directory to view progress.'}</p>)}
-      {tab === 'methods' && <ConvFusionProjectSettings scope={scope} send={transport} t={t} session={bridge} />}
+      {tab === 'progress' && <><ContinuationSettings zh={zh} />{current.sessionId ? <ResearchProgressPanel sessionId={current.sessionId} t={t} send={transport} /> : <p role="status">{zh ? '选择研究项目目录后查看进展。' : 'Select a research project directory to view progress.'}</p>}</>}
+      {tab === 'methods' && <><MethodsExport zh={zh} enabled={Boolean(current.workspaceRoot)} /><ConvFusionProjectSettings scope={scope} send={transport} t={t} session={bridge} /></>}
     </main>
+    {syncDraft !== null && <dialog ref={(node) => { if (node && !node.open) node.showModal() }} onCancel={() => setSyncDraft(null)} aria-label={zh ? '同步请求' : 'Sync request'} className="sync-request">
+      <h2>{zh ? '同步请求' : 'Sync request'}</h2>
+      <textarea aria-label={zh ? '可编辑的同步请求' : 'Editable sync request'} rows={5} value={syncDraft} onChange={(e) => setSyncDraft(e.target.value)} disabled={sending} />
+      <p>{zh ? '发送后先检查差异，确认后再写入研究资料。' : 'The agent compares files first and asks for confirmation before merging.'}</p>
+      <button onClick={() => setSyncDraft(null)} disabled={sending}>{zh ? '取消' : 'Cancel'}</button>
+      <button onClick={() => { void copyText(syncDraft) }}>{zh ? '复制请求' : 'Copy request'}</button>
+      <button onClick={() => { void sendSync() }} disabled={sending || !syncDraft.trim()}>{zh ? '发送给 Codex' : 'Send to Codex'}</button>
+      {sendError && <p role="alert">{sendError}</p>}
+    </dialog>}
   </>
+}
+
+function ContinuationSettings({ zh }: { zh: boolean }): JSX.Element {
+  const [policy, setPolicy] = React.useState<{ enabled: boolean; maxRounds: number } | null>(null)
+  const [error, setError] = React.useState('')
+  React.useEffect(() => { void transport('codex/continuation', {}).then((res) => {
+    if (res.ok) setPolicy(res.value as typeof policy)
+  }).catch((err) => setError(String(err.message))) }, [])
+  const save = async (field: string, value: boolean | number) => {
+    try {
+      const result = await transport('codex/settings', { field, value })
+      if (!result.ok) throw new Error(result.error?.message ?? 'Save failed')
+      setPolicy((old) => old && { ...old, [field === 'autoContinue' ? 'enabled' : 'maxRounds']: value }); setError('')
+    } catch (err) { setError(err instanceof Error ? err.message : String(err)) }
+  }
+  return <section className="runtime-settings">
+    <label><input type="checkbox" disabled={!policy} checked={policy?.enabled ?? false} onChange={(e) => { void save('autoContinue', e.target.checked) }} />{zh ? '方向明确时自动推进' : 'Continue automatically when the next step is clear'}</label>
+    <label>{zh ? '连续推进上限' : 'Continuation limit'} <input aria-label={zh ? '连续推进上限' : 'Continuation limit'} type="number" min={0} max={100} value={policy?.maxRounds ?? 3} disabled={!policy} onChange={(e) => { const value = Number(e.target.value); if (Number.isInteger(value) && value >= 0 && value <= 100) void save('autoContinueMaxRounds', value) }} /></label>
+    {error && <p role="alert">{error}</p>}
+  </section>
+}
+
+function MethodsExport({ zh, enabled }: { zh: boolean; enabled: boolean }): JSX.Element {
+  const [message, setMessage] = React.useState('')
+  const [busy, setBusy] = React.useState(false)
+  const run = async (full: boolean) => {
+    setBusy(true)
+    try {
+      const result = await transport('codex/export-methods', { full })
+      if (!result.ok) throw new Error(result.error?.message ?? 'Export failed')
+      setMessage(String((result.value as { path: string }).path))
+    } catch (error) { setMessage(error instanceof Error ? error.message : String(error)) }
+    finally { setBusy(false) }
+  }
+  return <section className="runtime-settings">
+    <button disabled={!enabled || busy} onClick={() => { void run(false) }}>{zh ? '导出研究方法' : 'Export methods'}</button>
+    <button disabled={!enabled || busy} onClick={() => { void run(true) }}>{zh ? '导出完整正文' : 'Export full text'}</button>
+    {message && <p role="status">{message}</p>}
+  </section>
 }
 
 function WorkspacePicker({ current, onSelect, zh }: { current: Session; onSelect: (value: Session) => void; zh: boolean }): JSX.Element {

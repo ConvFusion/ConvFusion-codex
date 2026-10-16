@@ -397,7 +397,7 @@ export declare function copyText(text: string): Promise<boolean>;
  */
 export declare function DownloadDialog({ t, proposal, fileName, workspaces, workspacesAvailable, workspacesReason, selection, files, bytes, busy,
 /** 下载中已收到的字节数（宿主如实报告；null = 还没开始/已结束）。 */
-received, notice, targets, currentWorkspaceId, done, onSelect, onDownload, onClose, onFill, onCopy, onRefill, }: {
+received, notice, targets, currentWorkspaceId, done, onSelect, onDownload, onClose, onFill, onCopy, onRefill, onRequest, }: {
     t: Translate;
     proposal: HostProposal;
     /** 预计保存成的文件名（服务器命名 `<owner>-<title>.zip`；实际以响应头为准）。 */
@@ -448,6 +448,7 @@ received, notice, targets, currentWorkspaceId, done, onSelect, onDownload, onClo
     onCopy: () => void;
     /** 用**实际落盘的文件名**替换提示词（只在这两者不一致时出现）。 */
     onRefill: () => void;
+    onRequest?: (() => void) | undefined;
 }): JSX.Element;
 /**
  * 【设置】-【ConvFusion】-【ConvFusion.com】这一页的**全部内容**。
@@ -464,6 +465,7 @@ received, notice, targets, currentWorkspaceId, done, onSelect, onDownload, onClo
  * session 标准 props 交给会话作用域槽位；设置页没有，所以那里只给「复制提示词」。
  */
 export interface SessionBridge {
+    prepareSync?: ((text: string) => void) | undefined;
     /** Host-specific handoff text; Codex has no DSH slash command. */
     syncCommand?: ((zipPath: string) => string) | undefined;
     /**

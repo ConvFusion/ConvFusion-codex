@@ -70,6 +70,7 @@ window.__ModuleLoader__.load({
 
 		// src/client/i18n/en.ts
 		var en = {
+		  "community.merge.prepare": "Prepare sync request",
 		  "settings.nav": "ConvFusion",
 		  "settings.version.updateAvailable": "(Update available: v{version})",
 		  "settings.version.updateHint": "It is recommended to update directly via DSH Launcher",
@@ -767,6 +768,7 @@ window.__ModuleLoader__.load({
 
 		// src/client/i18n/zh.ts
 		var zh = {
+		  "community.merge.prepare": "准备同步请求",
 		  "settings.nav": "ConvFusion",
 		  "settings.version.updateAvailable": "(有新版 v{version})",
 		  "settings.version.updateHint": "建议通过 DSH Launcher 直接更新",
@@ -3973,7 +3975,8 @@ window.__ModuleLoader__.load({
 		  onClose,
 		  onFill,
 		  onCopy,
-		  onRefill
+		  onRefill,
+		  onRequest
 		}) {
 		  const targetOf = (id) => targets?.find((x) => x.id === id);
 		  const chosen = workspaces?.find((w) => w.id === selection);
@@ -4098,6 +4101,7 @@ window.__ModuleLoader__.load({
 		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") }),
 		        done ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCopy, children: t("community.merge.copy") }),
+		          onRequest && done.phase === "ready" && !busy ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onRequest, children: t("community.merge.prepare") }) : null,
 		          done.canFill && !done.filled ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onFill, children: t("community.merge.fill") }) : null
 		        ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		          "button",
@@ -5749,6 +5753,12 @@ window.__ModuleLoader__.load({
 		            });
 		          });
 		        },
+		        onRequest: session?.prepareSync && download.selection === download.currentWorkspaceId ? () => {
+		          const prompt = download.done?.correctedPrompt ?? download.done?.prompt;
+		          if (!prompt || download.done?.phase !== "ready") return;
+		          session.prepareSync?.(prompt);
+		          setDownload(null);
+		        } : void 0,
 		        onRefill: () => {
 		          const corrected = download.done?.correctedPrompt;
 		          if (!corrected) return;

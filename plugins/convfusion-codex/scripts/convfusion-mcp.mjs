@@ -25,7 +25,13 @@ import {
   markPlanExecuting,
   reviewPlan,
   setPlanStatus,
+  syncPlanHistoryDetailed,
+  revisePlan,
+  listPlanVersions,
+  readPlanVersion,
 } from '../lib/research/plan-library.js'
+import { readPlan, parsePlanFrontmatter, PLAN_STATUSES } from '../lib/research/plans.js'
+import { loadPlanHandoff } from '../lib/research/plan.js'
 
 const packageInfo = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 if (typeof packageInfo.name !== 'string' || typeof packageInfo.version !== 'string') {
@@ -133,7 +139,7 @@ const planTool = {
     workspace_root: workspaceProperty(),
     action: {
       type: 'string',
-      enum: ['list', 'create', 'set_status', 'review', 'approve', 'executing', 'complete', 'archive'],
+      enum: ['list', 'read', 'create', 'revise', 'history', 'read_version', 'handoff', 'set_status', 'review', 'approve', 'executing', 'complete', 'archive'],
     },
     id: { type: 'string' },
     name: { type: 'string' },
@@ -148,16 +154,48 @@ const planTool = {
     strategy: { type: 'string' },
     expected_evidence: { type: 'string' },
     completion_criteria: { type: 'string' },
+    body: { type: 'string', description: 'Complete Markdown source, including frontmatter, for revise.' },
+    note: { type: 'string' },
+    version: { type: 'string', description: 'Snapshot sequence for read_version.' },
+    bump: { type: 'string', enum: ['minor', 'major'] },
   },
   async execute(args) {
     const root = researchRoot(args.workspace_root)
     const action = args.action ?? 'list'
+    if (args.id !== undefined && !/^[a-z0-9][a-z0-9-]*$/.test(String(args.id))) return { ok: false, error: 'Invalid plan id' }
+    if (action === 'read_version' && !/^v?\d+$/.test(String(args.version ?? ''))) return { ok: false, error: 'Invalid plan version' }
     if (action === 'list') {
       const library = loadPlanLibrary(root)
       return { ok: true, counts: library.counts, plans: library.entries.map((entry) => concisePlan(entry.document)) }
     }
+    const id = String(args.id ?? '')
+    if (['read', 'history', 'read_version', 'revise', 'handoff'].includes(action)) {
+      if (!id) return { ok: false, error: 'id is required for this action' }
+      if (action === 'history') return { ok: true, versions: listPlanVersions(root, id) }
+      if (action === 'read_version') {
+        const content = readPlanVersion(root, id, String(args.version ?? ''))
+        return content === undefined ? { ok: false, error: 'Plan version not found' } : { ok: true, content }
+      }
+      if (action === 'read') {
+        const doc = readPlan(root, id)
+        return doc ? { ok: true, plan: concisePlan(doc), content: doc.body, sections: doc.sections } : { ok: false, error: 'Plan not found' }
+      }
+      if (action === 'handoff') {
+        const handoff = loadPlanHandoff(root, id)
+        if ('error' in handoff) return { ok: false, ...handoff }
+        syncPlanHistoryDetailed(root)
+        return { ok: true, ...handoff, instructions: 'Continue this authorized plan in the current Codex turn using native tools. This tool returns task input; it does not start another agent.' }
+      }
+    }
+    // Preserve the pre-edit source and reconcile external Markdown edits before any mutation.
+    syncPlanHistoryDetailed(root)
     let result
-    if (action === 'create') {
+    if (action === 'revise') {
+      if (typeof args.body !== 'string') return { ok: false, error: 'body is required for revise' }
+      const frontmatter = parsePlanFrontmatter(args.body)
+      if (!frontmatter.name || !frontmatter.version || !PLAN_STATUSES.includes(frontmatter.status)) return { ok: false, error: 'revise requires complete Plan Markdown with name, version and valid status frontmatter' }
+      result = revisePlan(root, id, { body: args.body, note: args.note, bump: args.bump })
+    } else if (action === 'create') {
       result = createPlan(root, {
         name: String(args.name ?? ''),
         ...(args.id ? { id: String(args.id) } : {}),
@@ -185,6 +223,7 @@ const planTool = {
       else return { ok: false, error: `Unknown action "${action}".` }
     }
     if (isPlanWriteError(result)) return { ok: false, error: result.error }
+    syncPlanHistoryDetailed(root)
     return { ok: true, action, plan: concisePlan(result) }
   },
 }
@@ -211,9 +250,11 @@ const codexTools = [
   },
   {
     name: 'research_methods',
-    description: 'List the current bundled methods, or read one effective method with the user customizations applied. Use this instead of bypassing the customization layer.',
-    parameters: { id: { type: 'string', description: 'Method id; omit to list all methods and operations.' } },
-    execute: (args) => ({ ok: true, methods: uiHost.methods(args.id) }),
+    description: 'List research methods, read an effective method, or export all 57 methods in stable code order with user customizations. Export writes research/methods-export.md; full includes historical source prompts.',
+    parameters: { id: { type: 'string', description: 'Method id; omit to list all methods and operations.' }, action: { type: 'string', enum: ['list', 'read', 'export'] }, full: { type: 'boolean' } },
+    execute: (args) => args.action === 'export'
+      ? { ok: true, ...uiHost.exportMethods(args.workspace_root, args.full === true) }
+      : { ok: true, methods: uiHost.methods(args.id) },
   },
   {
     name: 'research_sync',

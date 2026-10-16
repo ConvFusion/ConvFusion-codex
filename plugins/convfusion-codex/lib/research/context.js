@@ -266,7 +266,13 @@ function suggestSkillsFor(ws, userInput, skillContent) {
         type: e.document.type,
         path: e.document.relPath,
     });
-    // ① 先给**当前科研过程阶段**该用的能力 —— 这是"遵循基本科研过程"的落点：
+    // Explicit requests take precedence; stage navigation must not exhaust the recommendation budget.
+    const input = (userInput ?? '').trim();
+    if (input) {
+        for (const e of recommendSkills(ws, { topic: input, keywords: [input] }))
+            add(toSummary(e));
+    }
+    // Fill remaining slots with the current research stage's methods.
     //    不靠对话内容猜，而是由真实研究资产判断"哪一步还没落地"。
     const process = assessResearchProcess(ws, { ...(skillContent ? { skillContent } : {}) });
     if (process.current) {
@@ -284,12 +290,6 @@ function suggestSkillsFor(ws, userInput, skillContent) {
                 path: doc.relPath,
             });
         }
-    }
-    // ② 再按**当前请求**补相关能力（原来的逻辑）
-    const input = (userInput ?? '').trim();
-    if (input) {
-        for (const e of recommendSkills(ws, { topic: input, keywords: [input] }))
-            add(toSummary(e));
     }
     return out;
 }

@@ -1,8 +1,7 @@
 /** Codex adapter for the shared settings/community service. No DSH runtime is started. */
 import { createServer } from 'node:http'
-import { randomBytes, createHash } from 'node:crypto'
-import { existsSync, readFileSync, mkdirSync, writeFileSync, renameSync, chmodSync, realpathSync, statSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { randomBytes } from 'node:crypto'
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, resolve, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createSettingsRpcHandler, SETTINGS_MAX_BODY_BYTES } from '../lib/settings-rpc.js'
@@ -15,7 +14,11 @@ import { createFileWorkIdentityStore } from '../lib/research/work-identity.js'
 import { effectiveSkillContentById } from '../lib/research/library.js'
 import { listSystemSkills } from '../lib/research/skills.js'
 import { researchWorkspaceOf } from '../lib/research/workspace.js'
-import { collectResearchContext, renderResearchContext } from '../lib/research/context.js'
+import { codexResearchContext } from '../lib/codex/context.js'
+import { codexHome, stateKey, readPrivateJson as readJson, writePrivateJson, readCodexWorkspaces, registerCodexWorkspace } from '../lib/codex/storage.js'
+import { latestCodexTurn } from '../lib/codex/lifecycle.js'
+import { DEFAULT_AUTO_CONTINUE } from '../lib/research/advance.js'
+import { writeMethodsExport } from '../lib/research/methods-export.js'
 import { collectSyncFacts, buildSyncText, resolveZipReference } from '../lib/research/sync-request.js'
 
 const pluginRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -24,22 +27,9 @@ export const UI_URI = 'ui://convfusion/workbench-v1.html'
 export const UI_MIME = 'text/html;profile=mcp-app'
 const failure = (code, message) => ({ ok: false, error: { code, message, details: {} } })
 
-function readJson(path, fallback) {
-  if (!existsSync(path)) return fallback
-  // A corrupt settings file must not silently discard a saved credential on the next write.
-  return JSON.parse(readFileSync(path, 'utf8'))
-}
-function writePrivateJson(path, value) {
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
-  const temp = `${path}.${randomBytes(8).toString('hex')}.tmp`
-  writeFileSync(temp, JSON.stringify(value, null, 2) + '\n', { mode: 0o600, flag: 'wx' })
-  renameSync(temp, path)
-  chmodSync(path, 0o600)
-}
-
 export function createCodexUiHost(options = {}) {
   const env = options.env ?? process.env
-  const home = resolve(options.home ?? env.CONVFUSION_CODEX_HOME ?? join(env.CODEX_HOME || join(homedir(), '.codex'), 'convfusion'))
+  const home = resolve(options.home ?? codexHome(env))
   const path = (name) => join(home, name)
   const workspaces = new Map()
   const saved = readJson(path('workspaces.json'), [])
@@ -57,7 +47,7 @@ export function createCodexUiHost(options = {}) {
   const getConfig = () => ({
     customizationFile: 'skill-customizations.json',
     openalexApiKey: '', serverUrl: '', convfusionDevApiKey: '', convfusionProdApiKey: '',
-    convfusionApiKey: '', autoContinue: false, autoContinueMaxRounds: 0,
+    convfusionApiKey: '', autoContinue: DEFAULT_AUTO_CONTINUE.enabled, autoContinueMaxRounds: DEFAULT_AUTO_CONTINUE.maxRounds,
     ...readJson(path('config.json'), {}),
     customizationDir: home,
   })
@@ -72,9 +62,9 @@ export function createCodexUiHost(options = {}) {
     if (!statSync(canonical).isDirectory()) throw new Error('请选择现有的项目文件夹')
     const fromPlugin = relative(realpathSync(pluginRoot), canonical)
     if (!fromPlugin || (!fromPlugin.startsWith(`..${sep}`) && fromPlugin !== '..' && !isAbsolute(fromPlugin))) throw new Error('请选择研究项目目录，不能使用插件安装目录')
-    const id = createHash('sha256').update(canonical).digest('hex').slice(0, 24)
+    const id = stateKey(canonical)
     workspaces.set(id, { id, title: basename(canonical), path: canonical, updatedAt: new Date().toISOString() })
-    if (persist) writePrivateJson(path('workspaces.json'), [...workspaces.values()])
+    if (persist) registerCodexWorkspace(home, canonical)
     return workspaces.get(id)
   }
   const handler = createSettingsRpcHandler({
@@ -82,12 +72,21 @@ export function createCodexUiHost(options = {}) {
     ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
     resolvePath: () => path('skill-customizations.json'),
     resolveSessionWorkspace: (id) => workspaces.get(id)?.path,
-    listLocalWorkspaces: async () => ({ available: true, items: [...workspaces.values()] }),
+    listLocalWorkspaces: async () => ({ available: true, items: workspaceRows() }),
     paidBriefStore: createFilePaidBriefStore(() => path('paid-briefs.json')),
     publishedStore: createFilePublishedStore(() => path('published.json')),
     syncStore: createFileSyncWatermarkStore(() => path('sync-watermarks.json')),
     syncNotes, workIdentity,
   })
+  const workspaceRows = () => {
+    for (const row of readCodexWorkspaces(home)) workspaces.set(row.id, row)
+    return [...workspaces.values()].filter((row) => { try { return statSync(row.path).isDirectory() } catch { return false } })
+  }
+  const exportMethods = (root, full = false) => {
+    const researchRoot = researchWorkspaceOf(root)
+    const { markdown, ...result } = writeMethodsExport(researchRoot, { store, full })
+    return { ...result, path: isAbsolute(result.path) ? result.path : join(researchRoot, result.path) }
+  }
   const bootstrap = (root) => {
     const row = root ? registerWorkspace(root) : null
     return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? '研究工作台', version: pkg.version }
@@ -96,14 +95,24 @@ export function createCodexUiHost(options = {}) {
     if (root) registerWorkspace(root)
     if (endpoint === 'codex/bootstrap') return { ok: true, value: bootstrap(root) }
     if (endpoint === 'codex/settings') {
-      if (payload?.field !== 'openalexApiKey' || typeof payload.value !== 'string') return failure('field', 'Unsupported setting')
-      await setConfig({ openalexApiKey: payload.value.trim() })
+      if (payload?.field === 'autoContinue' && typeof payload.value === 'boolean') await setConfig({ autoContinue: payload.value })
+      else if (payload?.field === 'autoContinueMaxRounds' && Number.isInteger(payload.value) && payload.value >= 0 && payload.value <= 100) await setConfig({ autoContinueMaxRounds: payload.value })
+      else if (payload?.field === 'openalexApiKey' && typeof payload.value === 'string') await setConfig({ openalexApiKey: payload.value.trim() })
+      else return failure('field', 'Unsupported setting')
       return { ok: true, value: { configured: Boolean(getConfig().openalexApiKey) } }
     }
+    if (endpoint === 'codex/continuation') return { ok: true, value: { enabled: getConfig().autoContinue, maxRounds: getConfig().autoContinueMaxRounds } }
+    if (endpoint === 'codex/export-methods') return root ? { ok: true, value: exportMethods(root, payload?.full === true) } : failure('workspace', '请先选择研究项目目录')
     if (endpoint === 'codex/sync' && !root) return failure('workspace', '请先选择研究项目目录')
     if (endpoint === 'codex/sync') return { ok: true, value: prepareSync(root, payload?.zip ?? '') }
     // Never accept host transport/directory callbacks from UI input: only the shared RPC dispatcher.
-    return handler(String(endpoint), payload ?? {})
+    const result = await handler(String(endpoint), payload ?? {})
+    if (endpoint === 'progress/workspace' && root && result.ok && result.value?.research) {
+      const latest = latestCodexTurn(home, root)
+      result.value.lastTurn = latest?.report ?? null
+      result.value.lastTurnSessionId = latest?.sessionId ?? null
+    }
+    return result
   }
   const prepareSync = (root, zip) => {
     const resolved = resolveZipReference(String(zip), root)
@@ -118,7 +127,7 @@ export function createCodexUiHost(options = {}) {
     if (!state) return failure('auth', '界面连接已失效，请重新打开 ConvFusion')
     if (root !== undefined && root !== state.root) return failure('workspace', 'Workspace is not registered')
     if (endpoint === 'codex/bootstrap') return { ok: true, value: sessionInfo(token, state) }
-    if (endpoint === 'codex/workspaces') return { ok: true, value: [...workspaces.values()].filter((row) => existsSync(row.path) && statSync(row.path).isDirectory()) }
+    if (endpoint === 'codex/workspaces') return { ok: true, value: workspaceRows() }
     if (endpoint === 'codex/select-workspace') {
       if (!state.selectable) return failure('workspace', '聊天工作台绑定当前任务，请从全局入口切换研究目录')
       try {
@@ -175,8 +184,8 @@ export function createCodexUiHost(options = {}) {
     return { ...sessionInfo(token, state), url: `${origin}/#${token}` }
   }
   return {
-    home, store, getConfig, registerWorkspace, bootstrap, dispatch, dispatchSession, open, uiHtml, prepareSync,
-    context(root, input = '') { return renderResearchContext(collectResearchContext({ workspace: researchWorkspaceOf(root), sessionWorkspace: root, userInput: input, skillContent: (id) => effectiveSkillContentById(id, store) }), input) },
+    home, store, getConfig, registerWorkspace, bootstrap, dispatch, dispatchSession, open, uiHtml, prepareSync, exportMethods,
+    context(root, input = '') { return codexResearchContext(root, input, store) },
     methods(id) { return id ? { id, content: effectiveSkillContentById(id, store) ?? null } : listSystemSkills().map(({ id, name, category, kind, code, label }) => ({ id, name, category, kind, code, label })) },
     async close() { if (server) await new Promise((resolve) => server.close(resolve)); server = undefined; launch = undefined },
     ref() { server?.ref() },

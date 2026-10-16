@@ -1,16 +1,15 @@
 import { createRequire as __codexCreateRequire } from 'node:module'; const require = __codexCreateRequire(import.meta.url);
 
 // scripts/convfusion-mcp.mjs
-import { readFileSync as readFileSync30 } from "node:fs";
-import { isAbsolute as isAbsolute10, resolve as resolve10 } from "node:path";
+import { readFileSync as readFileSync31 } from "node:fs";
+import { isAbsolute as isAbsolute12, resolve as resolve11 } from "node:path";
 import { pathToFileURL } from "node:url";
 
 // scripts/codex-ui-server.mjs
 import { createServer } from "node:http";
-import { randomBytes as randomBytes2, createHash } from "node:crypto";
-import { existsSync as existsSync28, readFileSync as readFileSync26, mkdirSync as mkdirSync20, writeFileSync as writeFileSync18, renameSync as renameSync7, chmodSync, realpathSync as realpathSync3, statSync as statSync9 } from "node:fs";
-import { homedir as homedir3 } from "node:os";
-import { basename as basename3, dirname as dirname13, isAbsolute as isAbsolute7, join as join26, resolve as resolve9, relative as relative6, sep as sep4 } from "node:path";
+import { randomBytes as randomBytes3 } from "node:crypto";
+import { existsSync as existsSync30, readFileSync as readFileSync27, realpathSync as realpathSync5, statSync as statSync10 } from "node:fs";
+import { basename as basename4, dirname as dirname14, isAbsolute as isAbsolute9, join as join29, resolve as resolve10, relative as relative7, sep as sep5 } from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 
 // lib/settings-rpc.js
@@ -535,8 +534,8 @@ function validateVolatileSchema(schema, path = [], blocked = false, seen = /* @_
   if (schema.inner && (schema.type !== "lazy" || schema.inner[kSchema])) validateVolatileSchema(schema.inner, [...path, "*"], true, seen);
   if (schema.list) for (let index = 0; index < schema.list.length; index++) validateVolatileSchema(schema.list[index], [...path, String(index)], true, seen);
 }
-Schema.extend = function extend(type, resolve11) {
-  resolvers[type] = resolve11;
+Schema.extend = function extend(type, resolve12) {
+  resolvers[type] = resolve12;
 };
 Schema.resolve = function resolve(data, schema, options = {}, strict = false) {
   if (!schema) return [data];
@@ -5130,8 +5129,8 @@ var Fiber = class {
     let inFlight;
     let removeWrapper = () => false;
     const waitForSetup = () => {
-      setupBarrier ??= new Promise((resolve11, reject) => {
-        resolveSetup = resolve11;
+      setupBarrier ??= new Promise((resolve12, reject) => {
+        resolveSetup = resolve12;
         rejectSetup = reject;
       });
       return setupBarrier;
@@ -5391,16 +5390,16 @@ function Inject(name, config) {
   };
 }
 (function(Inject2) {
-  function resolve11(inject, result = /* @__PURE__ */ Object.create(null)) {
+  function resolve12(inject, result = /* @__PURE__ */ Object.create(null)) {
     if (!inject) return result;
     if (Array.isArray(inject)) for (const name of inject) result[name] = null;
     else if (Reflect.has(inject, symbols.checkProto)) {
-      Object.assign(result, resolve11(Object.getPrototypeOf(inject)));
+      Object.assign(result, resolve12(Object.getPrototypeOf(inject)));
       for (const name of Object.keys(inject)) result[name] = inject[name] ?? null;
     } else for (const name of Object.keys(inject)) result[name] = inject[name] ?? null;
     return result;
   }
-  Inject2.resolve = resolve11;
+  Inject2.resolve = resolve12;
 })(Inject || (Inject = {}));
 var RegistryService = class {
   ctx;
@@ -7724,6 +7723,24 @@ function serializePlanDocument(input) {
 
 ${parts.join("\n").replace(/\n{3,}/g, "\n\n").trim()}
 `;
+}
+function planSection(doc, ...names) {
+  for (const want of names) {
+    const w = want.toLowerCase().replace(/[^a-z]/g, "");
+    const hit = doc.sections.find((s) => s.title.toLowerCase().replace(/[^a-z]/g, "") === w);
+    if (hit)
+      return hit.body;
+  }
+  return "";
+}
+function planObjective(doc) {
+  return planSection(doc, "Objective", "\u76EE\u6807");
+}
+function planExpectedEvidence(doc) {
+  return planSection(doc, "Expected Evidence", "Evidence Requirements", "\u9884\u671F\u8BC1\u636E");
+}
+function planCompletionCriteria(doc) {
+  return planSection(doc, "Completion Criteria", "\u5B8C\u6210\u6807\u51C6");
 }
 function listMarkdown3(dir) {
   try {
@@ -10316,6 +10333,7 @@ function assessAdvance(input) {
     nextStep: stage.produces
   };
 }
+var DEFAULT_AUTO_CONTINUE = { enabled: true, maxRounds: 3 };
 
 // lib/research/output.js
 import { existsSync as existsSync17, mkdirSync as mkdirSync13, readFileSync as readFileSync17, readdirSync as readdirSync11, rmSync as rmSync6, writeFileSync as writeFileSync11 } from "node:fs";
@@ -14996,6 +15014,26 @@ function createPlan(workspace, input) {
   }), "utf8");
   return parsePlanDocument(file, `${PLANS_DIR}/${id}.md`) ?? { error: "\u521B\u5EFA\u540E\u89E3\u6790\u5931\u8D25\u3002" };
 }
+function updatePlanMeta(workspace, id, patch) {
+  const doc = readPlan(workspace, id);
+  if (!doc)
+    return { error: `\u627E\u4E0D\u5230 Plan \`${id}\`\u3002` };
+  writeFileSync17(doc.path, serializePlanDocument({
+    name: patch.name ?? doc.name,
+    type: patch.type ?? doc.type,
+    status: doc.status,
+    version: patch.version ?? doc.version,
+    sourceSkill: patch.sourceSkill ?? doc.sourceSkill,
+    sourceSkillVersion: patch.sourceSkillVersion ?? doc.sourceSkillVersion,
+    paper: patch.paper ?? doc.paper,
+    researchContext: doc.researchContext,
+    reviewPolicy: patch.reviewPolicy ?? doc.reviewPolicy,
+    createdAt: doc.createdAt,
+    updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    sections: doc.sections
+  }), "utf8");
+  return parsePlanDocument(doc.path, doc.relPath) ?? { error: "\u66F4\u65B0\u540E\u89E3\u6790\u5931\u8D25\u3002" };
+}
 function setPlanStatus(workspace, id, status) {
   const doc = readPlan(workspace, id);
   if (!doc)
@@ -15033,9 +15071,46 @@ function completePlan(workspace, id) {
 function archivePlan(workspace, id) {
   return setPlanStatus(workspace, id, "archived");
 }
+function bumpPlanVersion(version2, kind = "minor") {
+  const m = version2.replace(/^v/i, "").match(/^(\d+)(?:\.(\d+))?/);
+  const major = m ? Number(m[1]) : 1;
+  const minor = m && m[2] ? Number(m[2]) : 0;
+  return kind === "major" ? `${major + 1}.0` : `${major}.${minor + 1}`;
+}
 var ARCHIVE_HEADER_RE = /^<!--\s*archived:[\s\S]*?-->\r?\n/;
 function stripPlanArchiveHeader(source) {
   return source.replace(ARCHIVE_HEADER_RE, "");
+}
+function archivePlanVersion(workspace, doc, note) {
+  const dir = planHistoryDir(workspace, doc.id);
+  let current;
+  try {
+    current = readFileSync25(doc.path, "utf8");
+  } catch {
+    return void 0;
+  }
+  const existing = listPlanVersions(workspace, doc.id);
+  const last = existing[existing.length - 1];
+  if (last) {
+    const previous = readPlanVersion(workspace, doc.id, last.version);
+    if (previous !== void 0 && stripPlanArchiveHeader(previous).trim() === current.trim())
+      return void 0;
+  }
+  const seq = String(existing.length + 1).padStart(3, "0");
+  const header = `<!-- archived: ${(/* @__PURE__ */ new Date()).toISOString()} \u2014 plan_version: ${doc.version}${note ? ` \u2014 ${note}` : ""} -->
+`;
+  mkdirSync19(dir, { recursive: true });
+  writeFileSync17(join24(dir, `v${seq}.md`), header + current, "utf8");
+  return `${PLAN_HISTORY_DIR}/${doc.id}/v${seq}.md`;
+}
+function syncPlanHistoryDetailed(workspace) {
+  const out = [];
+  for (const doc of listPlanDocuments(workspace)) {
+    const snap = archivePlanVersion(workspace, doc);
+    if (snap)
+      out.push({ id: doc.id, snapshot: snap });
+  }
+  return out;
 }
 function readPlanVersion(workspace, id, version2) {
   const file = join24(planHistoryDir(workspace, id), `v${version2.replace(/^v/i, "")}.md`);
@@ -15063,6 +15138,17 @@ function listPlanVersions(workspace, id) {
       path: `${PLAN_HISTORY_DIR}/${id}/${f}`
     };
   }).sort((a, b) => Number(a.version) - Number(b.version));
+}
+function revisePlan(workspace, id, input) {
+  const before = readPlan(workspace, id);
+  if (!before)
+    return { error: `\u627E\u4E0D\u5230 Plan \`${id}\`\u3002` };
+  archivePlanVersion(workspace, before, input.note);
+  if (input.body !== void 0) {
+    writeFileSync17(before.path, input.body, "utf8");
+  }
+  const nextVersion = bumpPlanVersion(before.version, input.bump ?? "minor");
+  return updatePlanMeta(workspace, id, { version: nextVersion });
 }
 
 // lib/research/context.js
@@ -15200,6 +15286,11 @@ function suggestSkillsFor(ws, userInput, skillContent) {
     type: e.document.type,
     path: e.document.relPath
   });
+  const input = (userInput ?? "").trim();
+  if (input) {
+    for (const e of recommendSkills(ws, { topic: input, keywords: [input] }))
+      add(toSummary(e));
+  }
   const process2 = assessResearchProcess(ws, { ...skillContent ? { skillContent } : {} });
   if (process2.current) {
     const all = listSystemSkills().filter((d) => d.status === "active");
@@ -15216,11 +15307,6 @@ function suggestSkillsFor(ws, userInput, skillContent) {
         path: doc.relPath
       });
     }
-  }
-  const input = (userInput ?? "").trim();
-  if (input) {
-    for (const e of recommendSkills(ws, { topic: input, keywords: [input] }))
-      add(toSummary(e));
   }
   return out;
 }
@@ -15423,9 +15509,220 @@ function renderResearchContext(ctx, userInput = "") {
   return lines.join("\n").trim();
 }
 
+// lib/codex/context.js
+function codexResearchContext(root, input, store) {
+  const context = renderResearchContext(collectResearchContext({
+    workspace: researchWorkspaceOf(root),
+    sessionWorkspace: root,
+    userInput: input,
+    skillContent: (id) => effectiveSkillContentById(id, store)
+  }), input);
+  if (!context)
+    return "";
+  const guide = RESEARCH_GUIDE_TEXT.replace("read that skill file", "load its effective content with `research_methods`");
+  return `${guide}
+
+${context.replace("the native skill list", "`research_methods` (list or read an id; user customizations are included)")}`;
+}
+
+// lib/codex/storage.js
+import { createHash, randomBytes as randomBytes2 } from "node:crypto";
+import { existsSync as existsSync27, readFileSync as readFileSync26, mkdirSync as mkdirSync20, writeFileSync as writeFileSync18, renameSync as renameSync7, chmodSync, realpathSync as realpathSync3, statSync as statSync8, openSync as openSync2, closeSync as closeSync2, unlinkSync as unlinkSync2 } from "node:fs";
+import { homedir as homedir3 } from "node:os";
+import { basename as basename2, dirname as dirname12, isAbsolute as isAbsolute6, join as join25 } from "node:path";
+function codexHome(env = process.env) {
+  return env.CONVFUSION_CODEX_HOME || join25(env.CODEX_HOME || join25(homedir3(), ".codex"), "convfusion");
+}
+function stateKey(value) {
+  return createHash("sha256").update(value).digest("hex").slice(0, 24);
+}
+function readPrivateJson(path, fallback) {
+  return existsSync27(path) ? JSON.parse(readFileSync26(path, "utf8")) : fallback;
+}
+function writePrivateJson(path, value) {
+  mkdirSync20(dirname12(path), { recursive: true, mode: 448 });
+  const temp = `${path}.${randomBytes2(8).toString("hex")}.tmp`;
+  writeFileSync18(temp, JSON.stringify(value, null, 2) + "\n", { mode: 384, flag: "wx" });
+  renameSync7(temp, path);
+  chmodSync(path, 384);
+}
+function withPrivateLock(path, work) {
+  mkdirSync20(dirname12(path), { recursive: true, mode: 448 });
+  const lock = `${path}.lock`;
+  let fd;
+  for (let attempt = 0; attempt < 40; attempt++) {
+    try {
+      fd = openSync2(lock, "wx", 384);
+      writeFileSync18(fd, String(process.pid));
+      break;
+    } catch (error2) {
+      if (error2.code !== "EEXIST")
+        throw error2;
+      try {
+        const owner = Number(readFileSync26(lock, "utf8"));
+        if (Number.isInteger(owner) && owner > 0) {
+          try {
+            process.kill(owner, 0);
+          } catch (probe) {
+            if (probe.code === "ESRCH") {
+              unlinkSync2(lock);
+              continue;
+            }
+          }
+        }
+      } catch {
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
+    }
+  }
+  if (fd === void 0)
+    throw new Error("ConvFusion adapter state is busy; retry the operation.");
+  try {
+    return work();
+  } finally {
+    closeSync2(fd);
+    unlinkSync2(lock);
+  }
+}
+function readCodexWorkspaces(home) {
+  const rows = readPrivateJson(join25(home, "workspaces.json"), []);
+  return Array.isArray(rows) ? rows.filter((row) => {
+    try {
+      return typeof row?.path === "string" && isAbsolute6(row.path) && typeof row.id === "string" && statSync8(row.path).isDirectory();
+    } catch {
+      return false;
+    }
+  }) : [];
+}
+function registerCodexWorkspace(home, root) {
+  const path = realpathSync3(root);
+  const row = { id: stateKey(path), path, title: basename2(path), updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
+  withPrivateLock(join25(home, "workspaces.json"), () => {
+    const rows = readCodexWorkspaces(home).filter((old) => old.id !== row.id);
+    writePrivateJson(join25(home, "workspaces.json"), [row, ...rows]);
+  });
+  return row;
+}
+
+// lib/codex/lifecycle.js
+import { isAbsolute as isAbsolute7, join as join26, resolve as resolve8, relative as relative6, sep as sep4 } from "node:path";
+import { realpathSync as realpathSync4 } from "node:fs";
+function latestCodexTurn(home, root) {
+  return readPrivateJson(join26(home, "reports", `${stateKey(realpathSync4(root))}.json`), null);
+}
+
+// lib/research/methods-export.js
+import { existsSync as existsSync28, mkdirSync as mkdirSync21, writeFileSync as writeFileSync19 } from "node:fs";
+import { join as join27 } from "node:path";
+var METHODS_EXPORT_FILE = "research/methods-export.md";
+function groupByCategory(docs) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const doc of docs) {
+    const groupId = doc.category?.includes("/") ? doc.category.split("/")[0] : doc.category ?? "";
+    const info = categoryCodeInfo(groupId);
+    const key = info?.code ?? "C99";
+    if (!groups.has(key)) {
+      groups.set(key, {
+        code: key,
+        label: info?.label ?? "\u672A\u5206\u7C7B",
+        labelEn: info?.labelEn ?? "Uncategorized",
+        skills: []
+      });
+    }
+    groups.get(key).skills.push(doc);
+  }
+  return [...groups.values()].sort((a, b) => a.code.localeCompare(b.code));
+}
+function skillHeading(doc, categoryLabel) {
+  const code = doc.code ?? doc.id;
+  const parts = [code, categoryLabel, doc.label ?? doc.name].filter(Boolean);
+  return `### ${parts.join(" \xB7 ")}`;
+}
+function renderSkillBody(doc, opts) {
+  if (opts.full) {
+    const body = composeSkillContent(doc.body, opts.customizations[doc.id]);
+    return `${body.trim()}
+`;
+  }
+  const parts = [];
+  for (const section of CUSTOMIZABLE_SECTIONS) {
+    const base = sectionBase(doc, section).trim();
+    const userText = (opts.customizations[doc.id]?.[section] ?? "").trim();
+    if (!base && !userText)
+      continue;
+    parts.push(`#### ${section}`, "");
+    if (base)
+      parts.push(base, "");
+    if (userText)
+      parts.push("> **\u7528\u6237\u8865\u5145**", ">", ...userText.split("\n").map((l) => `> ${l}`), "");
+  }
+  return parts.length > 0 ? `${parts.join("\n").trim()}
+` : "";
+}
+function buildMethodsExport(opts = {}) {
+  const full = opts.full === true;
+  const docs = listSystemSkills().filter(isMethodSkill);
+  const customizations = opts.store?.load() ?? {};
+  const groups = groupByCategory(docs);
+  const now = opts.now ?? /* @__PURE__ */ new Date();
+  const customizedCount = Object.values(customizations).reduce((n, sections) => n + Object.values(sections).filter((t) => t.trim()).length, 0);
+  const head = [
+    "# ConvFusion \u7814\u7A76\u65B9\u6CD5\u5BFC\u51FA",
+    "",
+    `> \u7F16\u53F7\u89C4\u5219\uFF1A\`CxxPyy\` \u2014\u2014 \u7C7B\u522B \`C01\`\u2013\`C09\` \u6309\u7814\u7A76\u8FC7\u7A0B\u6392\u5E8F\uFF08\u7406\u89E3\u8F93\u5165 \u2192 \u6587\u732E\u8C03\u7814 \u2192 \u521B\u65B0\u5047\u8BBE \u2192 \u7814\u7A76\u8BA1\u5212 \u2192 \u8D44\u6E90\u4F30\u8BA1 \u2192 \u7814\u7A76\u51B3\u7B56 \u2192 \u5B9E\u9A8C\u9A8C\u8BC1 \u2192 \u8BBA\u6587\u5199\u4F5C \u2192 \u5DE5\u4F5C\u8BC4\u9605\uFF09\uFF0C\u7C7B\u522B\u5185 \`P01\`\u2013\`Pnn\`\u3002`,
+    `> \u5BFC\u51FA\u65F6\u95F4\uFF1A${now.toISOString()}`,
+    `> \u6280\u80FD\uFF1A${docs.length} \xB7 \u7C7B\u522B\uFF1A${groups.length} \xB7 \u7528\u6237\u5B9A\u5236\uFF1A${customizedCount} \u5904`,
+    full ? "> \u5185\u5BB9\uFF1A**\u5B8C\u6574\u6B63\u6587**\uFF08\u542B `Source Prompts` \u9010\u5B57\u5386\u53F2\u63D0\u793A\u8BCD\uFF09\u3002" : "> \u5185\u5BB9\uFF1A7 \u4E2A\u53EF\u5B9A\u5236\u7AE0\u8282\u7684\u751F\u6548\u7248\u672C\uFF08Purpose / When to Use / Prerequisites / Research Method / Reasoning Guidance / Evidence Requirements / Expected Output\uFF09\u3002\u5982\u9700\u5B8C\u6574\u6B63\u6587\uFF0C\u7528 `/research \u5BFC\u51FA\u7814\u7A76\u65B9\u6CD5 --full`\u3002",
+    ">",
+    "> \u5BFC\u5165/\u5408\u5E76\u65F6\u4EE5 `### CxxPyy` \u4E3A\u951A\u70B9\u6309\u7F16\u53F7\u5BF9\u9F50\u3002",
+    "",
+    "---",
+    ""
+  ];
+  const body = [];
+  for (const group of groups) {
+    body.push(`## ${group.code} \xB7 ${group.label}\uFF08${group.labelEn}\uFF09`, "");
+    for (const doc of group.skills) {
+      body.push(skillHeading(doc, group.label), "");
+      if (!full) {
+        const meta = [`\u6280\u80FD id\uFF1A\`${doc.id}\``];
+        if (doc.code)
+          meta.push(`\u7F16\u53F7 \`${doc.code}\``);
+        if (doc.label && doc.label !== doc.name)
+          meta.push(`\u82F1\u6587\u540D ${doc.name}`);
+        body.push(`> ${meta.join(" \xB7 ")}`, "");
+      }
+      const rendered = renderSkillBody(doc, { full, customizations });
+      if (rendered)
+        body.push(rendered);
+      else
+        body.push("_\uFF08\u8BE5\u6280\u80FD\u6CA1\u6709\u53EF\u5BFC\u51FA\u7684\u7AE0\u8282\uFF09_", "");
+    }
+  }
+  const markdown = `${[...head, ...body].join("\n").replace(/\n{3,}/g, "\n\n").trim()}
+`;
+  return {
+    markdown,
+    skillCount: docs.length,
+    categoryCount: groups.length,
+    bytes: markdown.length,
+    full
+  };
+}
+function writeMethodsExport(workspace, opts = {}) {
+  const result = buildMethodsExport(opts);
+  const rel = opts.path?.trim() || METHODS_EXPORT_FILE;
+  const abs = join27(workspace, rel);
+  const dir = abs.slice(0, abs.lastIndexOf("/"));
+  if (dir && !existsSync28(dir))
+    mkdirSync21(dir, { recursive: true });
+  writeFileSync19(abs, result.markdown, "utf8");
+  return { ...result, path: rel };
+}
+
 // lib/research/sync-request.js
-import { closeSync as closeSync2, existsSync as existsSync27, openSync as openSync2, readdirSync as readdirSync16, readSync, statSync as statSync8 } from "node:fs";
-import { basename as basename2, dirname as dirname12, isAbsolute as isAbsolute6, join as join25, resolve as resolve8 } from "node:path";
+import { closeSync as closeSync3, existsSync as existsSync29, openSync as openSync3, readdirSync as readdirSync16, readSync, statSync as statSync9 } from "node:fs";
+import { basename as basename3, dirname as dirname13, isAbsolute as isAbsolute8, join as join28, resolve as resolve9 } from "node:path";
 function normalizeZipRef(ref, sessionWorkspace) {
   let s = ref.trim();
   if (s.startsWith('@"') && s.endsWith('"') && s.length > 2)
@@ -15435,16 +15732,16 @@ function normalizeZipRef(ref, sessionWorkspace) {
   if (s.length >= 2 && /^['"]/.test(s) && /['"]$/.test(s))
     s = s.slice(1, -1);
   s = s.trim();
-  return isAbsolute6(s) ? resolve8(s) : resolve8(sessionWorkspace, s);
+  return isAbsolute8(s) ? resolve9(s) : resolve9(sessionWorkspace, s);
 }
 function resolveZipReference(ref, sessionWorkspace) {
   const path = normalizeZipRef(ref, sessionWorkspace);
   if (!ref.trim()) {
     return { ok: false, path, error: "\u6CA1\u6709\u7ED9\u51FA\u538B\u7F29\u5305", candidates: [] };
   }
-  if (existsSync27(path)) {
+  if (existsSync29(path)) {
     try {
-      if (!statSync8(path).isFile()) {
+      if (!statSync9(path).isFile()) {
         return { ok: false, path, error: `${path} \u4E0D\u662F\u6587\u4EF6`, candidates: [] };
       }
     } catch {
@@ -15454,10 +15751,10 @@ function resolveZipReference(ref, sessionWorkspace) {
   return { ok: false, path, error: `\u627E\u4E0D\u5230\u8FD9\u4E2A\u6587\u4EF6\uFF1A${path}`, candidates: siblingCandidates(path) };
 }
 function siblingCandidates(path) {
-  const dir = dirname12(path);
-  const base = basename2(path).replace(/\.zip$/i, "");
+  const dir = dirname13(path);
+  const base = basename3(path).replace(/\.zip$/i, "");
   try {
-    return readdirSync16(dir).filter((name) => new RegExp(`^${escapeRe(base)}(?:-\\d+)?\\.zip$`, "i").test(name)).filter((name) => name !== basename2(path)).sort().map((name) => join25(dir, name));
+    return readdirSync16(dir).filter((name) => new RegExp(`^${escapeRe(base)}(?:-\\d+)?\\.zip$`, "i").test(name)).filter((name) => name !== basename3(path)).sort().map((name) => join28(dir, name));
   } catch {
     return [];
   }
@@ -15469,45 +15766,45 @@ var ZIP_MAGIC = Buffer.from([80, 75, 3, 4]);
 function inspectZip(path) {
   let bytes = 0;
   try {
-    bytes = statSync8(path).size;
+    bytes = statSync9(path).size;
   } catch {
     return { ok: false, bytes: 0, error: `\u8BFB\u4E0D\u5230\u8FD9\u4E2A\u6587\u4EF6\uFF1A${path}` };
   }
   if (bytes === 0)
-    return { ok: false, bytes, error: `${basename2(path)} \u662F\u7A7A\u6587\u4EF6` };
+    return { ok: false, bytes, error: `${basename3(path)} \u662F\u7A7A\u6587\u4EF6` };
   let head;
   try {
     head = readHead(path, ZIP_MAGIC.length);
   } catch {
-    return { ok: false, bytes, error: `\u8BFB\u4E0D\u5230 ${basename2(path)} \u7684\u5F00\u5934` };
+    return { ok: false, bytes, error: `\u8BFB\u4E0D\u5230 ${basename3(path)} \u7684\u5F00\u5934` };
   }
   if (!head.equals(ZIP_MAGIC)) {
     return {
       ok: false,
       bytes,
-      error: `${basename2(path)} \u4E0D\u662F ZIP \u6587\u4EF6\uFF08\u5F00\u5934\u4E0D\u662F PK\\x03\\x04\uFF09\u2014\u2014 \u53EF\u80FD\u8FD8\u6CA1\u4E0B\u5B8C\uFF0C\u6216\u8005\u9009\u9519\u4E86\u6587\u4EF6`
+      error: `${basename3(path)} \u4E0D\u662F ZIP \u6587\u4EF6\uFF08\u5F00\u5934\u4E0D\u662F PK\\x03\\x04\uFF09\u2014\u2014 \u53EF\u80FD\u8FD8\u6CA1\u4E0B\u5B8C\uFF0C\u6216\u8005\u9009\u9519\u4E86\u6587\u4EF6`
     };
   }
-  const part = newestPart(dirname12(path));
-  const notice = part ? `${basename2(path)} \u65C1\u8FB9\u8FD8\u6709\u6CA1\u5199\u5B8C\u7684\u4E0B\u8F7D\u7247\u6BB5 ${basename2(part)}\uFF0C\u786E\u8BA4\u8FD9\u6B21\u4E0B\u8F7D\u5DF2\u5B8C\u6210` : void 0;
+  const part = newestPart(dirname13(path));
+  const notice = part ? `${basename3(path)} \u65C1\u8FB9\u8FD8\u6709\u6CA1\u5199\u5B8C\u7684\u4E0B\u8F7D\u7247\u6BB5 ${basename3(part)}\uFF0C\u786E\u8BA4\u8FD9\u6B21\u4E0B\u8F7D\u5DF2\u5B8C\u6210` : void 0;
   return notice ? { ok: true, bytes, notice } : { ok: true, bytes };
 }
 function readHead(path, length) {
-  const fd = openSync2(path, "r");
+  const fd = openSync3(path, "r");
   try {
     const buf = Buffer.alloc(length);
     readSync(fd, buf, 0, length, 0);
     return buf;
   } finally {
-    closeSync2(fd);
+    closeSync3(fd);
   }
 }
 function newestPart(dir) {
   try {
-    const parts = readdirSync16(dir).filter((name) => name.startsWith(".convfusion-") && name.endsWith(".part")).map((name) => join25(dir, name));
+    const parts = readdirSync16(dir).filter((name) => name.startsWith(".convfusion-") && name.endsWith(".part")).map((name) => join28(dir, name));
     if (parts.length === 0)
       return null;
-    return parts.sort((a, b) => statSync8(b).mtimeMs - statSync8(a).mtimeMs)[0] ?? null;
+    return parts.sort((a, b) => statSync9(b).mtimeMs - statSync9(a).mtimeMs)[0] ?? null;
   } catch {
     return null;
   }
@@ -15519,9 +15816,9 @@ function collectSyncFacts(input) {
   const root = input.researchRoot;
   const note = input.noteStore?.get(input.zip);
   const local = readLocalIdentity(root, input.identityStore);
-  const hasResearch = hasProjectDefinition(root) || existsSync27(join25(root, "research-state.md"));
+  const hasResearch = hasProjectDefinition(root) || existsSync29(join28(root, "research-state.md"));
   const status = syncStatusOf(judgeWorkspace({
-    exists: existsSync27(root),
+    exists: existsSync29(root),
     hasResearch,
     localWorkspaceId: local.workspaceId,
     remoteWorkspaceId: note?.remoteWorkspaceId ?? null
@@ -15578,7 +15875,7 @@ function buildSyncText(facts, rootPrefix) {
   if (facts.localTopic)
     lines.push(`- \u672C\u673A\u7814\u7A76\u7684\u4E3B\u9898\uFF1A${facts.localTopic}`);
   if (facts.localWorkspaceId) {
-    lines.push(`- \u672C\u673A\u6807\u8BC6\uFF1A\`${join25(facts.researchRoot, ".convfusion", "work.json")}\` \u2192 \`${facts.localWorkspaceId}\``);
+    lines.push(`- \u672C\u673A\u6807\u8BC6\uFF1A\`${join28(facts.researchRoot, ".convfusion", "work.json")}\` \u2192 \`${facts.localWorkspaceId}\``);
   } else {
     lines.push("- \u672C\u673A\u6807\u8BC6\uFF1A\u8BFB\u4E0D\u5230\uFF08\u6CA1\u6709 `.convfusion/work.json`\uFF09");
   }
@@ -15602,30 +15899,19 @@ function buildSyncText(facts, rootPrefix) {
 }
 
 // scripts/codex-ui-server.mjs
-var pluginRoot = resolve9(dirname13(fileURLToPath4(new URL("../scripts/codex-ui-server.mjs", import.meta.url).href)), "..");
-var pkg = JSON.parse(readFileSync26(join26(pluginRoot, "package.json"), "utf8"));
+var pluginRoot = resolve10(dirname14(fileURLToPath4(new URL("../scripts/codex-ui-server.mjs", import.meta.url).href)), "..");
+var pkg = JSON.parse(readFileSync27(join29(pluginRoot, "package.json"), "utf8"));
 var UI_URI = "ui://convfusion/workbench-v1.html";
 var UI_MIME = "text/html;profile=mcp-app";
 var failure = (code, message) => ({ ok: false, error: { code, message, details: {} } });
-function readJson(path, fallback) {
-  if (!existsSync28(path)) return fallback;
-  return JSON.parse(readFileSync26(path, "utf8"));
-}
-function writePrivateJson(path, value) {
-  mkdirSync20(dirname13(path), { recursive: true, mode: 448 });
-  const temp = `${path}.${randomBytes2(8).toString("hex")}.tmp`;
-  writeFileSync18(temp, JSON.stringify(value, null, 2) + "\n", { mode: 384, flag: "wx" });
-  renameSync7(temp, path);
-  chmodSync(path, 384);
-}
 function createCodexUiHost(options = {}) {
   const env = options.env ?? process.env;
-  const home = resolve9(options.home ?? env.CONVFUSION_CODEX_HOME ?? join26(env.CODEX_HOME || join26(homedir3(), ".codex"), "convfusion"));
-  const path = (name) => join26(home, name);
+  const home = resolve10(options.home ?? codexHome(env));
+  const path = (name) => join29(home, name);
   const workspaces = /* @__PURE__ */ new Map();
-  const saved = readJson(path("workspaces.json"), []);
+  const saved = readPrivateJson(path("workspaces.json"), []);
   if (Array.isArray(saved)) for (const row of saved) {
-    if (typeof row?.path === "string" && isAbsolute7(row.path) && existsSync28(row.path)) workspaces.set(row.id, row);
+    if (typeof row?.path === "string" && isAbsolute9(row.path) && existsSync30(row.path)) workspaces.set(row.id, row);
   }
   const store = createFileCustomizationStore(() => path("skill-customizations.json"));
   const syncNotes = createFileSyncNoteStore(() => path("sync-notes.json"));
@@ -15642,9 +15928,9 @@ function createCodexUiHost(options = {}) {
     convfusionDevApiKey: "",
     convfusionProdApiKey: "",
     convfusionApiKey: "",
-    autoContinue: false,
-    autoContinueMaxRounds: 0,
-    ...readJson(path("config.json"), {}),
+    autoContinue: DEFAULT_AUTO_CONTINUE.enabled,
+    autoContinueMaxRounds: DEFAULT_AUTO_CONTINUE.maxRounds,
+    ...readPrivateJson(path("config.json"), {}),
     customizationDir: home
   });
   const setConfig = (patch) => {
@@ -15654,14 +15940,14 @@ function createCodexUiHost(options = {}) {
     return update;
   };
   const registerWorkspace = (root, persist = false) => {
-    if (typeof root !== "string" || !isAbsolute7(root)) throw new Error("\u8BF7\u8F93\u5165\u9879\u76EE\u6587\u4EF6\u5939\u7684\u7EDD\u5BF9\u8DEF\u5F84");
-    const canonical = realpathSync3(root);
-    if (!statSync9(canonical).isDirectory()) throw new Error("\u8BF7\u9009\u62E9\u73B0\u6709\u7684\u9879\u76EE\u6587\u4EF6\u5939");
-    const fromPlugin = relative6(realpathSync3(pluginRoot), canonical);
-    if (!fromPlugin || !fromPlugin.startsWith(`..${sep4}`) && fromPlugin !== ".." && !isAbsolute7(fromPlugin)) throw new Error("\u8BF7\u9009\u62E9\u7814\u7A76\u9879\u76EE\u76EE\u5F55\uFF0C\u4E0D\u80FD\u4F7F\u7528\u63D2\u4EF6\u5B89\u88C5\u76EE\u5F55");
-    const id = createHash("sha256").update(canonical).digest("hex").slice(0, 24);
-    workspaces.set(id, { id, title: basename3(canonical), path: canonical, updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
-    if (persist) writePrivateJson(path("workspaces.json"), [...workspaces.values()]);
+    if (typeof root !== "string" || !isAbsolute9(root)) throw new Error("\u8BF7\u8F93\u5165\u9879\u76EE\u6587\u4EF6\u5939\u7684\u7EDD\u5BF9\u8DEF\u5F84");
+    const canonical = realpathSync5(root);
+    if (!statSync10(canonical).isDirectory()) throw new Error("\u8BF7\u9009\u62E9\u73B0\u6709\u7684\u9879\u76EE\u6587\u4EF6\u5939");
+    const fromPlugin = relative7(realpathSync5(pluginRoot), canonical);
+    if (!fromPlugin || !fromPlugin.startsWith(`..${sep5}`) && fromPlugin !== ".." && !isAbsolute9(fromPlugin)) throw new Error("\u8BF7\u9009\u62E9\u7814\u7A76\u9879\u76EE\u76EE\u5F55\uFF0C\u4E0D\u80FD\u4F7F\u7528\u63D2\u4EF6\u5B89\u88C5\u76EE\u5F55");
+    const id = stateKey(canonical);
+    workspaces.set(id, { id, title: basename4(canonical), path: canonical, updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
+    if (persist) registerCodexWorkspace(home, canonical);
     return workspaces.get(id);
   };
   const handler = createSettingsRpcHandler({
@@ -15673,13 +15959,28 @@ function createCodexUiHost(options = {}) {
     ...options.fetchImpl ? { fetchImpl: options.fetchImpl } : {},
     resolvePath: () => path("skill-customizations.json"),
     resolveSessionWorkspace: (id) => workspaces.get(id)?.path,
-    listLocalWorkspaces: async () => ({ available: true, items: [...workspaces.values()] }),
+    listLocalWorkspaces: async () => ({ available: true, items: workspaceRows() }),
     paidBriefStore: createFilePaidBriefStore(() => path("paid-briefs.json")),
     publishedStore: createFilePublishedStore(() => path("published.json")),
     syncStore: createFileSyncWatermarkStore(() => path("sync-watermarks.json")),
     syncNotes,
     workIdentity
   });
+  const workspaceRows = () => {
+    for (const row of readCodexWorkspaces(home)) workspaces.set(row.id, row);
+    return [...workspaces.values()].filter((row) => {
+      try {
+        return statSync10(row.path).isDirectory();
+      } catch {
+        return false;
+      }
+    });
+  };
+  const exportMethods = (root, full = false) => {
+    const researchRoot2 = researchWorkspaceOf(root);
+    const { markdown, ...result } = writeMethodsExport(researchRoot2, { store, full });
+    return { ...result, path: isAbsolute9(result.path) ? result.path : join29(researchRoot2, result.path) };
+  };
   const bootstrap = (root) => {
     const row = root ? registerWorkspace(root) : null;
     return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? "\u7814\u7A76\u5DE5\u4F5C\u53F0", version: pkg.version };
@@ -15688,13 +15989,23 @@ function createCodexUiHost(options = {}) {
     if (root) registerWorkspace(root);
     if (endpoint === "codex/bootstrap") return { ok: true, value: bootstrap(root) };
     if (endpoint === "codex/settings") {
-      if (payload?.field !== "openalexApiKey" || typeof payload.value !== "string") return failure("field", "Unsupported setting");
-      await setConfig({ openalexApiKey: payload.value.trim() });
+      if (payload?.field === "autoContinue" && typeof payload.value === "boolean") await setConfig({ autoContinue: payload.value });
+      else if (payload?.field === "autoContinueMaxRounds" && Number.isInteger(payload.value) && payload.value >= 0 && payload.value <= 100) await setConfig({ autoContinueMaxRounds: payload.value });
+      else if (payload?.field === "openalexApiKey" && typeof payload.value === "string") await setConfig({ openalexApiKey: payload.value.trim() });
+      else return failure("field", "Unsupported setting");
       return { ok: true, value: { configured: Boolean(getConfig().openalexApiKey) } };
     }
+    if (endpoint === "codex/continuation") return { ok: true, value: { enabled: getConfig().autoContinue, maxRounds: getConfig().autoContinueMaxRounds } };
+    if (endpoint === "codex/export-methods") return root ? { ok: true, value: exportMethods(root, payload?.full === true) } : failure("workspace", "\u8BF7\u5148\u9009\u62E9\u7814\u7A76\u9879\u76EE\u76EE\u5F55");
     if (endpoint === "codex/sync" && !root) return failure("workspace", "\u8BF7\u5148\u9009\u62E9\u7814\u7A76\u9879\u76EE\u76EE\u5F55");
     if (endpoint === "codex/sync") return { ok: true, value: prepareSync(root, payload?.zip ?? "") };
-    return handler(String(endpoint), payload ?? {});
+    const result = await handler(String(endpoint), payload ?? {});
+    if (endpoint === "progress/workspace" && root && result.ok && result.value?.research) {
+      const latest = latestCodexTurn(home, root);
+      result.value.lastTurn = latest?.report ?? null;
+      result.value.lastTurnSessionId = latest?.sessionId ?? null;
+    }
+    return result;
   };
   const prepareSync = (root, zip) => {
     const resolved = resolveZipReference(String(zip), root);
@@ -15702,14 +16013,14 @@ function createCodexUiHost(options = {}) {
     const facts = collectSyncFacts({ zip: resolved.path, sessionWorkspace: root, researchRoot: researchWorkspaceOf(root), noteStore: syncNotes, identityStore: workIdentity });
     return { ok: facts.zipOk, facts, instructions: buildSyncText(facts, researchWorkspaceOf(root) === root ? "" : "workspace") };
   };
-  const uiHtml = () => readFileSync26(join26(pluginRoot, "lib/codex-ui.html"), "utf8");
+  const uiHtml = () => readFileSync27(join29(pluginRoot, "lib/codex-ui.html"), "utf8");
   const sessionInfo = (token, state) => ({ ...bootstrap(state.root), uiScope: state.selectable ? "global" : "workspace", uiSession: token });
   const dispatchSession = async (token, root, endpoint, payload) => {
     const state = browserSessions.get(token);
     if (!state) return failure("auth", "\u754C\u9762\u8FDE\u63A5\u5DF2\u5931\u6548\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00 ConvFusion");
     if (root !== void 0 && root !== state.root) return failure("workspace", "Workspace is not registered");
     if (endpoint === "codex/bootstrap") return { ok: true, value: sessionInfo(token, state) };
-    if (endpoint === "codex/workspaces") return { ok: true, value: [...workspaces.values()].filter((row) => existsSync28(row.path) && statSync9(row.path).isDirectory()) };
+    if (endpoint === "codex/workspaces") return { ok: true, value: workspaceRows() };
     if (endpoint === "codex/select-workspace") {
       if (!state.selectable) return failure("workspace", "\u804A\u5929\u5DE5\u4F5C\u53F0\u7ED1\u5B9A\u5F53\u524D\u4EFB\u52A1\uFF0C\u8BF7\u4ECE\u5168\u5C40\u5165\u53E3\u5207\u6362\u7814\u7A76\u76EE\u5F55");
       try {
@@ -15758,9 +16069,9 @@ function createCodexUiHost(options = {}) {
           finish2(500, failure("request", "Request failed; check the local configuration and retry"));
         }
       });
-      await new Promise((resolve11, reject) => {
+      await new Promise((resolve12, reject) => {
         server.once("error", reject);
-        server.listen(0, "127.0.0.1", resolve11);
+        server.listen(0, "127.0.0.1", resolve12);
       });
       origin = `http://127.0.0.1:${server.address().port}`;
       server.unref();
@@ -15769,7 +16080,7 @@ function createCodexUiHost(options = {}) {
       throw error2;
     });
     await launch;
-    const token = randomBytes2(32).toString("hex");
+    const token = randomBytes3(32).toString("hex");
     const state = { root: selected, selectable: root === void 0 };
     browserSessions.set(token, state);
     return { ...sessionInfo(token, state), url: `${origin}/#${token}` };
@@ -15785,14 +16096,15 @@ function createCodexUiHost(options = {}) {
     open,
     uiHtml,
     prepareSync,
+    exportMethods,
     context(root, input = "") {
-      return renderResearchContext(collectResearchContext({ workspace: researchWorkspaceOf(root), sessionWorkspace: root, userInput: input, skillContent: (id) => effectiveSkillContentById(id, store) }), input);
+      return codexResearchContext(root, input, store);
     },
     methods(id) {
       return id ? { id, content: effectiveSkillContentById(id, store) ?? null } : listSystemSkills().map(({ id: id2, name, category, kind, code, label }) => ({ id: id2, name, category, kind, code, label }));
     },
     async close() {
-      if (server) await new Promise((resolve11) => server.close(resolve11));
+      if (server) await new Promise((resolve12) => server.close(resolve12));
       server = void 0;
       launch = void 0;
     },
@@ -15801,11 +16113,11 @@ function createCodexUiHost(options = {}) {
     }
   };
 }
-if (process.argv[1] && resolve9(process.argv[1]) === fileURLToPath4(new URL("../scripts/codex-ui-server.mjs", import.meta.url).href)) {
+if (process.argv[1] && resolve10(process.argv[1]) === fileURLToPath4(new URL("../scripts/codex-ui-server.mjs", import.meta.url).href)) {
   const flag = process.argv.indexOf("--workspace");
   if (flag < 0 || !process.argv[flag + 1]) throw new Error("Usage: node scripts/codex-ui-server.mjs --workspace /absolute/task/path");
   const host = createCodexUiHost();
-  const result = await host.open(resolve9(process.argv[flag + 1]));
+  const result = await host.open(resolve10(process.argv[flag + 1]));
   host.ref();
   process.stdout.write(JSON.stringify(result) + "\n");
   for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, () => host.close().then(() => process.exit(0)));
@@ -17115,8 +17427,8 @@ function createRunCodeTool(registry, options) {
         driverRun = (async () => {
           try {
             for (; ; ) {
-              const signal = new Promise((resolve11) => {
-                wake = resolve11;
+              const signal = new Promise((resolve12) => {
+                wake = resolve12;
               });
               const commitHead = commitQueue[0];
               if (commitHead !== void 0 && commitHead.settled) {
@@ -17179,10 +17491,10 @@ function createRunCodeTool(registry, options) {
           signal: runController.signal
         };
         const scheduler = registry[TOOL_RUNTIME_SCHEDULER];
-        const outcome = await new Promise((resolve11, reject) => {
+        const outcome = await new Promise((resolve12, reject) => {
           let parked;
           const settle = (result) => {
-            resolve11(result.isError ? {
+            resolve12(result.isError ? {
               isError: true,
               message: result.error.message
             } : {
@@ -19647,8 +19959,8 @@ function parsePipeRow(line) {
   const inner = trimmed.replace(/^\|/, "").replace(/\|$/, "");
   return inner.split("|").map((c) => c.trim());
 }
-function alignFromSep(sep5) {
-  const s = sep5.replace(/-/g, "").trim();
+function alignFromSep(sep6) {
+  const s = sep6.replace(/-/g, "").trim();
   const left = s.startsWith(":");
   const right = s.endsWith(":");
   if (left && right)
@@ -19994,12 +20306,12 @@ function escapeSectionTitle(title) {
 }
 
 // lib/research/research-tools.js
-import { existsSync as existsSync34, mkdirSync as mkdirSync23, readFileSync as readFileSync29, readdirSync as readdirSync20, renameSync as renameSync8, statSync as statSync14, writeFileSync as writeFileSync22 } from "node:fs";
-import { isAbsolute as isAbsolute9, join as join33 } from "node:path";
+import { existsSync as existsSync36, mkdirSync as mkdirSync24, readFileSync as readFileSync30, readdirSync as readdirSync20, renameSync as renameSync8, statSync as statSync15, writeFileSync as writeFileSync23 } from "node:fs";
+import { isAbsolute as isAbsolute11, join as join36 } from "node:path";
 
 // lib/research/state-sync.js
-import { readdirSync as readdirSync17, statSync as statSync10, writeFileSync as writeFileSync19 } from "node:fs";
-import { join as join27 } from "node:path";
+import { readdirSync as readdirSync17, statSync as statSync11, writeFileSync as writeFileSync20 } from "node:fs";
+import { join as join30 } from "node:path";
 var STATE_AUTO_HEADING = "### Auto-synced artifacts";
 var AUTO_NOTE = "*Auto-maintained by ConvFusion: everything from this heading to the end of this section is rewritten on every sync. Keep hand-written content above this line.*";
 var STATE_AUTO_MAX_ITEMS = 40;
@@ -20012,7 +20324,7 @@ function firstLine2(input) {
   return oneLine(input.split(/\r?\n/).find((l) => l.trim()) ?? "");
 }
 function countResultFiles(workspace, experiment) {
-  const dir = join27(workspace, "experiments", experiment, "results");
+  const dir = join30(workspace, "experiments", experiment, "results");
   try {
     return readdirSync17(dir, { withFileTypes: true }).filter((e) => e.isFile()).length;
   } catch {
@@ -20021,14 +20333,14 @@ function countResultFiles(workspace, experiment) {
 }
 function listExperimentDirs(workspace) {
   try {
-    return readdirSync17(join27(workspace, "experiments"), { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith(".")).map((e) => e.name).sort();
+    return readdirSync17(join30(workspace, "experiments"), { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith(".")).map((e) => e.name).sort();
   } catch {
     return [];
   }
 }
 function countFulltexts(workspace) {
   try {
-    return readdirSync17(join27(workspace, FULLTEXT_DIR)).filter((f) => /\.(pdf|html|txt)$/i.test(f)).length;
+    return readdirSync17(join30(workspace, FULLTEXT_DIR)).filter((f) => /\.(pdf|html|txt)$/i.test(f)).length;
   } catch {
     return 0;
   }
@@ -20037,7 +20349,7 @@ function newestMtimeMs(paths) {
   let newest = 0;
   for (const p of paths) {
     try {
-      newest = Math.max(newest, statSync10(p).mtimeMs);
+      newest = Math.max(newest, statSync11(p).mtimeMs);
     } catch {
     }
   }
@@ -20143,7 +20455,7 @@ function syncStateFromArtifacts(workspace, options = {}) {
   const archived = archiveStateVersion(workspace, current, options.reason ?? `auto-sync ${synced.join(", ")}`);
   const from2 = current.version;
   const to = bumpStateVersion(from2);
-  writeFileSync19(current.path, serializeResearchState({
+  writeFileSync20(current.path, serializeResearchState({
     version: to,
     dimensions,
     // ⚠️ 成熟度**不动**：它是研究方法的判断，不是产物清单能推出来的
@@ -20185,7 +20497,7 @@ function reconcileStateWithArtifacts(workspace) {
 function artifactPathsFor(workspace, dimension2) {
   const dirOf = (rel) => {
     try {
-      return readdirSync17(join27(workspace, rel)).map((f) => join27(workspace, rel, f));
+      return readdirSync17(join30(workspace, rel)).map((f) => join30(workspace, rel, f));
     } catch {
       return [];
     }
@@ -20200,7 +20512,7 @@ function artifactPathsFor(workspace, dimension2) {
     case "Literature":
       return dirOf("research/literature");
     case "Experiments":
-      return listExperimentDirs(workspace).map((d) => join27(workspace, "experiments", d));
+      return listExperimentDirs(workspace).map((d) => join30(workspace, "experiments", d));
     default:
       return [];
   }
@@ -22912,8 +23224,8 @@ function renderEdgeLabel(text, pos, anchor) {
 }
 
 // lib/research/diagram/store.js
-import { existsSync as existsSync29, mkdirSync as mkdirSync21, readFileSync as readFileSync27, readdirSync as readdirSync18, statSync as statSync11, writeFileSync as writeFileSync20 } from "node:fs";
-import { join as join28 } from "node:path";
+import { existsSync as existsSync31, mkdirSync as mkdirSync22, readFileSync as readFileSync28, readdirSync as readdirSync18, statSync as statSync12, writeFileSync as writeFileSync21 } from "node:fs";
+import { join as join31 } from "node:path";
 var FIGURES_SUBDIR = "figures";
 var LAST_GOOD_SUBDIR = ".last-good";
 var NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
@@ -22934,53 +23246,53 @@ function sanitizeDiagramName(raw) {
   return { ok: true, name: trimmed };
 }
 function figuresDir(paperDir2) {
-  return join28(paperDir2, FIGURES_SUBDIR);
+  return join31(paperDir2, FIGURES_SUBDIR);
 }
 function diagramPaths(ws, paperId, name) {
-  const paperDir2 = join28(ws, "papers", paperId);
+  const paperDir2 = join31(ws, "papers", paperId);
   const dir = figuresDir(paperDir2);
   return {
     dir,
-    irPath: join28(dir, `${name}.json`),
-    svgPath: join28(dir, `${name}.svg`),
-    lastGoodIrPath: join28(dir, LAST_GOOD_SUBDIR, `${name}.json`),
-    lastGoodSvgPath: join28(dir, LAST_GOOD_SUBDIR, `${name}.svg`),
+    irPath: join31(dir, `${name}.json`),
+    svgPath: join31(dir, `${name}.svg`),
+    lastGoodIrPath: join31(dir, LAST_GOOD_SUBDIR, `${name}.json`),
+    lastGoodSvgPath: join31(dir, LAST_GOOD_SUBDIR, `${name}.svg`),
     relIr: `papers/${paperId}/${FIGURES_SUBDIR}/${name}.json`,
     relSvg: `papers/${paperId}/${FIGURES_SUBDIR}/${name}.svg`
   };
 }
 function readDiagramIr(paths) {
-  if (!existsSync29(paths.irPath))
+  if (!existsSync31(paths.irPath))
     return { ok: false, error: `No diagram at ${paths.relIr}.` };
   try {
-    const text = readFileSync27(paths.irPath, "utf8");
+    const text = readFileSync28(paths.irPath, "utf8");
     return { ok: true, raw: JSON.parse(text), text };
   } catch (e) {
     return { ok: false, error: `Cannot read ${paths.relIr}: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
 function writeDiagramIr(paths, raw) {
-  if (!existsSync29(paths.dir))
-    mkdirSync21(paths.dir, { recursive: true });
-  writeFileSync20(paths.irPath, `${JSON.stringify(raw, null, 2)}
+  if (!existsSync31(paths.dir))
+    mkdirSync22(paths.dir, { recursive: true });
+  writeFileSync21(paths.irPath, `${JSON.stringify(raw, null, 2)}
 `, "utf8");
 }
 function writeDiagramSvg(paths, svg) {
-  if (!existsSync29(paths.dir))
-    mkdirSync21(paths.dir, { recursive: true });
-  writeFileSync20(paths.svgPath, svg, "utf8");
+  if (!existsSync31(paths.dir))
+    mkdirSync22(paths.dir, { recursive: true });
+  writeFileSync21(paths.svgPath, svg, "utf8");
 }
 function saveLastGood(paths, raw, svg) {
-  const dir = join28(paths.dir, LAST_GOOD_SUBDIR);
-  if (!existsSync29(dir))
-    mkdirSync21(dir, { recursive: true });
-  writeFileSync20(paths.lastGoodIrPath, `${JSON.stringify(raw, null, 2)}
+  const dir = join31(paths.dir, LAST_GOOD_SUBDIR);
+  if (!existsSync31(dir))
+    mkdirSync22(dir, { recursive: true });
+  writeFileSync21(paths.lastGoodIrPath, `${JSON.stringify(raw, null, 2)}
 `, "utf8");
-  writeFileSync20(paths.lastGoodSvgPath, svg, "utf8");
+  writeFileSync21(paths.lastGoodSvgPath, svg, "utf8");
 }
 function listDiagramArtifacts(ws, paperId) {
-  const dir = figuresDir(join28(ws, "papers", paperId));
-  if (!existsSync29(dir))
+  const dir = figuresDir(join31(ws, "papers", paperId));
+  if (!existsSync31(dir))
     return [];
   const names = /* @__PURE__ */ new Set();
   for (const f of readdirSync18(dir)) {
@@ -22993,17 +23305,17 @@ function listDiagramArtifacts(ws, paperId) {
   const out = [];
   for (const name of [...names].sort()) {
     const stat = (p) => {
-      if (!existsSync29(p))
+      if (!existsSync31(p))
         return null;
-      const s = statSync11(p);
+      const s = statSync12(p);
       return { path: p.slice(p.indexOf(FIGURES_SUBDIR)), bytes: s.size, mtimeMs: s.mtimeMs };
     };
-    const ir = stat(join28(dir, `${name}.json`));
-    const svg = stat(join28(dir, `${name}.svg`));
+    const ir = stat(join31(dir, `${name}.json`));
+    const svg = stat(join31(dir, `${name}.svg`));
     let type = null;
     if (ir !== null) {
       try {
-        const parsed = JSON.parse(readFileSync27(join28(dir, `${name}.json`), "utf8"));
+        const parsed = JSON.parse(readFileSync28(join31(dir, `${name}.json`), "utf8"));
         if (typeof parsed.type === "string")
           type = parsed.type;
       } catch {
@@ -23017,24 +23329,24 @@ function listDiagramArtifacts(ws, paperId) {
 
 // lib/research/diagram/export.js
 import { execFileSync } from "node:child_process";
-import { existsSync as existsSync30, statSync as statSync12 } from "node:fs";
-import { dirname as dirname14, join as join29 } from "node:path";
+import { existsSync as existsSync32, statSync as statSync13 } from "node:fs";
+import { dirname as dirname15, join as join32 } from "node:path";
 import { fileURLToPath as fileURLToPath5 } from "node:url";
-var SVG2PDF_SCRIPT = join29("assets", "diagram", "svg2pdf.py");
+var SVG2PDF_SCRIPT = join32("assets", "diagram", "svg2pdf.py");
 var PYTHON_ENV = "CONVFUSION_PYTHON";
 var EXPORT_TIMEOUT_MS = 3e4;
 var RESULT_PREFIX = "@@SVG2PDF@@ ";
 var COLUMN_WIDTH_PT = 252;
 var MIN_LEGIBLE_PT = 7;
 function findSvg2PdfScript() {
-  const here2 = dirname14(fileURLToPath5(new URL("./research/diagram/export.js", import.meta.url).href));
+  const here2 = dirname15(fileURLToPath5(new URL("./research/diagram/export.js", import.meta.url).href));
   const candidates = [
-    join29(here2, "..", "..", "..", SVG2PDF_SCRIPT),
-    join29(here2, "..", "..", SVG2PDF_SCRIPT),
-    join29(process.cwd(), SVG2PDF_SCRIPT)
+    join32(here2, "..", "..", "..", SVG2PDF_SCRIPT),
+    join32(here2, "..", "..", SVG2PDF_SCRIPT),
+    join32(process.cwd(), SVG2PDF_SCRIPT)
   ];
   for (const candidate of candidates) {
-    if (existsSync30(candidate))
+    if (existsSync32(candidate))
       return candidate;
   }
   return null;
@@ -23110,7 +23422,7 @@ function exportDiagramPdf(options) {
   if (script === null) {
     return { ok: false, error: `Bundled converter not found (expected ${SVG2PDF_SCRIPT}).`, ...base };
   }
-  if (!existsSync30(options.svgPath)) {
+  if (!existsSync32(options.svgPath)) {
     return { ok: false, error: `SVG not found: ${options.svgPath}. Render the diagram first.`, ...base };
   }
   const probe = findDiagramPython();
@@ -23134,10 +23446,10 @@ function exportDiagramPdf(options) {
   if (parsed.ok !== true) {
     return { ok: false, error: parsed.error ?? "converter reported failure", ...base };
   }
-  if (!existsSync30(options.pdfPath)) {
+  if (!existsSync32(options.pdfPath)) {
     return { ok: false, error: `converter reported success but ${options.pdfPath} does not exist.`, ...base };
   }
-  const size = statSync12(options.pdfPath).size;
+  const size = statSync13(options.pdfPath).size;
   if (size <= 0) {
     return { ok: false, error: `converter wrote an empty ${options.pdfPath}.`, ...base };
   }
@@ -23270,21 +23582,21 @@ function formatDiagnostics(report, limit = 12) {
 
 // lib/research/schematic/index.js
 import { execFileSync as execFileSync2 } from "node:child_process";
-import { existsSync as existsSync31, statSync as statSync13 } from "node:fs";
-import { dirname as dirname15, join as join30 } from "node:path";
+import { existsSync as existsSync33, statSync as statSync14 } from "node:fs";
+import { dirname as dirname16, join as join33 } from "node:path";
 import { fileURLToPath as fileURLToPath6 } from "node:url";
-var SCHEMATIC_SCRIPT = join30("assets", "figures_kit", "render_schematic.py");
+var SCHEMATIC_SCRIPT = join33("assets", "figures_kit", "render_schematic.py");
 var RENDER_TIMEOUT_MS = 6e4;
 var RESULT_PREFIX2 = "@@SCHEMATIC@@ ";
 function findSchematicScript() {
-  const here2 = dirname15(fileURLToPath6(new URL("./research/schematic/index.js", import.meta.url).href));
+  const here2 = dirname16(fileURLToPath6(new URL("./research/schematic/index.js", import.meta.url).href));
   const candidates = [
-    join30(here2, "..", "..", "..", SCHEMATIC_SCRIPT),
-    join30(here2, "..", "..", SCHEMATIC_SCRIPT),
-    join30(process.cwd(), SCHEMATIC_SCRIPT)
+    join33(here2, "..", "..", "..", SCHEMATIC_SCRIPT),
+    join33(here2, "..", "..", SCHEMATIC_SCRIPT),
+    join33(process.cwd(), SCHEMATIC_SCRIPT)
   ];
   for (const candidate of candidates) {
-    if (existsSync31(candidate))
+    if (existsSync33(candidate))
       return candidate;
   }
   return null;
@@ -23884,8 +24196,8 @@ function summarizeDelta(delta) {
 }
 
 // lib/research/ir/store.js
-import { existsSync as existsSync32, mkdirSync as mkdirSync22, readFileSync as readFileSync28, readdirSync as readdirSync19, writeFileSync as writeFileSync21 } from "node:fs";
-import { join as join31 } from "node:path";
+import { existsSync as existsSync34, mkdirSync as mkdirSync23, readFileSync as readFileSync29, readdirSync as readdirSync19, writeFileSync as writeFileSync22 } from "node:fs";
+import { join as join34 } from "node:path";
 var IR_DIR = `${RESEARCH_DIR}/ir`;
 var IR_HISTORY_DIR = `${IR_DIR}/.history`;
 var IR_STATES_DIR = `${IR_DIR}/states`;
@@ -23908,17 +24220,17 @@ function isIRWriteError(v) {
   return Boolean(v) && typeof v === "object" && typeof v.error === "string";
 }
 function irFile(workspace, id) {
-  return join31(workspace, IR_DIR, `${id.toUpperCase()}.json`);
+  return join34(workspace, IR_DIR, `${id.toUpperCase()}.json`);
 }
 function historyFile(workspace, id, revision) {
-  return join31(workspace, IR_HISTORY_DIR, `${id.toUpperCase()}.rev-${String(revision).padStart(3, "0")}.json`);
+  return join34(workspace, IR_HISTORY_DIR, `${id.toUpperCase()}.rev-${String(revision).padStart(3, "0")}.json`);
 }
 function stateFile(workspace, stateId) {
-  return join31(workspace, IR_STATES_DIR, `${stateId.toUpperCase()}.json`);
+  return join34(workspace, IR_STATES_DIR, `${stateId.toUpperCase()}.json`);
 }
-function readJson2(path) {
+function readJson(path) {
   try {
-    return JSON.parse(readFileSync28(path, "utf8"));
+    return JSON.parse(readFileSync29(path, "utf8"));
   } catch {
     return void 0;
   }
@@ -23931,9 +24243,9 @@ function listJson(dir, pattern2) {
   }
 }
 function listIRs(workspace) {
-  const dir = join31(workspace, IR_DIR);
+  const dir = join34(workspace, IR_DIR);
   return listJson(dir, /^IR\d{3,4}\.json$/i).flatMap((f) => {
-    const ir = readJson2(join31(dir, f));
+    const ir = readJson(join34(dir, f));
     if (!ir?.id)
       return [];
     const satisfied = ir.evidenceRequirements.filter((r) => (r.satisfiedBy ?? []).length > 0).length;
@@ -23953,59 +24265,59 @@ function readIR(workspace, id) {
   const norm2 = id.trim().toUpperCase();
   if (!parseIrId(norm2))
     return void 0;
-  return readJson2(irFile(workspace, norm2));
+  return readJson(irFile(workspace, norm2));
 }
 function readIRRevision(workspace, id, revision) {
-  return readJson2(historyFile(workspace, id, revision));
+  return readJson(historyFile(workspace, id, revision));
 }
 function listIRRevisions(workspace, id) {
   const norm2 = id.trim().toUpperCase();
-  return listJson(join31(workspace, IR_HISTORY_DIR), new RegExp(`^${norm2}\\.rev-\\d{3,4}\\.json$`, "i")).flatMap((f) => {
+  return listJson(join34(workspace, IR_HISTORY_DIR), new RegExp(`^${norm2}\\.rev-\\d{3,4}\\.json$`, "i")).flatMap((f) => {
     const m = f.match(/\.rev-(\d{3,4})\.json$/i);
     return m ? [Number(m[1])] : [];
   });
 }
 function saveIR(workspace, ir) {
-  const dir = join31(workspace, IR_DIR);
-  mkdirSync22(dir, { recursive: true });
-  mkdirSync22(join31(workspace, IR_HISTORY_DIR), { recursive: true });
+  const dir = join34(workspace, IR_DIR);
+  mkdirSync23(dir, { recursive: true });
+  mkdirSync23(join34(workspace, IR_HISTORY_DIR), { recursive: true });
   const existing = ir.id ? readIR(workspace, ir.id) : void 0;
   const id = ir.id?.trim().toUpperCase() || nextIrId(workspace);
   if (!parseIrId(id))
     return { error: `\u975E\u6CD5 IR id\uFF1A${ir.id}\uFF08\u5E94\u4E3A IR001 \u5F62\u5F0F\uFF09` };
   if (existing) {
-    writeFileSync21(historyFile(workspace, id, existing.revision), `${JSON.stringify(existing, null, 2)}
+    writeFileSync22(historyFile(workspace, id, existing.revision), `${JSON.stringify(existing, null, 2)}
 `, "utf8");
   }
   const saved = { ...ir, id };
-  writeFileSync21(irFile(workspace, id), `${JSON.stringify(saved, null, 2)}
+  writeFileSync22(irFile(workspace, id), `${JSON.stringify(saved, null, 2)}
 `, "utf8");
   return saved;
 }
 function nextIrId(workspace) {
-  const nums = listJson(join31(workspace, IR_DIR), /^IR\d{3,4}\.json$/i).map((f) => {
+  const nums = listJson(join34(workspace, IR_DIR), /^IR\d{3,4}\.json$/i).map((f) => {
     const m = f.match(/^IR(\d{3,4})\.json$/i);
     return m ? Number(m[1]) : 0;
   });
   return makeIrId(Math.max(0, ...nums) + 1);
 }
 function writeState(workspace, state) {
-  const dir = join31(workspace, IR_STATES_DIR);
-  mkdirSync22(dir, { recursive: true });
+  const dir = join34(workspace, IR_STATES_DIR);
+  mkdirSync23(dir, { recursive: true });
   const norm2 = state.stateId.trim().toUpperCase();
   if (!parseStateId(norm2))
     return { error: `\u975E\u6CD5 State id\uFF1A${state.stateId}\uFF08\u5E94\u4E3A S001 \u5F62\u5F0F\uFF09` };
   const file = stateFile(workspace, norm2);
-  if (existsSync32(file))
+  if (existsSync34(file))
     return { error: `State \`${norm2}\` \u5DF2\u5B58\u5728\uFF08\u72B6\u6001\u4E0D\u53EF\u8986\u76D6\uFF09\u3002` };
-  writeFileSync21(file, `${JSON.stringify({ ...state, stateId: norm2 }, null, 2)}
+  writeFileSync22(file, `${JSON.stringify({ ...state, stateId: norm2 }, null, 2)}
 `, "utf8");
   return { ...state, stateId: norm2 };
 }
 function listStates(workspace) {
-  const dir = join31(workspace, IR_STATES_DIR);
+  const dir = join34(workspace, IR_STATES_DIR);
   return listJson(dir, /^S\d{3,4}\.json$/i).flatMap((f) => {
-    const s = readJson2(join31(dir, f));
+    const s = readJson(join34(dir, f));
     return s?.stateId ? [s] : [];
   }).sort((a, b) => (parseStateId(a.stateId) ?? 0) - (parseStateId(b.stateId) ?? 0));
 }
@@ -24018,14 +24330,14 @@ function nextStateId(workspace) {
   return makeStateId(Math.max(0, ...nums) + 1);
 }
 function appendTrace(workspace, entry) {
-  const dir = join31(workspace, IR_DIR);
-  mkdirSync22(dir, { recursive: true });
-  writeFileSync21(join31(workspace, IR_TRACE_FILE), `${JSON.stringify(entry)}
+  const dir = join34(workspace, IR_DIR);
+  mkdirSync23(dir, { recursive: true });
+  writeFileSync22(join34(workspace, IR_TRACE_FILE), `${JSON.stringify(entry)}
 `, { encoding: "utf8", flag: "a" });
 }
 function readTrace(workspace) {
   try {
-    return readFileSync28(join31(workspace, IR_TRACE_FILE), "utf8").split("\n").filter((l) => l.trim()).flatMap((l) => {
+    return readFileSync29(join34(workspace, IR_TRACE_FILE), "utf8").split("\n").filter((l) => l.trim()).flatMap((l) => {
       try {
         return [JSON.parse(l)];
       } catch {
@@ -24038,8 +24350,8 @@ function readTrace(workspace) {
 }
 
 // lib/research/ir/transition.js
-import { existsSync as existsSync33 } from "node:fs";
-import { isAbsolute as isAbsolute8, join as join32 } from "node:path";
+import { existsSync as existsSync35 } from "node:fs";
+import { isAbsolute as isAbsolute10, join as join35 } from "node:path";
 function err2(code, field, message, repair) {
   return { code, layer: "transition", field, message, repair };
 }
@@ -24079,8 +24391,8 @@ function validateTransition(workspace, input) {
       continue;
     }
     if (artifact) {
-      const abs = isAbsolute8(artifact) ? artifact : join32(workspace, artifact);
-      if (!existsSync33(abs)) {
+      const abs = isAbsolute10(artifact) ? artifact : join35(workspace, artifact);
+      if (!existsSync35(abs)) {
         errors.push(err2("R203", `plan.steps.${step.id}`, `Recorded artifact "${artifact}" does not exist on disk.`, "fix_artifact_path"));
       }
     }
@@ -24577,12 +24889,12 @@ function defineResearchTools(resolveWorkspace, literatureDeps, downloadDeps) {
   });
   const stateProposeTool = defineTool({
     name: STATE_PROPOSE_TOOL,
-    description: "Work with Research State updates (the self-evolving record of what the research currently is).\n`propose` records a pending proposal for explicit user review by default. Set `apply: true` only when the user explicitly authorized applying this state change.\n`sync` re-derives the artifact-indexed dimensions (Decisions / Claims / Evidence / Literature / Experiments) from the files on disk \u2014 the same job the platform runs automatically after every `research_decision` / `research_claim` / `research_evidence` write.\n`list` shows the proposals awaiting disposition; `apply` applies a pending one.\n**Use `propose` whenever a method result belongs in the state** \u2014 a theme, a hypothesis, a settled method, a resolved open question, a new risk. The current stage in the context names the dimension(s) it belongs to; a result that only exists in the conversation is not part of the research state.\nActions: `propose` | `list` | `apply` | `sync`.",
+    description: "Work with Research State updates (the self-evolving record of what the research currently is).\n`propose` writes the dimensions into research-state.md by default, archives the old version, and records the disposition. Pass `apply: false` to leave a pending proposal for review.\n`sync` re-derives the artifact-indexed dimensions (Decisions / Claims / Evidence / Literature / Experiments) from the files on disk \u2014 the same job the platform runs automatically after every `research_decision` / `research_claim` / `research_evidence` write.\n`list` shows the proposals awaiting disposition; `apply` applies a pending one.\n**Use `propose` whenever a method result belongs in the state** \u2014 a theme, a hypothesis, a settled method, a resolved open question, a new risk. The current stage in the context names the dimension(s) it belongs to; a result that only exists in the conversation is not part of the research state.\nActions: `propose` | `list` | `apply` | `sync`.",
     parameters: {
       action: { type: "string", description: "One of: propose | list | apply | sync.", enum: ["propose", "list", "apply", "sync"] },
       apply: {
         type: "boolean",
-        description: "For `propose`: default false leaves a pending proposal. Set true only with explicit user authorization."
+        description: "For `propose`: default true writes and archives the state. Pass false for a pending proposal."
       },
       changes: {
         type: "object",
@@ -24716,7 +25028,7 @@ function defineResearchTools(resolveWorkspace, literatureDeps, downloadDeps) {
           ...a.plan ? { plan: String(a.plan) } : {},
           actor: "agent"
         });
-        const applyNow = a.apply === true;
+        const applyNow = a.apply !== false;
         if (applyNow) {
           const applied = applyStateUpdate(ws, { ...proposal, maturityChanges: proposal.maturityChanges }, { action: "accepted", by: "agent" });
           if (isStateWriteError(applied))
@@ -25618,12 +25930,12 @@ ${e.path ?? ""}${e.downloadedFrom ? `
       const a = args;
       const action = String(a.action ?? "status");
       const paperId = resolvePaperParameter(ws, typeof a.paperId === "string" ? a.paperId : void 0);
-      const paperDir2 = join33(ws, "papers", paperId);
-      const latexDir = join33(paperDir2, LATEX_SUBDIR);
-      const texPath = join33(latexDir, MAIN_TEX);
+      const paperDir2 = join36(ws, "papers", paperId);
+      const latexDir = join36(paperDir2, LATEX_SUBDIR);
+      const texPath = join36(latexDir, MAIN_TEX);
       try {
         if (action === "status") {
-          if (!existsSync34(latexDir)) {
+          if (!existsSync36(latexDir)) {
             return losslessJson({
               ok: true,
               action: "status",
@@ -25632,39 +25944,39 @@ ${e.path ?? ""}${e.downloadedFrom ? `
             });
           }
           const files = readdirSync20(latexDir).filter((f) => !f.startsWith(".")).map((f) => {
-            const st = statSync14(join33(latexDir, f));
+            const st = statSync15(join36(latexDir, f));
             return `${f} (${st.size} B, ${st.mtime.toISOString()})`;
           });
           return losslessJson({ ok: true, action: "status", files });
         }
         if (action === "compose") {
-          const mdPath = join33(paperDir2, "paper.md");
-          if (!existsSync34(mdPath))
+          const mdPath = join36(paperDir2, "paper.md");
+          if (!existsSync36(mdPath))
             return fail2(`\u8BBA\u6587\u6B63\u6587\u4E0D\u5B58\u5728\uFF1Apapers/${paperId}/paper.md`);
-          const source = readFileSync29(mdPath, "utf8");
+          const source = readFileSync30(mdPath, "utf8");
           const template = normalizeTemplate(typeof a.template === "string" ? a.template : void 0);
           const input = buildComposeInput(source, template, readPaperMeta(paperDir2));
           const result = composeDocument(input);
-          if (!existsSync34(latexDir))
-            mkdirSync23(latexDir, { recursive: true });
-          if (existsSync34(texPath)) {
+          if (!existsSync36(latexDir))
+            mkdirSync24(latexDir, { recursive: true });
+          if (existsSync36(texPath)) {
             const force = a.force === true || process.env.CONVFUSION_LATEX_COMPOSE_FORCE === "1";
             if (!force) {
-              const lost = detectComposeLoss(readFileSync29(texPath, "utf8"), result.latex);
+              const lost = detectComposeLoss(readFileSync30(texPath, "utf8"), result.latex);
               if (lost.length) {
                 return fail2("compose \u5DF2\u4E2D\u6B62\uFF1A\u91CD\u5199 main.tex \u4F1A\u4E22\u5931\u5176\u4E2D\u4EC5\u5B58\u5728\u4E8E .tex \u7684\u5185\u5BB9\uFF08\u672A\u5199\u76D8\uFF0C\u65E7\u6587\u4EF6\u4FDD\u6301\u539F\u6837\uFF09\u3002\n" + lost.map((l) => `  - ${l}`).join("\n") + "\n\u628A\u4E0A\u8FF0\u5185\u5BB9\u642C\u8FDB `paper.md`\uFF08compose \u7684\u6E90\uFF1B\u4E66\u76EE\u5199\u5728 `## References` \u4E00\u8282\uFF0C\u683C\u5F0F\u4E3A `- [key] \u8457\u5F55\u4FE1\u606F`\uFF09\u540E\u91CD\u8BD5\uFF1B\u786E\u8BA4\u53EF\u4EE5\u4E22\u5F03\u65F6\u7528 CONVFUSION_LATEX_COMPOSE_FORCE=1\u3002");
               }
             }
           }
           let backup;
-          if (existsSync34(texPath)) {
+          if (existsSync36(texPath)) {
             const ts = (/* @__PURE__ */ new Date()).toISOString().replace(/[-:T]/g, "").slice(0, 15);
-            const bak = join33(latexDir, `main_bak_${ts}.tex`);
+            const bak = join36(latexDir, `main_bak_${ts}.tex`);
             renameSync8(texPath, bak);
             backup = `${LATEX_SUBDIR}/main_bak_${ts}.tex`;
           }
-          writeFileSync22(texPath, result.latex, "utf8");
-          writeFileSync22(join33(latexDir, INTERMEDIATE_TEX), result.latexIntermediate, "utf8");
+          writeFileSync23(texPath, result.latex, "utf8");
+          writeFileSync23(join36(latexDir, INTERMEDIATE_TEX), result.latexIntermediate, "utf8");
           return losslessJson({
             ok: true,
             action: "compose",
@@ -25677,11 +25989,11 @@ ${e.path ?? ""}${e.downloadedFrom ? `
           });
         }
         if (action === "compile") {
-          if (!existsSync34(texPath))
+          if (!existsSync36(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
-          const cacheDir = join33(ws, "harness", ".tectonic-cache");
-          if (!existsSync34(cacheDir))
-            mkdirSync23(cacheDir, { recursive: true });
+          const cacheDir = join36(ws, "harness", ".tectonic-cache");
+          if (!existsSync36(cacheDir))
+            mkdirSync24(cacheDir, { recursive: true });
           const res = compileLatex(texPath, { cacheDir });
           return losslessJson({
             ok: true,
@@ -25694,15 +26006,15 @@ ${e.path ?? ""}${e.downloadedFrom ? `
           });
         }
         if (action === "errors") {
-          if (!existsSync34(texPath))
+          if (!existsSync36(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
-          const logPath = join33(latexDir, "main.log");
-          if (!existsSync34(logPath))
+          const logPath = join36(latexDir, "main.log");
+          if (!existsSync36(logPath))
             return fail2("\u5C1A\u65E0 main.log \u2014\u2014 \u5148\u6267\u884C compile\u3002");
-          const errors = parseCompileErrors(readFileSync29(logPath, "utf8"));
+          const errors = parseCompileErrors(readFileSync30(logPath, "utf8"));
           const max = typeof a.maxErrors === "number" ? Math.max(1, Math.floor(a.maxErrors)) : 15;
           const ctxSize = typeof a.contextSize === "number" ? Math.max(1, Math.floor(a.contextSize)) : 6;
-          const tex = readFileSync29(texPath, "utf8");
+          const tex = readFileSync30(texPath, "utf8");
           const enriched = errors.slice(0, max).map((e) => ({
             ...e,
             context: e.line > 0 ? extractErrorContext(tex, e.line, ctxSize).text : ""
@@ -25710,16 +26022,16 @@ ${e.path ?? ""}${e.downloadedFrom ? `
           return losslessJson({ ok: true, action: "errors", errors: enriched });
         }
         if (action === "repair") {
-          if (!existsSync34(texPath))
+          if (!existsSync36(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
-          const logPath = join33(latexDir, "main.log");
-          if (!existsSync34(logPath))
+          const logPath = join36(latexDir, "main.log");
+          if (!existsSync36(logPath))
             return fail2("\u5C1A\u65E0 main.log \u2014\u2014 \u5148\u6267\u884C compile\uFF0C\u518D repair\u3002");
-          const errors = parseCompileErrors(readFileSync29(logPath, "utf8"));
-          const tex = readFileSync29(texPath, "utf8");
+          const errors = parseCompileErrors(readFileSync30(logPath, "utf8"));
+          const tex = readFileSync30(texPath, "utf8");
           const repaired = repairLatex(tex, errors);
           if (repaired.fixedCount > 0)
-            writeFileSync22(texPath, repaired.latex, "utf8");
+            writeFileSync23(texPath, repaired.latex, "utf8");
           return losslessJson({
             ok: true,
             action: "repair",
@@ -25729,9 +26041,9 @@ ${e.path ?? ""}${e.downloadedFrom ? `
           });
         }
         if (action === "validate") {
-          if (!existsSync34(texPath))
+          if (!existsSync36(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
-          const scan = scanUnsafeTokens(readFileSync29(texPath, "utf8"));
+          const scan = scanUnsafeTokens(readFileSync30(texPath, "utf8"));
           return losslessJson({
             ok: true,
             action: "validate",
@@ -25873,7 +26185,7 @@ ${JSON.stringify(v.ir ?? null, null, 2)}` }];
           return losslessJson({ ok: true, action, irPath: paths.relIr, ir: read.raw });
         }
         if (action === "export") {
-          if (!existsSync34(paths.svgPath)) {
+          if (!existsSync36(paths.svgPath)) {
             return fail2(`No rendered figure at ${paths.relSvg} \u2014 run \`render\` first (and fix any validation errors).`);
           }
           const columnWidthPt = typeof a.column_width_pt === "number" && a.column_width_pt > 0 ? a.column_width_pt : COLUMN_WIDTH_PT;
@@ -25949,8 +26261,8 @@ ${JSON.stringify(v.ir ?? null, null, 2)}` }];
           writeDiagramSvg(paths, build.svg);
           saveLastGood(paths, canonical, build.svg);
           svgWritten = true;
-        } else if (existsSync34(paths.svgPath)) {
-          const st = statSync14(paths.svgPath);
+        } else if (existsSync36(paths.svgPath)) {
+          const st = statSync15(paths.svgPath);
           keptPrevious = `${paths.relSvg} (from ${st.mtime.toISOString()})`;
         }
         return losslessJson({
@@ -26080,7 +26392,7 @@ Do **not** use this tool for statistical charts (bar/line/scatter): those must b
         paperId,
         name,
         outDir: paths.dir,
-        latexFiguresDir: join33(paths.dir, "..", "latex", "figures")
+        latexFiguresDir: join36(paths.dir, "..", "latex", "figures")
       };
       const columnWidthPt = typeof a.column_width_pt === "number" && a.column_width_pt > 0 ? a.column_width_pt : COLUMN_WIDTH_PT;
       const result = renderSchematic({ spec, targetWidthPt: columnWidthPt });
@@ -26344,11 +26656,11 @@ recorded \u2192 ${v.path ?? ""}` : "";
           let planPath = "";
           if (a.plan !== void 0) {
             planPath = String(a.plan);
-            const full = isAbsolute9(planPath) ? planPath : join33(workspace, planPath);
-            if (!existsSync34(full)) {
+            const full = isAbsolute11(planPath) ? planPath : join36(workspace, planPath);
+            if (!existsSync36(full)) {
               return fail2(`Plan not found: ${planPath}`, { workspace });
             }
-            fromPlan = readFileSync29(full, "utf8");
+            fromPlan = readFileSync30(full, "utf8");
           }
           const fromText = a.text !== void 0 ? String(a.text) : "";
           const markdown = [fromPlan, fromText, fromActions].filter(Boolean).join("\n");
@@ -26771,10 +27083,10 @@ function parseBibEntries(text) {
   return { entries, numberToKey };
 }
 function readPaperMeta(paperDir2) {
-  const p = join33(paperDir2, PAPER_FILES.metadata);
-  if (!existsSync34(p))
+  const p = join36(paperDir2, PAPER_FILES.metadata);
+  if (!existsSync36(p))
     return {};
-  const fm = parseFrontmatter(readFileSync29(p, "utf8"));
+  const fm = parseFrontmatter(readFileSync30(p, "utf8"));
   const keywords = (fm.keywords ?? "").split(/[;,]/).map((s) => s.trim()).filter(Boolean);
   return {
     ...fm.authors ? { authors: fm.authors } : {},
@@ -26808,8 +27120,72 @@ function buildComposeInput(source, template, meta = {}) {
   };
 }
 
+// lib/research/plan.js
+var HANDOFF_STATUSES = ["ready", "refined"];
+function loadPlanHandoff(workspace, planId, options = {}) {
+  const plans = listPlanDocuments(workspace);
+  if (plans.length === 0) {
+    return { error: "\u8FD9\u4E2A workspace \u91CC\u8FD8\u6CA1\u6709 Plan\uFF08`plans/*.md`\uFF09\u3002" };
+  }
+  const wanted = planId?.trim();
+  const doc = wanted ? readPlan(workspace, wanted) : plans.length === 1 ? plans[0] : void 0;
+  if (!doc) {
+    if (wanted) {
+      return {
+        error: `\u627E\u4E0D\u5230 id \u4E3A \`${wanted}\` \u7684 Plan\u3002`,
+        available: plans.map(summarize)
+      };
+    }
+    return { error: "\u5B58\u5728\u591A\u4E2A Plan\uFF0C\u8BF7\u6307\u5B9A\u8981\u6267\u884C\u54EA\u4E00\u4E2A\u3002", available: plans.map(summarize) };
+  }
+  const autoExecute = doc.reviewPolicy === "auto-execute";
+  if (!options.force && !autoExecute && !HANDOFF_STATUSES.includes(doc.status)) {
+    const hint = doc.status === "draft" ? "\u5148\u7528 `/plan review " + doc.id + "` \u6807\u8BB0\u4E3A reviewed\uFF0C\u518D\u7528 `/plan approve " + doc.id + "` \u5141\u8BB8\u6267\u884C\u3002" : `\u5F53\u524D\u72B6\u6001\u662F \`${doc.status}\`\uFF0C\u53EA\u6709 ready / refined \u7684 Plan \u53EF\u4EE5\u4EA4\u63A5\u6267\u884C\u3002`;
+    return { error: `Plan \`${doc.id}\` \u8FD8\u4E0D\u80FD\u6267\u884C\u3002${hint}`, available: plans.map(summarize) };
+  }
+  return {
+    planId: doc.id,
+    path: doc.relPath,
+    status: doc.status,
+    text: buildHandoffText(doc)
+  };
+}
+function summarize(d) {
+  return { id: d.id, name: d.name, status: d.status, relPath: d.relPath };
+}
+function buildHandoffText(doc) {
+  const evidence = planExpectedEvidence(doc);
+  const criteria = planCompletionCriteria(doc);
+  const objective = planObjective(doc);
+  const lines = [
+    `Execute the research plan \`${doc.relPath}\` (${doc.name}).`,
+    "",
+    "This plan has been reviewed and is the current task. Carry it out end to end using your",
+    "own native capabilities \u2014 decide the steps, run the tools you need, write and debug code,",
+    "and verify the result. Do not wait for a fixed pipeline: you own the execution order.",
+    "",
+    "If the plan turns out to be wrong or incomplete, say so and propose the correction instead",
+    "of forcing it through. If it is blocked, report precisely what is missing.",
+    "",
+    "---",
+    "",
+    doc.body
+  ];
+  if (criteria.trim() || evidence.trim()) {
+    lines.push("", "---", "", "Reminder \u2014 you are done only when:");
+    if (objective.trim())
+      lines.push("", `Objective: ${objective.split("\n")[0]}`);
+    if (criteria.trim())
+      lines.push("", "Completion criteria:", "", criteria);
+    if (evidence.trim())
+      lines.push("", "Evidence to produce:", "", evidence);
+  }
+  lines.push("", "---", "", "When finished, summarise: what was done, what was produced (paths), what was verified,", "and what remains uncertain.");
+  return lines.join("\n");
+}
+
 // scripts/convfusion-mcp.mjs
-var packageInfo = JSON.parse(readFileSync30(new URL("../package.json", new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href), "utf8"));
+var packageInfo = JSON.parse(readFileSync31(new URL("../package.json", new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href), "utf8"));
 if (typeof packageInfo.name !== "string" || typeof packageInfo.version !== "string") {
   throw new Error("package.json must define string name and version fields");
 }
@@ -26826,8 +27202,8 @@ function workspaceProperty() {
 }
 function sessionRoot(value) {
   if (typeof value !== "string" || !value.trim()) throw new Error("workspace_root is required");
-  if (!isAbsolute10(value)) throw new Error("workspace_root must be an absolute path");
-  return resolve10(value);
+  if (!isAbsolute12(value)) throw new Error("workspace_root must be an absolute path");
+  return resolve11(value);
 }
 function researchRoot(value) {
   return researchWorkspaceOf(sessionRoot(value));
@@ -26902,7 +27278,7 @@ var planTool = {
     workspace_root: workspaceProperty(),
     action: {
       type: "string",
-      enum: ["list", "create", "set_status", "review", "approve", "executing", "complete", "archive"]
+      enum: ["list", "read", "create", "revise", "history", "read_version", "handoff", "set_status", "review", "approve", "executing", "complete", "archive"]
     },
     id: { type: "string" },
     name: { type: "string" },
@@ -26916,17 +27292,48 @@ var planTool = {
     objective: { type: "string" },
     strategy: { type: "string" },
     expected_evidence: { type: "string" },
-    completion_criteria: { type: "string" }
+    completion_criteria: { type: "string" },
+    body: { type: "string", description: "Complete Markdown source, including frontmatter, for revise." },
+    note: { type: "string" },
+    version: { type: "string", description: "Snapshot sequence for read_version." },
+    bump: { type: "string", enum: ["minor", "major"] }
   },
   async execute(args) {
     const root = researchRoot(args.workspace_root);
     const action = args.action ?? "list";
+    if (args.id !== void 0 && !/^[a-z0-9][a-z0-9-]*$/.test(String(args.id))) return { ok: false, error: "Invalid plan id" };
+    if (action === "read_version" && !/^v?\d+$/.test(String(args.version ?? ""))) return { ok: false, error: "Invalid plan version" };
     if (action === "list") {
       const library = loadPlanLibrary(root);
       return { ok: true, counts: library.counts, plans: library.entries.map((entry) => concisePlan(entry.document)) };
     }
+    const id = String(args.id ?? "");
+    if (["read", "history", "read_version", "revise", "handoff"].includes(action)) {
+      if (!id) return { ok: false, error: "id is required for this action" };
+      if (action === "history") return { ok: true, versions: listPlanVersions(root, id) };
+      if (action === "read_version") {
+        const content = readPlanVersion(root, id, String(args.version ?? ""));
+        return content === void 0 ? { ok: false, error: "Plan version not found" } : { ok: true, content };
+      }
+      if (action === "read") {
+        const doc = readPlan(root, id);
+        return doc ? { ok: true, plan: concisePlan(doc), content: doc.body, sections: doc.sections } : { ok: false, error: "Plan not found" };
+      }
+      if (action === "handoff") {
+        const handoff = loadPlanHandoff(root, id);
+        if ("error" in handoff) return { ok: false, ...handoff };
+        syncPlanHistoryDetailed(root);
+        return { ok: true, ...handoff, instructions: "Continue this authorized plan in the current Codex turn using native tools. This tool returns task input; it does not start another agent." };
+      }
+    }
+    syncPlanHistoryDetailed(root);
     let result;
-    if (action === "create") {
+    if (action === "revise") {
+      if (typeof args.body !== "string") return { ok: false, error: "body is required for revise" };
+      const frontmatter = parsePlanFrontmatter(args.body);
+      if (!frontmatter.name || !frontmatter.version || !PLAN_STATUSES.includes(frontmatter.status)) return { ok: false, error: "revise requires complete Plan Markdown with name, version and valid status frontmatter" };
+      result = revisePlan(root, id, { body: args.body, note: args.note, bump: args.bump });
+    } else if (action === "create") {
       result = createPlan(root, {
         name: String(args.name ?? ""),
         ...args.id ? { id: String(args.id) } : {},
@@ -26943,17 +27350,18 @@ var planTool = {
         ...args.completion_criteria ? { completionCriteria: String(args.completion_criteria) } : {}
       });
     } else {
-      const id = String(args.id ?? "");
-      if (!id) return { ok: false, error: "id is required for this action" };
-      if (action === "set_status") result = setPlanStatus(root, id, String(args.status ?? ""));
-      else if (action === "review") result = reviewPlan(root, id);
-      else if (action === "approve") result = approvePlan(root, id);
-      else if (action === "executing") result = markPlanExecuting(root, id);
-      else if (action === "complete") result = completePlan(root, id);
-      else if (action === "archive") result = archivePlan(root, id);
+      const id2 = String(args.id ?? "");
+      if (!id2) return { ok: false, error: "id is required for this action" };
+      if (action === "set_status") result = setPlanStatus(root, id2, String(args.status ?? ""));
+      else if (action === "review") result = reviewPlan(root, id2);
+      else if (action === "approve") result = approvePlan(root, id2);
+      else if (action === "executing") result = markPlanExecuting(root, id2);
+      else if (action === "complete") result = completePlan(root, id2);
+      else if (action === "archive") result = archivePlan(root, id2);
       else return { ok: false, error: `Unknown action "${action}".` };
     }
     if (isPlanWriteError(result)) return { ok: false, error: result.error };
+    syncPlanHistoryDetailed(root);
     return { ok: true, action, plan: concisePlan(result) };
   }
 };
@@ -26978,9 +27386,9 @@ var codexTools = [
   },
   {
     name: "research_methods",
-    description: "List the current bundled methods, or read one effective method with the user customizations applied. Use this instead of bypassing the customization layer.",
-    parameters: { id: { type: "string", description: "Method id; omit to list all methods and operations." } },
-    execute: (args) => ({ ok: true, methods: uiHost.methods(args.id) })
+    description: "List research methods, read an effective method, or export all 57 methods in stable code order with user customizations. Export writes research/methods-export.md; full includes historical source prompts.",
+    parameters: { id: { type: "string", description: "Method id; omit to list all methods and operations." }, action: { type: "string", enum: ["list", "read", "export"] }, full: { type: "boolean" } },
+    execute: (args) => args.action === "export" ? { ok: true, ...uiHost.exportMethods(args.workspace_root, args.full === true) } : { ok: true, methods: uiHost.methods(args.id) }
   },
   {
     name: "research_sync",
@@ -26992,7 +27400,7 @@ var codexTools = [
     name: "research_ui",
     description: "Open the ConvFusion workbench for research progress, method customization and ConvFusion.com accounts, research publishing, finding mentors/students and file exchange. Pass workspace_root for the current task, or {} for a global workbench with directory selection. Returns an MCP Apps UI and a local browser URL. Network publishing, paid actions and file selection are confirmed by the user in the UI.",
     title: "ConvFusion \u5DE5\u4F5C\u53F0",
-    icons: [{ src: `data:image/svg+xml;base64,${readFileSync30(new URL("../assets/sidebar-icon.svg", new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href)).toString("base64")}`, mimeType: "image/svg+xml", sizes: ["any"] }],
+    icons: [{ src: `data:image/svg+xml;base64,${readFileSync31(new URL("../assets/sidebar-icon.svg", new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href)).toString("base64")}`, mimeType: "image/svg+xml", sizes: ["any"] }],
     parameters: {},
     optionalWorkspace: true,
     _meta: { ui: { resourceUri: UI_URI }, "openai/outputTemplate": UI_URI, "openai/ui": { entrypoints: [{ type: "global" }, { type: "thread" }] } },
@@ -27111,7 +27519,7 @@ function serveStdio() {
     }
   });
 }
-if (process.argv[1] && new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href === pathToFileURL(resolve10(process.argv[1])).href) serveStdio();
+if (process.argv[1] && new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href === pathToFileURL(resolve11(process.argv[1])).href) serveStdio();
 
-// codex-mcp-entry.mjs
+// codex-mcp.mjs-entry.mjs
 serveStdio();

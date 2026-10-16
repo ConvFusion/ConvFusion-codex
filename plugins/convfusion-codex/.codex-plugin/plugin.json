@@ -1,6 +1,6 @@
 {
   "name": "convfusion-codex",
-  "version": "0.6.2-codex.2",
+  "version": "0.6.2-codex.3",
   "description": "Evidence-first research workflows, methods, and traceable research assets for Codex.",
   "author": {
     "name": "ConvFusion",
@@ -12,6 +12,7 @@
   "keywords": ["research", "evidence", "academic-writing", "codex", "mcp"],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
+  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "ConvFusion Research",
     "shortDescription": "Evidence-first research workflows for Codex",

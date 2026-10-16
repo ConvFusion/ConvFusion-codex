@@ -16,18 +16,12 @@ const hostPackages = [
 const failures = []
 
 for (const name of hostPackages) {
-  if (pkg.dependencies?.[name]) {
-    failures.push(`${name} must not be in dependencies (it would install a second host runtime copy)`)
-  }
-  if (pkg.peerDependencies?.[name] !== '*') {
-    failures.push(`${name} must be a \"*\" peerDependency so the active DSH host supplies it`)
-  }
-  if (!pkg.devDependencies?.[name]) {
-    failures.push(`${name} must be mirrored in devDependencies for standalone builds`)
-  }
-  if (pkg.peerDependenciesMeta?.[name]?.optional) {
-    failures.push(`${name} is required at runtime and must not be marked optional`)
-  }
+  if (!pkg.dependencies?.[name]) failures.push(`${name} must be declared for the standalone runtime build`)
+  if (pkg.peerDependencies?.[name]) failures.push(`${name} must not require a DSH host in Codex`)
+}
+for (const artifact of ['codex-runtime-manifest.json', 'codex-hooks-manifest.json']) {
+  const bundle = JSON.parse(readFileSync(join(root, 'lib', artifact), 'utf8'))
+  if (!bundle.dependencies?.length) failures.push(`${artifact} must record bundled dependency notices`)
 }
 
 if (failures.length > 0) {
@@ -36,4 +30,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`Host dependency contract OK (${hostPackages.length} shared DSH packages)`)
+console.log(`Codex standalone dependency contract OK (${hostPackages.length} shared build dependencies, MCP and hook bundles)`)

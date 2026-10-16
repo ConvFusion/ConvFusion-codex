@@ -2,6 +2,7 @@ import type { en } from './en.js'
 
 /** Simplified Chinese dictionary; the type rejects missing and extra keys. */
 export const zh = {
+  'community.merge.prepare': '准备同步请求',
   'settings.nav': 'ConvFusion',
   'settings.version.updateAvailable': '(有新版 v{version})',
   'settings.version.updateHint': '建议通过 DSH Launcher 直接更新',
