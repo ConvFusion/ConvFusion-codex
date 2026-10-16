@@ -223,17 +223,21 @@ const codexTools = [
   },
   {
     name: 'research_ui',
-    description: 'Open the ConvFusion workbench for research progress, method customization and ConvFusion.com accounts, research publishing, finding mentors/students and file exchange. Returns an MCP Apps UI and a local browser URL. Network publishing, paid actions and file selection are confirmed by the user in the UI.',
+    description: 'Open the ConvFusion workbench for research progress, method customization and ConvFusion.com accounts, research publishing, finding mentors/students and file exchange. Pass workspace_root for the current task, or {} for a global workbench with directory selection. Returns an MCP Apps UI and a local browser URL. Network publishing, paid actions and file selection are confirmed by the user in the UI.',
+    title: 'ConvFusion 工作台',
+    icons: [{ src: `data:image/svg+xml;base64,${readFileSync(new URL('../assets/sidebar-icon.svg', import.meta.url)).toString('base64')}`, mimeType: 'image/svg+xml', sizes: ['any'] }],
     parameters: {},
-    _meta: { ui: { resourceUri: UI_URI }, 'openai/outputTemplate': UI_URI, 'openai/ui': { entrypoints: [{ type: 'thread' }] } },
+    optionalWorkspace: true,
+    _meta: { ui: { resourceUri: UI_URI }, 'openai/outputTemplate': UI_URI, 'openai/ui': { entrypoints: [{ type: 'global' }, { type: 'thread' }] } },
     execute: async (args) => ({ ok: true, ...await uiHost.open(args.workspace_root) }),
   },
   {
     name: 'research_ui_action',
     description: 'UI-only transport for the ConvFusion workbench. Credentials and paid actions are entered and confirmed by the human in the UI.',
-    parameters: { endpoint: { type: 'string' }, payload: { type: 'object', additionalProperties: true } },
+    parameters: objectSchema({ ui_session: { type: 'string' }, endpoint: { type: 'string' }, payload: { type: 'object', additionalProperties: true } }, ['ui_session', 'endpoint']),
+    optionalWorkspace: true,
     _meta: { ui: { visibility: ['app'] } },
-    execute: (args) => uiHost.dispatch(args.workspace_root, args.endpoint, args.payload),
+    execute: (args) => uiHost.dispatchSession(args.ui_session, args.workspace_root, args.endpoint, args.payload),
   },
 ]
 const taskTools = new Set([workspaceTool, planTool, ...codexTools])
@@ -243,11 +247,13 @@ const byName = new Map(definitions.map((tool) => [tool.name, tool]))
 function advertisedTool(tool) {
   return {
     name: tool.name,
+    ...(tool.title ? { title: tool.title } : {}),
+    ...(tool.icons ? { icons: tool.icons } : {}),
     description: tool.description,
     ...(tool._meta ? { _meta: tool._meta } : {}),
     inputSchema: objectSchema(
       { workspace_root: workspaceProperty(), ...(tool.parameters.type === 'object' ? tool.parameters.properties : tool.parameters) },
-      ['workspace_root', ...(tool.parameters.type === 'object' ? tool.parameters.required ?? [] : [])],
+      [...(tool.optionalWorkspace ? [] : ['workspace_root']), ...(tool.parameters.type === 'object' ? tool.parameters.required ?? [] : [])],
     ),
   }
 }
@@ -260,9 +266,13 @@ async function callTool(name, rawArgs) {
   const tool = byName.get(name)
   if (!tool) throw new Error(`Unknown tool: ${name}`)
   const args = rawArgs && typeof rawArgs === 'object' && !Array.isArray(rawArgs) ? { ...rawArgs } : {}
-  const root = researchRoot(args.workspace_root)
+  const root = tool.optionalWorkspace ? undefined : researchRoot(args.workspace_root)
+  if (tool.optionalWorkspace && args.workspace_root !== undefined) args.workspace_root = sessionRoot(args.workspace_root)
+  const taskRoot = args.workspace_root
   delete args.workspace_root
-  const value = taskTools.has(tool)
+  const value = tool.optionalWorkspace
+    ? await tool.execute({ ...args, workspace_root: taskRoot })
+    : taskTools.has(tool)
     ? await tool.execute({ ...args, workspace_root: sessionRoot(rawArgs.workspace_root) })
     : await tool.execute(args, { agent: { id: root } })
   const structuredContent = jsonSafe(value)
@@ -284,7 +294,7 @@ export async function handleRequest(message) {
         capabilities: { tools: { listChanged: false }, resources: {} },
         serverInfo: SERVER_INFO,
         instructions:
-          'ConvFusion stores research data under the current task workspace. Every tool requires workspace_root; pass the absolute Codex task cwd, never this plugin installation directory.',
+          'ConvFusion stores research data under the current task workspace. Research tools require workspace_root: pass the absolute Codex task cwd, never this plugin installation directory. research_ui also accepts {} for sidebar/panel launch; select the research directory in the UI. research_ui_action is restricted to the UI session.',
       },
     }
   }

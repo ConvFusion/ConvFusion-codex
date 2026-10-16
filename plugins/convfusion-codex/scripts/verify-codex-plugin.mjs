@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -60,6 +60,23 @@ try {
   assert.equal(resource.result.contents[0].mimeType, 'text/html;profile=mcp-app')
   assert.ok(resource.result.contents[0].text.includes('<!doctype html>'))
   assert.deepEqual(listed.result.tools.find((t) => t.name === 'research_ui_action')._meta.ui.visibility, ['app'])
+  const uiTool = listed.result.tools.find((t) => t.name === 'research_ui')
+  assert.deepEqual(uiTool._meta['openai/ui'].entrypoints, [{ type: 'global' }, { type: 'thread' }])
+  assert.deepEqual(uiTool.inputSchema.required, [], 'sidebar and panel entrypoints must accept {}')
+  assert.match(uiTool.icons[0].src, /^data:image\/svg\+xml;base64,/)
+  for (const tool of listed.result.tools.filter((tool) => !['research_ui', 'research_ui_action'].includes(tool.name))) {
+    assert.ok(tool.inputSchema.required.includes('workspace_root'), `${tool.name} must retain explicit workspace routing`)
+  }
+  const global = (await handleRequest({ jsonrpc: '2.0', id: 24, method: 'tools/call', params: { name: 'research_ui', arguments: {} } })).result
+  assert.equal(global.isError, false)
+  assert.equal(global.structuredContent.uiScope, 'global')
+  assert.equal(global.structuredContent.workspaceRoot, null, 'global launch must not use process cwd')
+  const uiCall = async (payload) => (await handleRequest({ jsonrpc: '2.0', id: 25, method: 'tools/call', params: { name: 'research_ui_action', arguments: { ui_session: global.structuredContent.uiSession, ...payload } } })).result
+  const selected = await uiCall({ endpoint: 'codex/select-workspace', payload: { path: temp } })
+  assert.equal(selected.isError, false)
+  assert.equal(selected.structuredContent.value.workspaceRoot, await realpath(temp))
+  const badSession = await uiCall({ ui_session: 'unregistered', endpoint: 'state' })
+  assert.equal(badSession.isError, true)
 
   const init = await handleRequest({
     jsonrpc: '2.0',

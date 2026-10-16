@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict'
-import { mkdtemp, mkdir, readFile, stat, rm, readdir, realpath } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, stat, rm, readdir, realpath, writeFile, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createCodexUiHost } from './codex-ui-server.mjs'
@@ -26,6 +26,35 @@ try {
   const bootstrap = host.bootstrap(first)
   assert.equal(bootstrap.workspaceRoot, first)
   assert.deepEqual(await readdir(first), [], 'reading a non-research folder must not initialize research')
+  const global = await host.open()
+  const anotherGlobal = await host.open()
+  assert.equal(global.uiScope, 'global')
+  assert.equal(global.workspaceRoot, null)
+  assert.equal(global.sessionId, null)
+  const globalCall = (endpoint, payload = {}, root) => host.dispatchSession(global.uiSession, root, endpoint, payload)
+  assert.equal((await globalCall('state')).ok, true, 'settings are usable before choosing a directory')
+  assert.equal((await globalCall('progress/workspace', { sessionId: bootstrap.sessionId })).value.workspace, null, 'unselected global page must not borrow another page workspace')
+  assert.equal((await globalCall('codex/select-workspace', { path: 'relative/path' })).ok, false)
+  assert.equal((await globalCall('codex/select-workspace', { path: join(temp, 'does-not-exist') })).ok, false)
+  await writeFile(join(temp, 'a-file'), '')
+  assert.equal((await globalCall('codex/select-workspace', { path: join(temp, 'a-file') })).ok, false)
+  const pluginRoot = await realpath(new URL('..', import.meta.url))
+  assert.equal((await globalCall('codex/select-workspace', { path: pluginRoot })).ok, false)
+  await symlink(pluginRoot, join(temp, 'plugin-link'), 'dir')
+  assert.equal((await globalCall('codex/select-workspace', { path: join(temp, 'plugin-link') })).ok, false)
+  const selected = await globalCall('codex/select-workspace', { path: first })
+  assert.equal(selected.ok, true)
+  assert.equal(selected.value.workspaceRoot, first)
+  assert.deepEqual(await readdir(first), [], 'selecting a directory must not initialize research')
+  assert.equal((await host.dispatchSession(anotherGlobal.uiSession, undefined, 'codex/bootstrap')).value.workspaceRoot, null, 'each global window keeps its own selection')
+  assert.equal((await globalCall('progress/workspace', { sessionId: 'someone-else' }, first)).value.workspace, first, 'progress is bound to the page selection')
+  assert.ok((await globalCall('codex/workspaces')).value.some((row) => row.path === first))
+  const globalBrowser = new URL(global.url)
+  const globalBrowserRpc = (body) => fetch(`${globalBrowser.origin}/rpc`, { method: 'POST', headers: { Authorization: `Bearer ${globalBrowser.hash.slice(1)}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  const switched = await (await globalBrowserRpc({ endpoint: 'codex/select-workspace', payload: { path: second }, workspaceRoot: first })).json()
+  assert.equal(switched.value.workspaceRoot, second)
+  assert.equal((await (await globalBrowserRpc({ endpoint: 'codex/bootstrap' })).json()).value.workspaceRoot, second, 'reload restores only this page selection')
+  assert.deepEqual(await readdir(second), [])
   const local = await host.dispatch(first, 'work/mine', {})
   assert.equal(local.ok, true)
   assert.deepEqual(await readdir(first), [])
@@ -45,6 +74,9 @@ try {
   assert.equal(recreated.getConfig().convfusionProdApiKey, key, 'account survives restart')
   const opened = await host.open(first)
   const openedSecond = await host.open(second)
+  assert.equal(opened.uiScope, 'workspace')
+  assert.equal((await host.dispatchSession(opened.uiSession, first, 'codex/select-workspace', { path: second })).ok, false, 'task-bound page cannot switch directories')
+  assert.equal((await host.dispatchSession('invalid-session', undefined, 'state')).ok, false)
   const url = new URL(opened.url)
   const base = url.origin
   const auth = { Authorization: `Bearer ${url.hash.slice(1)}`, 'Content-Type': 'application/json' }

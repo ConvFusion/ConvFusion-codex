@@ -8,9 +8,9 @@ import { pathToFileURL } from "node:url";
 // scripts/codex-ui-server.mjs
 import { createServer } from "node:http";
 import { randomBytes as randomBytes2, createHash } from "node:crypto";
-import { existsSync as existsSync28, readFileSync as readFileSync26, mkdirSync as mkdirSync20, writeFileSync as writeFileSync18, renameSync as renameSync7, chmodSync, realpathSync as realpathSync3 } from "node:fs";
+import { existsSync as existsSync28, readFileSync as readFileSync26, mkdirSync as mkdirSync20, writeFileSync as writeFileSync18, renameSync as renameSync7, chmodSync, realpathSync as realpathSync3, statSync as statSync9 } from "node:fs";
 import { homedir as homedir3 } from "node:os";
-import { basename as basename3, dirname as dirname13, isAbsolute as isAbsolute7, join as join26, resolve as resolve9 } from "node:path";
+import { basename as basename3, dirname as dirname13, isAbsolute as isAbsolute7, join as join26, resolve as resolve9, relative as relative6, sep as sep4 } from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 
 // lib/settings-rpc.js
@@ -15654,8 +15654,11 @@ function createCodexUiHost(options = {}) {
     return update;
   };
   const registerWorkspace = (root, persist = false) => {
-    if (!isAbsolute7(root)) throw new Error("workspace_root must be an absolute task directory");
+    if (typeof root !== "string" || !isAbsolute7(root)) throw new Error("\u8BF7\u8F93\u5165\u9879\u76EE\u6587\u4EF6\u5939\u7684\u7EDD\u5BF9\u8DEF\u5F84");
     const canonical = realpathSync3(root);
+    if (!statSync9(canonical).isDirectory()) throw new Error("\u8BF7\u9009\u62E9\u73B0\u6709\u7684\u9879\u76EE\u6587\u4EF6\u5939");
+    const fromPlugin = relative6(realpathSync3(pluginRoot), canonical);
+    if (!fromPlugin || !fromPlugin.startsWith(`..${sep4}`) && fromPlugin !== ".." && !isAbsolute7(fromPlugin)) throw new Error("\u8BF7\u9009\u62E9\u7814\u7A76\u9879\u76EE\u76EE\u5F55\uFF0C\u4E0D\u80FD\u4F7F\u7528\u63D2\u4EF6\u5B89\u88C5\u76EE\u5F55");
     const id = createHash("sha256").update(canonical).digest("hex").slice(0, 24);
     workspaces.set(id, { id, title: basename3(canonical), path: canonical, updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
     if (persist) writePrivateJson(path("workspaces.json"), [...workspaces.values()]);
@@ -15678,17 +15681,18 @@ function createCodexUiHost(options = {}) {
     workIdentity
   });
   const bootstrap = (root) => {
-    const row = registerWorkspace(root);
-    return { workspaceRoot: row.path, sessionId: row.id, title: row.title, version: pkg.version };
+    const row = root ? registerWorkspace(root) : null;
+    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? "\u7814\u7A76\u5DE5\u4F5C\u53F0", version: pkg.version };
   };
   const dispatch = async (root, endpoint, payload) => {
-    registerWorkspace(root);
+    if (root) registerWorkspace(root);
     if (endpoint === "codex/bootstrap") return { ok: true, value: bootstrap(root) };
     if (endpoint === "codex/settings") {
       if (payload?.field !== "openalexApiKey" || typeof payload.value !== "string") return failure("field", "Unsupported setting");
       await setConfig({ openalexApiKey: payload.value.trim() });
       return { ok: true, value: { configured: Boolean(getConfig().openalexApiKey) } };
     }
+    if (endpoint === "codex/sync" && !root) return failure("workspace", "\u8BF7\u5148\u9009\u62E9\u7814\u7A76\u9879\u76EE\u76EE\u5F55");
     if (endpoint === "codex/sync") return { ok: true, value: prepareSync(root, payload?.zip ?? "") };
     return handler(String(endpoint), payload ?? {});
   };
@@ -15699,8 +15703,28 @@ function createCodexUiHost(options = {}) {
     return { ok: facts.zipOk, facts, instructions: buildSyncText(facts, researchWorkspaceOf(root) === root ? "" : "workspace") };
   };
   const uiHtml = () => readFileSync26(join26(pluginRoot, "lib/codex-ui.html"), "utf8");
+  const sessionInfo = (token, state) => ({ ...bootstrap(state.root), uiScope: state.selectable ? "global" : "workspace", uiSession: token });
+  const dispatchSession = async (token, root, endpoint, payload) => {
+    const state = browserSessions.get(token);
+    if (!state) return failure("auth", "\u754C\u9762\u8FDE\u63A5\u5DF2\u5931\u6548\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00 ConvFusion");
+    if (root !== void 0 && root !== state.root) return failure("workspace", "Workspace is not registered");
+    if (endpoint === "codex/bootstrap") return { ok: true, value: sessionInfo(token, state) };
+    if (endpoint === "codex/workspaces") return { ok: true, value: [...workspaces.values()].filter((row) => existsSync28(row.path) && statSync9(row.path).isDirectory()) };
+    if (endpoint === "codex/select-workspace") {
+      if (!state.selectable) return failure("workspace", "\u804A\u5929\u5DE5\u4F5C\u53F0\u7ED1\u5B9A\u5F53\u524D\u4EFB\u52A1\uFF0C\u8BF7\u4ECE\u5168\u5C40\u5165\u53E3\u5207\u6362\u7814\u7A76\u76EE\u5F55");
+      try {
+        state.root = registerWorkspace(payload?.path, true).path;
+        return { ok: true, value: sessionInfo(token, state) };
+      } catch (error2) {
+        const message = error2.code === "ENOENT" ? "\u76EE\u5F55\u4E0D\u5B58\u5728\uFF0C\u8BF7\u68C0\u67E5\u8DEF\u5F84" : error2.code === "EACCES" ? "\u65E0\u6CD5\u8BFB\u53D6\u8BE5\u76EE\u5F55\uFF0C\u8BF7\u68C0\u67E5\u8BBF\u95EE\u6743\u9650" : error2.message;
+        return failure("workspace", message);
+      }
+    }
+    if (endpoint === "progress/workspace") payload = { ...payload, sessionId: bootstrap(state.root).sessionId ?? "" };
+    return dispatch(state.root, endpoint, payload);
+  };
   const open = async (root) => {
-    registerWorkspace(root, true);
+    const selected = root === void 0 ? null : registerWorkspace(root, true).path;
     if (!launch) launch = (async () => {
       server = createServer(async (req, res) => {
         res.setHeader("Cache-Control", "no-store");
@@ -15716,8 +15740,9 @@ function createCodexUiHost(options = {}) {
           return res.end(uiHtml());
         }
         if (req.method !== "POST" || req.url !== "/rpc") return finish2(404, failure("route", "Not found"));
-        const browserRoot = browserSessions.get((req.headers.authorization ?? "").replace(/^Bearer /, ""));
-        if (!browserRoot) return finish2(403, failure("auth", "Open this page from the current ConvFusion tool result"));
+        const token2 = (req.headers.authorization ?? "").replace(/^Bearer /, "");
+        const browserState = browserSessions.get(token2);
+        if (!browserState) return finish2(403, failure("auth", "Open this page from the current ConvFusion tool result"));
         try {
           const chunks = [];
           let bytes = 0;
@@ -15727,9 +15752,8 @@ function createCodexUiHost(options = {}) {
             chunks.push(chunk);
           }
           const request = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-          const root2 = request.workspaceRoot ?? browserRoot;
-          if (root2 !== browserRoot) return finish2(403, failure("workspace", "Workspace is not registered"));
-          finish2(200, await dispatch(root2, request.endpoint, request.payload));
+          if (request.workspaceRoot !== void 0 && request.workspaceRoot !== browserState.root) return finish2(403, failure("workspace", "Workspace is not registered"));
+          finish2(200, await dispatchSession(token2, request.workspaceRoot, request.endpoint, request.payload));
         } catch {
           finish2(500, failure("request", "Request failed; check the local configuration and retry"));
         }
@@ -15746,8 +15770,9 @@ function createCodexUiHost(options = {}) {
     });
     await launch;
     const token = randomBytes2(32).toString("hex");
-    browserSessions.set(token, registerWorkspace(root).path);
-    return { ...bootstrap(root), url: `${origin}/#${token}` };
+    const state = { root: selected, selectable: root === void 0 };
+    browserSessions.set(token, state);
+    return { ...sessionInfo(token, state), url: `${origin}/#${token}` };
   };
   return {
     home,
@@ -15756,6 +15781,7 @@ function createCodexUiHost(options = {}) {
     registerWorkspace,
     bootstrap,
     dispatch,
+    dispatchSession,
     open,
     uiHtml,
     prepareSync,
@@ -19621,8 +19647,8 @@ function parsePipeRow(line) {
   const inner = trimmed.replace(/^\|/, "").replace(/\|$/, "");
   return inner.split("|").map((c) => c.trim());
 }
-function alignFromSep(sep4) {
-  const s = sep4.replace(/-/g, "").trim();
+function alignFromSep(sep5) {
+  const s = sep5.replace(/-/g, "").trim();
   const left = s.startsWith(":");
   const right = s.endsWith(":");
   if (left && right)
@@ -19968,11 +19994,11 @@ function escapeSectionTitle(title) {
 }
 
 // lib/research/research-tools.js
-import { existsSync as existsSync34, mkdirSync as mkdirSync23, readFileSync as readFileSync29, readdirSync as readdirSync20, renameSync as renameSync8, statSync as statSync13, writeFileSync as writeFileSync22 } from "node:fs";
+import { existsSync as existsSync34, mkdirSync as mkdirSync23, readFileSync as readFileSync29, readdirSync as readdirSync20, renameSync as renameSync8, statSync as statSync14, writeFileSync as writeFileSync22 } from "node:fs";
 import { isAbsolute as isAbsolute9, join as join33 } from "node:path";
 
 // lib/research/state-sync.js
-import { readdirSync as readdirSync17, statSync as statSync9, writeFileSync as writeFileSync19 } from "node:fs";
+import { readdirSync as readdirSync17, statSync as statSync10, writeFileSync as writeFileSync19 } from "node:fs";
 import { join as join27 } from "node:path";
 var STATE_AUTO_HEADING = "### Auto-synced artifacts";
 var AUTO_NOTE = "*Auto-maintained by ConvFusion: everything from this heading to the end of this section is rewritten on every sync. Keep hand-written content above this line.*";
@@ -20011,7 +20037,7 @@ function newestMtimeMs(paths) {
   let newest = 0;
   for (const p of paths) {
     try {
-      newest = Math.max(newest, statSync9(p).mtimeMs);
+      newest = Math.max(newest, statSync10(p).mtimeMs);
     } catch {
     }
   }
@@ -22886,7 +22912,7 @@ function renderEdgeLabel(text, pos, anchor) {
 }
 
 // lib/research/diagram/store.js
-import { existsSync as existsSync29, mkdirSync as mkdirSync21, readFileSync as readFileSync27, readdirSync as readdirSync18, statSync as statSync10, writeFileSync as writeFileSync20 } from "node:fs";
+import { existsSync as existsSync29, mkdirSync as mkdirSync21, readFileSync as readFileSync27, readdirSync as readdirSync18, statSync as statSync11, writeFileSync as writeFileSync20 } from "node:fs";
 import { join as join28 } from "node:path";
 var FIGURES_SUBDIR = "figures";
 var LAST_GOOD_SUBDIR = ".last-good";
@@ -22969,7 +22995,7 @@ function listDiagramArtifacts(ws, paperId) {
     const stat = (p) => {
       if (!existsSync29(p))
         return null;
-      const s = statSync10(p);
+      const s = statSync11(p);
       return { path: p.slice(p.indexOf(FIGURES_SUBDIR)), bytes: s.size, mtimeMs: s.mtimeMs };
     };
     const ir = stat(join28(dir, `${name}.json`));
@@ -22991,7 +23017,7 @@ function listDiagramArtifacts(ws, paperId) {
 
 // lib/research/diagram/export.js
 import { execFileSync } from "node:child_process";
-import { existsSync as existsSync30, statSync as statSync11 } from "node:fs";
+import { existsSync as existsSync30, statSync as statSync12 } from "node:fs";
 import { dirname as dirname14, join as join29 } from "node:path";
 import { fileURLToPath as fileURLToPath5 } from "node:url";
 var SVG2PDF_SCRIPT = join29("assets", "diagram", "svg2pdf.py");
@@ -23111,7 +23137,7 @@ function exportDiagramPdf(options) {
   if (!existsSync30(options.pdfPath)) {
     return { ok: false, error: `converter reported success but ${options.pdfPath} does not exist.`, ...base };
   }
-  const size = statSync11(options.pdfPath).size;
+  const size = statSync12(options.pdfPath).size;
   if (size <= 0) {
     return { ok: false, error: `converter wrote an empty ${options.pdfPath}.`, ...base };
   }
@@ -23244,7 +23270,7 @@ function formatDiagnostics(report, limit = 12) {
 
 // lib/research/schematic/index.js
 import { execFileSync as execFileSync2 } from "node:child_process";
-import { existsSync as existsSync31, statSync as statSync12 } from "node:fs";
+import { existsSync as existsSync31, statSync as statSync13 } from "node:fs";
 import { dirname as dirname15, join as join30 } from "node:path";
 import { fileURLToPath as fileURLToPath6 } from "node:url";
 var SCHEMATIC_SCRIPT = join30("assets", "figures_kit", "render_schematic.py");
@@ -25606,7 +25632,7 @@ ${e.path ?? ""}${e.downloadedFrom ? `
             });
           }
           const files = readdirSync20(latexDir).filter((f) => !f.startsWith(".")).map((f) => {
-            const st = statSync13(join33(latexDir, f));
+            const st = statSync14(join33(latexDir, f));
             return `${f} (${st.size} B, ${st.mtime.toISOString()})`;
           });
           return losslessJson({ ok: true, action: "status", files });
@@ -25924,7 +25950,7 @@ ${JSON.stringify(v.ir ?? null, null, 2)}` }];
           saveLastGood(paths, canonical, build.svg);
           svgWritten = true;
         } else if (existsSync34(paths.svgPath)) {
-          const st = statSync13(paths.svgPath);
+          const st = statSync14(paths.svgPath);
           keptPrevious = `${paths.relSvg} (from ${st.mtime.toISOString()})`;
         }
         return losslessJson({
@@ -26964,17 +26990,21 @@ var codexTools = [
   },
   {
     name: "research_ui",
-    description: "Open the ConvFusion workbench for research progress, method customization and ConvFusion.com accounts, research publishing, finding mentors/students and file exchange. Returns an MCP Apps UI and a local browser URL. Network publishing, paid actions and file selection are confirmed by the user in the UI.",
+    description: "Open the ConvFusion workbench for research progress, method customization and ConvFusion.com accounts, research publishing, finding mentors/students and file exchange. Pass workspace_root for the current task, or {} for a global workbench with directory selection. Returns an MCP Apps UI and a local browser URL. Network publishing, paid actions and file selection are confirmed by the user in the UI.",
+    title: "ConvFusion \u5DE5\u4F5C\u53F0",
+    icons: [{ src: `data:image/svg+xml;base64,${readFileSync30(new URL("../assets/sidebar-icon.svg", new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href)).toString("base64")}`, mimeType: "image/svg+xml", sizes: ["any"] }],
     parameters: {},
-    _meta: { ui: { resourceUri: UI_URI }, "openai/outputTemplate": UI_URI, "openai/ui": { entrypoints: [{ type: "thread" }] } },
+    optionalWorkspace: true,
+    _meta: { ui: { resourceUri: UI_URI }, "openai/outputTemplate": UI_URI, "openai/ui": { entrypoints: [{ type: "global" }, { type: "thread" }] } },
     execute: async (args) => ({ ok: true, ...await uiHost.open(args.workspace_root) })
   },
   {
     name: "research_ui_action",
     description: "UI-only transport for the ConvFusion workbench. Credentials and paid actions are entered and confirmed by the human in the UI.",
-    parameters: { endpoint: { type: "string" }, payload: { type: "object", additionalProperties: true } },
+    parameters: objectSchema({ ui_session: { type: "string" }, endpoint: { type: "string" }, payload: { type: "object", additionalProperties: true } }, ["ui_session", "endpoint"]),
+    optionalWorkspace: true,
     _meta: { ui: { visibility: ["app"] } },
-    execute: (args) => uiHost.dispatch(args.workspace_root, args.endpoint, args.payload)
+    execute: (args) => uiHost.dispatchSession(args.ui_session, args.workspace_root, args.endpoint, args.payload)
   }
 ];
 var taskTools = /* @__PURE__ */ new Set([workspaceTool, planTool, ...codexTools]);
@@ -26983,11 +27013,13 @@ var byName = new Map(definitions.map((tool) => [tool.name, tool]));
 function advertisedTool(tool) {
   return {
     name: tool.name,
+    ...tool.title ? { title: tool.title } : {},
+    ...tool.icons ? { icons: tool.icons } : {},
     description: tool.description,
     ...tool._meta ? { _meta: tool._meta } : {},
     inputSchema: objectSchema(
       { workspace_root: workspaceProperty(), ...tool.parameters.type === "object" ? tool.parameters.properties : tool.parameters },
-      ["workspace_root", ...tool.parameters.type === "object" ? tool.parameters.required ?? [] : []]
+      [...tool.optionalWorkspace ? [] : ["workspace_root"], ...tool.parameters.type === "object" ? tool.parameters.required ?? [] : []]
     )
   };
 }
@@ -26998,9 +27030,11 @@ async function callTool(name, rawArgs) {
   const tool = byName.get(name);
   if (!tool) throw new Error(`Unknown tool: ${name}`);
   const args = rawArgs && typeof rawArgs === "object" && !Array.isArray(rawArgs) ? { ...rawArgs } : {};
-  const root = researchRoot(args.workspace_root);
+  const root = tool.optionalWorkspace ? void 0 : researchRoot(args.workspace_root);
+  if (tool.optionalWorkspace && args.workspace_root !== void 0) args.workspace_root = sessionRoot(args.workspace_root);
+  const taskRoot = args.workspace_root;
   delete args.workspace_root;
-  const value = taskTools.has(tool) ? await tool.execute({ ...args, workspace_root: sessionRoot(rawArgs.workspace_root) }) : await tool.execute(args, { agent: { id: root } });
+  const value = tool.optionalWorkspace ? await tool.execute({ ...args, workspace_root: taskRoot }) : taskTools.has(tool) ? await tool.execute({ ...args, workspace_root: sessionRoot(rawArgs.workspace_root) }) : await tool.execute(args, { agent: { id: root } });
   const structuredContent = jsonSafe(value);
   return {
     content: [{ type: "text", text: JSON.stringify(structuredContent, null, 2) }],
@@ -27018,7 +27052,7 @@ async function handleRequest(message) {
         protocolVersion: params.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false }, resources: {} },
         serverInfo: SERVER_INFO,
-        instructions: "ConvFusion stores research data under the current task workspace. Every tool requires workspace_root; pass the absolute Codex task cwd, never this plugin installation directory."
+        instructions: "ConvFusion stores research data under the current task workspace. Research tools require workspace_root: pass the absolute Codex task cwd, never this plugin installation directory. research_ui also accepts {} for sidebar/panel launch; select the research directory in the UI. research_ui_action is restricted to the UI session."
       }
     };
   }

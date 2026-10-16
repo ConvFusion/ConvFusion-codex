@@ -18,6 +18,7 @@ try {
     call(3, 'research_methods'), call(4, 'research_workspace', { action: 'init', topic: 'Standalone install verification' }),
     call(5, 'research_context'),
     { jsonrpc: '2.0', id: 6, method: 'resources/read', params: { uri: 'ui://convfusion/workbench-v1.html' } },
+    { jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'research_ui', arguments: {} } },
   ]
   const result = spawnSync(process.execPath, ['lib/codex-mcp.mjs'], { cwd: temp, input: requests.map((x) => JSON.stringify(x)).join('\n') + '\n', encoding: 'utf8', env: { ...process.env, CONVFUSION_CODEX_HOME: join(temp, 'home') }, timeout: 20000, maxBuffer: 4 * 1024 * 1024 })
   assert.equal(result.status, 0, result.stderr)
@@ -28,5 +29,8 @@ try {
   assert.equal(responses.get(4).result.isError, false)
   assert.equal(responses.get(5).result.isError, false)
   assert.ok(responses.get(6).result.contents[0].text.includes('<title>ConvFusion</title>'))
+  assert.equal(responses.get(7).result.isError, false)
+  assert.equal(responses.get(7).result.structuredContent.uiScope, 'global')
+  assert.equal(responses.get(7).result.structuredContent.workspaceRoot, null)
   console.log('Clean package passed: actual STDIO entrypoint, 22 tools, 58 methods/operations, initialization, context and UI resource without node_modules.')
 } finally { rmSync(temp, { recursive: true, force: true }) }

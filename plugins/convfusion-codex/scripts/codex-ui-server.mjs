@@ -1,9 +1,9 @@
 /** Codex adapter for the shared settings/community service. No DSH runtime is started. */
 import { createServer } from 'node:http'
 import { randomBytes, createHash } from 'node:crypto'
-import { existsSync, readFileSync, mkdirSync, writeFileSync, renameSync, chmodSync, realpathSync } from 'node:fs'
+import { existsSync, readFileSync, mkdirSync, writeFileSync, renameSync, chmodSync, realpathSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, join, resolve, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createSettingsRpcHandler, SETTINGS_MAX_BODY_BYTES } from '../lib/settings-rpc.js'
 import { createFileCustomizationStore } from '../lib/research/skill-customization.js'
@@ -67,8 +67,11 @@ export function createCodexUiHost(options = {}) {
     return update
   }
   const registerWorkspace = (root, persist = false) => {
-    if (!isAbsolute(root)) throw new Error('workspace_root must be an absolute task directory')
+    if (typeof root !== 'string' || !isAbsolute(root)) throw new Error('请输入项目文件夹的绝对路径')
     const canonical = realpathSync(root)
+    if (!statSync(canonical).isDirectory()) throw new Error('请选择现有的项目文件夹')
+    const fromPlugin = relative(realpathSync(pluginRoot), canonical)
+    if (!fromPlugin || (!fromPlugin.startsWith(`..${sep}`) && fromPlugin !== '..' && !isAbsolute(fromPlugin))) throw new Error('请选择研究项目目录，不能使用插件安装目录')
     const id = createHash('sha256').update(canonical).digest('hex').slice(0, 24)
     workspaces.set(id, { id, title: basename(canonical), path: canonical, updatedAt: new Date().toISOString() })
     if (persist) writePrivateJson(path('workspaces.json'), [...workspaces.values()])
@@ -86,17 +89,18 @@ export function createCodexUiHost(options = {}) {
     syncNotes, workIdentity,
   })
   const bootstrap = (root) => {
-    const row = registerWorkspace(root)
-    return { workspaceRoot: row.path, sessionId: row.id, title: row.title, version: pkg.version }
+    const row = root ? registerWorkspace(root) : null
+    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? '研究工作台', version: pkg.version }
   }
   const dispatch = async (root, endpoint, payload) => {
-    registerWorkspace(root)
+    if (root) registerWorkspace(root)
     if (endpoint === 'codex/bootstrap') return { ok: true, value: bootstrap(root) }
     if (endpoint === 'codex/settings') {
       if (payload?.field !== 'openalexApiKey' || typeof payload.value !== 'string') return failure('field', 'Unsupported setting')
       await setConfig({ openalexApiKey: payload.value.trim() })
       return { ok: true, value: { configured: Boolean(getConfig().openalexApiKey) } }
     }
+    if (endpoint === 'codex/sync' && !root) return failure('workspace', '请先选择研究项目目录')
     if (endpoint === 'codex/sync') return { ok: true, value: prepareSync(root, payload?.zip ?? '') }
     // Never accept host transport/directory callbacks from UI input: only the shared RPC dispatcher.
     return handler(String(endpoint), payload ?? {})
@@ -108,8 +112,29 @@ export function createCodexUiHost(options = {}) {
     return { ok: facts.zipOk, facts, instructions: buildSyncText(facts, researchWorkspaceOf(root) === root ? '' : 'workspace') }
   }
   const uiHtml = () => readFileSync(join(pluginRoot, 'lib/codex-ui.html'), 'utf8')
+  const sessionInfo = (token, state) => ({ ...bootstrap(state.root), uiScope: state.selectable ? 'global' : 'workspace', uiSession: token })
+  const dispatchSession = async (token, root, endpoint, payload) => {
+    const state = browserSessions.get(token)
+    if (!state) return failure('auth', '界面连接已失效，请重新打开 ConvFusion')
+    if (root !== undefined && root !== state.root) return failure('workspace', 'Workspace is not registered')
+    if (endpoint === 'codex/bootstrap') return { ok: true, value: sessionInfo(token, state) }
+    if (endpoint === 'codex/workspaces') return { ok: true, value: [...workspaces.values()].filter((row) => existsSync(row.path) && statSync(row.path).isDirectory()) }
+    if (endpoint === 'codex/select-workspace') {
+      if (!state.selectable) return failure('workspace', '聊天工作台绑定当前任务，请从全局入口切换研究目录')
+      try {
+        state.root = registerWorkspace(payload?.path, true).path
+        return { ok: true, value: sessionInfo(token, state) }
+      } catch (error) {
+        const message = error.code === 'ENOENT' ? '目录不存在，请检查路径' : error.code === 'EACCES' ? '无法读取该目录，请检查访问权限' : error.message
+        return failure('workspace', message)
+      }
+    }
+    // Progress always follows this page's selection, never an arbitrary session ID from the UI.
+    if (endpoint === 'progress/workspace') payload = { ...payload, sessionId: bootstrap(state.root).sessionId ?? '' }
+    return dispatch(state.root, endpoint, payload)
+  }
   const open = async (root) => {
-    registerWorkspace(root, true)
+    const selected = root === undefined ? null : registerWorkspace(root, true).path
     if (!launch) launch = (async () => {
       server = createServer(async (req, res) => {
         res.setHeader('Cache-Control', 'no-store')
@@ -123,8 +148,9 @@ export function createCodexUiHost(options = {}) {
           return res.end(uiHtml())
         }
         if (req.method !== 'POST' || req.url !== '/rpc') return finish(404, failure('route', 'Not found'))
-        const browserRoot = browserSessions.get((req.headers.authorization ?? '').replace(/^Bearer /, ''))
-        if (!browserRoot) return finish(403, failure('auth', 'Open this page from the current ConvFusion tool result'))
+        const token = (req.headers.authorization ?? '').replace(/^Bearer /, '')
+        const browserState = browserSessions.get(token)
+        if (!browserState) return finish(403, failure('auth', 'Open this page from the current ConvFusion tool result'))
         try {
           const chunks = []
           let bytes = 0
@@ -134,9 +160,8 @@ export function createCodexUiHost(options = {}) {
             chunks.push(chunk)
           }
           const request = JSON.parse(Buffer.concat(chunks).toString('utf8'))
-          const root = request.workspaceRoot ?? browserRoot
-          if (root !== browserRoot) return finish(403, failure('workspace', 'Workspace is not registered'))
-          finish(200, await dispatch(root, request.endpoint, request.payload))
+          if (request.workspaceRoot !== undefined && request.workspaceRoot !== browserState.root) return finish(403, failure('workspace', 'Workspace is not registered'))
+          finish(200, await dispatchSession(token, request.workspaceRoot, request.endpoint, request.payload))
         } catch { finish(500, failure('request', 'Request failed; check the local configuration and retry')) }
       })
       await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve) })
@@ -145,11 +170,12 @@ export function createCodexUiHost(options = {}) {
     })().catch((error) => { launch = undefined; throw error })
     await launch
     const token = randomBytes(32).toString('hex')
-    browserSessions.set(token, registerWorkspace(root).path)
-    return { ...bootstrap(root), url: `${origin}/#${token}` }
+    const state = { root: selected, selectable: root === undefined }
+    browserSessions.set(token, state)
+    return { ...sessionInfo(token, state), url: `${origin}/#${token}` }
   }
   return {
-    home, store, getConfig, registerWorkspace, bootstrap, dispatch, open, uiHtml, prepareSync,
+    home, store, getConfig, registerWorkspace, bootstrap, dispatch, dispatchSession, open, uiHtml, prepareSync,
     context(root, input = '') { return renderResearchContext(collectResearchContext({ workspace: researchWorkspaceOf(root), sessionWorkspace: root, userInput: input, skillContent: (id) => effectiveSkillContentById(id, store) }), input) },
     methods(id) { return id ? { id, content: effectiveSkillContentById(id, store) ?? null } : listSystemSkills().map(({ id, name, category, kind, code, label }) => ({ id, name, category, kind, code, label })) },
     async close() { if (server) await new Promise((resolve) => server.close(resolve)); server = undefined; launch = undefined },
