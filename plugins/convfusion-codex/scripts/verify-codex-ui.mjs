@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, stat, rm, readdir, realpath, writeFile, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -81,9 +82,36 @@ try {
   assert.equal(recreated.getConfig().convfusionProdApiKey, key, 'account survives restart')
   assert.equal(recreated.getConfig().autoContinue, false)
   assert.equal(recreated.getConfig().autoContinueMaxRounds, 5)
+  const resumed = await recreated.dispatchSession(global.uiSession, second, 'codex/bootstrap')
+  assert.equal(resumed.ok, true, 'a replacement host must accept the existing page capability')
+  assert.equal(resumed.value.workspaceRoot, second, 'replacement retains the selected directory')
+  assert.equal(resumed.value.uiScope, 'global')
+  assert.equal(resumed.value.uiSession, global.uiSession)
+  assert.equal((await recreated.dispatchSession(anotherGlobal.uiSession, undefined, 'codex/bootstrap')).value.workspaceRoot, null, 'unselected pages remain independent after host replacement')
+  assert.equal((await recreated.dispatchSession(global.uiSession, first, 'state')).ok, false, 'replacement must still reject an incorrect directory')
+  assert.equal((await recreated.dispatchSession(global.uiSession, second, 'codex/select-workspace', { path: first })).ok, true)
+  assert.equal((await host.dispatchSession(global.uiSession, first, 'codex/bootstrap')).value.workspaceRoot, first, 'live hosts read directory changes made by other hosts')
+  const isolated = createCodexUiHost({ home: join(temp, 'other-home') })
+  assert.equal((await isolated.dispatchSession(global.uiSession, undefined, 'state')).error.code, 'auth', 'capabilities do not cross private adapter homes')
+  const sessionFiles = await readdir(join(home, 'ui-sessions'))
+  assert.equal((await stat(join(home, 'ui-sessions'))).mode & 0o777, 0o700)
+  for (const file of sessionFiles) {
+    const saved = join(home, 'ui-sessions', file)
+    assert.equal((await stat(saved)).mode & 0o777, 0o600)
+    assert.ok(!file.includes(global.uiSession))
+    assert.ok(!(await readFile(saved, 'utf8')).includes(global.uiSession), 'do not persist bearer tokens')
+  }
+  const digest = createHash('sha256').update(global.uiSession).digest('hex')
+  assert.equal((await recreated.dispatchSession(digest, undefined, 'state')).error.code, 'auth', 'a stored capability digest cannot be used as a bearer token')
+  const corrupt = await host.open()
+  const corruptPath = join(home, 'ui-sessions', `${createHash('sha256').update(corrupt.uiSession).digest('hex')}.json`)
+  await writeFile(corruptPath, '{')
+  assert.equal((await host.dispatchSession(corrupt.uiSession, undefined, 'state')).error.code, 'auth', 'unreadable session state fails closed without an in-memory fallback')
   const opened = await host.open(first)
   const openedSecond = await host.open(second)
   assert.equal(opened.uiScope, 'workspace')
+  assert.equal((await recreated.dispatchSession(opened.uiSession, first, 'codex/bootstrap')).value.uiScope, 'workspace')
+  assert.equal((await recreated.dispatchSession(opened.uiSession, first, 'codex/select-workspace', { path: second })).ok, false, 'replacement cannot broaden a task-bound capability')
   assert.equal((await host.dispatchSession(opened.uiSession, first, 'codex/select-workspace', { path: second })).ok, false, 'task-bound page cannot switch directories')
   assert.equal((await host.dispatchSession('invalid-session', undefined, 'state')).ok, false)
   const url = new URL(opened.url)
@@ -103,7 +131,7 @@ try {
   assert.ok(!JSON.stringify(settings).includes(key))
   assert.equal((await host.dispatch(first, 'account/logout', {})).ok, true)
   assert.equal(host.getConfig().convfusionProdApiKey, '')
-  console.log('Codex workbench transport passed: persisted/redacted credentials, read-only workspace inspection, settings, numeric Codex versions, authenticated loopback and task isolation. Network responses were offline fixtures.')
+  console.log('Codex workbench transport passed: host replacement with retained page capabilities, private session storage, persisted/redacted credentials, read-only workspace inspection, settings, authenticated loopback and task isolation. Network responses were offline fixtures.')
 } finally {
   await host.close()
   await rm(temp, { recursive: true, force: true })

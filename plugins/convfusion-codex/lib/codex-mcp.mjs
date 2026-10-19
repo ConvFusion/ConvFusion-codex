@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 
 // scripts/codex-ui-server.mjs
 import { createServer } from "node:http";
-import { randomBytes as randomBytes3 } from "node:crypto";
+import { createHash as createHash2, randomBytes as randomBytes3 } from "node:crypto";
 import { existsSync as existsSync30, readFileSync as readFileSync27, realpathSync as realpathSync5, statSync as statSync10 } from "node:fs";
 import { basename as basename4, dirname as dirname14, isAbsolute as isAbsolute9, join as join29, resolve as resolve10, relative as relative7, sep as sep5 } from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
@@ -13204,10 +13204,10 @@ function buildSettingsState(config, store, resolvePath = resolveCustomizationPat
   };
 }
 async function fileDigest(absPath) {
-  const { createHash: createHash2 } = await import("node:crypto");
+  const { createHash: createHash3 } = await import("node:crypto");
   const { readFile } = await import("node:fs/promises");
   const buf = await readFile(absPath);
-  return `sha256:${createHash2("sha256").update(buf).digest("hex")}`;
+  return `sha256:${createHash3("sha256").update(buf).digest("hex")}`;
 }
 var MIN_UPLOAD_BYTES_PER_SEC = 50 * 1024;
 var UPLOAD_TIMEOUT_MAX_MS = 30 * 60 * 1e3;
@@ -15918,7 +15918,21 @@ function createCodexUiHost(options = {}) {
   const workIdentity = createFileWorkIdentityStore(() => path("work-identities.json"));
   let server;
   let launch;
-  const browserSessions = /* @__PURE__ */ new Map();
+  const sessionPath = (token) => typeof token === "string" && /^[a-f0-9]{64}$/.test(token) ? path(join29("ui-sessions", `${createHash2("sha256").update(token).digest("hex")}.json`)) : null;
+  const readSession = (token) => {
+    const file = sessionPath(token);
+    if (!file) return null;
+    try {
+      const state = readPrivateJson(file, null);
+      if (state?.version !== 1 || typeof state.selectable !== "boolean") return null;
+      if (state.root !== null && (typeof state.root !== "string" || !isAbsolute9(state.root))) return null;
+      if (!state.selectable && state.root === null) return null;
+      return { root: state.root, selectable: state.selectable };
+    } catch {
+      return null;
+    }
+  };
+  const saveSession = (token, state) => writePrivateJson(sessionPath(token), { version: 1, ...state });
   let origin;
   let persistQueue = Promise.resolve();
   const getConfig = () => ({
@@ -16016,7 +16030,7 @@ function createCodexUiHost(options = {}) {
   const uiHtml = () => readFileSync27(join29(pluginRoot, "lib/codex-ui.html"), "utf8");
   const sessionInfo = (token, state) => ({ ...bootstrap(state.root), uiScope: state.selectable ? "global" : "workspace", uiSession: token });
   const dispatchSession = async (token, root, endpoint, payload) => {
-    const state = browserSessions.get(token);
+    const state = readSession(token);
     if (!state) return failure("auth", "\u754C\u9762\u8FDE\u63A5\u5DF2\u5931\u6548\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00 ConvFusion");
     if (root !== void 0 && root !== state.root) return failure("workspace", "Workspace is not registered");
     if (endpoint === "codex/bootstrap") return { ok: true, value: sessionInfo(token, state) };
@@ -16025,6 +16039,7 @@ function createCodexUiHost(options = {}) {
       if (!state.selectable) return failure("workspace", "\u804A\u5929\u5DE5\u4F5C\u53F0\u7ED1\u5B9A\u5F53\u524D\u4EFB\u52A1\uFF0C\u8BF7\u4ECE\u5168\u5C40\u5165\u53E3\u5207\u6362\u7814\u7A76\u76EE\u5F55");
       try {
         state.root = registerWorkspace(payload?.path, true).path;
+        saveSession(token, state);
         return { ok: true, value: sessionInfo(token, state) };
       } catch (error2) {
         const message = error2.code === "ENOENT" ? "\u76EE\u5F55\u4E0D\u5B58\u5728\uFF0C\u8BF7\u68C0\u67E5\u8DEF\u5F84" : error2.code === "EACCES" ? "\u65E0\u6CD5\u8BFB\u53D6\u8BE5\u76EE\u5F55\uFF0C\u8BF7\u68C0\u67E5\u8BBF\u95EE\u6743\u9650" : error2.message;
@@ -16052,7 +16067,7 @@ function createCodexUiHost(options = {}) {
         }
         if (req.method !== "POST" || req.url !== "/rpc") return finish2(404, failure("route", "Not found"));
         const token2 = (req.headers.authorization ?? "").replace(/^Bearer /, "");
-        const browserState = browserSessions.get(token2);
+        const browserState = readSession(token2);
         if (!browserState) return finish2(403, failure("auth", "Open this page from the current ConvFusion tool result"));
         try {
           const chunks = [];
@@ -16082,7 +16097,7 @@ function createCodexUiHost(options = {}) {
     await launch;
     const token = randomBytes3(32).toString("hex");
     const state = { root: selected, selectable: root === void 0 };
-    browserSessions.set(token, state);
+    saveSession(token, state);
     return { ...sessionInfo(token, state), url: `${origin}/#${token}` };
   };
   return {

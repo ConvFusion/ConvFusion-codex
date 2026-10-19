@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /** Exercise the actual installed entrypoint, outside the source dependency tree. */
 import assert from 'node:assert/strict'
-import { mkdtempSync, cpSync, rmSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, cpSync, rmSync, mkdirSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 const source = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const temp = mkdtempSync(join(tmpdir(), 'convfusion-installed-'))
+const temp = realpathSync(mkdtempSync(join(tmpdir(), 'convfusion-installed-')))
 try {
   const installed = join(temp, 'plugin'); mkdirSync(installed)
   for (const name of ['lib', 'skills', 'assets', 'hooks', '.codex-plugin', 'package.json', 'convfusion.env.example.json', '.mcp.json']) cpSync(join(source, name), join(installed, name), { recursive: true })
@@ -20,8 +20,10 @@ try {
     call(5, 'research_context'),
     { jsonrpc: '2.0', id: 6, method: 'resources/read', params: { uri: 'ui://convfusion/workbench-v1.html' } },
     { jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'research_ui', arguments: {} } },
+    call(8, 'research_ui'),
   ]
-  const result = spawnSync(process.execPath, ['lib/codex-mcp.mjs'], { cwd: installed, input: requests.map((x) => JSON.stringify(x)).join('\n') + '\n', encoding: 'utf8', env: { ...process.env, CONVFUSION_CODEX_HOME: join(temp, 'home') }, timeout: 20000, maxBuffer: 4 * 1024 * 1024 })
+  const run = (requests) => spawnSync(process.execPath, ['lib/codex-mcp.mjs'], { cwd: installed, input: requests.map((x) => JSON.stringify(x)).join('\n') + '\n', encoding: 'utf8', env: { ...process.env, CONVFUSION_CODEX_HOME: join(temp, 'home') }, timeout: 20000, maxBuffer: 4 * 1024 * 1024 })
+  const result = run(requests)
   assert.equal(result.status, 0, result.stderr)
   const responses = new Map(result.stdout.trim().split('\n').map((line) => { const msg = JSON.parse(line); return [msg.id, msg] }))
   assert.equal(responses.size, requests.length)
@@ -33,8 +35,33 @@ try {
   assert.equal(responses.get(7).result.isError, false)
   assert.equal(responses.get(7).result.structuredContent.uiScope, 'global')
   assert.equal(responses.get(7).result.structuredContent.workspaceRoot, null)
+  const globalSession = responses.get(7).result.structuredContent.uiSession
+  const taskSession = responses.get(8).result.structuredContent.uiSession
+  const uiCall = (id, token, endpoint, extra = {}) => ({ jsonrpc: '2.0', id, method: 'tools/call', params: { name: 'research_ui_action', arguments: { ui_session: token, endpoint, ...extra } } })
+  // The initial STDIO process has exited. Its cached tool result must work in
+  // a new process, including a selection that a third process then resumes.
+  const replacement = run([uiCall(1, globalSession, 'codex/select-workspace', { payload: { path: workspace } })])
+  assert.equal(replacement.status, 0, replacement.stderr)
+  const selected = JSON.parse(replacement.stdout.trim()).result
+  assert.equal(selected.isError, false, 'new STDIO process accepts an existing global page')
+  assert.equal(selected.structuredContent.value.workspaceRoot, workspace)
+  const resumed = run([
+    uiCall(1, globalSession, 'codex/bootstrap', { workspace_root: workspace }),
+    uiCall(2, taskSession, 'codex/bootstrap', { workspace_root: workspace }),
+    uiCall(3, taskSession, 'codex/select-workspace', { workspace_root: workspace, payload: { path: temp } }),
+    uiCall(4, globalSession, 'codex/bootstrap', { workspace_root: temp }),
+    uiCall(5, 'invalid', 'codex/bootstrap'),
+  ])
+  assert.equal(resumed.status, 0, resumed.stderr)
+  const continued = new Map(resumed.stdout.trim().split('\n').map((line) => { const msg = JSON.parse(line); return [msg.id, msg.result] }))
+  assert.equal(continued.get(1).structuredContent.value.workspaceRoot, workspace)
+  assert.equal(continued.get(1).structuredContent.value.uiScope, 'global')
+  assert.equal(continued.get(2).structuredContent.value.uiScope, 'workspace')
+  assert.equal(continued.get(3).structuredContent.error.code, 'workspace', 'restarting must preserve task directory restrictions')
+  assert.equal(continued.get(4).structuredContent.error.code, 'workspace')
+  assert.equal(continued.get(5).structuredContent.error.code, 'auth')
   const hook = spawnSync(process.execPath, ['lib/codex-hooks.mjs'], { cwd: installed, input: JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'installed', cwd: workspace }), encoding: 'utf8', env: { ...process.env, CONVFUSION_CODEX_HOME: join(temp, 'home') }, timeout: 20000 })
   assert.equal(hook.status, 0, hook.stderr)
   assert.match(JSON.parse(hook.stdout).hookSpecificOutput.additionalContext, /Standalone install verification/)
-  console.log('Clean package passed: actual STDIO entrypoint, 22 tools, 58 methods/operations, initialization, context and UI resource without node_modules.')
+  console.log('Clean package passed: actual STDIO entrypoint, page sessions across three independent processes, directory isolation, 22 tools, 58 methods/operations, initialization, context and UI resource without node_modules.')
 } finally { rmSync(temp, { recursive: true, force: true }) }

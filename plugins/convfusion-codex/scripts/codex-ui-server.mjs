@@ -1,6 +1,6 @@
 /** Codex adapter for the shared settings/community service. No DSH runtime is started. */
 import { createServer } from 'node:http'
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, resolve, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -41,7 +41,25 @@ export function createCodexUiHost(options = {}) {
   const workIdentity = createFileWorkIdentityStore(() => path('work-identities.json'))
   let server
   let launch
-  const browserSessions = new Map()
+  // Codex may replace its extension-host thread while retaining the app's tool
+  // result. Keep page capabilities in private, shared adapter state rather than
+  // binding their lifetime to one STDIO process. Read on every call so concurrent
+  // hosts also observe directory changes without a second in-memory authority.
+  const sessionPath = (token) => typeof token === 'string' && /^[a-f0-9]{64}$/.test(token)
+    ? path(join('ui-sessions', `${createHash('sha256').update(token).digest('hex')}.json`))
+    : null
+  const readSession = (token) => {
+    const file = sessionPath(token)
+    if (!file) return null
+    try {
+      const state = readJson(file, null)
+      if (state?.version !== 1 || typeof state.selectable !== 'boolean') return null
+      if (state.root !== null && (typeof state.root !== 'string' || !isAbsolute(state.root))) return null
+      if (!state.selectable && state.root === null) return null
+      return { root: state.root, selectable: state.selectable }
+    } catch { return null }
+  }
+  const saveSession = (token, state) => writePrivateJson(sessionPath(token), { version: 1, ...state })
   let origin
   let persistQueue = Promise.resolve()
   const getConfig = () => ({
@@ -123,7 +141,7 @@ export function createCodexUiHost(options = {}) {
   const uiHtml = () => readFileSync(join(pluginRoot, 'lib/codex-ui.html'), 'utf8')
   const sessionInfo = (token, state) => ({ ...bootstrap(state.root), uiScope: state.selectable ? 'global' : 'workspace', uiSession: token })
   const dispatchSession = async (token, root, endpoint, payload) => {
-    const state = browserSessions.get(token)
+    const state = readSession(token)
     if (!state) return failure('auth', '界面连接已失效，请重新打开 ConvFusion')
     if (root !== undefined && root !== state.root) return failure('workspace', 'Workspace is not registered')
     if (endpoint === 'codex/bootstrap') return { ok: true, value: sessionInfo(token, state) }
@@ -132,6 +150,7 @@ export function createCodexUiHost(options = {}) {
       if (!state.selectable) return failure('workspace', '聊天工作台绑定当前任务，请从全局入口切换研究目录')
       try {
         state.root = registerWorkspace(payload?.path, true).path
+        saveSession(token, state)
         return { ok: true, value: sessionInfo(token, state) }
       } catch (error) {
         const message = error.code === 'ENOENT' ? '目录不存在，请检查路径' : error.code === 'EACCES' ? '无法读取该目录，请检查访问权限' : error.message
@@ -158,7 +177,7 @@ export function createCodexUiHost(options = {}) {
         }
         if (req.method !== 'POST' || req.url !== '/rpc') return finish(404, failure('route', 'Not found'))
         const token = (req.headers.authorization ?? '').replace(/^Bearer /, '')
-        const browserState = browserSessions.get(token)
+        const browserState = readSession(token)
         if (!browserState) return finish(403, failure('auth', 'Open this page from the current ConvFusion tool result'))
         try {
           const chunks = []
@@ -180,7 +199,7 @@ export function createCodexUiHost(options = {}) {
     await launch
     const token = randomBytes(32).toString('hex')
     const state = { root: selected, selectable: root === undefined }
-    browserSessions.set(token, state)
+    saveSession(token, state)
     return { ...sessionInfo(token, state), url: `${origin}/#${token}` }
   }
   return {
