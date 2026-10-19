@@ -39,14 +39,14 @@ const scope = {
 }
 
 function Workbench({ initial }: { initial: Session }): JSX.Element {
-  const [current, setCurrent] = React.useState(initial)
+  const current = initial
   const [tab, setTab] = React.useState<'community' | 'progress' | 'methods'>('community')
   const [language, setLanguage] = React.useState<'zh' | 'en'>('zh')
   const [syncDraft, setSyncDraft] = React.useState<string | null>(null)
   const [sending, setSending] = React.useState(false)
   const [sendError, setSendError] = React.useState('')
   React.useEffect(() => {
-    // Supply directory selection as app data for the next turn, without sending a chat message.
+    // Supply the task workspace as app data for the next turn, without sending a chat message.
     void app?.updateModelContext({ structuredContent: { plugin: 'ConvFusion', workspace_root: current.workspaceRoot, scope: current.uiScope } }).catch(() => {})
   }, [current.workspaceRoot, current.uiScope])
   const t: Translate = React.useCallback((key, params) => {
@@ -60,7 +60,6 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
     syncCommand: (zip: string) => `$convfusion-research 同步研究资料 ${JSON.stringify(zip)}`,
     ...(app && current.uiScope === 'workspace' ? { prepareSync: (text: string) => { setSyncDraft(text); setSendError('') } } : {}),
   } : undefined
-  const selectWorkspace = (value: Session) => { session = value; setCurrent(value); setSyncDraft(null) }
   const sendSync = async () => {
     if (!app || !syncDraft?.trim()) return
     setSending(true); setSendError('')
@@ -75,7 +74,6 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
     <header className="header"><img src={logo} alt="" /><div><h1>ConvFusion</h1><small>{current.title} · {current.version}</small></div>
       <select aria-label="Language" value={language} onChange={(e) => setLanguage(e.target.value as 'zh' | 'en')}><option value="zh">简体中文</option><option value="en">English</option></select>
     </header>
-    {current.uiScope === 'global' && <WorkspacePicker current={current} onSelect={selectWorkspace} zh={zh} />}
     <nav aria-label={zh ? '功能' : 'Features'}>
       <button aria-current={tab === 'community' ? 'page' : undefined} onClick={() => setTab('community')}>{zh ? '研究网络' : 'Research network'}</button>
       <button aria-current={tab === 'progress' ? 'page' : undefined} onClick={() => setTab('progress')}>{zh ? '研究进展' : 'Research progress'}</button>
@@ -83,7 +81,7 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
     </nav>
     <main key={current.workspaceRoot ?? 'global'}>
       {tab === 'community' && <CommunityTab send={transport} initial={null} t={t} session={bridge} />}
-      {tab === 'progress' && <><ContinuationSettings zh={zh} />{current.sessionId ? <ResearchProgressPanel sessionId={current.sessionId} t={t} send={transport} /> : <p role="status">{zh ? '选择研究项目目录后查看进展。' : 'Select a research project directory to view progress.'}</p>}</>}
+      {tab === 'progress' && <><ContinuationSettings zh={zh} />{current.sessionId ? <ResearchProgressPanel sessionId={current.sessionId} t={t} send={transport} /> : <p role="status">{zh ? '在项目聊天中 @ 使用 ConvFusion 并打开工作台，即可查看该项目的研究进展。' : 'Use @ to invoke ConvFusion in a project chat and open the workbench to view its research progress.'}</p>}</>}
       {tab === 'methods' && <><MethodsExport zh={zh} enabled={Boolean(current.workspaceRoot)} /><ConvFusionProjectSettings scope={scope} send={transport} t={t} session={bridge} /></>}
     </main>
     {syncDraft !== null && <dialog ref={(node) => { if (node && !node.open) node.showModal() }} onCancel={() => setSyncDraft(null)} aria-label={zh ? '同步请求' : 'Sync request'} className="sync-request">
@@ -134,43 +132,6 @@ function MethodsExport({ zh, enabled }: { zh: boolean; enabled: boolean }): JSX.
     <button disabled={!enabled || busy} onClick={() => { void run(false) }}>{zh ? '导出研究方法' : 'Export methods'}</button>
     <button disabled={!enabled || busy} onClick={() => { void run(true) }}>{zh ? '导出完整正文' : 'Export full text'}</button>
     {message && <p role="status">{message}</p>}
-  </section>
-}
-
-function WorkspacePicker({ current, onSelect, zh }: { current: Session; onSelect: (value: Session) => void; zh: boolean }): JSX.Element {
-  const [items, setItems] = React.useState<Array<{ id: string; title: string; path: string }>>([])
-  const [path, setPath] = React.useState(current.workspaceRoot ?? '')
-  const [error, setError] = React.useState('')
-  const [busy, setBusy] = React.useState(false)
-  React.useEffect(() => {
-    let active = true
-    void transport('codex/workspaces', {}).then((result) => {
-      if (!active) return
-      if (result.ok) setItems(result.value as typeof items)
-      else setError(result.error?.message ?? '无法读取项目目录')
-    }).catch((error) => { if (active) setError(String(error.message)) })
-    return () => { active = false }
-  }, [current.workspaceRoot])
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault(); setBusy(true); setError('')
-    try {
-      const result = await transport('codex/select-workspace', { path: path.trim() })
-      if (!result.ok) throw new Error(result.error?.message ?? '无法打开项目目录')
-      const next = result.value as Session
-      onSelect(next); setPath(next.workspaceRoot ?? '')
-    } catch (error) { setError(error instanceof Error ? error.message : String(error)) }
-    finally { setBusy(false) }
-  }
-  return <section className="workspace-picker" aria-label={zh ? '研究项目目录' : 'Research project directory'}>
-    <label htmlFor="workspace-path">{zh ? '研究项目目录' : 'Research project directory'}</label>
-    <form onSubmit={(event) => { void submit(event) }}>
-      <input id="workspace-path" list="workspace-history" value={path} onChange={(event) => setPath(event.target.value)} placeholder={zh ? '输入项目文件夹的绝对路径' : 'Absolute path to the project folder'} required disabled={busy} spellCheck={false} />
-      <datalist id="workspace-history">{items.map((item) => <option key={item.id} value={item.path}>{item.title}</option>)}</datalist>
-      <button type="submit" disabled={busy || !path.trim()}>{busy ? (zh ? '正在打开…' : 'Opening…') : (zh ? '打开目录' : 'Open directory')}</button>
-    </form>
-    <small>{current.workspaceRoot ?? (zh ? '尚未选择目录；可以先登录账号或查看研究方法。' : 'No directory selected. You can sign in or explore research methods first.')}</small>
-    <p className="workspace-hint">{zh ? '打开目录只读取现有研究，不会新建或初始化研究项目。' : 'Opening a directory reads existing research without creating or initializing a project.'}</p>
-    {error && <p role="alert">{error}</p>}
   </section>
 }
 

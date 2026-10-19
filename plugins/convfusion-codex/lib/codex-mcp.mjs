@@ -16010,8 +16010,8 @@ function createCodexUiHost(options = {}) {
       return { ok: true, value: { configured: Boolean(getConfig().openalexApiKey) } };
     }
     if (endpoint === "codex/continuation") return { ok: true, value: { enabled: getConfig().autoContinue, maxRounds: getConfig().autoContinueMaxRounds } };
-    if (endpoint === "codex/export-methods") return root ? { ok: true, value: exportMethods(root, payload?.full === true) } : failure("workspace", "\u8BF7\u5148\u9009\u62E9\u7814\u7A76\u9879\u76EE\u76EE\u5F55");
-    if (endpoint === "codex/sync" && !root) return failure("workspace", "\u8BF7\u5148\u9009\u62E9\u7814\u7A76\u9879\u76EE\u76EE\u5F55");
+    if (endpoint === "codex/export-methods") return root ? { ok: true, value: exportMethods(root, payload?.full === true) } : failure("workspace", "\u8BF7\u5728\u9879\u76EE\u804A\u5929\u4E2D\u6253\u5F00 ConvFusion \u5DE5\u4F5C\u53F0");
+    if (endpoint === "codex/sync" && !root) return failure("workspace", "\u8BF7\u5728\u9879\u76EE\u804A\u5929\u4E2D\u6253\u5F00 ConvFusion \u5DE5\u4F5C\u53F0");
     if (endpoint === "codex/sync") return { ok: true, value: prepareSync(root, payload?.zip ?? "") };
     const result = await handler(String(endpoint), payload ?? {});
     if (endpoint === "progress/workspace" && root && result.ok && result.value?.research) {
@@ -16036,7 +16036,7 @@ function createCodexUiHost(options = {}) {
     if (endpoint === "codex/bootstrap") return { ok: true, value: sessionInfo(token, state) };
     if (endpoint === "codex/workspaces") return { ok: true, value: workspaceRows() };
     if (endpoint === "codex/select-workspace") {
-      if (!state.selectable) return failure("workspace", "\u804A\u5929\u5DE5\u4F5C\u53F0\u7ED1\u5B9A\u5F53\u524D\u4EFB\u52A1\uFF0C\u8BF7\u4ECE\u5168\u5C40\u5165\u53E3\u5207\u6362\u7814\u7A76\u76EE\u5F55");
+      if (!state.selectable) return failure("workspace", "\u804A\u5929\u5DE5\u4F5C\u53F0\u7ED1\u5B9A\u5F53\u524D\u4EFB\u52A1\uFF0C\u8BF7\u5728\u76EE\u6807\u9879\u76EE\u804A\u5929\u4E2D\u6253\u5F00\u5DE5\u4F5C\u53F0");
       try {
         state.root = registerWorkspace(payload?.path, true).path;
         saveSession(token, state);
@@ -27475,7 +27475,7 @@ async function handleRequest(message) {
         protocolVersion: params.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false }, resources: {} },
         serverInfo: SERVER_INFO,
-        instructions: "ConvFusion stores research data under the current task workspace. Research tools require workspace_root: pass the absolute Codex task cwd, never this plugin installation directory. research_ui also accepts {} for sidebar/panel launch; select the research directory in the UI. research_ui_action is restricted to the UI session."
+        instructions: "ConvFusion stores research data under the current task workspace. Research tools require workspace_root: pass the absolute Codex task cwd, never this plugin installation directory. research_ui also accepts {} for global sidebar/panel access to accounts, research network and methods. For project progress, open research_ui from the project chat with its workspace_root. research_ui_action is restricted to the UI session."
       }
     };
   }

@@ -335,7 +335,7 @@ export async function handleRequest(message) {
         capabilities: { tools: { listChanged: false }, resources: {} },
         serverInfo: SERVER_INFO,
         instructions:
-          'ConvFusion stores research data under the current task workspace. Research tools require workspace_root: pass the absolute Codex task cwd, never this plugin installation directory. research_ui also accepts {} for sidebar/panel launch; select the research directory in the UI. research_ui_action is restricted to the UI session.',
+          'ConvFusion stores research data under the current task workspace. Research tools require workspace_root: pass the absolute Codex task cwd, never this plugin installation directory. research_ui also accepts {} for global sidebar/panel access to accounts, research network and methods. For project progress, open research_ui from the project chat with its workspace_root. research_ui_action is restricted to the UI session.',
       },
     }
   }

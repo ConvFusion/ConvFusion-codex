@@ -120,8 +120,8 @@ export function createCodexUiHost(options = {}) {
       return { ok: true, value: { configured: Boolean(getConfig().openalexApiKey) } }
     }
     if (endpoint === 'codex/continuation') return { ok: true, value: { enabled: getConfig().autoContinue, maxRounds: getConfig().autoContinueMaxRounds } }
-    if (endpoint === 'codex/export-methods') return root ? { ok: true, value: exportMethods(root, payload?.full === true) } : failure('workspace', '请先选择研究项目目录')
-    if (endpoint === 'codex/sync' && !root) return failure('workspace', '请先选择研究项目目录')
+    if (endpoint === 'codex/export-methods') return root ? { ok: true, value: exportMethods(root, payload?.full === true) } : failure('workspace', '请在项目聊天中打开 ConvFusion 工作台')
+    if (endpoint === 'codex/sync' && !root) return failure('workspace', '请在项目聊天中打开 ConvFusion 工作台')
     if (endpoint === 'codex/sync') return { ok: true, value: prepareSync(root, payload?.zip ?? '') }
     // Never accept host transport/directory callbacks from UI input: only the shared RPC dispatcher.
     const result = await handler(String(endpoint), payload ?? {})
@@ -147,7 +147,7 @@ export function createCodexUiHost(options = {}) {
     if (endpoint === 'codex/bootstrap') return { ok: true, value: sessionInfo(token, state) }
     if (endpoint === 'codex/workspaces') return { ok: true, value: workspaceRows() }
     if (endpoint === 'codex/select-workspace') {
-      if (!state.selectable) return failure('workspace', '聊天工作台绑定当前任务，请从全局入口切换研究目录')
+      if (!state.selectable) return failure('workspace', '聊天工作台绑定当前任务，请在目标项目聊天中打开工作台')
       try {
         state.root = registerWorkspace(payload?.path, true).path
         saveSession(token, state)
