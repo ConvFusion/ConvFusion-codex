@@ -34,6 +34,32 @@ try {
   assert.equal(global.sessionId, null)
   const globalCall = (endpoint, payload = {}, root) => host.dispatchSession(global.uiSession, root, endpoint, payload)
   assert.equal((await globalCall('state')).ok, true, 'settings are usable before choosing a directory')
+  // Reset scopes must survive the Codex transport and persistence boundary.
+  const custom = async (endpoint, payload) => {
+    const result = await globalCall(`customization/${endpoint}`, payload)
+    assert.equal(result.ok, true)
+    return result.value
+  }
+  const literature = 'literature-search'
+  const experiment = 'experiment-design'
+  await custom('save', { skillId: literature, section: 'Purpose', text: 'fixture-purpose' })
+  await custom('save', { skillId: literature, section: 'Research Method', text: 'fixture-method' })
+  await custom('save', { skillId: experiment, section: 'Purpose', text: 'fixture-other-skill' })
+  const skillOf = (state, id) => state.categories.flatMap((c) => c.skills).find((s) => s.skillId === id)
+  const sectionReset = await custom('reset', { skillId: literature, section: 'Purpose' })
+  assert.equal(skillOf(sectionReset, literature).sections.find((s) => s.section === 'Purpose').overridden, false)
+  assert.equal(skillOf(sectionReset, literature).overriddenCount, 1, 'reset section keeps other sections')
+  assert.equal(skillOf(sectionReset, experiment).overriddenCount, 1, 'reset section keeps other skills')
+  const skillReset = await custom('resetSkill', { skillId: literature })
+  assert.equal(skillOf(skillReset, literature).overriddenCount, 0)
+  assert.equal(skillOf(skillReset, experiment).overriddenCount, 1, 'reset skill keeps unrelated skills')
+  const persisted = JSON.parse(await readFile(join(home, 'skill-customizations.json'), 'utf8'))
+  assert.deepEqual(persisted, { [experiment]: { Purpose: 'fixture-other-skill' } })
+  const resetHost = createCodexUiHost({ home })
+  assert.equal(skillOf((await resetHost.dispatch(undefined, 'state')).value, experiment).overriddenCount, 1, 'reset scope survives restart')
+  await resetHost.close()
+  await custom('resetSkill', { skillId: experiment })
+  await assert.rejects(() => stat(join(home, 'skill-customizations.json')), { code: 'ENOENT' })
   assert.equal((await globalCall('progress/workspace', { sessionId: bootstrap.sessionId })).value.workspace, null, 'unselected global page must not borrow another page workspace')
   for (const root of ['relative/path', join(temp, 'does-not-exist')]) await assert.rejects(() => host.open(root))
   await writeFile(join(temp, 'a-file'), '')

@@ -1597,21 +1597,6 @@ window.__ModuleLoader__.load({
 		// src/client/settings.tsx
 		var import_react = __toESM(require("react"), 1);
 
-		// src/client/icon.tsx
-		var import_jsx_runtime = require("react/jsx-runtime");
-		function ConvFusionMark({ size = 38 }) {
-		  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-		    "img",
-		    {
-		      src: favicon_default,
-		      width: size,
-		      height: size,
-		      alt: "ConvFusion",
-		      style: { display: "block", width: size, height: size }
-		    }
-		  );
-		}
-
 		// src/client/markdown-view.tsx
 		var React = __toESM(require("react"), 1);
 
@@ -1735,18 +1720,18 @@ window.__ModuleLoader__.load({
 		}
 
 		// src/client/markdown-view.tsx
-		var import_jsx_runtime2 = require("react/jsx-runtime");
+		var import_jsx_runtime = require("react/jsx-runtime");
 		function inline(tokens) {
 		  return tokens.map((tk, i) => {
 		    switch (tk.kind) {
 		      case "bold":
-		        return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("strong", { style: { fontWeight: 650 }, children: tk.text }, i);
+		        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { style: { fontWeight: 650 }, children: tk.text }, i);
 		      case "italic":
-		        return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("em", { style: { fontStyle: "italic" }, children: tk.text }, i);
+		        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("em", { style: { fontStyle: "italic" }, children: tk.text }, i);
 		      case "strike":
-		        return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { textDecoration: "line-through", opacity: 0.75 }, children: tk.text }, i);
+		        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { textDecoration: "line-through", opacity: 0.75 }, children: tk.text }, i);
 		      case "code":
-		        return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
 		          "code",
 		          {
 		            style: {
@@ -1761,7 +1746,7 @@ window.__ModuleLoader__.load({
 		          i
 		        );
 		      case "link":
-		        return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
 		          "a",
 		          {
 		            href: tk.href,
@@ -1773,17 +1758,17 @@ window.__ModuleLoader__.load({
 		          i
 		        );
 		      default:
-		        return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(React.Fragment, { children: tk.text }, i);
+		        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(React.Fragment, { children: tk.text }, i);
 		    }
 		  });
 		}
 		function Inline({ text }) {
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_jsx_runtime2.Fragment, { children: inline(parseInline(text)) });
+		  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: inline(parseInline(text)) });
 		}
 		function Block({ block }) {
 		  switch (block.kind) {
 		    case "heading":
-		      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
 		        "div",
 		        {
 		          style: {
@@ -1791,11 +1776,11 @@ window.__ModuleLoader__.load({
 		            fontSize: block.level <= 2 ? 13 : 12.5,
 		            margin: "4px 0 2px"
 		          },
-		          children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Inline, { text: block.text })
+		          children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Inline, { text: block.text })
 		        }
 		      );
 		    case "code":
-		      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
 		        "pre",
 		        {
 		          style: {
@@ -1812,7 +1797,7 @@ window.__ModuleLoader__.load({
 		        }
 		      );
 		    case "quote":
-		      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
 		        "div",
 		        {
 		          style: {
@@ -1821,16 +1806,16 @@ window.__ModuleLoader__.load({
 		            borderLeft: "2px solid var(--dsw-alias-border-l2)",
 		            color: "var(--dsw-alias-label-secondary)"
 		          },
-		          children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Inline, { text: block.text })
+		          children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Inline, { text: block.text })
 		        }
 		      );
 		    case "list": {
-		      const items = block.items.map((it, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("li", { style: { margin: "1px 0" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Inline, { text: it }) }, i));
-		      return block.ordered ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("ol", { style: { margin: "3px 0", paddingLeft: 20 }, children: items }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("ul", { style: { margin: "3px 0", paddingLeft: 18 }, children: items });
+		      const items = block.items.map((it, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { style: { margin: "1px 0" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Inline, { text: it }) }, i));
+		      return block.ordered ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ol", { style: { margin: "3px 0", paddingLeft: 20 }, children: items }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", { style: { margin: "3px 0", paddingLeft: 18 }, children: items });
 		    }
 		    case "table":
-		      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { margin: "4px 0", overflowX: "auto" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("table", { style: { borderCollapse: "collapse", fontSize: 11.5 }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("tr", { children: block.head.map((cell, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { margin: "4px 0", overflowX: "auto" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("table", { style: { borderCollapse: "collapse", fontSize: 11.5 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tr", { children: block.head.map((cell, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
 		          "th",
 		          {
 		            style: {
@@ -1840,11 +1825,11 @@ window.__ModuleLoader__.load({
 		              border: "1px solid var(--dsw-alias-border-l1)",
 		              whiteSpace: "nowrap"
 		            },
-		            children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Inline, { text: cell })
+		            children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Inline, { text: cell })
 		          },
 		          i
 		        )) }) }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("tbody", { children: block.rows.map((row, r) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("tr", { children: row.map((cell, c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tbody", { children: block.rows.map((row, r) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tr", { children: row.map((cell, c) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
 		          "td",
 		          {
 		            style: {
@@ -1852,13 +1837,13 @@ window.__ModuleLoader__.load({
 		              border: "1px solid var(--dsw-alias-border-l1)",
 		              verticalAlign: "top"
 		            },
-		            children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Inline, { text: cell })
+		            children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Inline, { text: cell })
 		          },
 		          c
 		        )) }, r)) })
 		      ] }) });
 		    case "hr":
-		      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
 		        "hr",
 		        {
 		          style: {
@@ -1869,12 +1854,12 @@ window.__ModuleLoader__.load({
 		        }
 		      );
 		    default:
-		      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { margin: "2px 0", whiteSpace: "pre-wrap" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Inline, { text: block.text }) });
+		      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { margin: "2px 0", whiteSpace: "pre-wrap" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Inline, { text: block.text }) });
 		  }
 		}
 		function Markdown({ text }) {
 		  if (!text || text.trim() === "") return null;
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }, children: parseMarkdownBlocks(text).map((b, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Block, { block: b }, i)) });
+		  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }, children: parseMarkdownBlocks(text).map((b, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Block, { block: b }, i)) });
 		}
 
 		// src/client/sync-command.ts
@@ -2012,7 +1997,7 @@ window.__ModuleLoader__.load({
 		}
 
 		// src/client/settings.tsx
-		var import_jsx_runtime3 = require("react/jsx-runtime");
+		var import_jsx_runtime2 = require("react/jsx-runtime");
 		function rpcErrorDetail(t, error) {
 		  if (!error) return t("settings.error.unknown");
 		  if (error.code) {
@@ -2106,23 +2091,6 @@ window.__ModuleLoader__.load({
 		    borderRadius: 14,
 		    border: "1px solid var(--dsw-alias-border-l1)",
 		    background: "linear-gradient(120deg, var(--dsw-alias-state-business-tertiary), var(--dsw-alias-bg-layer-1))"
-		  },
-		  heroIcon: {
-		    width: 38,
-		    height: 38,
-		    borderRadius: 11,
-		    display: "grid",
-		    placeItems: "center",
-		    color: "var(--dsw-alias-state-business-primary)",
-		    background: "var(--dsw-alias-bg-layer-1)",
-		    border: "1px solid var(--dsw-alias-border-l1)",
-		    flex: "0 0 auto"
-		  },
-		  heroTitle: {
-		    fontSize: 15,
-		    fontWeight: 700,
-		    color: "var(--dsw-alias-label-primary)",
-		    lineHeight: 1.3
 		  },
 		  heroSub: {
 		    fontSize: 12,
@@ -2509,7 +2477,7 @@ window.__ModuleLoader__.load({
 		    error: { fg: "var(--dsw-alias-state-error-primary)", bg: "var(--dsw-alias-bg-layer-3)" }
 		  };
 		  const c = tones[tone] ?? tones.neutral;
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "span",
 		    {
 		      style: {
@@ -2534,7 +2502,7 @@ window.__ModuleLoader__.load({
 		  onClick,
 		  children
 		}) {
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "button",
 		    {
 		      type: "button",
@@ -2561,7 +2529,7 @@ window.__ModuleLoader__.load({
 		  count,
 		  children
 		}) {
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		    "button",
 		    {
 		      type: "button",
@@ -2772,76 +2740,71 @@ window.__ModuleLoader__.load({
 		    setSaving(true);
 		    const next = await call("customization/resetSkill", { skillId: skill.skillId });
 		    setSaving(false);
-		    if (next) setNotice({ tone: "success", text: t("settings.editor.restoredSkill", { skill: displaySkill }) });
+		    if (next) {
+		      setDraft("");
+		      setNotice({ tone: "success", text: t("settings.editor.restoredSkill", { skill: displaySkill }) });
+		    }
 		  };
 		  const totalOverridden = state ? state.categories.reduce((n, c) => n + c.overriddenCount, 0) : 0;
 		  const totalPoints = state ? state.categories.reduce((n, c) => n + c.pointCount, 0) : 0;
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.page, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hero, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.heroIcon, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ConvFusionMark, { size: 24 }) }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { flex: "1 1 auto", minWidth: 0 }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.heroTitle, children: "ConvFusion" }),
-		          state?.version ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--dsw-alias-label-tertiary)" }, children: [
-		            "v",
-		            state.version
-		          ] }) : null,
-		          update ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-		            "a",
-		            {
-		              href: update.url || void 0,
-		              target: "_blank",
-		              rel: "noreferrer",
-		              title: t("settings.version.updateHint"),
-		              style: {
-		                fontSize: 11,
-		                fontWeight: 600,
-		                color: "var(--dsw-alias-state-business-primary)",
-		                textDecoration: "none"
-		              },
-		              children: t("settings.version.updateAvailable", { version: update.latest })
-		            }
-		          ) : null
-		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.heroSub, children: t("settings.hero.subtitle") })
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.page, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hero, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { flex: "1 1 auto", minWidth: 0 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.heroSub, children: t("settings.hero.subtitle") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: update ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          "a",
+		          {
+		            href: update.url || void 0,
+		            target: "_blank",
+		            rel: "noreferrer",
+		            title: t("settings.version.updateHint"),
+		            style: {
+		              fontSize: 11,
+		              fontWeight: 600,
+		              color: "var(--dsw-alias-state-business-primary)",
+		              textDecoration: "none"
+		            },
+		            children: t("settings.version.updateAvailable", { version: update.latest })
+		          }
+		        ) : null })
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }, children: totalOverridden > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "brand", children: t("settings.badge.customized", { count: totalOverridden }) }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("settings.badge.systemDefaults") }) })
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }, children: totalOverridden > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "brand", children: t("settings.badge.customized", { count: totalOverridden }) }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("settings.badge.systemDefaults") }) })
 		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.tabs, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(TabButton, { active: tab === "local", onClick: () => setTab("local"), children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.tabs, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(TabButton, { active: tab === "local", onClick: () => setTab("local"), children: [
 		        "⚙ ",
 		        t("settings.tab.local")
 		      ] }),
-		      showCommunityTab && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(TabButton, { active: tab === "community", onClick: () => setTab("community"), children: [
+		      showCommunityTab && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(TabButton, { active: tab === "community", onClick: () => setTab("community"), children: [
 		        "◈ ",
 		        t("settings.tab.community")
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(TabButton, { active: tab === "retrieval", onClick: () => setTab("retrieval"), children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(TabButton, { active: tab === "retrieval", onClick: () => setTab("retrieval"), children: [
 		        "⚙ ",
 		        t("settings.tab.system"),
-		        state && (!state.retrieval.configured || state.dependencies?.tectonic.available === false) ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, marginLeft: 6 }, children: t("settings.status.needsConfiguration") }) : null
+		        state && (!state.retrieval.configured || state.dependencies?.tectonic.available === false) ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, marginLeft: 6 }, children: t("settings.status.needsConfiguration") }) : null
 		      ] })
 		    ] }),
-		    staleHost ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		    staleHost ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		        t("settings.stale.title"),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("settings.stale.badge") })
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("settings.stale.badge") })
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.hint, lineHeight: 1.7 }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.hint, lineHeight: 1.7 }, children: [
 		        t("settings.stale.body"),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("br", {}),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("br", {}),
 		        t("settings.stale.action")
 		      ] }) })
 		    ] }) : null,
-		    error ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		    error ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		        t("settings.error.title"),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "error", children: t("settings.error.badge") })
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: t("settings.error.badge") })
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardBody, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		          "div",
 		          {
 		            style: {
@@ -2853,12 +2816,12 @@ window.__ModuleLoader__.load({
 		            children: error
 		          }
 		        ),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.footer, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => void reload(), children: t("settings.action.retry") }) })
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.footer, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => void reload(), children: t("settings.action.retry") }) })
 		      ] })
 		    ] }) : null,
-		    loading && !state ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("settings.status.loading") }) }) }) : null,
-		    showCommunityTab && tab === "community" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(CommunityTab, { session, send, initial: state?.account ?? null, t }) : null,
-		    tab === "retrieval" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    loading && !state ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("settings.status.loading") }) }) }) : null,
+		    showCommunityTab && tab === "community" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(CommunityTab, { session, send, initial: state?.account ?? null, t }) : null,
+		    tab === "retrieval" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      SystemTab,
 		      {
 		        retrieval: state?.retrieval ?? { configured: false, source: "none", envVar: "OPENALEX_API_KEY" },
@@ -2869,18 +2832,18 @@ window.__ModuleLoader__.load({
 		        t
 		      }
 		    ) : null,
-		    state && tab === "local" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		    state && tab === "local" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		          t("settings.library.title"),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("settings.library.localOnly") }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, fontWeight: 400 }, children: t("settings.library.summary", { total: totalPoints, customized: totalOverridden }) })
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("settings.library.localOnly") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, fontWeight: 400 }, children: t("settings.library.summary", { total: totalPoints, customized: totalOverridden }) })
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.row, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.field, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.label, children: t("settings.library.category") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("select", { style: S.select, value: categoryId, onChange: (e) => onCategory(e.target.value), children: state.categories.map((c) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("option", { value: c.categoryId, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.row, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.field, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: t("settings.library.category") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("select", { style: S.select, value: categoryId, onChange: (e) => onCategory(e.target.value), children: state.categories.map((c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("option", { value: c.categoryId, children: [
 		              c.code ? `${c.code} ` : "",
 		              categoryText(t, c.categoryId, c.categoryName),
 		              " (",
@@ -2888,40 +2851,40 @@ window.__ModuleLoader__.load({
 		              ")",
 		              c.overriddenCount > 0 ? t("settings.library.customizedSuffix", { count: c.overriddenCount }) : ""
 		            ] }, c.categoryId)) }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: category ? t("settings.library.categoryHint", { count: category.skills.length }) : t("settings.library.emptyCategory") })
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: category ? t("settings.library.categoryHint", { count: category.skills.length }) : t("settings.library.emptyCategory") })
 		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.field, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.label, children: t("settings.library.skill") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("select", { style: S.select, value: skillId, onChange: (e) => onSkill(e.target.value), children: category?.skills.map((s) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("option", { value: s.skillId, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.field, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: t("settings.library.skill") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("select", { style: S.select, value: skillId, onChange: (e) => onSkill(e.target.value), children: category?.skills.map((s) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("option", { value: s.skillId, children: [
 		              s.code ? `${s.code} · ` : "",
 		              skillText(t, s.skillId, s.skillName),
 		              s.overriddenCount > 0 ? t("settings.library.customizedSuffix", { count: s.overriddenCount }) : ""
 		            ] }, s.skillId)) }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: skill ? t("settings.library.sectionCount", { count: skill.sections.length }) : "" })
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: skill ? t("settings.library.sectionCount", { count: skill.sections.length }) : "" })
 		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.field, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.label, children: t("settings.library.section") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("select", { style: S.select, value: section, onChange: (e) => onSection(e.target.value), children: skill?.sections.map((s) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("option", { value: s.section, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.field, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: t("settings.library.section") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("select", { style: S.select, value: section, onChange: (e) => onSection(e.target.value), children: skill?.sections.map((s) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("option", { value: s.section, children: [
 		              sectionText(t, s.section),
 		              s.overridden ? t("settings.library.sectionCustomizedSuffix") : ""
 		            ] }, s.section)) }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: skill ? `${t("settings.library.sectionHint", { count: skill.sections.length })} · ${t("settings.library.emptyUsesDefault")}` : t("settings.library.emptyUsesDefault") })
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: skill ? `${t("settings.library.sectionHint", { count: skill.sections.length })} · ${t("settings.library.emptyUsesDefault")}` : t("settings.library.emptyUsesDefault") })
 		          ] })
 		        ] }) })
 		      ] }),
-		      skill && point ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }, children: [
+		      skill && point ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }, children: [
 		            skill.code ? `${skill.code} · ` : "",
 		            skillText(t, skill.skillId, skill.skillName),
 		            " · ",
 		            sectionText(t, point.section)
 		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		          point.overridden ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "brand", children: t("settings.editor.customized") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("settings.editor.systemDefault") })
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		          point.overridden ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "brand", children: t("settings.editor.customized") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("settings.editor.systemDefault") })
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardBody, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hint, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hint, children: [
 		            category?.code ? `${category.code} ` : "",
 		            category ? categoryText(t, category.categoryId, category.categoryName) : "",
 		            " ·",
@@ -2930,8 +2893,8 @@ window.__ModuleLoader__.load({
 		            " · ",
 		            sectionText(t, point.section)
 		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.label, children: t("settings.editor.requirements") }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: t("settings.editor.requirements") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "textarea",
 		            {
 		              style: S.textarea,
@@ -2941,12 +2904,12 @@ window.__ModuleLoader__.load({
 		              onChange: (e) => setDraft(e.target.value)
 		            }
 		          ),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("details", { children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("summary", { style: { ...S.label, cursor: "pointer" }, children: t("settings.editor.base", { count: point.base.length }) }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.base, marginTop: 8 }, children: point.base })
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("details", { children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("summary", { style: { ...S.label, cursor: "pointer" }, children: t("settings.editor.base", { count: point.base.length }) }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.base, marginTop: 8 }, children: point.base })
 		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
-		            notice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		            notice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "span",
 		              {
 		                style: {
@@ -2956,8 +2919,8 @@ window.__ModuleLoader__.load({
 		                },
 		                children: notice.text
 		              }
-		            ) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, marginRight: "auto" }, children: t("settings.editor.characterCount", { count: draft.length }) }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, marginRight: "auto" }, children: t("settings.editor.characterCount", { count: draft.length }) }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "button",
 		              {
 		                type: "button",
@@ -2967,7 +2930,7 @@ window.__ModuleLoader__.load({
 		                children: t("settings.editor.resetSection")
 		              }
 		            ),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "button",
 		              {
 		                type: "button",
@@ -2977,7 +2940,7 @@ window.__ModuleLoader__.load({
 		                children: t("settings.editor.resetSkill")
 		              }
 		            ),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "button",
 		              {
 		                type: "button",
@@ -3114,7 +3077,7 @@ window.__ModuleLoader__.load({
 		    document.addEventListener("pointerdown", close);
 		    return () => document.removeEventListener("pointerdown", close);
 		  }, [open]);
-		  const main = (withCaret) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		  const main = (withCaret) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "button",
 		    {
 		      type: "button",
@@ -3129,7 +3092,7 @@ window.__ModuleLoader__.load({
 		    }
 		  );
 		  if (more.length === 0) return main(false);
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		    "div",
 		    {
 		      style: {
@@ -3140,7 +3103,7 @@ window.__ModuleLoader__.load({
 		      },
 		      children: [
 		        main(true),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		          "button",
 		          {
 		            type: "button",
@@ -3162,7 +3125,7 @@ window.__ModuleLoader__.load({
 		            children: "▾"
 		          }
 		        ),
-		        open ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        open ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		          "div",
 		          {
 		            style: {
@@ -3180,7 +3143,7 @@ window.__ModuleLoader__.load({
 		              background: "var(--dsw-alias-bg-layer-1)",
 		              boxShadow: "0 6px 20px rgba(0,0,0,.16)"
 		            },
-		            children: more.map((it) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            children: more.map((it) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "button",
 		              {
 		                type: "button",
@@ -3208,14 +3171,14 @@ window.__ModuleLoader__.load({
 		}) {
 		  if (!busy) return null;
 		  const pct2 = progress && progress.totalBytes > 0 ? Math.min(100, Math.round(progress.sentBytes / progress.totalBytes * 100)) : null;
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: progress && progress.totalFiles > 0 ? t("community.exchange.uploading", {
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: progress && progress.totalFiles > 0 ? t("community.exchange.uploading", {
 		      done: progress.doneFiles,
 		      files: progress.totalFiles,
 		      sent: formatBytes(progress.sentBytes),
 		      total: formatBytes(progress.totalBytes)
 		    }) : t("community.action.loading") }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { height: 4, borderRadius: 2, background: "var(--dsw-alias-border-l1)", overflow: "hidden" }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { height: 4, borderRadius: 2, background: "var(--dsw-alias-border-l1)", overflow: "hidden" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      "div",
 		      {
 		        style: {
@@ -3250,8 +3213,8 @@ window.__ModuleLoader__.load({
 		];
 		function ProgressBar({ value }) {
 		  const pct2 = Math.round(Math.min(Math.max(value, 0), 1) * 100);
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { display: "inline-flex", alignItems: "center", gap: 6 }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { display: "inline-flex", alignItems: "center", gap: 6 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      "span",
 		      {
 		        style: {
@@ -3262,7 +3225,7 @@ window.__ModuleLoader__.load({
 		          background: "var(--dsw-alias-bg-layer-3)",
 		          overflow: "hidden"
 		        },
-		        children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		          "span",
 		          {
 		            style: {
@@ -3275,7 +3238,7 @@ window.__ModuleLoader__.load({
 		        )
 		      }
 		    ),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: S.mono, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: S.mono, children: [
 		      pct2,
 		      "%"
 		    ] })
@@ -3303,20 +3266,20 @@ window.__ModuleLoader__.load({
 		  onBrief,
 		  below
 		}) {
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.listRow, alignItems: "flex-start" }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 4 }, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: title }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.hint, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }, children: [
-		        author ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: t("community.work.byAuthor", { name: author }) }) : null,
-		        fields.length ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: fields.join(" · ") }) : null,
-		        stage ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: enumText(t, STAGE_LABEL_KEYS, stage) }) : null,
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ProgressBar, { value: progress }),
-		        updatedAt ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: updatedAt.slice(0, 10) }) : null
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.listRow, alignItems: "flex-start" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 4 }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: title }),
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.hint, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }, children: [
+		        author ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: t("community.work.byAuthor", { name: author }) }) : null,
+		        fields.length ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: fields.join(" · ") }) : null,
+		        stage ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: enumText(t, STAGE_LABEL_KEYS, stage) }) : null,
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(ProgressBar, { value: progress }),
+		        updatedAt ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: updatedAt.slice(0, 10) }) : null
 		      ] })
 		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 6, flex: "0 0 auto", alignItems: "flex-end" }, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 6 }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 6, flex: "0 0 auto", alignItems: "flex-end" }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", gap: 6 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		          "button",
 		          {
 		            type: "button",
@@ -3327,7 +3290,7 @@ window.__ModuleLoader__.load({
 		            children: busy === "summary" ? t("community.action.loading") : expanded ? t("community.action.collapse") : t("community.action.summary")
 		          }
 		        ),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		          "button",
 		          {
 		            type: "button",
@@ -3341,13 +3304,13 @@ window.__ModuleLoader__.load({
 		            disabled: disabled || busy !== null,
 		            title: disabled ? t("community.tip.briefDisabled") : briefFree2 ? t("community.tip.briefUnlocked") : t("community.tip.briefCost"),
 		            onClick: onBrief,
-		            children: busy === "brief" ? t("community.action.loading") : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		            children: busy === "brief" ? t("community.action.loading") : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
 		              t("community.action.brief"),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                "span",
 		                {
 		                  style: { display: "inline-flex", minWidth: BRIEF_BADGE_MIN_WIDTH, justifyContent: "center" },
-		                  children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: briefFree2 ? "success" : "brand", children: briefFree2 ? t("community.briefState.paid") : t("community.briefState.cost") })
+		                  children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: briefFree2 ? "success" : "brand", children: briefFree2 ? t("community.briefState.paid") : t("community.briefState.cost") })
 		                }
 		              )
 		            ] })
@@ -3363,15 +3326,15 @@ window.__ModuleLoader__.load({
 		  work,
 		  brief
 		}) {
-		  const line = (label, value) => value ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.label, flex: "0 0 56px" }, children: label }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, color: "var(--dsw-alias-label-secondary)", whiteSpace: "pre-wrap" }, children: value })
+		  const line = (label, value) => value ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.label, flex: "0 0 56px" }, children: label }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, color: "var(--dsw-alias-label-secondary)", whiteSpace: "pre-wrap" }, children: value })
 		  ] }) : null;
-		  const block = (label, value) => value && value.trim() !== "" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.label, flex: "0 0 56px" }, children: label }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, minWidth: 0, flex: "1 1 auto", color: "var(--dsw-alias-label-secondary)" }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Markdown, { text: value }) })
+		  const block = (label, value) => value && value.trim() !== "" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.label, flex: "0 0 56px" }, children: label }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, minWidth: 0, flex: "1 1 auto", color: "var(--dsw-alias-label-secondary)" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Markdown, { text: value }) })
 		  ] }) : null;
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		    "div",
 		    {
 		      style: {
@@ -3387,7 +3350,7 @@ window.__ModuleLoader__.load({
 		      children: [
 		        block(t("community.detail.researchQuestion"), brief ? brief.researchQuestion : work.researchQuestion),
 		        block(t("community.detail.summary"), work.summary),
-		        brief ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		        brief ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
 		          block(t("community.detail.motivation"), brief.motivation),
 		          block(t("community.detail.coreIdea"), brief.coreIdea),
 		          block(t("community.detail.hypothesis"), brief.hypothesis),
@@ -3442,18 +3405,18 @@ window.__ModuleLoader__.load({
 		  onToggleExpand
 		}) {
 		  const visible = categories.filter((c) => c.decision !== "excluded" && c.files.length > 0);
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.list, children: visible.map((cat, i) => {
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: visible.map((cat, i) => {
 		    const files = cat.files;
 		    const all = files.every((f) => selection.has(f.relPath));
 		    const some = !all && files.some((f) => selection.has(f.relPath));
 		    const isOpen = expanded.has(cat.id);
-		    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		    return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		      "div",
 		      {
 		        style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
 		        children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.listRow, alignItems: "flex-start" }, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.listRow, alignItems: "flex-start" }, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "input",
 		              {
 		                type: "checkbox",
@@ -3465,25 +3428,25 @@ window.__ModuleLoader__.load({
 		                style: { marginTop: 3 }
 		              }
 		            ),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 3 }, children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.listTitle, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 3 }, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.listTitle, children: [
 		                t(`upload.category.${cat.id}`),
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { ...S.hint, marginLeft: 8 }, children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { ...S.hint, marginLeft: 8 }, children: [
 		                  formatBytes(cat.bytes),
 		                  " · ",
 		                  files.length
 		                ] })
 		              ] }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t(`upload.reason.${cat.id}`) })
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t(`upload.reason.${cat.id}`) })
 		            ] }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.linkBtn, onClick: () => onToggleExpand(cat.id), children: isOpen ? t("community.publish.collapse") : t("community.publish.expand") })
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.linkBtn, onClick: () => onToggleExpand(cat.id), children: isOpen ? t("community.publish.collapse") : t("community.publish.expand") })
 		          ] }),
-		          isOpen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { maxHeight: 200, overflow: "auto", padding: "4px 12px 10px 34px" }, children: files.map((f) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		          isOpen ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { maxHeight: 200, overflow: "auto", padding: "4px 12px 10px 34px" }, children: files.map((f) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		            "label",
 		            {
 		              style: { display: "flex", alignItems: "center", gap: 8, padding: "2px 0" },
 		              children: [
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  "input",
 		                  {
 		                    type: "checkbox",
@@ -3491,8 +3454,8 @@ window.__ModuleLoader__.load({
 		                    onChange: (e) => onToggleFile(f.relPath, e.target.checked)
 		                  }
 		                ),
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.mono, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }, children: f.relPath }),
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { ...S.hint, marginLeft: "auto", whiteSpace: "nowrap" }, children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.mono, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }, children: f.relPath }),
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { ...S.hint, marginLeft: "auto", whiteSpace: "nowrap" }, children: [
 		                  formatBytes(f.size),
 		                  f.size > maxFileBytes ? ` ⚠ ${t("community.publish.tooLarge")}` : ""
 		                ] })
@@ -3529,13 +3492,13 @@ window.__ModuleLoader__.load({
 		  const oversizeSelected = selectable.filter(
 		    (f) => selection.has(f.relPath) && f.size > data.plan.limits.maxFileBytes
 		  );
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "div",
 		    {
 		      style: S.overlay,
 		      role: "dialog",
 		      "aria-modal": "true",
-		      children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		        "div",
 		        {
 		          style: {
@@ -3546,22 +3509,22 @@ window.__ModuleLoader__.load({
 		            background: "var(--dsw-alias-bg-layer-1)"
 		          },
 		          children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		              t("community.publish.title", { title: data.title }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t(data.direction === "SEEK_STUDENT" ? "community.action.seekStudent" : "community.action.seekMentor") }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		              data.usage ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: data.usage.nextPublishCost > 0 ? "brand" : "neutral", children: t("community.publish.cost", { tokens: data.usage.nextPublishCost }) }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.publish.costUnknown") })
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t(data.direction === "SEEK_STUDENT" ? "community.action.seekStudent" : "community.action.seekMentor") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		              data.usage ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: data.usage.nextPublishCost > 0 ? "brand" : "neutral", children: t("community.publish.cost", { tokens: data.usage.nextPublishCost }) }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("community.publish.costUnknown") })
 		            ] }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 12 }, children: [
-		              data.workspaceTitle && data.workspaceTitle !== data.title ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.publish.workspaceHint", { workspace: data.workspaceTitle }) }) : null,
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hint, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 12 }, children: [
+		              data.workspaceTitle && data.workspaceTitle !== data.title ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.publish.workspaceHint", { workspace: data.workspaceTitle }) }) : null,
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hint, children: [
 		                t("community.publish.storage", {
 		                  selected: formatBytes(selectedBytes),
 		                  available: storage ? formatBytes(storage.availableBytes) : t("community.publish.unknown")
 		                }),
 		                data.changed.length > 0 ? ` · ${t("community.publish.changed", { count: data.changed.length })}` : data.remembered ? ` · ${t("community.publish.unchanged")}` : ""
 		              ] }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                UploadCategoryList,
 		                {
 		                  t,
@@ -3574,19 +3537,19 @@ window.__ModuleLoader__.load({
 		                  onToggleExpand
 		                }
 		              ),
-		              oversizeSelected.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: 11.5, color: "var(--dsw-alias-state-warn-primary)", lineHeight: 1.6 }, children: t("community.publish.oversizeWarning", { count: oversizeSelected.length }) }) : null,
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, marginRight: "auto" }, children: t("community.publish.summary", {
+		              oversizeSelected.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 11.5, color: "var(--dsw-alias-state-warn-primary)", lineHeight: 1.6 }, children: t("community.publish.oversizeWarning", { count: oversizeSelected.length }) }) : null,
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, marginRight: "auto" }, children: t("community.publish.summary", {
 		                  files: selectedFiles.length,
 		                  size: formatBytes(selectedBytes),
 		                  batches
 		                }) }),
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { style: { ...S.hint, display: "flex", alignItems: "center", gap: 6 }, children: [
-		                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("input", { type: "checkbox", checked: remember, onChange: (e) => onRemember(e.target.checked) }),
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { style: { ...S.hint, display: "flex", alignItems: "center", gap: 6 }, children: [
+		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("input", { type: "checkbox", checked: remember, onChange: (e) => onRemember(e.target.checked) }),
 		                  t("community.publish.remember")
 		                ] }),
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, disabled: busy, onClick: onCancel, children: t("community.action.cancel") }),
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, disabled: busy, onClick: onCancel, children: t("community.action.cancel") }),
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  "button",
 		                  {
 		                    type: "button",
@@ -3596,7 +3559,7 @@ window.__ModuleLoader__.load({
 		                    children: busy ? t("community.action.publishing") : t("community.publish.confirm")
 		                  }
 		                ),
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { flexBasis: "100%" }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(TransferProgress, { t, busy, progress }) })
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { flexBasis: "100%" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(TransferProgress, { t, busy, progress }) })
 		              ] })
 		            ] })
 		          ]
@@ -3612,31 +3575,31 @@ window.__ModuleLoader__.load({
 		  onCancel,
 		  onConfirm
 		}) {
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "div",
 		    {
 		      style: S.overlay,
 		      role: "dialog",
 		      "aria-modal": "true",
-		      children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.card, width: "min(430px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(430px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		          t("community.briefConfirm.title"),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "brand", children: t("community.briefState.cost") })
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "brand", children: t("community.briefState.cost") })
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: title }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.briefConfirm.scope") }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hint, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: title }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.briefConfirm.scope") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hint, children: [
 		            t("community.briefConfirm.cost"),
 		            " · ",
 		            typeof balance === "number" ? t("community.briefConfirm.balance", { balance }) : t("community.briefConfirm.balanceUnknown")
 		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.briefConfirm.idempotent") }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onConfirm, children: t("community.briefConfirm.confirm") })
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.briefConfirm.idempotent") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onConfirm, children: t("community.briefConfirm.confirm") })
 		          ] })
 		        ] })
 		      ] })
@@ -3660,47 +3623,47 @@ window.__ModuleLoader__.load({
 		  const short = iPayer && payable === false;
 		  const level = paperLevelOf(proposal.successCondition);
 		  const levelText = paperLevelText(level);
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "div",
 		    {
 		      style: S.overlay,
 		      role: "dialog",
 		      "aria-modal": "true",
-		      children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.card, width: "min(460px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(460px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		          t(iPayer ? "community.mentor.acceptConfirmTitle" : "community.mentor.acceptConfirmTitleOther"),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		          levelText ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t(levelText.key, levelText.params) }) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "brand", children: t(
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		          levelText ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t(levelText.key, levelText.params) }) : null,
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "brand", children: t(
 		            iPayer ? "community.mentor.acceptConfirmBadge" : "community.mentor.acceptConfirmBadgeOther",
 		            { deposit: proposal.depositAmount }
 		          ) })
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: t(
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: t(
 		            partyIsMentor ? "community.mentor.mentorIs" : "community.mentor.researcherIs",
 		            { name: party.displayName || t("community.mentor.unknownParty") }
 		          ) }),
-		          affiliation ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: affiliation }) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.mentor.feeText", {
+		          affiliation ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: affiliation }) : null,
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.mentor.feeText", {
 		            total: proposal.totalFee,
 		            deposit: proposal.depositAmount,
 		            success: proposal.successPaymentAmount
 		          }) }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t(
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t(
 		            iPayer ? "community.mentor.acceptFreezeNote" : "community.mentor.acceptFreezeNoteOther",
 		            { deposit: proposal.depositAmount }
 		          ) }),
-		          iPayer ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: typeof funded === "number" ? typeof grant === "number" ? t("community.mentor.acceptPools", { funded, grant }) : t("community.mentor.acceptFundedOnly", { funded }) : typeof balance === "number" ? t("community.mentor.acceptBalance", { balance }) : t("community.briefConfirm.balanceUnknown") }) : null,
-		          short ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-warn-primary)" }, children: t("community.mentor.acceptNoFunded", {
+		          iPayer ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: typeof funded === "number" ? typeof grant === "number" ? t("community.mentor.acceptPools", { funded, grant }) : t("community.mentor.acceptFundedOnly", { funded }) : typeof balance === "number" ? t("community.mentor.acceptBalance", { balance }) : t("community.briefConfirm.balanceUnknown") }) : null,
+		          short ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-warn-primary)" }, children: t("community.mentor.acceptNoFunded", {
 		            funded: funded ?? 0,
 		            grant: grant ?? 0,
 		            deposit: proposal.depositAmount
 		          }) }) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "button",
 		              {
 		                type: "button",
@@ -3736,7 +3699,7 @@ window.__ModuleLoader__.load({
 		  let offset = 0;
 		  const arcs = segments.filter((s) => s.value > 0).map((s, i) => {
 		    const dash = circumference * (s.value / denom);
-		    const arc = /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    const arc = /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      "circle",
 		      {
 		        cx,
@@ -3755,8 +3718,8 @@ window.__ModuleLoader__.load({
 		    offset += dash;
 		    return arc;
 		  });
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("svg", { width: size, height: size, viewBox: "0 0 160 160", "aria-hidden": "true", children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx, cy, r, fill: "none", stroke: "var(--dsw-alias-bg-layer-2)", strokeWidth: 14 }),
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { width: size, height: size, viewBox: "0 0 160 160", "aria-hidden": "true", children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx, cy, r, fill: "none", stroke: "var(--dsw-alias-bg-layer-2)", strokeWidth: 14 }),
 		    arcs
 		  ] });
 		}
@@ -3766,8 +3729,8 @@ window.__ModuleLoader__.load({
 		  value,
 		  hint
 		}) {
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      "span",
 		      {
 		        style: {
@@ -3779,9 +3742,9 @@ window.__ModuleLoader__.load({
 		        }
 		      }
 		    ),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, flex: "0 0 auto" }, children: label }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--dsw-alias-label-primary)" }, children: value }),
-		    hint ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.hint, children: hint }) : null
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, flex: "0 0 auto" }, children: label }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--dsw-alias-label-primary)" }, children: value }),
+		    hint ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.hint, children: hint }) : null
 		  ] });
 		}
 		function UsageRing({
@@ -3794,9 +3757,9 @@ window.__ModuleLoader__.load({
 		  const circumference = 2 * Math.PI * r;
 		  const f = Math.max(0, Math.min(1, Number.isFinite(fraction) ? fraction : 0));
 		  const stroke = tone === "warn" ? "var(--dsw-alias-state-warn-primary)" : tone === "neutral" ? "var(--dsw-alias-label-tertiary)" : "var(--dsw-alias-state-business-primary)";
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("svg", { width: size, height: size, viewBox: "0 0 160 160", "aria-hidden": "true", style: { flex: "0 0 auto" }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx: c, cy: c, r, fill: "none", stroke: "var(--dsw-alias-bg-layer-2)", strokeWidth: 14 }),
-		    f > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { width: size, height: size, viewBox: "0 0 160 160", "aria-hidden": "true", style: { flex: "0 0 auto" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: c, cy: c, r, fill: "none", stroke: "var(--dsw-alias-bg-layer-2)", strokeWidth: 14 }),
+		    f > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      "circle",
 		      {
 		        cx: c,
@@ -3819,15 +3782,15 @@ window.__ModuleLoader__.load({
 		  unit,
 		  sub
 		}) {
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.dashTile, children: [
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.dashTile, children: [
 		    chart,
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.dashTitle, children: title }),
-		      value ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: S.dashValue, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.dashTitle, children: title }),
+		      value ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: S.dashValue, children: [
 		        value,
-		        unit ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.dashUnit, children: unit }) : null
+		        unit ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.dashUnit, children: unit }) : null
 		      ] }) : null,
-		      sub ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.dashSub, children: sub }) : null
+		      sub ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.dashSub, children: sub }) : null
 		    ] })
 		  ] });
 		}
@@ -3852,16 +3815,16 @@ window.__ModuleLoader__.load({
 		  const amountValid = Number.isInteger(parsed) && parsed > 0;
 		  const canApply = !pending && amountValid && !submitting && !loading;
 		  const pools = tokens !== null && tokens.funded !== null && tokens.grant !== null;
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.card, width: "min(460px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(460px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		      t("community.token.dialogTitle"),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RefreshIconButton, { t, busy: loading, onClick: onRefresh })
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(RefreshIconButton, { t, busy: loading, onClick: onRefresh })
 		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
-		      tokens ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "flex-start", gap: 12 }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { flex: "0 0 auto", display: "flex", alignItems: "center", gap: 10 }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		      tokens ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "flex-start", gap: 12 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { flex: "0 0 auto", display: "flex", alignItems: "center", gap: 10 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            TokenDonut,
 		            {
 		              funded: tokens.funded,
@@ -3871,9 +3834,9 @@ window.__ModuleLoader__.load({
 		              size: 92
 		            }
 		          ),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [
-		            pools ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [
+		            pools ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                TokenLegendRow,
 		                {
 		                  color: "var(--dsw-alias-state-business-primary)",
@@ -3882,7 +3845,7 @@ window.__ModuleLoader__.load({
 		                  hint: t("community.token.fundedHint")
 		                }
 		              ),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                TokenLegendRow,
 		                {
 		                  color: "var(--dsw-alias-state-business-tertiary)",
@@ -3891,7 +3854,7 @@ window.__ModuleLoader__.load({
 		                  hint: t("community.token.grantHint")
 		                }
 		              )
-		            ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            ] }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              TokenLegendRow,
 		              {
 		                color: "var(--dsw-alias-state-business-primary)",
@@ -3899,7 +3862,7 @@ window.__ModuleLoader__.load({
 		                value: String(tokens.available)
 		              }
 		            ),
-		            tokens.frozen > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            tokens.frozen > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              TokenLegendRow,
 		              {
 		                color: "var(--dsw-alias-label-secondary)",
@@ -3907,7 +3870,7 @@ window.__ModuleLoader__.load({
 		                value: String(tokens.frozen)
 		              }
 		            ) : null,
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              TokenLegendRow,
 		              {
 		                color: "var(--dsw-alias-border-l2)",
@@ -3917,12 +3880,12 @@ window.__ModuleLoader__.load({
 		            )
 		          ] })
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 8 }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.token.renewHint") }),
-		          pending ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-business-primary)" }, children: t("community.token.pendingLine", { amount: pending.amount }) }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.label, children: t("community.token.amountLabel") }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 8 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.token.renewHint") }),
+		          pending ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-business-primary)" }, children: t("community.token.pendingLine", { amount: pending.amount }) }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.token.amountLabel") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                "input",
 		                {
 		                  style: S.compactInput,
@@ -3936,9 +3899,9 @@ window.__ModuleLoader__.load({
 		                }
 		              )
 		            ] }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.label, children: t("community.token.reasonLabel") }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.token.reasonLabel") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                "input",
 		                {
 		                  style: S.compactInput,
@@ -3954,13 +3917,13 @@ window.__ModuleLoader__.load({
 		            ] })
 		          ] })
 		        ] })
-		      ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.briefConfirm.balanceUnknown") }),
-		      error ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: 11.5, lineHeight: 1.6, color: "var(--dsw-alias-state-error-primary)" }, children: error }) : null,
-		      receipt ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: 11.5, lineHeight: 1.6, color: "var(--dsw-alias-state-success-primary)" }, children: receipt }) : null,
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.token.close") }),
-		        !pending ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      ] }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.briefConfirm.balanceUnknown") }),
+		      error ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 11.5, lineHeight: 1.6, color: "var(--dsw-alias-state-error-primary)" }, children: error }) : null,
+		      receipt ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 11.5, lineHeight: 1.6, color: "var(--dsw-alias-state-success-primary)" }, children: receipt }) : null,
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.token.close") }),
+		        !pending ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		          "button",
 		          {
 		            type: "button",
@@ -4003,24 +3966,24 @@ window.__ModuleLoader__.load({
 		  const deposit = valid ? Math.max(1, Math.round(totalNum * ratio)) : 0;
 		  const success = valid ? totalNum - deposit : 0;
 		  const input = S.compactInput;
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "div",
 		    {
 		      style: S.overlay,
 		      role: "dialog",
 		      "aria-modal": "true",
-		      children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.card, width: "min(400px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(400px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		          t(variant === "researcher" ? "community.mentor.bidTitle" : "community.mentor.proposeTitle"),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		          levelText ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t(levelText.key, levelText.params) }) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.mentor.proposeFree") })
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		          levelText ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t(levelText.key, levelText.params) }) : null,
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("community.mentor.proposeFree") })
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: title }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.label, children: t("community.mentor.conditionLabel") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: title }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.mentor.conditionLabel") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "select",
 		              {
 		                style: input,
@@ -4030,13 +3993,13 @@ window.__ModuleLoader__.load({
 		                  setLevelKey("");
 		                  onTermsChange({ condition: e.target.value, level: null });
 		                },
-		                children: Object.keys(SUCCESS_CONDITION_KEYS).map((type) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { value: type, children: enumText(t, SUCCESS_CONDITION_KEYS, type) }, type))
+		                children: Object.keys(SUCCESS_CONDITION_KEYS).map((type) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: type, children: enumText(t, SUCCESS_CONDITION_KEYS, type) }, type))
 		              }
 		            )
 		          ] }),
-		          paper ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.label, children: t("community.mentor.levelLabel") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		          paper ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.mentor.levelLabel") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		              "select",
 		              {
 		                style: input,
@@ -4046,19 +4009,19 @@ window.__ModuleLoader__.load({
 		                  onTermsChange({ condition, level: decodeLevel(e.target.value) });
 		                },
 		                children: [
-		                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { value: "", children: t("community.mentor.levelNone") }),
-		                  ["JCR", "CCF"].map((system) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("optgroup", { label: t(`community.mentor.levelSystem.${system}`), children: levelOptions(system).map((lv) => {
+		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "", children: t("community.mentor.levelNone") }),
+		                  ["JCR", "CCF"].map((system) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("optgroup", { label: t(`community.mentor.levelSystem.${system}`), children: levelOptions(system).map((lv) => {
 		                    const key = `${system}:${String(lv)}`;
 		                    const text = paperLevelText({ system, level: lv });
-		                    return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { value: key, children: text ? t(text.key, text.params) : key }, key);
+		                    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: key, children: text ? t(text.key, text.params) : key }, key);
 		                  }) }, system))
 		                ]
 		              }
 		            )
 		          ] }) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.label, children: t("community.mentor.feeTotal") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.mentor.feeTotal") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "input",
 		              {
 		                style: input,
@@ -4072,15 +4035,15 @@ window.__ModuleLoader__.load({
 		              }
 		            )
 		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: paper && !level ? t("community.mentor.levelRequired") : valid ? t(
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: paper && !level ? t("community.mentor.levelRequired") : valid ? t(
 		            variant === "researcher" ? "community.mentor.bidNote" : "community.mentor.feeNote",
 		            { percent: Math.round(ratio * 100), deposit, success }
 		          ) : t("community.mentor.feeInvalid") }),
-		          error ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-error-primary)" }, children: error }) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          error ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-error-primary)" }, children: error }) : null,
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "button",
 		              {
 		                type: "button",
@@ -4113,28 +4076,28 @@ window.__ModuleLoader__.load({
 		}) {
 		  const profile = party.profile ?? null;
 		  const affiliation = [profile?.institution, profile?.department].filter(Boolean).join(" · ");
-		  const line = (label, value) => value ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.label, flex: "0 0 64px" }, children: label }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, flex: "1 1 auto", minWidth: 0 }, children: value })
+		  const line = (label, value) => value ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.label, flex: "0 0 64px" }, children: label }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, flex: "1 1 auto", minWidth: 0 }, children: value })
 		  ] }) : null;
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.card, width: "min(430px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(430px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		      t(isMentor ? "community.mentor.profileTitle" : "community.mentor.profileTitleResearcher"),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: proposalTone(status), children: enumText(t, PROPOSAL_STATUS_KEYS, status) })
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: proposalTone(status), children: enumText(t, PROPOSAL_STATUS_KEYS, status) })
 		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: party.displayName || t("community.mentor.unknownParty") }),
-		      affiliation ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: affiliation }) : null,
-		      profile ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: party.displayName || t("community.mentor.unknownParty") }),
+		      affiliation ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: affiliation }) : null,
+		      profile ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
 		        line(t("community.mentor.profileBio"), profile.bio),
 		        line(t("community.mentor.profileFields"), profile.researchFields.join(" · ")),
 		        line(t("community.mentor.profileInterests"), profile.researchInterests.join(" · ")),
 		        line(t("community.mentor.profileExpertise"), profile.researchExpertise.join(" · "))
-		      ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t(isMentor ? "community.mentor.profileEmpty" : "community.mentor.profileEmptyResearcher") }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") })
+		      ] }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t(isMentor ? "community.mentor.profileEmpty" : "community.mentor.profileEmptyResearcher") }),
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") })
 		      ] })
 		    ] })
 		  ] }) });
@@ -4254,17 +4217,17 @@ window.__ModuleLoader__.load({
 		  const dest = chosen ? `${chosen.path}/${fileName}` : "";
 		  const ready = Boolean(selection) && files !== null && files > 0 && !busy;
 		  const pct2 = busy && bytes && bytes > 0 && received !== null ? Math.min(100, Math.round(received / bytes * 100)) : null;
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.card, width: "min(520px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(520px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		      t("community.exchange.downloadTitle"),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		      files === null ? null : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.exchange.sizeBadge", { files, size: formatBytes(bytes ?? 0) }) })
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		      files === null ? null : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("community.exchange.sizeBadge", { files, size: formatBytes(bytes ?? 0) }) })
 		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: proposalWorkLabel(proposal) ?? t("community.mentor.untitledProject") }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.zipOnly") }),
-		      files === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.noSourceFiles") }) : null,
-		      !workspacesAvailable ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: workspacesReason ?? t("community.exchange.noWorkspaces") }) : workspaces === null ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : workspaces.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.noWorkspaces") }) : (
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: proposalWorkLabel(proposal) ?? t("community.mentor.untitledProject") }),
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.zipOnly") }),
+		      files === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noSourceFiles") }) : null,
+		      !workspacesAvailable ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: workspacesReason ?? t("community.exchange.noWorkspaces") }) : workspaces === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : workspaces.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noWorkspaces") }) : (
 		        /*
 		         * **下拉框**而不是单选列表（2026-10 用户要求）：工作区多起来时列表太长，
 		         * 而这里每次只会选一个。样式直接复用设置页既有的 `S.select`（与上传对话框同源）。
@@ -4273,9 +4236,9 @@ window.__ModuleLoader__.load({
 		         * 选中项的完整路径与结论说明放在框下面（`chosenBadge`）。
 		         * 默认选中**当前会话的工作区**（预选优先级在 `requestDownload` 里，第一顺位）。
 		         */
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.label, children: t("community.exchange.workspaceLabel") }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: t("community.exchange.workspaceLabel") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "select",
 		            {
 		              style: S.select,
@@ -4290,33 +4253,33 @@ window.__ModuleLoader__.load({
 		                  currentWorkspaceId === w.id ? t("community.exchange.ws.current") : "",
 		                  badge ? badge.label : ""
 		                ].filter(Boolean);
-		                return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { value: w.id, children: marks.length > 0 ? `${w.title}（${marks.join(" · ")}）` : w.title }, w.id);
+		                return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: w.id, children: marks.length > 0 ? `${w.title}（${marks.join(" · ")}）` : w.title }, w.id);
 		              })
 		            }
 		          ),
-		          chosen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, wordBreak: "break-all" }, children: chosen.path }) : null,
-		          chosenBadge ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hint, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: chosenBadge.tone, children: chosenBadge.label }),
+		          chosen ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, wordBreak: "break-all" }, children: chosen.path }) : null,
+		          chosenBadge ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hint, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: chosenBadge.tone, children: chosenBadge.label }),
 		            " ",
 		            chosenBadge.hint
 		          ] }) : null
 		        ] })
 		      ),
-		      done ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 7 }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: t("community.merge.title") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.downloadDone", { dir: done.dir, name: done.name }) }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: done.plan }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.merge.hint") }),
-		        done.phase === "pending" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.merge.pendingHint") }) : null,
-		        done.correctedPrompt ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.merge.nameChanged", { name: done.name }) }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onRefill, children: t("community.merge.refill") }) })
+		      done ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 7 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: t("community.merge.title") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.downloadDone", { dir: done.dir, name: done.name }) }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: done.plan }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.merge.hint") }),
+		        done.phase === "pending" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.merge.pendingHint") }) : null,
+		        done.correctedPrompt ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.merge.nameChanged", { name: done.name }) }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onRefill, children: t("community.merge.refill") }) })
 		        ] }) : null,
-		        done.canFill && !done.filled ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.merge.fillHint") }) : null,
-		        done.filled ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.merge.filled") }) : done.fillHint ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: done.fillHint }) : null
+		        done.canFill && !done.filled ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.merge.fillHint") }) : null,
+		        done.filled ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.merge.filled") }) : done.fillHint ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: done.fillHint }) : null
 		      ] }) : null,
-		      !(done && done.phase === "ready") && dest ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, wordBreak: "break-all" }, children: t("community.exchange.destHint", { dest }) }) : null,
-		      !(done && done.phase === "ready") && warning ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      !(done && done.phase === "ready") && dest ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, wordBreak: "break-all" }, children: t("community.exchange.destHint", { dest }) }) : null,
+		      !(done && done.phase === "ready") && warning ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		        "div",
 		        {
 		          style: {
@@ -4326,12 +4289,12 @@ window.__ModuleLoader__.load({
 		          children: warning.text
 		        }
 		      ) : null,
-		      busy ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: received === null || !bytes ? t("community.action.loading") : t("community.exchange.downloading", {
+		      busy ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: received === null || !bytes ? t("community.action.loading") : t("community.exchange.downloading", {
 		          done: formatBytes(received),
 		          total: formatBytes(bytes)
 		        }) }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		          "div",
 		          {
 		            style: {
@@ -4340,7 +4303,7 @@ window.__ModuleLoader__.load({
 		              background: "var(--dsw-alias-border-l1)",
 		              overflow: "hidden"
 		            },
-		            children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "div",
 		              {
 		                style: {
@@ -4354,7 +4317,7 @@ window.__ModuleLoader__.load({
 		          }
 		        )
 		      ] }) : null,
-		      notice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      notice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		        "div",
 		        {
 		          style: {
@@ -4364,14 +4327,14 @@ window.__ModuleLoader__.load({
 		          children: notice.text
 		        }
 		      ) : null,
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") }),
-		        done ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCopy, children: t("community.merge.copy") }),
-		          onRequest && done.phase === "ready" && !busy ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onRequest, children: t("community.merge.prepare") }) : null,
-		          done.canFill && !done.filled ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onFill, children: t("community.merge.fill") }) : null
-		        ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") }),
+		        done ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCopy, children: t("community.merge.copy") }),
+		          onRequest && done.phase === "ready" && !busy ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onRequest, children: t("community.merge.prepare") }) : null,
+		          done.canFill && !done.filled ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onFill, children: t("community.merge.fill") }) : null
+		        ] }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		          "button",
 		          {
 		            type: "button",
@@ -4416,7 +4379,7 @@ window.__ModuleLoader__.load({
 		  const oversize = limits ? selected.filter((f) => f.size > limits.maxFileBytes) : [];
 		  const ready = Boolean(workspaceId) && selected.length > 0 && !busy && !planLoading;
 		  const pct2 = busy && progress && progress.totalBytes > 0 ? Math.min(100, Math.round(progress.sentBytes / progress.totalBytes * 100)) : null;
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		    "div",
 		    {
 		      style: {
@@ -4427,30 +4390,30 @@ window.__ModuleLoader__.load({
 		        background: "var(--dsw-alias-bg-layer-1)"
 		      },
 		      children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		          t("community.exchange.uploadTitle"),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.mentor.status.ACCEPTED") })
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("community.mentor.status.ACCEPTED") })
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.cardBody, gap: 11 }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: proposalWorkLabel(proposal) ?? t("community.mentor.untitledProject") }),
-		          !workspacesAvailable ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: workspacesReason ?? t("community.exchange.noWorkspaces") }) : workspaces === null ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : workspaces.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.noUploadWorkspaces") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.label, children: t("community.exchange.workspaceLabel") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 11 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: proposalWorkLabel(proposal) ?? t("community.mentor.untitledProject") }),
+		          !workspacesAvailable ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: workspacesReason ?? t("community.exchange.noWorkspaces") }) : workspaces === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : workspaces.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noUploadWorkspaces") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.exchange.workspaceLabel") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		              "select",
 		              {
 		                style: { ...S.compactInput, flex: "1 1 auto" },
 		                value: workspaceId,
 		                onChange: (e) => onSelectWorkspace(e.target.value),
 		                children: [
-		                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { value: "", children: t("community.exchange.workspacePlaceholder") }),
-		                  workspaces.map((w) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { value: w.id, children: currentWorkspaceId === w.id ? `${w.title}（${t("community.exchange.ws.current")}）` : w.title }, w.id))
+		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "", children: t("community.exchange.workspacePlaceholder") }),
+		                  workspaces.map((w) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: w.id, children: currentWorkspaceId === w.id ? `${w.title}（${t("community.exchange.ws.current")}）` : w.title }, w.id))
 		                ]
 		              }
 		            )
 		          ] }),
-		          chosen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, wordBreak: "break-all" }, children: t("community.exchange.fromHint", { root: chosen.root }) }) : null,
-		          planLoading ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : plan === null ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.selectWorkspaceFirst") }) : selectable.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.noUploadFiles") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          chosen ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, wordBreak: "break-all" }, children: t("community.exchange.fromHint", { root: chosen.root }) }) : null,
+		          planLoading ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : plan === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.selectWorkspaceFirst") }) : selectable.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noUploadFiles") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            UploadCategoryList,
 		            {
 		              t,
@@ -4463,10 +4426,10 @@ window.__ModuleLoader__.load({
 		              onToggleExpand
 		            }
 		          ),
-		          plan && plan.plan.totals.excludedFiles > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.exchange.skippedMachine", { count: plan.plan.totals.excludedFiles }) }) : null,
-		          oversize.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: 11.5, color: "var(--dsw-alias-state-warn-primary)", lineHeight: 1.6 }, children: t("community.exchange.oversizeWarning", { count: oversize.length }) }) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(TransferProgress, { t, busy, progress }),
-		          notice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          plan && plan.plan.totals.excludedFiles > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.skippedMachine", { count: plan.plan.totals.excludedFiles }) }) : null,
+		          oversize.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 11.5, color: "var(--dsw-alias-state-warn-primary)", lineHeight: 1.6 }, children: t("community.exchange.oversizeWarning", { count: oversize.length }) }) : null,
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(TransferProgress, { t, busy, progress }),
+		          notice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "div",
 		            {
 		              style: {
@@ -4476,14 +4439,14 @@ window.__ModuleLoader__.load({
 		              children: notice.text
 		            }
 		          ) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, marginRight: "auto" }, children: plan ? t("community.exchange.uploadSummary", {
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, marginRight: "auto" }, children: plan ? t("community.exchange.uploadSummary", {
 		              files: selected.length,
 		              size: formatBytes(selectedBytes),
 		              batches
 		            }) : "" }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "button",
 		              {
 		                type: "button",
@@ -4504,7 +4467,7 @@ window.__ModuleLoader__.load({
 		  busy,
 		  onClick
 		}) {
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "button",
 		    {
 		      type: "button",
@@ -4518,23 +4481,23 @@ window.__ModuleLoader__.load({
 		  );
 		}
 		function DevServerGlyph() {
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("svg", { width: "15", height: "15", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("rect", { x: "1.75", y: "2.75", width: "12.5", height: "8.25", rx: "1.2", stroke: "currentColor", strokeWidth: "1.3" }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M8 11v2.75", stroke: "currentColor", strokeWidth: "1.3", strokeLinecap: "round" }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M5.25 13.75h5.5", stroke: "currentColor", strokeWidth: "1.3", strokeLinecap: "round" })
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { width: "15", height: "15", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("rect", { x: "1.75", y: "2.75", width: "12.5", height: "8.25", rx: "1.2", stroke: "currentColor", strokeWidth: "1.3" }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { d: "M8 11v2.75", stroke: "currentColor", strokeWidth: "1.3", strokeLinecap: "round" }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { d: "M5.25 13.75h5.5", stroke: "currentColor", strokeWidth: "1.3", strokeLinecap: "round" })
 		  ] });
 		}
 		function InternetGlyph() {
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("svg", { width: "15", height: "15", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("circle", { cx: "8", cy: "8", r: "6.25", stroke: "currentColor", strokeWidth: "1.3" }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M1.75 8h12.5", stroke: "currentColor", strokeWidth: "1.3" }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("ellipse", { cx: "8", cy: "8", rx: "3.1", ry: "6.25", stroke: "currentColor", strokeWidth: "1.3" })
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { width: "15", height: "15", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "8", cy: "8", r: "6.25", stroke: "currentColor", strokeWidth: "1.3" }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { d: "M1.75 8h12.5", stroke: "currentColor", strokeWidth: "1.3" }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("ellipse", { cx: "8", cy: "8", rx: "3.1", ry: "6.25", stroke: "currentColor", strokeWidth: "1.3" })
 		  ] });
 		}
 		function InviteCodeGlyph() {
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("svg", { width: "15", height: "15", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("rect", { x: "2", y: "3.75", width: "12", height: "8.5", rx: "1.2", stroke: "currentColor", strokeWidth: "1.3" }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("path", { d: "M9.25 3.75v8.5", stroke: "currentColor", strokeWidth: "1.3", strokeDasharray: "1.5 1.4" })
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { width: "15", height: "15", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true", children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("rect", { x: "2", y: "3.75", width: "12", height: "8.5", rx: "1.2", stroke: "currentColor", strokeWidth: "1.3" }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { d: "M9.25 3.75v8.5", stroke: "currentColor", strokeWidth: "1.3", strokeDasharray: "1.5 1.4" })
 		  ] });
 		}
 		function ServerPresetButton({
@@ -4549,7 +4512,7 @@ window.__ModuleLoader__.load({
 		  const status = result.state === "busy" ? t("community.server.probing") : result.state === "ok" ? t("community.server.probeOk") : result.state === "fail" ? t("community.server.probeFail") : "";
 		  const title = [label, status, result.reason ?? "", url].filter((s) => s !== "").join(" · ");
 		  const skin = result.state === "busy" ? { opacity: 0.55 } : result.state === "ok" ? S.iconBtnOk : result.state === "fail" ? S.iconBtn : active ? S.iconBtnActive : S.iconBtn;
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "button",
 		    {
 		      type: "button",
@@ -5504,9 +5467,9 @@ window.__ModuleLoader__.load({
 		  const tokenFraction = tokens && tokens.total > 0 ? tokens.available / tokens.total : 0;
 		  const storageFraction = storage && storage.capacityBytes > 0 ? storage.usedBytes / storage.capacityBytes : 0;
 		  const pendingMark = usagePhase === "loading" ? "…" : "—";
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		        "div",
 		        {
 		          role: "button",
@@ -5522,14 +5485,14 @@ window.__ModuleLoader__.load({
 		            }
 		          },
 		          children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.chevron, transform: userOpen ? "rotate(90deg)" : "none" }, children: "▸" }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.chevron, transform: userOpen ? "rotate(90deg)" : "none" }, children: "▸" }),
 		            t("community.title"),
-		            !userOpen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-		              account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.accountName, flex: "0 0 auto" }, children: account.displayName }) : phase === "ready" ? (
+		            !userOpen ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		              account ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.accountName, flex: "0 0 auto" }, children: account.displayName }) : phase === "ready" ? (
 		                // 未登录：这里给的是"点开能做什么"，所以按提示样式（不是账号名）
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, flex: "0 0 auto" }, children: t("community.tab.signIn") })
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, flex: "0 0 auto" }, children: t("community.tab.signIn") })
 		              ) : null,
-		              tokens ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		              tokens ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		                "button",
 		                {
 		                  type: "button",
@@ -5548,17 +5511,17 @@ window.__ModuleLoader__.load({
 		                }
 		              ) : null
 		            ] }) : null,
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		            state?.environment === "production" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "brand", children: t("community.badge.production") }) : state?.environment === "development" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.badge.development") }) : null,
-		            state?.serverUrlMismatch ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("community.badge.envMismatch") }) : null,
-		            phase === "loading" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.badge.checking") }) : account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "success", children: t("community.badge.signedIn") }) : configured ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("community.badge.unverified") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.badge.signedOut") })
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		            state?.environment === "production" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "brand", children: t("community.badge.production") }) : state?.environment === "development" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("community.badge.development") }) : null,
+		            state?.serverUrlMismatch ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("community.badge.envMismatch") }) : null,
+		            phase === "loading" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("community.badge.checking") }) : account ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "success", children: t("community.badge.signedIn") }) : configured ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("community.badge.unverified") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("community.badge.signedOut") })
 		          ]
 		        }
 		      ),
-		      userOpen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardBody, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.miniTabs, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(MiniTab, { active: userTab === "account", onClick: () => setUserTab("account"), children: account ? t("community.tab.account") : t("community.tab.signIn") }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(MiniTab, { active: userTab === "server", onClick: () => setUserTab("server"), children: t("community.tab.server") })
+		      userOpen ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.miniTabs, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MiniTab, { active: userTab === "account", onClick: () => setUserTab("account"), children: account ? t("community.tab.account") : t("community.tab.signIn") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MiniTab, { active: userTab === "server", onClick: () => setUserTab("server"), children: t("community.tab.server") })
 		        ] }),
 		        userTab === "account" ? account ? (
 		          /* 已登录：一行账号 + 右侧操作，没有多余说明文字 */
@@ -5570,10 +5533,10 @@ window.__ModuleLoader__.load({
 		           * 其余（余额徽章、按钮）一律 `flex: 0 0 auto` 不许被压。
 		           * 曾经因为余额徽章里多了「（+30 冻结）」把两个按钮挤到第二行。
 		           */
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.accountName, flex: "0 0 auto" }, children: account.displayName }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.accountName, flex: "0 0 auto" }, children: account.displayName }),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                "span",
 		                {
 		                  style: {
@@ -5588,12 +5551,12 @@ window.__ModuleLoader__.load({
 		                  children: account.email
 		                }
 		              ),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { style: { ...S.hint, flex: "0 0 auto" }, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { ...S.hint, flex: "0 0 auto" }, children: [
 		                roleText(t, account.roles),
 		                " · ",
 		                enumText(t, STATUS_LABEL_KEYS, account.status)
 		              ] }),
-		              state?.tokens ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		              state?.tokens ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		                "button",
 		                {
 		                  type: "button",
@@ -5615,13 +5578,13 @@ window.__ModuleLoader__.load({
 		                    "◎ ",
 		                    state.tokens.available,
 		                    " Token",
-		                    state.tokens.frozen > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { fontWeight: 400, opacity: 0.7 }, children: t("community.balance.frozenNote", { count: state.tokens.frozen }) }) : null
+		                    state.tokens.frozen > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { fontWeight: 400, opacity: 0.7 }, children: t("community.balance.frozenNote", { count: state.tokens.frozen }) }) : null
 		                  ]
 		                }
 		              ) : null,
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RefreshIconButton, { t, busy, onClick: () => void verify() }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(RefreshIconButton, { t, busy, onClick: () => void verify() }),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                "button",
 		                {
 		                  type: "button",
@@ -5634,12 +5597,12 @@ window.__ModuleLoader__.load({
 		                }
 		              )
 		            ] }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.dash, children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.dash, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                DashTile,
 		                {
 		                  title: t("community.dash.token"),
-		                  chart: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(UsageRing, { fraction: tokenFraction }),
+		                  chart: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(UsageRing, { fraction: tokenFraction }),
 		                  value: tokens ? String(tokens.available) : pendingMark,
 		                  unit: tokens ? "Token" : null,
 		                  sub: tokens ? tokens.funded !== null && tokens.grant !== null ? tokens.frozen > 0 ? t("community.dash.tokenPoolsFrozen", {
@@ -5652,11 +5615,11 @@ window.__ModuleLoader__.load({
 		                  }) : tokens.frozen > 0 ? t("community.dash.tokenFrozen", { frozen: tokens.frozen }) : t("community.dash.tokenTotal", { total: tokens.total }) : t("community.dash.unknown")
 		                }
 		              ),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                DashTile,
 		                {
 		                  title: t("community.dash.storage"),
-		                  chart: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                  chart: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                    UsageRing,
 		                    {
 		                      fraction: storageFraction,
@@ -5670,11 +5633,11 @@ window.__ModuleLoader__.load({
 		                  }) : t("community.dash.unknown")
 		                }
 		              ),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                DashTile,
 		                {
 		                  title: t("community.dash.projects"),
-		                  chart: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.dashStat, children: usage ? usage.paidProjects : pendingMark }),
+		                  chart: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.dashStat, children: usage ? usage.paidProjects : pendingMark }),
 		                  sub: usage ? t("community.dash.projectsSub", {
 		                    tier: usage.tier,
 		                    cost: usage.nextPublishCost
@@ -5682,14 +5645,14 @@ window.__ModuleLoader__.load({
 		                }
 		              )
 		            ] }),
-		            usageStaleHost ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.error.hostRestart") }) : null
+		            usageStaleHost ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.error.hostRestart") }) : null
 		          ] })
 		        ) : (
 		          /* 未登录：默认只展示**一条**登录路径 */
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.label, children: t("community.login.keyLabel") }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.login.keyLabel") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                "input",
 		                {
 		                  style: S.compactInput,
@@ -5705,7 +5668,7 @@ window.__ModuleLoader__.load({
 		                  }
 		                }
 		              ),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                "button",
 		                {
 		                  type: "button",
@@ -5715,7 +5678,7 @@ window.__ModuleLoader__.load({
 		                  children: busy ? t("community.action.signingIn") : t("community.action.signIn")
 		                }
 		              ),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                "button",
 		                {
 		                  type: "button",
@@ -5726,9 +5689,9 @@ window.__ModuleLoader__.load({
 		                }
 		              )
 		            ] }),
-		            inviteOpen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            inviteOpen ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  "input",
 		                  {
 		                    style: S.compactInput,
@@ -5740,7 +5703,7 @@ window.__ModuleLoader__.load({
 		                    onChange: (e) => setInvite({ ...invite, code: e.target.value })
 		                  }
 		                ),
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  "input",
 		                  {
 		                    style: S.compactInput,
@@ -5752,7 +5715,7 @@ window.__ModuleLoader__.load({
 		                    onChange: (e) => setInvite({ ...invite, email: e.target.value })
 		                  }
 		                ),
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  "input",
 		                  {
 		                    style: S.compactInput,
@@ -5764,7 +5727,7 @@ window.__ModuleLoader__.load({
 		                    onChange: (e) => setInvite({ ...invite, displayName: e.target.value })
 		                  }
 		                ),
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  "button",
 		                  {
 		                    type: "button",
@@ -5777,7 +5740,7 @@ window.__ModuleLoader__.load({
 		                    children: busy ? t("community.action.registering") : t("community.action.register")
 		                  }
 		                ),
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  "button",
 		                  {
 		                    type: "button",
@@ -5788,15 +5751,15 @@ window.__ModuleLoader__.load({
 		                  }
 		                )
 		              ] }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.hint.inviteRule") })
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.inviteRule") })
 		            ] }) : null
 		          ] })
 		        ) : (
 		          /* 服务器设置：地址来自环境配置（开发 = 本机服务器，生产 = 线上） */
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.label, children: t("community.server.address") }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.server.address") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                "input",
 		                {
 		                  style: S.compactInput,
@@ -5809,12 +5772,12 @@ window.__ModuleLoader__.load({
 		                  onChange: (e) => setServerDraft(e.target.value)
 		                }
 		              ),
-		              state?.serverPresets ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              state?.serverPresets ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  ServerPresetButton,
 		                  {
 		                    t,
-		                    icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(DevServerGlyph, {}),
+		                    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(DevServerGlyph, {}),
 		                    label: t("community.server.presetDev"),
 		                    url: state.serverPresets.development,
 		                    result: serverProbes.development ?? { state: "idle", reason: null },
@@ -5822,11 +5785,11 @@ window.__ModuleLoader__.load({
 		                    onPick: (url) => void pickServerPreset("development", url)
 		                  }
 		                ),
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  ServerPresetButton,
 		                  {
 		                    t,
-		                    icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(InternetGlyph, {}),
+		                    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(InternetGlyph, {}),
 		                    label: t("community.server.presetProd"),
 		                    url: state.serverPresets.production,
 		                    result: serverProbes.production ?? { state: "idle", reason: null },
@@ -5835,7 +5798,7 @@ window.__ModuleLoader__.load({
 		                  }
 		                )
 		              ] }) : null,
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                "button",
 		                {
 		                  type: "button",
@@ -5843,14 +5806,14 @@ window.__ModuleLoader__.load({
 		                  title: `${t("community.server.inviteCode")} · ${t("community.action.applyInviteTip")} · ${serverUrl}`,
 		                  "aria-label": t("community.server.inviteCode"),
 		                  onClick: openServerHome,
-		                  children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(InviteCodeGlyph, {})
+		                  children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(InviteCodeGlyph, {})
 		                }
 		              )
 		            ] }),
-		            serverChanged ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("community.badge.addressChanged") }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, flex: "1 1 auto" }, children: t("community.hint.addressChanged") }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            serverChanged ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("community.badge.addressChanged") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, flex: "1 1 auto" }, children: t("community.hint.addressChanged") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                "button",
 		                {
 		                  type: "button",
@@ -5861,12 +5824,12 @@ window.__ModuleLoader__.load({
 		                }
 		              )
 		            ] }) : null,
-		            state?.serverUrlMismatch ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { fontSize: 11.5, lineHeight: 1.6, color: "var(--dsw-alias-state-warn-primary)" }, children: state.environment === "production" ? t("community.hint.mismatchProduction") : t("community.hint.mismatchDevelopment") }) : null
+		            state?.serverUrlMismatch ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 11.5, lineHeight: 1.6, color: "var(--dsw-alias-state-warn-primary)" }, children: state.environment === "production" ? t("community.hint.mismatchProduction") : t("community.hint.mismatchDevelopment") }) : null
 		          ] })
 		        ),
-		        failure ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "error", children: failure.code }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        failure ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: failure.code }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "span",
 		            {
 		              style: {
@@ -5879,7 +5842,7 @@ window.__ModuleLoader__.load({
 		              children: failure.message
 		            }
 		          ),
-		          configured ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          configured ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "button",
 		            {
 		              type: "button",
@@ -5892,7 +5855,7 @@ window.__ModuleLoader__.load({
 		        ] }) : null
 		      ] }) : null
 		    ] }),
-		    dialog ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    dialog ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      PublishDialog,
 		      {
 		        t,
@@ -5933,7 +5896,7 @@ window.__ModuleLoader__.load({
 		        }
 		      }
 		    ) : null,
-		    briefConfirm ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    briefConfirm ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      BriefConfirmDialog,
 		      {
 		        t,
@@ -5947,7 +5910,7 @@ window.__ModuleLoader__.load({
 		        }
 		      }
 		    ) : null,
-		    proposeTarget ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    proposeTarget ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      ProposeDialog,
 		      {
 		        t,
@@ -5965,15 +5928,15 @@ window.__ModuleLoader__.load({
 		        onSubmit: (input) => void submitPropose(input)
 		      }
 		    ) : null,
-		    menuFor ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    menuFor ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		        "div",
 		        {
 		          style: { position: "fixed", inset: 0, zIndex: 998 },
 		          onClick: () => setMenuFor(null)
 		        }
 		      ),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		        "div",
 		        {
 		          style: {
@@ -5988,7 +5951,7 @@ window.__ModuleLoader__.load({
 		            boxShadow: "0 6px 18px rgba(0,0,0,.18)",
 		            overflow: "hidden"
 		          },
-		          children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "button",
 		            {
 		              type: "button",
@@ -6014,7 +5977,7 @@ window.__ModuleLoader__.load({
 		        }
 		      )
 		    ] }) : null,
-		    download ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    download ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      DownloadDialog,
 		      {
 		        t,
@@ -6079,7 +6042,7 @@ window.__ModuleLoader__.load({
 		        }
 		      }
 		    ) : null,
-		    exchange?.mode === "upload" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    exchange?.mode === "upload" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      UploadDialog,
 		      {
 		        t,
@@ -6104,7 +6067,7 @@ window.__ModuleLoader__.load({
 		        onClose: () => setExchange(null)
 		      }
 		    ) : null,
-		    profileTarget ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    profileTarget ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      PartyProfileDialog,
 		      {
 		        t,
@@ -6114,7 +6077,7 @@ window.__ModuleLoader__.load({
 		        onClose: () => setProfileTarget(null)
 		      }
 		    ) : null,
-		    acceptConfirm ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    acceptConfirm ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      AcceptConfirmDialog,
 		      {
 		        t,
@@ -6129,7 +6092,7 @@ window.__ModuleLoader__.load({
 		        onConfirm: () => void confirmAccept()
 		      }
 		    ) : null,
-		    tokenDialog ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    tokenDialog ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      TokenDialog,
 		      {
 		        t,
@@ -6151,24 +6114,24 @@ window.__ModuleLoader__.load({
 		        onClose: () => setTokenDialog(false)
 		      }
 		    ) : null,
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { marginRight: 4 }, children: t("community.work.title") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(MiniTab, { active: workTab === "mine", count: mine?.length ?? null, onClick: () => setWorkTab("mine"), children: t("community.tab.mine") }),
-		        canMentor ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(MiniTab, { active: workTab === "mentor", count: works?.length ?? null, onClick: () => setWorkTab("mentor"), children: t("community.tab.mentor") }) : null,
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(MiniTab, { active: workTab === "joinable", count: joinable?.length ?? null, onClick: () => setWorkTab("joinable"), children: t("community.tab.joinable") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(MiniTab, { active: workTab === "mentorship", count: proposals?.length ?? null, onClick: () => setWorkTab("mentorship"), children: t("community.tab.mentorship") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        workTab === "mine" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RefreshIconButton, { t, busy: mineLoading, onClick: () => void loadMine() }) : null,
-		        workTab === "mentor" && account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RefreshIconButton, { t, busy: worksLoading, onClick: () => void loadWorks("SEEK_MENTOR") }) : null,
-		        workTab === "joinable" && account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RefreshIconButton, { t, busy: joinableLoading, onClick: () => void loadWorks("SEEK_STUDENT") }) : null,
-		        workTab === "mentorship" && account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RefreshIconButton, { t, busy: proposalsLoading, onClick: () => void loadProposals() }) : null,
-		        workTab === "joinable" && !account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("community.badge.sample") }) : null
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { marginRight: 4 }, children: t("community.work.title") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MiniTab, { active: workTab === "mine", count: mine?.length ?? null, onClick: () => setWorkTab("mine"), children: t("community.tab.mine") }),
+		        canMentor ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MiniTab, { active: workTab === "mentor", count: works?.length ?? null, onClick: () => setWorkTab("mentor"), children: t("community.tab.mentor") }) : null,
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MiniTab, { active: workTab === "joinable", count: joinable?.length ?? null, onClick: () => setWorkTab("joinable"), children: t("community.tab.joinable") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MiniTab, { active: workTab === "mentorship", count: proposals?.length ?? null, onClick: () => setWorkTab("mentorship"), children: t("community.tab.mentorship") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        workTab === "mine" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(RefreshIconButton, { t, busy: mineLoading, onClick: () => void loadMine() }) : null,
+		        workTab === "mentor" && account ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(RefreshIconButton, { t, busy: worksLoading, onClick: () => void loadWorks("SEEK_MENTOR") }) : null,
+		        workTab === "joinable" && account ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(RefreshIconButton, { t, busy: joinableLoading, onClick: () => void loadWorks("SEEK_STUDENT") }) : null,
+		        workTab === "mentorship" && account ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(RefreshIconButton, { t, busy: proposalsLoading, onClick: () => void loadProposals() }) : null,
+		        workTab === "joinable" && !account ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("community.badge.sample") }) : null
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardBody, children: [
-		        publishNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: publishNotice.tone === "success" ? "success" : "error", children: publishNotice.tone === "success" ? t("community.badge.published") : publishNotice.code ?? t("community.badge.published") }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
+		        publishNotice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: publishNotice.tone === "success" ? "success" : "error", children: publishNotice.tone === "success" ? t("community.badge.published") : publishNotice.code ?? t("community.badge.published") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		            "span",
 		            {
 		              style: {
@@ -6185,13 +6148,13 @@ window.__ModuleLoader__.load({
 		            }
 		          )
 		        ] }) : null,
-		        chargeNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "brand", children: t("community.badge.charged") }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.hint, children: chargeNotice })
+		        chargeNotice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "brand", children: t("community.badge.charged") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.hint, children: chargeNotice })
 		        ] }) : null,
-		        mentorNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: mentorNotice.tone === "success" ? "success" : "error", children: mentorNotice.tone === "success" ? t("community.mentor.badgeDone") : t("community.mentor.badgeFailed") }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        mentorNotice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: mentorNotice.tone === "success" ? "success" : "error", children: mentorNotice.tone === "success" ? t("community.mentor.badgeDone") : t("community.mentor.badgeFailed") }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "span",
 		            {
 		              style: mentorNotice.tone === "success" ? S.hint : { ...S.hint, color: "var(--dsw-alias-state-error-primary)" },
@@ -6199,9 +6162,9 @@ window.__ModuleLoader__.load({
 		            }
 		          )
 		        ] }) : null,
-		        worksError ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "error", children: worksError.code }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        worksError ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: worksError.code }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "span",
 		            {
 		              style: {
@@ -6215,9 +6178,9 @@ window.__ModuleLoader__.load({
 		            }
 		          )
 		        ] }) : null,
-		        joinableError ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "error", children: joinableError.code }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        joinableError ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: joinableError.code }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "span",
 		            {
 		              style: {
@@ -6241,12 +6204,12 @@ window.__ModuleLoader__.load({
 		           * 指导范围 / 成功条件 / 导师简介 / 机构 / 研究方向这些**描述性文字全部去掉**
 		           * （导师简介留在「接受指导」的确认框里 —— 那是真正要做判断的地方）。
 		           */
-		          !account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("community.badge.signInRequired") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.hint, children: t("community.hint.mentorSignIn") })
-		          ] }) : proposalsError ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "error", children: proposalsError.code }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          !account ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("community.badge.signInRequired") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.hint, children: t("community.hint.mentorSignIn") })
+		          ] }) : proposalsError ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: proposalsError.code }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "span",
 		              {
 		                style: {
@@ -6259,13 +6222,13 @@ window.__ModuleLoader__.load({
 		                children: proposalsError.message
 		              }
 		            ),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => void loadProposals(), children: t("community.action.retry") })
-		          ] }) : proposals === null ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: proposalsLoading ? t("community.hint.loading") : t("community.hint.noData") }) : trackItems.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.hint.mentorEmpty") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.list, children: trackItems.map(({ p, view }, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => void loadProposals(), children: t("community.action.retry") })
+		          ] }) : proposals === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: proposalsLoading ? t("community.hint.loading") : t("community.hint.noData") }) : trackItems.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.mentorEmpty") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: trackItems.map(({ p, view }, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "div",
 		            {
 		              style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
-		              children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.listRow, children: [
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		              children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.listRow, children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		                  "div",
 		                  {
 		                    style: {
@@ -6276,17 +6239,17 @@ window.__ModuleLoader__.load({
 		                      gap: 2
 		                    },
 		                    children: [
-		                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: view.iAmAcceptor ? view.counterparty?.displayName ?? t("community.mentor.unknownParty") : proposalWorkLabel(p) ?? t("community.mentor.untitledProject") }),
+		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: view.iAmAcceptor ? view.counterparty?.displayName ?? t("community.mentor.unknownParty") : proposalWorkLabel(p) ?? t("community.mentor.untitledProject") }),
 		                      (() => {
 		                        const line = view.iAmAcceptor ? proposalWorkLabel(p) ?? t("community.mentor.untitledProject") : view.counterparty?.displayName ?? "";
-		                        return line ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: line }) : null;
+		                        return line ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: line }) : null;
 		                      })(),
-		                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: feeText(p) }),
-		                      sideSyncHint(t, p, view) ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-warn-primary)" }, children: sideSyncHint(t, p, view) }) : null
+		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: feeText(p) }),
+		                      sideSyncHint(t, p, view) ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-warn-primary)" }, children: sideSyncHint(t, p, view) }) : null
 		                    ]
 		                  }
 		                ),
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		                  "div",
 		                  {
 		                    style: {
@@ -6297,8 +6260,8 @@ window.__ModuleLoader__.load({
 		                      flexWrap: "nowrap"
 		                    },
 		                    children: [
-		                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: proposalTone(p.status), children: translateOr(t, progressLabelKey(p, view), p.status) }),
-		                      canDownloadProposal(p, view) ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: proposalTone(p.status), children: translateOr(t, progressLabelKey(p, view), p.status) }),
+		                      canDownloadProposal(p, view) ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                        "button",
 		                        {
 		                          type: "button",
@@ -6308,7 +6271,7 @@ window.__ModuleLoader__.load({
 		                          children: t("community.action.download")
 		                        }
 		                      ) : null,
-		                      p.status === "ACCEPTED" && !view.iAmOwner ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                      p.status === "ACCEPTED" && !view.iAmOwner ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                        "button",
 		                        {
 		                          type: "button",
@@ -6318,7 +6281,7 @@ window.__ModuleLoader__.load({
 		                          children: t("community.action.upload")
 		                        }
 		                      ) : null,
-		                      view.counterparty?.profile !== void 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                      view.counterparty?.profile !== void 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                        "button",
 		                        {
 		                          type: "button",
@@ -6338,8 +6301,8 @@ window.__ModuleLoader__.load({
 		                         * 两段各自按内容撑高就会一高一低，看着不齐；写死 height 又要跟着
 		                         * 字号/内边距维护。stretch 让高度由左段决定，右下段没有纵向 padding。
 		                         */
-		                        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "inline-flex", alignItems: "stretch" }, children: [
-		                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "inline-flex", alignItems: "stretch" }, children: [
+		                          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                            "button",
 		                            {
 		                              type: "button",
@@ -6357,7 +6320,7 @@ window.__ModuleLoader__.load({
 		                              children: mentorBusy?.id === p.id && mentorBusy.action === "accept" ? t("community.action.loading") : t("community.action.accept")
 		                            }
 		                          ),
-		                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                            "button",
 		                            {
 		                              type: "button",
@@ -6396,9 +6359,9 @@ window.__ModuleLoader__.load({
 		          )) })
 		        ) : workTab === "mine" ? (
 		          /* ── 我的：本机研究项目 ── */
-		          mineError ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "error", children: mineError.code }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          mineError ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: mineError.code }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "span",
 		              {
 		                style: {
@@ -6411,33 +6374,33 @@ window.__ModuleLoader__.load({
 		                children: mineError.message
 		              }
 		            ),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => void loadMine(), children: t("community.action.retry") })
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => void loadMine(), children: t("community.action.retry") })
 		          ] }) : mineRegistry && !mineRegistry.available ? (
 		            // 注册表读不到（≠ 没有研究项目）：把原因原样说出来，便于定位
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.inlineRow, children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("community.badge.registryUnavailable") }),
-		              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.hint, children: mineRegistry.reason ?? t("community.hint.registryUnavailable") })
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("community.badge.registryUnavailable") }),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.hint, children: mineRegistry.reason ?? t("community.hint.registryUnavailable") })
 		            ] })
-		          ) : mine === null ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: mineLoading ? t("community.hint.loading") : t("community.hint.noData") }) : mine.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.hint.mineEmpty") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.list, children: mine.map((w, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          ) : mine === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: mineLoading ? t("community.hint.loading") : t("community.hint.noData") }) : mine.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.mineEmpty") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: mine.map((w, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "div",
 		            {
 		              style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
-		              children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.listRow, alignItems: "flex-start" }, children: [
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 4 }, children: [
-		                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.listTitle, children: workLabelOf(w) }),
-		                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.hint, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }, children: [
-		                    w.stage ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: translateOr(t, `progress.stage.${w.stage.id}`, w.stage.label) }) : null,
-		                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ProgressBar, { value: w.overall }),
-		                    w.paper ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: t("community.hint.paper") }) : null,
-		                    w.counts.filter((c) => c.value > 0).slice(0, 4).map((c) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
+		              children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.listRow, alignItems: "flex-start" }, children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 4 }, children: [
+		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: workLabelOf(w) }),
+		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.hint, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }, children: [
+		                    w.stage ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: translateOr(t, `progress.stage.${w.stage.id}`, w.stage.label) }) : null,
+		                    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(ProgressBar, { value: w.overall }),
+		                    w.paper ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: t("community.hint.paper") }) : null,
+		                    w.counts.filter((c) => c.value > 0).slice(0, 4).map((c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { children: [
 		                      translateOr(t, `progress.count.${c.key}`, c.key),
 		                      " ",
 		                      c.value
 		                    ] }, c.key))
 		                  ] }),
-		                  w.counts.some((c) => c.value > 0 && c.detail) ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { ...S.hint, display: "flex", gap: 10, flexWrap: "wrap" }, children: w.counts.filter((c) => c.value > 0 && c.detail).slice(0, 4).map((c) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: t(`progress.count.${c.detail.code}`, { count: c.detail.count }) }, `d-${c.key}`)) }) : null,
-		                  w.detached ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.hint.detachedWork") }) : null,
-		                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		                  w.counts.some((c) => c.value > 0 && c.detail) ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, display: "flex", gap: 10, flexWrap: "wrap" }, children: w.counts.filter((c) => c.value > 0 && c.detail).slice(0, 4).map((c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: t(`progress.count.${c.detail.code}`, { count: c.detail.count }) }, `d-${c.key}`)) }) : null,
+		                  w.detached ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.detachedWork") }) : null,
+		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		                    "div",
 		                    {
 		                      style: {
@@ -6449,13 +6412,13 @@ window.__ModuleLoader__.load({
 		                      },
 		                      title: w.researchRoot,
 		                      children: [
-		                        w.workId ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: w.workId }) : null,
-		                        w.path ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: w.path }) : null
+		                        w.workId ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: w.workId }) : null,
+		                        w.path ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: w.path }) : null
 		                      ]
 		                    }
 		                  )
 		                ] }),
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		                  "div",
 		                  {
 		                    style: {
@@ -6465,7 +6428,7 @@ window.__ModuleLoader__.load({
 		                      flex: "0 0 auto"
 		                    },
 		                    children: [
-		                      w.published.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "success", children: t("community.badge.inNetwork") }) : null,
+		                      w.published.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "success", children: t("community.badge.inNetwork") }) : null,
 		                      w.detached ? null : (() => {
 		                        const plan = publishActionPlan(
 		                          canMentor,
@@ -6477,7 +6440,7 @@ window.__ModuleLoader__.load({
 		                          `${t("community.action.publishing")}${publishProgress && publishProgress.totalBytes > 0 ? ` ${Math.min(100, Math.round(publishProgress.sentBytes / publishProgress.totalBytes * 100))}%` : ""}`
 		                        ) : t("community.action.loading");
 		                        const disabled = !account || publishing !== null || dialogLoading !== null;
-		                        return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { opacity: account && !busyHere && disabled ? 0.55 : 1 }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                        return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { opacity: account && !busyHere && disabled ? 0.55 : 1 }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                          PublishButton,
 		                          {
 		                            t,
@@ -6507,12 +6470,12 @@ window.__ModuleLoader__.load({
 		           *   ② 行上的动作是【出价】（学生出价，导师接受）；
 		           *   ③ 空态/提示文案说"导师发布的选题"。
 		           */
-		          !account ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.list, children: SAMPLE_WORKS.map((w, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          !account ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: SAMPLE_WORKS.map((w, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "div",
 		              {
 		                style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
-		                children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  WorkRow,
 		                  {
 		                    t,
@@ -6530,18 +6493,18 @@ window.__ModuleLoader__.load({
 		              },
 		              w.titleKey
 		            )) }),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.hint.sampleFootnote") })
-		          ] }) : joinable === null ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: joinableLoading ? t("community.hint.loadingWork") : t("community.hint.noData") }) : joinable.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.hint.noJoinable") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.list, children: joinable.map((w, i) => {
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.sampleFootnote") })
+		          ] }) : joinable === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: joinableLoading ? t("community.hint.loadingWork") : t("community.hint.noData") }) : joinable.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.noJoinable") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: joinable.map((w, i) => {
 		            const expanded = open?.projectId === w.projectId;
 		            const busyKind = detailBusy?.projectId === w.projectId ? detailBusy.kind : null;
 		            const bidded = myResearcherProposalByProject.get(w.projectId);
 		            const canBid = detailRead.has(w.projectId) || briefFree(w);
-		            return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		            return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		              "div",
 		              {
 		                style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
 		                children: [
-		                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                    WorkRow,
 		                    {
 		                      t,
@@ -6557,9 +6520,9 @@ window.__ModuleLoader__.load({
 		                      briefFree: briefFree(w),
 		                      onSummary: () => void toggleSummary(w),
 		                      onBrief: () => requestBrief(w),
-		                      below: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "inline-flex", alignItems: "center", gap: 6 }, children: [
-		                        bidded ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: proposalTone(bidded.status), children: translateOr(t, progressLabelKey(bidded, proposalView(bidded, myAccountId)), bidded.status) }) : null,
-		                        canBid ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                      below: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "inline-flex", alignItems: "center", gap: 6 }, children: [
+		                        bidded ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: proposalTone(bidded.status), children: translateOr(t, progressLabelKey(bidded, proposalView(bidded, myAccountId)), bidded.status) }) : null,
+		                        canBid ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                          "button",
 		                          {
 		                            type: "button",
@@ -6573,7 +6536,7 @@ window.__ModuleLoader__.load({
 		                      ] })
 		                    }
 		                  ),
-		                  expanded && detail?.projectId === w.projectId ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(WorkDetail, { t, work: detail.work, brief: detail.brief }) : null
+		                  expanded && detail?.projectId === w.projectId ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(WorkDetail, { t, work: detail.work, brief: detail.brief }) : null
 		                ]
 		              },
 		              w.projectId
@@ -6581,18 +6544,18 @@ window.__ModuleLoader__.load({
 		          }) })
 		        ) : works === null ? (
 		          /* ── 可指导：学生发布的研究工作（`SEEK_MENTOR`，只对导师显示这个 Tab）── */
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: worksLoading ? t("community.hint.loadingWork") : t("community.hint.noData") })
-		        ) : works.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("community.hint.noDiscoverable") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.list, children: works.map((w, i) => {
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: worksLoading ? t("community.hint.loadingWork") : t("community.hint.noData") })
+		        ) : works.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.noDiscoverable") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: works.map((w, i) => {
 		          const expanded = open?.projectId === w.projectId;
 		          const busyKind = detailBusy?.projectId === w.projectId ? detailBusy.kind : null;
 		          const proposed = myMentorProposalByProject.get(w.projectId);
 		          const canPropose = detailRead.has(w.projectId) || briefFree(w);
-		          return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+		          return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		            "div",
 		            {
 		              style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
 		              children: [
-		                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  WorkRow,
 		                  {
 		                    t,
@@ -6608,13 +6571,13 @@ window.__ModuleLoader__.load({
 		                    briefFree: briefFree(w),
 		                    onSummary: () => void toggleSummary(w),
 		                    onBrief: () => requestBrief(w),
-		                    below: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "inline-flex", alignItems: "center", gap: 6 }, children: [
-		                      proposed ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: proposalTone(proposed.status), children: translateOr(
+		                    below: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "inline-flex", alignItems: "center", gap: 6 }, children: [
+		                      proposed ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: proposalTone(proposed.status), children: translateOr(
 		                        t,
 		                        progressLabelKey(proposed, proposalView(proposed, myAccountId)),
 		                        proposed.status
 		                      ) }) : null,
-		                      canPropose ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		                      canPropose ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                        "button",
 		                        {
 		                          type: "button",
@@ -6628,7 +6591,7 @@ window.__ModuleLoader__.load({
 		                    ] })
 		                  }
 		                ),
-		                expanded && detail?.projectId === w.projectId ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(WorkDetail, { t, work: detail.work, brief: detail.brief }) : null
+		                expanded && detail?.projectId === w.projectId ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(WorkDetail, { t, work: detail.work, brief: detail.brief }) : null
 		              ]
 		            },
 		            w.projectId
@@ -6706,22 +6669,22 @@ window.__ModuleLoader__.load({
 		      setChecking(false);
 		    }
 		  };
-		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		        "🧩 ",
 		        t("system.dependency.title"),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        dep === null ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "neutral", children: t("system.status.unknown") }) : dep.available ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "success", children: t("system.status.installed") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("system.status.notInstalled") })
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        dep === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("system.status.unknown") }) : dep.available ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "success", children: t("system.status.installed") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("system.status.notInstalled") })
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardBody, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.mono, children: "tectonic" }),
-		          dep?.version ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.hint, children: dep.version }) : null,
-		          dep?.path ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { ...S.hint, opacity: 0.7 }, children: dep.path }) : null,
-		          dep?.viaEnv ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.hint, children: t("system.dependency.viaEnv", { envVar: dep.envVar }) }) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.mono, children: "tectonic" }),
+		          dep?.version ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.hint, children: dep.version }) : null,
+		          dep?.path ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, opacity: 0.7 }, children: dep.path }) : null,
+		          dep?.viaEnv ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.hint, children: t("system.dependency.viaEnv", { envVar: dep.envVar }) }) : null,
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "button",
 		            {
 		              type: "button",
@@ -6732,7 +6695,7 @@ window.__ModuleLoader__.load({
 		            }
 		          )
 		        ] }),
-		        dependencyNotice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        dependencyNotice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		          "div",
 		          {
 		            role: dependencyNotice.tone === "error" ? "alert" : "status",
@@ -6740,30 +6703,30 @@ window.__ModuleLoader__.load({
 		            children: dependencyNotice.text
 		          }
 		        ) : null,
-		        dep && !dep.available ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.hint, lineHeight: 2, marginTop: 8 }, children: [
+		        dep && !dep.available ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.hint, lineHeight: 2, marginTop: 8 }, children: [
 		          t("system.dependency.installIntro"),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("br", {}),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.mono, children: "brew install tectonic" }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("br", {}),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.mono, children: "mamba install -c conda-forge tectonic" }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("br", {}),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.mono, children: "cargo install tectonic" }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("br", {}),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("br", {}),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.mono, children: "brew install tectonic" }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("br", {}),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.mono, children: "mamba install -c conda-forge tectonic" }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("br", {}),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.mono, children: "cargo install tectonic" }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("br", {}),
 		          t("system.dependency.installOutro", { envVar: dep.envVar || "CONVFUSION_TECTONIC" })
 		        ] }) : null
 		      ] })
 		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardHead, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		        "⌕ ",
 		        t("system.retrieval.title"),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        configured ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "success", children: t("system.status.configured") }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Badge, { tone: "warn", children: t("system.status.notConfigured") })
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
+		        configured ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "success", children: t("system.status.configured") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("system.status.notConfigured") })
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.cardBody, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { ...S.field, flex: "initial" }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.label, children: "OpenAlex API Key" }),
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.field, flex: "initial" }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: "OpenAlex API Key" }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "input",
 		            {
 		              style: S.input,
@@ -6780,20 +6743,20 @@ window.__ModuleLoader__.load({
 		              }
 		            }
 		          ),
-		          !configured ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hint, children: [
+		          !configured ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hint, children: [
 		            t("system.retrieval.notConfigured"),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.mono, children: "openalex.org" }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.mono, children: "openalex.org" }),
 		            "  ",
 		            t("system.retrieval.notConfiguredAction")
-		          ] }) : source === "env" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.hint, children: [
+		          ] }) : source === "env" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hint, children: [
 		            t("system.retrieval.envFrom"),
-		            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: S.mono, children: envVar }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.mono, children: envVar }),
 		            "  ",
 		            t("system.retrieval.envFromAction")
 		          ] }) : null
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: S.footer, children: [
-		          notice ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		          notice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "span",
 		            {
 		              role: notice.tone === "error" ? "alert" : "status",
@@ -6801,7 +6764,7 @@ window.__ModuleLoader__.load({
 		              children: notice.text
 		            }
 		          ) : null,
-		          source === "settings" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          source === "settings" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "button",
 		            {
 		              type: "button",
@@ -6811,7 +6774,7 @@ window.__ModuleLoader__.load({
 		              children: t(busy === "clear" ? "system.retrieval.clearing" : "system.retrieval.clear")
 		            }
 		          ) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "button",
 		            {
 		              type: "button",
@@ -6895,6 +6858,23 @@ window.__ModuleLoader__.load({
 
 		// src/client/community-panel.tsx
 		var import_react2 = require("react");
+
+		// src/client/icon.tsx
+		var import_jsx_runtime3 = require("react/jsx-runtime");
+		function ConvFusionMark({ size = 38 }) {
+		  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+		    "img",
+		    {
+		      src: favicon_default,
+		      width: size,
+		      height: size,
+		      alt: "ConvFusion",
+		      style: { display: "block", width: size, height: size }
+		    }
+		  );
+		}
+
+		// src/client/community-panel.tsx
 		var import_jsx_runtime4 = require("react/jsx-runtime");
 		var COMMUNITY_BUTTON_ORDER = -1;
 		function ConvFusionComButton({ t }) {

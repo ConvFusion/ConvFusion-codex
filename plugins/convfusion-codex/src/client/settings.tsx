@@ -40,7 +40,6 @@
  */
 
 import React from 'react'
-import { ConvFusionMark } from './icon.js'
 import { Markdown } from './markdown-view.js'
 import {
   categoryText,
@@ -434,23 +433,6 @@ const S = {
     border: '1px solid var(--dsw-alias-border-l1)',
     background:
       'linear-gradient(120deg, var(--dsw-alias-state-business-tertiary), var(--dsw-alias-bg-layer-1))',
-  } as React.CSSProperties,
-  heroIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
-    display: 'grid',
-    placeItems: 'center',
-    color: 'var(--dsw-alias-state-business-primary)',
-    background: 'var(--dsw-alias-bg-layer-1)',
-    border: '1px solid var(--dsw-alias-border-l1)',
-    flex: '0 0 auto',
-  } as React.CSSProperties,
-  heroTitle: {
-    fontSize: 15,
-    fontWeight: 700,
-    color: 'var(--dsw-alias-label-primary)',
-    lineHeight: 1.3,
   } as React.CSSProperties,
   heroSub: {
     fontSize: 12,
@@ -1201,7 +1183,10 @@ export function ConvFusionProjectSettings({
     setSaving(true)
     const next = await call('customization/resetSkill', { skillId: skill.skillId })
     setSaving(false)
-    if (next) setNotice({ tone: 'success', text: t('settings.editor.restoredSkill', { skill: displaySkill }) })
+    if (next) {
+      setDraft('')
+      setNotice({ tone: 'success', text: t('settings.editor.restoredSkill', { skill: displaySkill }) })
+    }
   }
 
   const totalOverridden = state ? state.categories.reduce((n, c) => n + c.overriddenCount, 0) : 0
@@ -1211,17 +1196,9 @@ export function ConvFusionProjectSettings({
     <div style={S.page}>
       {/* ── Hero ─────────────────────────────────────────────────── */}
       <div style={S.hero}>
-        <div style={S.heroIcon}>
-          <ConvFusionMark size={24} />
-        </div>
         <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+          <div style={S.heroSub}>{t('settings.hero.subtitle')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <div style={S.heroTitle}>ConvFusion</div>
-            {state?.version ? (
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--dsw-alias-label-tertiary)' }}>
-                v{state.version}
-              </span>
-            ) : null}
             {update ? (
               <a
                 href={update.url || undefined}
@@ -1239,7 +1216,6 @@ export function ConvFusionProjectSettings({
               </a>
             ) : null}
           </div>
-          <div style={S.heroSub}>{t('settings.hero.subtitle')}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {totalOverridden > 0 ? (
