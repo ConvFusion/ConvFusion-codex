@@ -30,14 +30,6 @@ const transport: SettingsSend = async (endpoint, payload, signal) => {
   if (!response.ok) throw new Error('连接已失效，请在 Codex 中重新打开 ConvFusion 界面。')
   return response.json()
 }
-const scopeState = { status: 'ready' as const }
-const scope = {
-  getSnapshot: () => scopeState,
-  subscribe: (_listener: () => void) => () => {},
-  async set(field: string, value: unknown) { const result = await transport('codex/settings', { field, value }); if (!result.ok) throw new Error(result.error?.message ?? '保存失败') },
-  async unset(field: string) { await scope.set(field, '') },
-}
-
 function Workbench({ initial }: { initial: Session }): JSX.Element {
   const current = initial
   const [tab, setTab] = React.useState<'community' | 'progress' | 'methods'>('community')
@@ -82,7 +74,7 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
     <main key={current.workspaceRoot ?? 'global'}>
       {tab === 'community' && <CommunityTab send={transport} initial={null} t={t} session={bridge} />}
       {tab === 'progress' && <><ContinuationSettings zh={zh} />{current.sessionId ? <ResearchProgressPanel sessionId={current.sessionId} t={t} send={transport} /> : <p role="status">{zh ? '在项目聊天中 @ 使用 ConvFusion 并打开工作台，即可查看该项目的研究进展。' : 'Use @ to invoke ConvFusion in a project chat and open the workbench to view its research progress.'}</p>}</>}
-      {tab === 'methods' && <><MethodsExport zh={zh} enabled={Boolean(current.workspaceRoot)} /><ConvFusionProjectSettings scope={scope} send={transport} t={t} session={bridge} /></>}
+      {tab === 'methods' && <><MethodsExport zh={zh} enabled={Boolean(current.workspaceRoot)} /><ConvFusionProjectSettings send={transport} t={t} session={bridge} /></>}
     </main>
     {syncDraft !== null && <dialog ref={(node) => { if (node && !node.open) node.showModal() }} onCancel={() => setSyncDraft(null)} aria-label={zh ? '同步请求' : 'Sync request'} className="sync-request">
       <h2>{zh ? '同步请求' : 'Sync request'}</h2>

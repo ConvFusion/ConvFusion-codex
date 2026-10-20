@@ -73,8 +73,8 @@ try {
   assert.equal(global.structuredContent.workspaceRoot, null, 'global launch must not use process cwd')
   const uiCall = async (payload) => (await handleRequest({ jsonrpc: '2.0', id: 25, method: 'tools/call', params: { name: 'research_ui_action', arguments: { ui_session: global.structuredContent.uiSession, ...payload } } })).result
   const selected = await uiCall({ endpoint: 'codex/select-workspace', payload: { path: temp } })
-  assert.equal(selected.isError, false)
-  assert.equal(selected.structuredContent.value.workspaceRoot, await realpath(temp))
+  assert.equal(selected.isError, true, "global workbench cannot select a directory manually")
+  assert.equal((await uiCall({ endpoint: "codex/bootstrap" })).structuredContent.value.workspaceRoot, null)
   const badSession = await uiCall({ ui_session: 'unregistered', endpoint: 'state' })
   assert.equal(badSession.isError, true)
 

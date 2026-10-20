@@ -65,6 +65,8 @@ export const en = {
 
   'community.title': 'ConvFusion.com',
   'community.entry.label': 'ConvFusion.com',
+  // Tooltip of the top brand entry (icon + label); entry name and settings-page title stay separate keys
+  'community.button.title': 'Open ConvFusion.com (account · research network)',
   'community.notice.published': '{title} · state v{version}',
   'community.notice.tokens': '{tokens} Token',
   'community.notice.files': '{count} attachment(s)',
@@ -154,6 +156,9 @@ export const en = {
   'community.dash.token': 'Token balance',
   'community.dash.tokenFrozen': '{frozen} frozen',
   'community.dash.tokenTotal': '{total} in total',
+  // v0.6.3: the two pools are reported separately — only the funded pool can pay a mentor
+  'community.dash.tokenPools': 'Funded {funded} · grant {grant}',
+  'community.dash.tokenPoolsFrozen': 'Funded {funded} · grant {grant} · {frozen} frozen',
   'community.dash.storage': 'Storage',
   'community.dash.storageSub': 'Used {used} / {total}',
   'community.dash.projects': 'Published projects',
@@ -234,6 +239,18 @@ export const en = {
   'community.mentor.feeNote':
     'A {percent}% deposit ({deposit} Token) is frozen on acceptance, the other side confirms the success condition, and the remaining {success} Token is paid once the outcome is verified.',
   'community.mentor.feeInvalid': 'Enter a positive integer for the total fee.',
+  // Success condition + paper level (v0.6.3: the level IS the price).
+  // The condition is chosen in the dialog; a publication condition must name a level
+  // (the server answers 400 without one), and the level → amount mapping lives on the
+  // server (fee-suggestion) — the client only forwards the level.
+  'community.mentor.conditionLabel': 'Success condition',
+  'community.mentor.levelLabel': 'Paper level',
+  'community.mentor.levelNone': 'Select level',
+  'community.mentor.levelSystem.JCR': 'JCR quartile',
+  'community.mentor.levelSystem.CCF': 'CCF class',
+  'community.mentor.level.JCR': 'JCR Q{level}',
+  'community.mentor.level.CCF': 'CCF-{level}',
+  'community.mentor.levelRequired': 'A publication condition must name a level: the level is the price.',
   'community.tip.propose': 'Offer to mentor this work (free; the deposit is only frozen if they accept)',
   'community.tip.proposed': 'Already offered: this request is awaiting their response',
   'community.mentor.profileTitle': 'Mentor profile',
@@ -247,6 +264,7 @@ export const en = {
   'community.mentor.profileInterests': 'Research interests',
   'community.mentor.profileExpertise': 'Research expertise',
   'community.mentor.unknownParty': 'Unknown user',
+  'community.hint.detachedWork': 'Not open in this workspace right now (switch to its research directory to update)',
   'community.mentor.untitledProject': 'Untitled project',
   'community.mentor.mentorIs': 'Mentor: {name}',
   'community.mentor.researcherIs': 'Student: {name}',
@@ -255,13 +273,18 @@ export const en = {
   // Progress after the relationship exists. `review_files` counts the **non-owner**
   // side: in direction A that is the mentor's guidance, in direction B the student's
   // delivery — so all four phrasings are needed, not just mentor/student.
-  'community.mentor.progress.studentWaiting': 'Awaiting guidance',
-  'community.mentor.progress.studentGot': 'Mentor has given guidance',
-  'community.mentor.progress.mentorWaiting': 'Guidance pending',
-  'community.mentor.progress.mentorDone': 'Guidance delivered',
+  // Progress after ACCEPTED. ⚠️ Whose actions the wording describes is decided by the
+  // DIRECTION, not by the role: direction A (a work seeking a mentor) is owned by the
+  // student, so the mentor delivers; direction B (a topic recruiting students) is owned
+  // by the mentor, so the student delivers. `review_files` counts the NON-owner side.
+  // Rule: src/client/mentorship-labels.ts (pure, asserted for all four combinations).
+  'community.mentor.progress.awaitingMentor': 'Awaiting guidance',
+  'community.mentor.progress.mentorGuided': 'Mentor has given guidance',
+  'community.mentor.progress.iToGuide': 'Guidance pending',
+  'community.mentor.progress.iGuided': 'Guidance delivered',
   'community.mentor.progress.iToDeliver': 'I still need to deliver',
   'community.mentor.progress.iDelivered': 'I have delivered',
-  'community.mentor.progress.studentToDeliver': 'Waiting for the student to deliver',
+  'community.mentor.progress.awaitingStudent': 'Waiting for the student to deliver',
   'community.mentor.progress.studentDelivered': 'Student has delivered',
   // The watermark is on the **owner** side, so only the party that downloads that side
   // (the non-owner) sees these — hence "the other side", not "the student".
@@ -285,8 +308,10 @@ export const en = {
   // Direction B: the acceptor is the mentor and the deposit frozen is the **student's**
   // (neither the receipt nor the 402 may read as "your balance is too low").
   'community.mentor.acceptDoneOther': 'Accepted; the student’s {deposit} Token deposit is frozen.',
-  'community.mentor.acceptNoTokens': 'Need {deposit} more available Tokens; get Tokens and retry.',
-  'community.mentor.acceptNoTokensOther': 'The student has fewer than {deposit} available Tokens — cannot accept; ask them to top up.',
+  'community.mentor.acceptNoTokens':
+    'Fewer than {deposit} Tokens in the funded pool (grant Tokens cannot pay a mentor). Please contact an administrator to issue Tokens during the trial phase.',
+  'community.mentor.acceptNoTokensOther':
+    'The student has fewer than {deposit} Tokens in the funded pool — cannot accept; ask them to contact an administrator.',
   'community.mentor.rejectDone': 'Request declined.',
   'community.mentor.acceptConfirmTitle': 'Accepting freezes a deposit',
   'community.mentor.acceptConfirmTitleOther': 'Accepting freezes the student’s deposit',
@@ -294,8 +319,16 @@ export const en = {
   'community.mentor.acceptConfirmBadgeOther': 'Freeze {deposit} Token from the student',
   'community.mentor.acceptConfirm': 'Confirm accept',
   'community.mentor.acceptFreezeNote': 'Accepting freezes a {deposit} Token deposit (still yours, just unavailable).',
-  'community.mentor.acceptFreezeNoteOther': 'Accepting freezes a {deposit} Token deposit from the **student**’s account; it fails if the student lacks the balance.',
+  'community.mentor.acceptFreezeNoteOther': 'Accepting freezes a {deposit} Token deposit from the **student**’s account; it fails if the student’s funded pool is short.',
   'community.mentor.acceptBalance': 'Available balance: {balance} Token',
+  // The deposit can only be frozen from the **funded** pool; when that is known, report
+  // only it instead of a total that would mislead.
+  'community.mentor.acceptPools': 'Funded {funded} Token · grant {grant} Token (grant cannot pay a mentor)',
+  'community.mentor.acceptFundedOnly': 'Funded {funded} Token',
+  // Blocked before the confirm click, with the actionable next step (self-service top-up
+  // is not open yet, so an administrator has to issue Tokens).
+  'community.mentor.acceptNoFunded':
+    'The funded pool holds only {funded} Token, short of the {deposit} Token deposit (the {grant} grant Token cannot pay a mentor). Please contact an administrator to issue Tokens during the trial phase.',
   'community.exchange.downloadTitle': 'Download into a workspace',
   'community.exchange.sizeBadge': '{files} files · {size}',
   'community.exchange.zipOnly': 'Only the ZIP is saved into the chosen workspace; no extraction — the rest is up to you.',
@@ -381,10 +414,17 @@ export const en = {
   'community.briefConfirm.confirm': 'Confirm',
   'community.tip.balance': 'Click to view the balance and renewal',
   // ── Token balance dialog + recharge application (2026-09 user request) ──
+  // v0.6.3: the balance has **two pools** — only the funded pool can pay a mentor or be
+  // withdrawn; grant Tokens only buy platform-hosted services. Reporting a single
+  // "available" number would send users into a 402 they cannot explain.
   'community.token.dialogTitle': 'Token balance',
   'community.token.available': 'Available',
   'community.token.frozen': 'Frozen',
   'community.token.total': 'Total',
+  'community.token.funded': 'Funded',
+  'community.token.grant': 'Grant',
+  'community.token.fundedHint': 'pays mentors',
+  'community.token.grantHint': 'platform only',
   'community.token.renewHint':
     'Tokens are currently granted by an administrator. Once you apply, an administrator will handle it on the server; self-service payment is not available yet.',
   'community.token.pendingLine': 'Applied for {amount} Token; waiting for the administrator.',
@@ -399,6 +439,8 @@ export const en = {
   'community.token.receipt': 'Recharge request submitted ({amount} Token); waiting for the administrator.',
   'community.tip.balanceDetail':
     'Available {available} · frozen {frozen} (frozen funds are still yours, merely locked); click to view the balance and renewal',
+  'community.tip.balancePools':
+    'Funded {funded} · grant {grant} (grant Tokens only buy platform-hosted services and cannot pay a mentor); click to view the balance and renewal',
   'community.tip.keyPrivacy': 'The credential is stored only on this machine (DSH settings); it is never sent back to the browser or written into the conversation.',
   'community.tip.envKey': 'The credential comes from an environment variable; change it and restart DSH',
   'community.balance.frozenNote': '({count} frozen)',
@@ -487,8 +529,6 @@ export const en = {
   'system.retrieval.clearing': 'Clearing…',
   'system.retrieval.saved': 'OpenAlex API Key saved',
   'system.retrieval.cleared': 'OpenAlex API Key cleared',
-  'system.retrieval.savedRefreshFailed': 'API Key saved, but the status could not be refreshed. Click Retry above.',
-  'system.retrieval.clearedRefreshFailed': 'API Key cleared, but the status could not be refreshed. Click Retry above.',
   'system.retrieval.saveFailed': 'Save failed: {detail}',
   'system.retrieval.clearFailed': 'Clear failed: {detail}',
 

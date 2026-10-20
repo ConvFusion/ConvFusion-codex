@@ -95,6 +95,7 @@ import {
   makeWorkIdentity,
   normalizeWorkspaceId,
   readLocalIdentity,
+  researchRootFingerprint,
   writeWorkMarker,
 } from './research/work-identity.js'
 import type { SyncWatermarkStore } from './research/sync-watermarks.js'
@@ -135,6 +136,8 @@ import {
   fetchPropose,
   fetchRejectProposal,
   fetchTokenBalance,
+  asCcfLevel,
+  asJcrLevel,
   fetchWorkBrief,
   fetchWorkList,
   fetchWorkSummary,
@@ -142,6 +145,7 @@ import {
   normalizeBaseUrl,
   fetchUsage,
   fetchProject,
+  fetchProjects,
   probeServerHealth,
   publishProject,
   readStateVersion,
@@ -158,6 +162,7 @@ import {
   type FeeSuggestion,
   type MentorshipContract,
   type MentorshipProposal,
+  type PaperLevel,
   type ProjectDirection,
   type RechargeRequest,
   type ServerAccount,
@@ -178,7 +183,6 @@ import {
 } from './research/upload-selection.js'
 import {
   createMemoryPublishedStore,
-  parsePublishedStoreKey,
   type PublishedRecord,
   type PublishedStore,
 } from './research/published-store.js'
@@ -502,6 +506,14 @@ export interface LocalWorkItem {
     /** 记录属于哪个账号。 */
     accountId: string
   }>
+  /**
+   * **本机当前没有打开**这项研究工作（研究根不在当前会话工作区里），但它在网络上仍属于我。
+   *
+   * 界面据此只显示"名字 + work_id + 已在网络中"，**不给发布/更新按钮** ——
+   * 没有文件就没有可上传的内容。这样用户换进换出研究时，之前发布过的工作依然看得见
+   * （列表按 **work_id** 归属，而不是按文件夹在不在）。
+   */
+  detached?: boolean
 }
 
 /** 服务器上的账号（`GET /api/v1/auth/me`）。**不含任何凭据。** */
@@ -757,7 +769,10 @@ export function buildSettingsState(
     customizableSections: [...CUSTOMIZABLE_SECTIONS],
     categories,
     retrieval: {
-      ...describeOpenAlexKey(config),
+      // ⚠️ 把 `env` 传进去：与 `buildAccountState(config, env)` 同一个口径。
+      // 漏传时它会回落到 `process.env`（生产行为一样，但测试注入的 env 会被无视，
+      // 于是"环境变量回退"这条分支在自检里测不到）。
+      ...describeOpenAlexKey(config, env),
       envVar: OPENALEX_API_KEY_ENV,
     },
     // 【ConvFusion.com】：只给"服务器地址 + 有没有凭据"。⚠️ 不联网、不带凭据。
@@ -1013,6 +1028,8 @@ async function fetchLatestRelease(
  * |---|---|---|
  * | `state` | `{}` | 整页状态（类别 → Skill → 章节） |
  * | `dependencies/check` | `{}` | 重新探测本地外部依赖（tectonic），供【系统设置】的"重新检查" |
+ * | `retrieval/saveKey` | `{ apiKey }` | 保存 OpenAlex API Key（**宿主侧落盘**，见端点实现里的理由）；回检索状态 |
+ * | `retrieval/clearKey` | `{}` | 清除 OpenAlex API Key（回到"跟随环境变量"）；回检索状态 |
  * | `version/check` | `{}` | 插件更新检查（GitHub Releases `latest`；离线/无 release 时 `latest:null`） |
  * | `customization/save` | `{ skillId, section, text }` | 写入覆盖（空文本 = 清除） |
  * | `customization/reset` | `{ skillId, section }` | 清除一个章节的覆盖 |
@@ -1035,8 +1052,8 @@ async function fetchLatestRelease(
  * | `work/list` | `{}` | 研究网络里已公开的研究工作（需登录；条数由服务器定） |
  * | `work/summary` | `{ projectId }` | 一项研究工作的摘要（免费） |
  * | `work/brief` | `{ projectId, intentKey }` | 一项研究工作的简报（非 owner 花 1 Token） |
- * | `mentor/fee-suggestion` | `{}` | 默认指导费用建议（100 / 20 / 80，导师可改） |
- * | `mentor/propose` | `{ projectId, guidanceScope, totalFee, depositAmount, successPaymentAmount, successCondition }` | 发起指导提案（免费；同一项目同一导师只能有一个生效提案） |
+ * | `mentor/fee-suggestion` | `{ jcrLevel?, ccfLevel? }` | 指导费用建议：给论文等级（JCR 1–4 / CCF A–C）→ **该等级的价格**；不给 → 兜底价（100 / 20 / 80，非论文类条件用） |
+ * | `mentor/propose` | `{ projectId, guidanceScope, totalFee, depositAmount, successPaymentAmount, successCondition }` | 发起指导提案（免费；同一项目同一导师只能有一个生效提案）。**论文类条件必须带等级**（`successCondition.jcrLevel` / `ccfLevel`），服务器缺等级直接 400 |
  * | `mentor/list` | `{}` | 我涉及的指导提案（我发起的 + 我收到的）；ACCEPTED 的带 `reviewFiles`（导师已上传几份，服务器 `review_files`）与 **`sync`**（"学生更新了工作区吗"：与本地水位比对的结果，`null` = 无从判断） |
  * | `mentor/accept` | `{ proposalId, intentKey }` | 接受指导（研究者）→ **冻结押金**、建合同与关系 |
  * | `mentor/reject` | `{ proposalId }` | 拒绝指导（研究者） |
@@ -1082,9 +1099,17 @@ export function createSettingsRpcHandler(
     )
 
   /** 服务器请求参数（统一注入 fetch / 超时 / 环境变量）。 */
-  const netOptions = (): Parameters<typeof fetchAccount>[2] => ({
+  /**
+   * 服务器调用的公共选项。
+   *
+   * @param workspaceId 这项工作在本机的身份（`ws_…`）——**写请求带上它**，
+   *   服务器据此拒绝"往别人的项目里写"（本机映射指错时唯一的兜底，
+   *   见 `server-client.ts` 的 `ServerRequestOptions.workspaceId`）。
+   */
+  const netOptions = (workspaceId?: string | null): Parameters<typeof fetchAccount>[2] => ({
     ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
     ...(deps.serverTimeoutMs === undefined ? {} : { timeoutMs: deps.serverTimeoutMs }),
+    ...(workspaceId ? { workspaceId } : {}),
   })
 
   /**
@@ -1255,6 +1280,31 @@ export function createSettingsRpcHandler(
   }
 
   /**
+   * 把一个配置补丁落进本机设置文档（**不含**凭据语义的通用写入）。
+   *
+   * 与 {@link persist} 的区别只有一个：不组装账号状态。失败一律翻成
+   * `storage-unavailable` —— "看着保存成功、重启后没了"是最坏的形态，
+   * 所以设置存储不可用时**明确报错**，绝不静默丢弃。
+   */
+  const persistConfigPatch = async (patch: Partial<Config>): Promise<SettingsRpcResult> => {
+    if (!deps.setConfig) {
+      return fail('storage-unavailable', '设置存储当前不可用，无法保存。请检查 DSH 的设置服务是否正常。')
+    }
+    try {
+      await deps.setConfig(patch)
+    } catch (e) {
+      return fail('storage-unavailable', `保存失败：${e instanceof Error ? e.message : String(e)}`)
+    }
+    return { ok: true, value: {} }
+  }
+
+  /** 检索凭据状态（回给浏览器的形态：只有"能不能用 + 从哪来"，**没有密钥**）。 */
+  const retrievalStatus = (config: Partial<Config>): RetrievalKeyStatus & { envVar: string } => ({
+    ...describeOpenAlexKey(config, env()),
+    envVar: OPENALEX_API_KEY_ENV,
+  })
+
+  /**
    * 读余额，**尽力而为**：失败返回 null（不抛出）。
    *
    * 余额是登录成功的"附加信息"：把它做成硬依赖，会让一次网络抖动把已经成功的登录
@@ -1358,6 +1408,87 @@ export function createSettingsRpcHandler(
    * `work/mine` 与 `work/publish` 共用：**进度只算一次**（读盘不便宜），
    * 发布时就地把同一份快照组装成服务器的内容 Envelope。
    */
+  /**
+   * 这条发布记录**属于现在住在这个路径上的研究**吗？
+   *
+   * ## 为什么需要（2026-10 实测的故障）
+   *
+   * 用户在同一个会话工作区里换进换出多项研究。新研究占用旧路径时，旧记录会"贴"到它身上
+   * ——界面显示"已在网络中"，点【更新研究工作】就会把**新研究的状态写进旧研究的项目**。
+   * 记录键已经改成 work_id，但**旧记录（v0.6.2 之前写的）没有 `workId`、也没有指纹**，
+   * 光看它无法自证 —— 于是必须靠**当前研究根**一侧的证据来判：
+   *
+   * ```text
+   * mine     记录里的 workId / 指纹与当前研究根一致；或旧记录但**工作名未变**
+   * not-mine 记录里的 workId / 指纹与当前研究根**不一致**（明确是另一项研究）
+   * unknown  旧记录 + 当前研究根**有身份**（说明这项研究发布过，那旧记录就是别人留下的）
+   * ```
+   *
+   * 只有 `mine` 才允许：显示"已在网络中" / 出现【更新研究工作】 / 复用它做增量与写项目。
+   * `not-mine` / `unknown` 一律当"未发布"——重新发布是安全的一侧（多一个项目）
+   * 远远好过写错项目（覆盖，不可逆）。
+   *
+   * @param record 发布记录
+   * @param workId 当前研究根的身份（`null` = 还没发布过）
+   * @param fingerprint 当前研究根的指纹（`project.md` 的 `created_at`）
+   * @param workName 当前研究工作名（旧记录只有这一条可比对的证据）
+   */
+  const attributeRecord = async (
+    root: string,
+    record: {
+      workId?: string
+      rootFingerprint?: string
+      title?: string
+      files?: Record<string, string>
+    },
+    workId: string | null,
+    fingerprint: string | null,
+    workName: string,
+  ): Promise<'mine' | 'not-mine' | 'unknown'> => {
+    // 有身份就按身份判（最强判据）
+    if (record.workId) {
+      if (!workId) return 'not-mine' // 记录说是某项已发布的研究，而这个路径上的研究没发布过
+      return record.workId === workId ? 'mine' : 'not-mine'
+    }
+    // 其次按研究根指纹
+    if (record.rootFingerprint) {
+      if (!fingerprint) return 'unknown'
+      return record.rootFingerprint === fingerprint ? 'mine' : 'not-mine'
+    }
+    /*
+     * 旧记录（两个字段都没有）：先用**文件指纹**当证据 ——
+     * 记录里存着上次上传的 `relPath → sha256`，抽几个当前文件重新算一遍：
+     *   · 有一个对得上 → 同一项研究（**能扛改名**：论文改名不影响文件内容）；
+     *   · 查得到却没一个对得上 → **另一项研究**（比如换进了一个新建的研究）；
+     *   · 一个都查不到（文件都删了/挪了）→ 只能退回名字。
+     */
+    /*
+     * ⚠️ 文件指纹只能当**正面**证据：对得上 ⇒ 同一项研究（内容没变过）；
+     * 对不上**不能反证** —— 用户两次发布之间本来就在改文件（这是常态）。
+     * 第一版把"对不上"当成"另一项研究"，于是只要改过 `project.md`，那项工作就会被判成
+     * "未发布"（自检当场抓到：连测试夹具里的假指纹都命中）。
+     */
+    for (const [relPath, digest] of Object.entries(record.files ?? {}).slice(0, 3)) {
+      try {
+        if ((await fileDigest(resolve(root, relPath))) === digest) return 'mine'
+      } catch {
+        /* 读不到不算证据（文件可能已被删/改名） */
+      }
+    }
+
+    /*
+     * 没有文件证据 → 只能看名字：**相同就认**，不同则 `unknown`（无法排除"另一项研究"）。
+     *
+     * 连名字都没有 = **一点可比对的证据都没有**（极简/极老记录）→ 维持旧行为（认）。
+     * 这一侧必须宽：否则历史数据会集体变成"未发布"，用户会以为自己的研究工作丢了；
+     * 而真正危险的场景（换进一项新研究）必然带着**不同的名字与不同的文件**，
+     * 前两条证据就能拦住。
+     */
+    const nameAtPublish = (record.title ?? '').trim()
+    if (!nameAtPublish) return 'mine'
+    return nameAtPublish === workName.trim() ? 'mine' : 'unknown'
+  }
+
   const collectLocalWorks = async (): Promise<{
     available: boolean
     reason?: string
@@ -1402,19 +1533,28 @@ export function createSettingsRpcHandler(
        * "导师招学生的选题"（服务器上是两个项目）。没有的方向就不出现在数组里，
        * 界面据此把该按钮显示成「寻找…」而不是「更新…」。
        */
-      const published = PROJECT_DIRECTIONS.flatMap((direction) => {
-        const record = publishedStore.get(root, direction)
-        return record
-          ? [{
-              direction,
-              projectId: record.projectId,
-              version: record.version,
-              updatedAt: record.updatedAt,
-              serverUrl: record.serverUrl,
-              accountId: record.accountId,
-            }]
-          : []
-      })
+      const workNameForAttr = researchWorkName(root, title).name
+      const idForAttr = readLocalIdentity(root, deps.workIdentity).workspaceId
+      const fingerprintForAttr = researchRootFingerprint(root)
+      const published = await (async () => {
+        const rows: LocalWorkItem['published'] = []
+        for (const direction of PROJECT_DIRECTIONS) {
+          const record = publishedStore.get(root, direction)
+          if (!record) continue
+          // 归属不明的记录一律当"未发布"：宁可让用户重新发布，也不写错项目（覆盖不可逆）
+          const mine = await attributeRecord(root, record, idForAttr, fingerprintForAttr, workNameForAttr)
+          if (mine !== 'mine') continue
+          rows.push({
+            direction,
+            projectId: record.projectId,
+            version: record.version,
+            updatedAt: record.updatedAt,
+            serverUrl: record.serverUrl,
+            accountId: record.accountId,
+          })
+        }
+        return rows
+      })()
       if (progress) sources.set(w.id, { root, title, progress })
       /*
        * 研究工作自己的名字与身份。
@@ -1537,6 +1677,9 @@ export function createSettingsRpcHandler(
           serverUrl: base,
           accountId: c.record.accountId,
           role: 'owner',
+          ...(researchRootFingerprint(c.item.researchRoot)
+            ? { rootFingerprint: researchRootFingerprint(c.item.researchRoot) as string }
+            : {}),
         })
         deps.workIdentity?.set(c.item.researchRoot, identity)
         writeWorkMarker(c.item.researchRoot, identity)
@@ -1557,6 +1700,20 @@ export function createSettingsRpcHandler(
       if (it.workId) continue
       it.workId = readLocalIdentity(it.researchRoot, deps.workIdentity).workspaceId
     }
+    /*
+     * ③ **有 id 才谈"更新"**（2026-10 用户拍板）：服务器支持身份、而这项工作本机拿不到 id
+     * → 那条发布记录无法归属到它（可能是**路径换过住户**留下的），一律当"未发布"处理：
+     * 界面因此显示【寻找…】（不会出现【更新研究工作】），也就不会把内容写进别人的项目。
+     *
+     * 只在服务器**确实有身份概念**时这么做（`workspaceId !== undefined`）：
+     * 老服务器没有这个概念 → 保持原行为（否则会让老用户重新发布，反而多出一个项目）。
+     */
+    const serverHasIds = checks.some((c) => c.workspaceId !== undefined)
+    if (serverHasIds) {
+      for (const it of scoped) {
+        if (!it.workId && it.published.length > 0) it.published = []
+      }
+    }
     return scoped
   }
 
@@ -1573,10 +1730,28 @@ export function createSettingsRpcHandler(
    *
    * 地址比较走 `serverAddressKey`：配置文件里可能带末尾斜杠，字符串直接比会错判成两台。
    */
-  const recordOn = (root: string, base: string, direction: ProjectDirection): PublishedRecord | undefined => {
+  const recordOn = async (
+    item: { root: string; title: string },
+    base: string,
+    direction: ProjectDirection,
+  ): Promise<PublishedRecord | undefined> => {
+    const root = item.root
     const record = publishedStore.get(root, direction)
     if (!record) return undefined
-    return serverAddressKey(record.serverUrl) === serverAddressKey(base) ? record : undefined
+    if (serverAddressKey(record.serverUrl) !== serverAddressKey(base)) return undefined
+    /*
+     * ⚠️ 还要过**归属判定**：这条记录可能属于曾住在这个路径上的**另一项研究**
+     * （用户换进换出多项研究）。归属不明时**不能**当"上次发布"用 —— 否则
+     * 新研究的发布会把状态写进旧研究的项目（覆盖，不可逆）。
+     */
+    const mine = await attributeRecord(
+      root,
+      record,
+      readLocalIdentity(root, deps.workIdentity).workspaceId,
+      researchRootFingerprint(root),
+      researchWorkName(root, item.title).name,
+    )
+    return mine === 'mine' ? record : undefined
   }
 
   /**
@@ -1590,11 +1765,11 @@ export function createSettingsRpcHandler(
     if (items.length === 0) return
     const ids = new Set(items.map((it) => it.projectId))
     const checkedAt = new Date().toISOString()
-    for (const [key, record] of Object.entries(publishedStore.all())) {
+    for (const record of Object.values(publishedStore.all())) {
       if (!ids.has(record.projectId)) continue
       if (record.serverVisibility === 'PUBLISHED' && record.checkedAt) continue
-      const { researchRoot, direction } = parsePublishedStoreKey(key)
-      publishedStore.set(researchRoot, { ...record, direction, serverVisibility: 'PUBLISHED', checkedAt })
+      // 键可能是**身份**也可能是路径（迁移期）→ 必须按项目原地更新，不能"解析键再 set"
+      publishedStore.updateByProject(record.projectId, { serverVisibility: 'PUBLISHED', checkedAt })
     }
   }
 
@@ -1613,6 +1788,46 @@ export function createSettingsRpcHandler(
          */
         case 'dependencies/check':
           return { ok: true, value: describeLocalDependencies() }
+
+        /*
+         * ── OpenAlex 检索凭据（2026-10 修：改由**宿主**落盘）──────────────
+         *
+         * ⚠️ 这两条端点的存在理由是一个实测出来的故障：**浏览器那侧的
+         * `configForm.set()` 会静默不写**。
+         *
+         * `dsh-client-ui-settings` 只在**页面来源是 loopback** 时把写入交给宿主：
+         *
+         * ```js
+         * const persistence = ctx.remote.$host.isLoopback ? "host" : "memory"
+         * …
+         * enqueue(op) { if (this.persistence === "memory") return Promise.resolve(false) }
+         * ```
+         *
+         * 即：非 loopback 页面上 `set()` 不抛错、只是 resolve `false` 且**一个字节都不写**。
+         * 而界面当时忽略了这个布尔值、照样回一句「已保存」并清空输入框 —— 用户看到的
+         * 就是"明明设置了 OpenAlex API Key，却总是显示未配置"（2026-10 用户实测报告）。
+         *
+         * 宿主这条路是**本来就在用**的：`account/login` 就是用 `deps.setConfig` 把
+         * `serverUrl` / `convfusionProdApiKey` 落进 profile 配置（本机 profile 里有实证）。
+         * 走它有三个好处：① 不依赖页面来源；② 凭据只在「profile 配置 ↔ 宿主内存」之间
+         * 流动，不回浏览器（同 `account/*` 的纪律）；③ 写完能立刻回一个**准确的**
+         * 检索状态，界面不用等下一次整页读。
+         */
+        case 'retrieval/saveKey': {
+          const apiKey = asString(p.apiKey).trim()
+          if (!apiKey) return fail('bad-request', '请填写 OpenAlex API Key。')
+          const saved = await persistConfigPatch({ openalexApiKey: apiKey })
+          if (!saved.ok) return saved
+          // 用"刚写进去的值"算状态：`setConfig` 提交后 `getConfig()` 未必立刻反映新值
+          // （与 `persist()` 同一个理由，见那里的说明）
+          return { ok: true, value: { retrieval: retrievalStatus({ ...deps.getConfig(), openalexApiKey: apiKey }) } }
+        }
+
+        case 'retrieval/clearKey': {
+          const cleared = await persistConfigPatch({ openalexApiKey: '' })
+          if (!cleared.ok) return cleared
+          return { ok: true, value: { retrieval: retrievalStatus({ ...deps.getConfig(), openalexApiKey: '' }) } }
+        }
 
         /**
          * 插件更新检查：比较当前版本与 GitHub 最新 Release。
@@ -1980,15 +2195,147 @@ export function createSettingsRpcHandler(
           const listed = await collectLocalWorks()
           const config = deps.getConfig()
           const apiKey = resolveConvFusionApiKey(config, env())
-          const items = await verifyPublished(
-            listed.items,
-            apiKey,
-            resolveServerUrl(config, env()).url,
-          )
+          const base = resolveServerUrl(config, env()).url
+          const items = await verifyPublished(listed.items, apiKey, base)
+          /*
+           * ── 【我的】= **两个数据源合并**（2026-10 用户要求）──────────────────
+           *
+           *   ① 服务器：我已经发布到网络上的研究工作（`GET /projects`，owner-only）；
+           *   ② 本机：当前会话工作区里扫描到的研究根。
+           *
+           * 合并判据是 **`workspace_id`**（不是文件夹位置）：同一项研究只出现一行并显示
+           * 【更新研究工作】；只在服务器上的（本机没打开这项工作）也出现一行；
+           * 只在本机的（还没发布）显示两条发布通道。
+           *
+           * 为什么服务器那一半不能省：本机记录只在这台机器上 —— 换机器、或记录被删之后，
+           * "我之前发布过哪些研究工作"只剩服务器知道。
+           */
+          /*
+           * ⚠️ 读不到就当没有（不是"列表为空"）：老服务器 / 网络抖动 / 端点缺失时，
+           * 【我的】必须仍然用本机记录正常显示 —— 这是**降级**，不是失败。
+           */
+          const serverProjects = apiKey
+            ? await fetchProjects(base, apiKey, netOptions()).catch(() => [])
+            : []
+          const publishedRemote = serverProjects.filter((p) => p.visibility === 'PUBLISHED')
+          /*
+           * 还**在网络上、但本机当前没打开**的研究工作也要显示（用户 2026-10 要求）：
+           * 列表按 **work_id** 归属，而不是按"文件夹现在在不在这个会话工作区里"。
+           *
+           * 用户会把不同的研究换进换出 `workspace/`；被换出去的那项研究（以及它的备份目录）
+           * 不在本机列表里，但它确实还发布在网络上 —— 不显示的话，用户会以为"我的研究工作
+           * 丢了"。这类行标 `detached`：只给名字 + work_id，不给发布/更新按钮
+           * （没有文件就没有可上传的内容）。
+           */
+          /*
+           * 去重的判据是 **projectId**（而不是 workId）：老记录可能还没有 workId
+           * （v0.6.2 之前写的），但它同样是对应"一项已经在网络上的研究工作" ——
+           * 用户换出那项研究之后，这一行必须还在（否则会以为研究工作丢了）。
+           */
+          const attachedProjects = new Set(items.flatMap((it) => it.published.map((r) => r.projectId)))
+          const baseKey = serverAddressKey(base)
+          const detachedById = new Map<string, LocalWorkItem>()
+          /*
+           * 服务器那一半已经出现过的项目 id。
+           *
+           * ⚠️ 去重必须按 **projectId**，不能按 map 的键：本机记录可能还没有 `workId`
+           * （v0.6.2 之前写的），它的键是 `project:<id>`，而服务器那条的键是 `ws_…`
+           * —— 按键去重会让**同一个项目出现两行**（用户 2026-10 实测：H-MEM 显示了两次）。
+           */
+          const servedProjects = new Set<string>()
+
+          // ① 服务器那一半：按 work_id 认领本地行；认不到的单独成行（本机没打开这项工作）
+          const byWorkId = new Map<string, LocalWorkItem>()
+          for (const it of items) {
+            if (it.workId) byWorkId.set(it.workId, it)
+          }
+          for (const p of publishedRemote) {
+            const workId = p.workspaceId ?? null
+            const local = workId ? byWorkId.get(workId) : undefined
+            const recordRow = {
+              direction: p.direction,
+              projectId: p.id,
+              version: 0,
+              updatedAt: p.updatedAt,
+              serverUrl: base,
+              accountId: '',
+            }
+            if (local) {
+              // 同一项研究 → 合并成一行（本地行 + 服务器事实）
+              if (!local.published.some((r) => r.projectId === p.id)) local.published.push(recordRow)
+              attachedProjects.add(p.id)
+              continue
+            }
+            const name = (p.workName ?? '').trim() || p.title || workId || p.id
+            const key = workId ?? `project:${p.id}`
+            servedProjects.add(p.id)
+            const existing = detachedById.get(key)
+            if (existing) {
+              if (!existing.published.some((r) => r.projectId === p.id)) existing.published.push(recordRow)
+              continue
+            }
+            detachedById.set(key, {
+              id: `published:${key}`,
+              title: name,
+              workName: name,
+              workId,
+              path: '',
+              researchRoot: '',
+              missingDir: true,
+              stage: null,
+              overall: 0,
+              counts: [],
+              paper: false,
+              clarity: 'unknown',
+              updatedAt: p.updatedAt,
+              published: [recordRow],
+              detached: true,
+            })
+          }
+          for (const record of Object.values(publishedStore.all())) {
+            if (attachedProjects.has(record.projectId)) continue
+            // 服务器那一半已经给出这个项目 → 不再造第二行（按 projectId，不按键）
+            if (servedProjects.has(record.projectId)) continue
+            if (serverAddressKey(record.serverUrl) !== baseKey) continue
+            servedProjects.add(record.projectId)
+            const key = record.workId ?? `project:${record.projectId}`
+            const existing = detachedById.get(key)
+            const row = {
+              direction: record.direction,
+              projectId: record.projectId,
+              version: record.version,
+              updatedAt: record.updatedAt,
+              serverUrl: record.serverUrl,
+              accountId: record.accountId,
+            }
+            if (existing) {
+              existing.published.push(row)
+              continue
+            }
+            const name = (record.title ?? '').trim() || record.workId || record.projectId
+            detachedById.set(key, {
+              id: `published:${key}`,
+              title: name,
+              workName: name,
+              workId: record.workId ?? null,
+              // 没有研究根：它现在不在这个会话工作区里
+              path: '',
+              researchRoot: '',
+              missingDir: true,
+              stage: null,
+              overall: 0,
+              counts: [],
+              paper: false,
+              clarity: 'unknown',
+              updatedAt: record.updatedAt,
+              published: [row],
+              detached: true,
+            })
+          }
           return {
             ok: true,
             value: {
-              items,
+              items: [...items, ...detachedById.values()],
               registry: {
                 available: listed.available,
                 ...(listed.reason ? { reason: listed.reason } : {}),
@@ -2033,7 +2380,7 @@ export function createSettingsRpcHandler(
           // ⚠️ 只认**当前服务器 + 当前方向**的记录：别的服务器、另一个方向的"已上传指纹"
           // 在这里都不成立（会漏传，或把两个项目的附件算在一起）
           const base = resolveServerUrl(deps.getConfig(), env()).url
-          const record = recordOn(source.root, base, direction)
+          const record = await recordOn(source, base, direction)
           // 记住的选择 ∪ 规则推荐（新文件自动并入，否则新增证据会静默漏传）
           const remembered = record?.selection ?? null
           const recommended = plan.categories
@@ -2114,7 +2461,7 @@ export function createSettingsRpcHandler(
               generatedAt: new Date().toISOString(),
             })
             // ⚠️ 同上：另一台服务器 / 另一个方向的记录不能当"上次传过"用
-            const previous = recordOn(source.root, base, direction)
+            const previous = await recordOn(source, base, direction)
             /*
              * 一个研究工作**只属于一个方向**（2026-10 用户拍板）。
              *
@@ -2128,7 +2475,7 @@ export function createSettingsRpcHandler(
              * ⚠️ 判据按**服务器**分：换一台服务器是另一个网络，两边各自成立。
              */
             const otherDirection = PROJECT_DIRECTIONS.find((d) => d !== direction)
-            const otherRecord = otherDirection ? recordOn(source.root, base, otherDirection) : undefined
+            const otherRecord = otherDirection ? await recordOn(source, base, otherDirection) : undefined
             if (otherRecord && !previous) {
               const otherLabel = otherDirection === 'SEEK_STUDENT' ? '导师出题（招学生）' : '学生发布工作（求指导）'
               return fail(
@@ -2154,6 +2501,13 @@ export function createSettingsRpcHandler(
              *      可以有多项研究，见 2026-10 用户要求）。
              */
             const localIdentity = readLocalIdentity(source.root, deps.workIdentity)
+            /**
+             * 本次发布认定的工作身份：本机已有的（沿用）或建项目时服务器新给的。
+             *
+             * ⚠️ 传状态 / 传附件 / 发布三个写请求都要带上它 —— 服务器只要有一个环节
+             * 能校验，就能拦住"往别人的项目里写"（覆盖不可逆）。
+             */
+            let workIdForWrite: string | null = localIdentity.workspaceId
 
             /** 把服务器给的身份落到本机（标记 + 注册表）；没有值就**什么都不写**。 */
             const rememberIdentity = (workspaceId: string | null | undefined): void => {
@@ -2166,6 +2520,10 @@ export function createSettingsRpcHandler(
                 accountId: me.id,
                 // 发布方 = 这项研究的 owner（学生自己的工作是 owner；导师出题也是 owner）
                 role: 'owner',
+                // 注册表按路径存 → 记下"这条身份属于当时住在这里的那项研究"
+                ...(researchRootFingerprint(source.root)
+                  ? { rootFingerprint: researchRootFingerprint(source.root) as string }
+                  : {}),
               })
               try {
                 deps.workIdentity?.set(source.root, identity)
@@ -2194,6 +2552,7 @@ export function createSettingsRpcHandler(
               created = true
               // 服务器给的才是权威：本机没有就记下，本机有但不同则**以服务器为准**（同一次发布）
               rememberIdentity(project.workspaceId)
+              workIdForWrite = normalizeWorkspaceId(project.workspaceId) ?? workIdForWrite
               return project.id
             }
             if (!projectId) projectId = await create()
@@ -2205,7 +2564,9 @@ export function createSettingsRpcHandler(
              */
             if (!created && !localIdentity.workspaceId) {
               try {
-                rememberIdentity((await fetchProject(base, apiKey, projectId, netOptions())).workspaceId)
+                const project = await fetchProject(base, apiKey, projectId, netOptions())
+                rememberIdentity(project.workspaceId)
+                workIdForWrite = workIdForWrite ?? normalizeWorkspaceId(project.workspaceId)
               } catch {
                 /* 回查失败不影响发布：下一次发布还会再试 */
               }
@@ -2221,7 +2582,7 @@ export function createSettingsRpcHandler(
                   content: content as unknown as Record<string, unknown>,
                   intentKey: crypto.randomUUID(),
                 },
-                netOptions(),
+                netOptions(workIdForWrite),
               )
             const saveStateWithRebase = async (version: number | null) => {
               try {
@@ -2311,7 +2672,7 @@ export function createSettingsRpcHandler(
               if (payload.length === 0) continue
               const results = await uploadProjectFiles(base, apiKey, projectId, payload, {
                 stateVersion: uploaded.version,
-                ...netOptions(),
+                ...netOptions(workIdForWrite),
               })
               uploadedFiles += results.length
               uploadedBytes += results.reduce((n, r) => n + r.size, 0)
@@ -2325,7 +2686,7 @@ export function createSettingsRpcHandler(
             // 幂等键由 (项目, 版本) 决定：同一次发布的重试不会重复扣费。
             const { visibility, chargedTokens } = await publishProject(base, apiKey, projectId, {
               intentKey: `convfusion-dsh-publish-${projectId}-v${uploaded.version}`,
-              ...netOptions(),
+              ...netOptions(workIdForWrite),
             })
             /*
              * 名字会在**论文起名 / 主题演进**之后变化，而项目标题只在建项目时写过一次。
@@ -2482,9 +2843,22 @@ export function createSettingsRpcHandler(
           const config = deps.getConfig()
           const apiKey = resolveConvFusionApiKey(config, env())
           if (!apiKey) return fail('not-configured', '尚未登录 ConvFusion.com。')
+          /*
+           * 等级 → 金额由**服务器**算（平台唯一的价目表）。宿主只把等级原样递过去：
+           * 校验取值（JCR 1–4 / CCF A–C），不合法就当场拒绝，省一次必然失败的往返。
+           *
+           * 两个体系都给时**以 JCR 为准**（服务器也是这个优先级，见 fetchFeeSuggestion）。
+           */
+          const jcr = asJcrLevel(p.jcrLevel)
+          const ccf = asCcfLevel(p.ccfLevel)
+          const level: PaperLevel | null =
+            jcr !== null ? { system: 'JCR', level: jcr } : ccf !== null ? { system: 'CCF', level: ccf } : null
+          if (level === null && (p.jcrLevel !== undefined || p.ccfLevel !== undefined)) {
+            return fail('bad-request', '论文等级不合法：JCR 只能填 1–4，CCF 只能填 A/B/C。')
+          }
           try {
             const base = resolveServerUrl(config, env()).url
-            const suggestion: FeeSuggestion = await fetchFeeSuggestion(base, apiKey, netOptions())
+            const suggestion: FeeSuggestion = await fetchFeeSuggestion(base, apiKey, netOptions(), level)
             return { ok: true, value: { suggestion } }
           } catch (e) {
             return serverFail(e)
@@ -2511,6 +2885,17 @@ export function createSettingsRpcHandler(
           }
           const type = asString(condition.type)
           if (!type) return fail('bad-request', '缺少成功条件类型。')
+          /*
+           * 论文类条件**必须**带等级（服务器把"等级就是价格"这条规则放在服务层，
+           * 缺了直接 400 `INVALID_PROPOSAL`）。宿主只校验**取值**是否合法 ——
+           * 界面已经先拦了一次，这里是给"绕过界面直接调端点"准备的第二道闸，
+           * 但"必须给等级"这条规则只由服务器裁决，宿主不复制规则、只转发。
+           */
+          const jcr = asJcrLevel(condition.jcrLevel)
+          const ccf = asCcfLevel(condition.ccfLevel)
+          if ((condition.jcrLevel !== undefined && jcr === null) || (condition.ccfLevel !== undefined && ccf === null)) {
+            return fail('bad-request', '论文等级不合法：JCR 只能填 1–4，CCF 只能填 A/B/C。')
+          }
           try {
             const base = resolveServerUrl(config, env()).url
             const proposal: MentorshipProposal = await fetchPropose(base, apiKey, projectId, {
@@ -2518,7 +2903,12 @@ export function createSettingsRpcHandler(
               totalFee,
               depositAmount,
               successPaymentAmount,
-              successCondition: { type, description: asString(condition.description) || null },
+              successCondition: {
+                type,
+                description: asString(condition.description) || null,
+                ...(jcr === null ? {} : { jcrLevel: jcr }),
+                ...(ccf === null ? {} : { ccfLevel: ccf }),
+              },
             }, netOptions())
             return { ok: true, value: { proposal } }
           } catch (e) {
@@ -3131,6 +3521,10 @@ export function createSettingsRpcHandler(
                 accountId: (await resolveAccountId(base, apiKey)) ?? '',
                 // 下 `owner` 侧 = 我在别人的研究里当导师（拿的是学生的工作区）；反之亦然
                 role: source === 'owner' ? 'mentor' : 'owner',
+                // 注册表按路径存 → 记下"这条身份属于当时住在这里的那项研究"
+                ...(researchRootFingerprint(settled.researchRoot)
+                  ? { rootFingerprint: researchRootFingerprint(settled.researchRoot) as string }
+                  : {}),
               })
               try {
                 deps.workIdentity?.set(settled.researchRoot, identity)

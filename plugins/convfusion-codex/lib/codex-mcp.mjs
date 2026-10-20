@@ -1195,7 +1195,7 @@ function describeOpenAlexKey(config, env = process.env) {
 }
 
 // lib/protocol.js
-var HOST_PROTOCOL = 27;
+var HOST_PROTOCOL = 29;
 var HOST_PROTOCOL_FIELD = "protocol";
 
 // lib/research/sync-watermarks.js
@@ -1319,6 +1319,16 @@ var WORK_META_DIR = ".convfusion";
 var WORK_MARKER_REL = `${WORK_META_DIR}/work.json`;
 function isWorkspaceId(value) {
   return typeof value === "string" && /^ws_[0-9a-f]{16,}$/i.test(value.trim());
+}
+function researchRootFingerprint(researchRoot2) {
+  try {
+    const text = readFileSync3(join3(researchRoot2, "project.md"), "utf8");
+    const m = /^created_at:[ \t]*(.+)$/m.exec(text);
+    const value = m?.[1]?.trim();
+    return value ? value : null;
+  } catch {
+    return null;
+  }
 }
 function normalizeWorkspaceId(value) {
   if (!isWorkspaceId(value))
@@ -1458,7 +1468,10 @@ function createFileWorkIdentityStore(resolvePath) {
 }
 function readLocalIdentity(researchRoot2, store) {
   const marker = readWorkMarker(researchRoot2);
-  const registry = normalizeWorkspaceId(store?.get(researchRoot2)?.workspaceId);
+  const fingerprint = researchRootFingerprint(researchRoot2);
+  const entry = store?.get(researchRoot2);
+  const registryTrusted = Boolean(entry && entry.rootFingerprint && fingerprint && entry.rootFingerprint === fingerprint);
+  const registry = registryTrusted ? normalizeWorkspaceId(entry?.workspaceId) : null;
   if (marker && registry) {
     if (marker.workspaceId === registry) {
       return { workspaceId: marker.workspaceId, source: "both", conflict: false };
@@ -1491,7 +1504,8 @@ function makeWorkIdentity(input) {
     serverUrl: input.serverUrl,
     accountId: input.accountId,
     role: input.role,
-    updatedAt: input.updatedAt || (/* @__PURE__ */ new Date()).toISOString()
+    updatedAt: input.updatedAt || (/* @__PURE__ */ new Date()).toISOString(),
+    ...input.rootFingerprint ? { rootFingerprint: input.rootFingerprint } : {}
   };
 }
 
@@ -2522,6 +2536,15 @@ var ServerError = class extends Error {
   requiredTokens;
   /** 402 的 `details.available`（当前可用多少 Token）。 */
   availableTokens;
+  /**
+   * 402（**资金池专属**路径）的 `details.funded`：资金池当前有多少。
+   *
+   * 它出现就说明这次失败是"赠送额度不能付给导师"，而不是"一分钱都没有"——
+   * 界面据此说清话（并提示找管理员发放），而不是笼统说余额不足。
+   */
+  fundedTokens;
+  /** 402（资金池专属路径）的 `details.grant`：同一次失败里赠送额度有多少。 */
+  grantTokens;
   /** 409 STATE_VERSION_CONFLICT 的 `details.current_version`（重基时用它）。 */
   currentVersion;
   constructor(code, message, extra2 = {}) {
@@ -2533,6 +2556,8 @@ var ServerError = class extends Error {
     this.retryAfterSeconds = extra2.retryAfterSeconds;
     this.requiredTokens = extra2.requiredTokens;
     this.availableTokens = extra2.availableTokens;
+    this.fundedTokens = extra2.fundedTokens;
+    this.grantTokens = extra2.grantTokens;
     this.currentVersion = extra2.currentVersion;
   }
 };
@@ -2600,15 +2625,24 @@ function mapHttpError(status, body) {
     const details = errorBodyDetails(body);
     const required = typeof details.required === "number" ? details.required : void 0;
     const available = typeof details.available === "number" ? details.available : void 0;
-    const balance = required === void 0 || available === void 0 ? "Token \u4F59\u989D\u4E0D\u8DB3\u3002" : `Token \u4F59\u989D\u4E0D\u8DB3\uFF1A\u672C\u6B21\u9700\u8981 ${required} \u4E2A\uFF0C\u5F53\u524D\u53EF\u7528 ${available} \u4E2A\u3002`;
+    const funded = typeof details.funded === "number" ? details.funded : void 0;
+    const grant = typeof details.grant === "number" ? details.grant : void 0;
+    const balance = required === void 0 || available === void 0 ? "Token \u4F59\u989D\u4E0D\u8DB3\u3002" : funded === void 0 ? `Token \u4F59\u989D\u4E0D\u8DB3\uFF1A\u672C\u6B21\u9700\u8981 ${required} \u4E2A\uFF0C\u5F53\u524D\u53EF\u7528 ${available} \u4E2A\u3002` : (
+      // 赠送额度**只在服务器真给了这个数**时才提（拿不到就不编一个 0 出来）
+      `\u8D44\u91D1\u6C60\u4E0D\u8DB3\uFF1A\u672C\u6B21\u9700\u8981 ${required} \u4E2A\uFF0C\u8D44\u91D1\u6C60\u53EF\u7528 ${funded} \u4E2A\uFF08` + (grant === void 0 ? "" : `\u53E6\u6709\u8D60\u9001\u989D\u5EA6 ${grant} \u4E2A\uFF0C`) + "\u8D60\u9001\u989D\u5EA6\u4E0D\u80FD\u4ED8\u7ED9\u5BFC\u5E08\u3001\u4E5F\u4E0D\u80FD\u63D0\u73B0\uFF09\u3002"
+    );
     return new ServerError(
       "insufficient-tokens",
-      // ⚠️ 不要在这条**用户可见**的文案里写 markdown（`**` 会原样显示成星号）
-      `${balance}\u62FF\u5230 Token \u540E\uFF0C\u7528\u540C\u4E00\u6B21\u67E5\u770B\u91CD\u8BD5\u5373\u53EF\uFF0C\u4E0D\u4F1A\u91CD\u590D\u6263\u8D39\u3002`,
+      // ⚠️ 不要在这条**用户可见**的文案里写 markdown（`**` 会原样显示成星号）。
+      // 自助付费尚未开通（见 community.token.renewHint）→ 唯一动作是找管理员发放，
+      // 这句话必须出现在**错误本身**里，界面直接展示 message 时也不会漏掉动作。
+      `${balance}\u6D4B\u8BD5\u9636\u6BB5\u8BF7\u8054\u7CFB\u7BA1\u7406\u5458\u53D1\u653E Token\uFF1B\u62FF\u5230\u540E\u91CD\u8BD5\u5373\u53EF\uFF0C\u4E0D\u4F1A\u91CD\u590D\u6263\u8D39\u3002`,
       {
         ...withCode,
         ...required === void 0 ? {} : { requiredTokens: required },
-        ...available === void 0 ? {} : { availableTokens: available }
+        ...available === void 0 ? {} : { availableTokens: available },
+        ...funded === void 0 ? {} : { fundedTokens: funded },
+        ...grant === void 0 ? {} : { grantTokens: grant }
       }
     );
   }
@@ -2697,7 +2731,9 @@ async function requestJson(base, path, init, options, label) {
           ...init.body === void 0 ? {} : { "content-type": "application/json" },
           ...init.apiKey ? { authorization: `Bearer ${init.apiKey}` } : {},
           // 幂等键：**同一次业务意图**重试必须复用（402 后充值再试就靠它不重复扣费）
-          ...init.idempotencyKey ? { "idempotency-key": init.idempotencyKey } : {}
+          ...init.idempotencyKey ? { "idempotency-key": init.idempotencyKey } : {},
+          // 这项工作是谁：服务器据此拒绝"往别人的项目里写"（老服务器忽略该头）
+          ...options.workspaceId ? { "x-workspace-id": options.workspaceId } : {}
         },
         ...init.body === void 0 ? {} : { body: JSON.stringify(init.body) },
         signal: controller.signal
@@ -2718,8 +2754,13 @@ async function requestJson(base, path, init, options, label) {
   } catch {
     body = void 0;
   }
-  if (!res.ok)
+  if (!res.ok) {
+    if (process.env.CF_NET_DEBUG) {
+      const code = body?.error?.code;
+      console.error("[net] %s %s \u2192 %d %s", init.method, path, res.status, String(code ?? ""));
+    }
     throw mapHttpError(res.status, body);
+  }
   if (body === void 0) {
     throw new ServerError("bad-response", `${label}\uFF1A\u670D\u52A1\u5668\u8FD4\u56DE\u7684\u4E0D\u662F JSON\u3002`);
   }
@@ -2788,7 +2829,11 @@ async function fetchTokenBalance(base, apiKey, options = {}) {
     available,
     frozen,
     // 服务器会给 total；真缺了就自己加，但服务器给的值优先
-    total: b.total_balance === void 0 ? available + frozen : asNumber(b.total_balance)
+    total: b.total_balance === void 0 ? available + frozen : asNumber(b.total_balance),
+    // ⚠️ 两池是**三态**：缺字段读作 null（旧服务器不分开说），不能读成 0 ——
+    // 读成 0 会让界面把"能付导师"说成 0，把一个好好的账号拦在【接受】外面。
+    grant: optionalNumber(b.grant_balance),
+    funded: optionalNumber(b.funded_balance)
   };
 }
 function parseRechargeRequest(raw) {
@@ -2856,7 +2901,7 @@ async function fetchUsage(base, apiKey, options = {}) {
   }
 }
 async function postProjectFiles(base, apiKey, projectId, files, options, timeoutMessage) {
-  const { stateVersion, fetchImpl: fetchOption, timeoutMs } = options;
+  const { stateVersion, fetchImpl: fetchOption, timeoutMs, workspaceId } = options;
   const key = requireKey(apiKey);
   const id = (projectId ?? "").trim();
   if (!id)
@@ -2891,7 +2936,11 @@ async function postProjectFiles(base, apiKey, projectId, files, options, timeout
       fetchImpl(`${apiBase(base)}/projects/${encodeURIComponent(id)}/files`, {
         method: "POST",
         // ⚠️ 不设 content-type：multipart 的 boundary 由运行时生成
-        headers: { authorization: `Bearer ${key}` },
+        headers: {
+          authorization: `Bearer ${key}`,
+          // 这项工作是谁：与 JSON 写请求同一个头（服务器据此拒绝"往别人的项目里写"）
+          ...workspaceId ? { "x-workspace-id": workspaceId } : {}
+        },
         body: form,
         signal: controller.signal
       }),
@@ -3174,6 +3223,19 @@ async function updateProject(base, apiKey, projectId, input, options = {}) {
   const body = await requestJson(base, `/projects/${encodeURIComponent(id)}`, { method: "PUT", apiKey: key, body: { title } }, options, "\u6539\u9879\u76EE");
   return parseProject(body);
 }
+async function fetchProjects(base, apiKey, options = {}) {
+  const key = requireKey(apiKey);
+  const body = await requestJson(base, "/projects", { method: "GET", apiKey: key }, options, "\u8BFB\u53D6\u6211\u7684\u9879\u76EE");
+  const list = Array.isArray(body) ? body : Array.isArray(body?.items) ? body.items : [];
+  const out = [];
+  for (const raw of list) {
+    try {
+      out.push(parseProject(raw));
+    } catch {
+    }
+  }
+  return out;
+}
 async function fetchProject(base, apiKey, projectId, options = {}) {
   const key = requireKey(apiKey);
   const id = (projectId ?? "").trim();
@@ -3232,6 +3294,9 @@ async function publishProject(base, apiKey, projectId, options = {}) {
 }
 function asNumber(v, fallback = 0) {
   return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+}
+function optionalNumber(v) {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 function asStringArray(v) {
   return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
@@ -3326,6 +3391,17 @@ async function fetchWorkBrief(base, apiKey, projectId, intentKey, options = {}) 
   const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/brief`, { method: "GET", apiKey: key, idempotencyKey: intent }, options, "\u7814\u7A76\u5DE5\u4F5C\u7B80\u62A5");
   return parseWorkBrief(body);
 }
+var CCF_LEVELS = ["A", "B", "C"];
+function asJcrLevel(v) {
+  const n = typeof v === "number" ? v : Number.NaN;
+  return Number.isInteger(n) && n >= 1 && n <= 4 ? n : null;
+}
+function asCcfLevel(v) {
+  if (typeof v !== "string")
+    return null;
+  const s = v.trim().toUpperCase();
+  return CCF_LEVELS.includes(s) ? s : null;
+}
 function asRecord2(v) {
   return v !== null && typeof v === "object" && !Array.isArray(v) ? v : null;
 }
@@ -3362,7 +3438,12 @@ function parseParty(raw, fallbackId) {
 }
 function parseSuccessCondition(raw) {
   const b = asRecord2(raw);
-  return { type: asString2(b?.type) || "MUTUAL_COMPLETION", description: asString2(b?.description) || null };
+  return {
+    type: asString2(b?.type) || "MUTUAL_COMPLETION",
+    description: asString2(b?.description) || null,
+    jcrLevel: asJcrLevel(b?.jcr_level),
+    ccfLevel: asCcfLevel(b?.ccf_level)
+  };
 }
 function parseTriCount(raw) {
   if (raw === null)
@@ -3443,9 +3524,15 @@ function parseContract(raw) {
     settledAt: asString2(b.settled_at) || null
   };
 }
-async function fetchFeeSuggestion(base, apiKey, options = {}) {
+async function fetchFeeSuggestion(base, apiKey, options = {}, level) {
   const key = requireKey(apiKey);
-  const body = await requestJson(base, "/mentorship-proposals/fee-suggestion", { method: "GET", apiKey: key }, options, "\u6307\u5BFC\u8D39\u7528\u5EFA\u8BAE");
+  const jcr = asJcrLevel(level?.system === "JCR" ? level.level : null);
+  const ccf = asCcfLevel(level?.system === "CCF" ? level.level : null);
+  if (level && jcr === null && ccf === null) {
+    throw new ServerError("bad-request", "\u8BBA\u6587\u7B49\u7EA7\u4E0D\u5408\u6CD5\uFF1AJCR \u53EA\u80FD\u586B 1\u20134\uFF0CCCF \u53EA\u80FD\u586B A/B/C\u3002");
+  }
+  const query = jcr !== null ? `?jcr_level=${jcr}` : ccf !== null ? `?ccf_level=${ccf}` : "";
+  const body = await requestJson(base, `/mentorship-proposals/fee-suggestion${query}`, { method: "GET", apiKey: key }, options, "\u6307\u5BFC\u8D39\u7528\u5EFA\u8BAE");
   const b = asRecord2(body);
   if (!b)
     throw new ServerError("bad-response", "\u6307\u5BFC\u8D39\u7528\u5EFA\u8BAE\uFF1A\u54CD\u5E94\u683C\u5F0F\u4E0D\u5BF9\u3002");
@@ -3463,6 +3550,8 @@ async function fetchPropose(base, apiKey, projectId, input, options = {}) {
   const scope = (input.guidanceScope ?? "").trim();
   if (!scope)
     throw new ServerError("bad-request", "\u6307\u5BFC\u8303\u56F4\u4E0D\u80FD\u4E3A\u7A7A\u3002");
+  const jcr = asJcrLevel(input.successCondition.jcrLevel);
+  const ccf = asCcfLevel(input.successCondition.ccfLevel);
   const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/mentorship-proposals`, {
     method: "POST",
     apiKey: key,
@@ -3473,7 +3562,8 @@ async function fetchPropose(base, apiKey, projectId, input, options = {}) {
       success_payment_amount: input.successPaymentAmount,
       success_condition: {
         type: input.successCondition.type,
-        description: input.successCondition.description ?? null
+        description: input.successCondition.description ?? null,
+        ...jcr !== null ? { jcr_level: jcr } : ccf !== null ? { ccf_level: ccf } : {}
       }
     }
   }, options, "\u6307\u5BFC\u63D0\u6848");
@@ -12434,8 +12524,15 @@ function planUploadBatches(root, selection) {
 import { existsSync as existsSync21, mkdirSync as mkdirSync16, readFileSync as readFileSync21, renameSync as renameSync4, writeFileSync as writeFileSync14 } from "node:fs";
 import { dirname as dirname8 } from "node:path";
 var KEY_SEP = "\0";
-function publishedStoreKey(researchRoot2, direction) {
-  return `${researchRoot2}${KEY_SEP}${direction}`;
+function occupantMatches(record, workId, fingerprint) {
+  if (record.workId && workId && record.workId !== workId)
+    return false;
+  if (record.rootFingerprint && fingerprint && record.rootFingerprint !== fingerprint)
+    return false;
+  return true;
+}
+function publishedStoreKey(scopeKey, direction) {
+  return `${scopeKey}${KEY_SEP}${direction}`;
 }
 function parsePublishedStoreKey(key) {
   const at = key.indexOf(KEY_SEP);
@@ -12494,7 +12591,7 @@ function parseTable3(text) {
   }
   return out;
 }
-function createFilePublishedStore(resolvePath) {
+function createFilePublishedStore(resolvePath, scope = {}) {
   const load = () => {
     const path = resolvePath();
     try {
@@ -12514,27 +12611,76 @@ function createFilePublishedStore(resolvePath) {
     renameSync4(tmp, path);
   };
   return {
-    get: (root, direction = "SEEK_MENTOR") => load()[publishedStoreKey(root, direction)],
-    set: (root, record) => {
-      const table = load();
-      table[publishedStoreKey(root, record.direction)] = record;
-      save(table);
-    },
-    remove: (root, direction = "SEEK_MENTOR") => {
-      const table = load();
-      const key = publishedStoreKey(root, direction);
-      if (!(key in table))
-        return;
-      delete table[key];
-      save(table);
-    },
+    ...scopedOps(load, save, scope),
     all: () => load(),
     get path() {
       return resolvePath();
     }
   };
 }
-function createMemoryPublishedStore(seed = {}) {
+function scopedOps(load, save, scope = {}) {
+  const idOf = (root) => scope.workIdOf?.(root) ?? null;
+  const keyOf = (root, direction) => publishedStoreKey(idOf(root) ?? root, direction);
+  return {
+    get: (root, direction = "SEEK_MENTOR") => {
+      const table = load();
+      const id = idOf(root);
+      const fingerprint = scope.fingerprintOf?.(root) ?? null;
+      if (id) {
+        const hit = table[publishedStoreKey(id, direction)];
+        if (hit && occupantMatches(hit, id, fingerprint))
+          return hit;
+      }
+      const legacy = table[publishedStoreKey(root, direction)];
+      return legacy && occupantMatches(legacy, id, fingerprint) ? legacy : void 0;
+    },
+    set: (root, record) => {
+      const table = load();
+      const id = idOf(root);
+      const fingerprint = scope.fingerprintOf?.(root) ?? null;
+      const key = keyOf(root, record.direction);
+      table[key] = {
+        ...record,
+        ...id ? { workId: id } : {},
+        ...fingerprint ? { rootFingerprint: fingerprint } : {}
+      };
+      const legacyKey = publishedStoreKey(root, record.direction);
+      if (legacyKey !== key)
+        delete table[legacyKey];
+      save(table);
+    },
+    remove: (root, direction = "SEEK_MENTOR") => {
+      const table = load();
+      const id = idOf(root);
+      const keys = [publishedStoreKey(root, direction)];
+      if (id)
+        keys.push(publishedStoreKey(id, direction));
+      let hit = false;
+      for (const k of keys) {
+        if (k in table) {
+          delete table[k];
+          hit = true;
+        }
+      }
+      if (hit)
+        save(table);
+    },
+    updateByProject: (projectId, patch) => {
+      const table = load();
+      let hit = false;
+      for (const [key, record] of Object.entries(table)) {
+        if (record.projectId !== projectId)
+          continue;
+        table[key] = { ...record, ...patch };
+        hit = true;
+      }
+      if (hit)
+        save(table);
+      return hit;
+    }
+  };
+}
+function createMemoryPublishedStore(seed = {}, scope = {}) {
   const table = {};
   for (const [key, record] of Object.entries(seed)) {
     const parsed = parsePublishedStoreKey(key);
@@ -12542,13 +12688,12 @@ function createMemoryPublishedStore(seed = {}) {
     table[publishedStoreKey(parsed.researchRoot, direction)] = { ...record, direction };
   }
   return {
-    get: (root, direction = "SEEK_MENTOR") => table[publishedStoreKey(root, direction)],
-    set: (root, record) => {
-      table[publishedStoreKey(root, record.direction)] = record;
-    },
-    remove: (root, direction = "SEEK_MENTOR") => {
-      delete table[publishedStoreKey(root, direction)];
-    },
+    /*
+     * ⚠️ `load()` 返回的就是这张表本身，`set` / `remove` 已经在上面改完了 →
+     * `save` 必须是**空操作**。第一版写成"清空再赋值"，而传入的对象就是 `table`，
+     * 于是每次写入都把自己清空（整批记录消失，自检当场抓到）。
+     */
+    ...scopedOps(() => table, () => void 0, scope),
     all: () => ({ ...table }),
     path: "(memory)"
   };
@@ -13195,7 +13340,10 @@ function buildSettingsState(config, store, resolvePath = resolveCustomizationPat
     customizableSections: [...CUSTOMIZABLE_SECTIONS],
     categories,
     retrieval: {
-      ...describeOpenAlexKey(config),
+      // ⚠️ 把 `env` 传进去：与 `buildAccountState(config, env)` 同一个口径。
+      // 漏传时它会回落到 `process.env`（生产行为一样，但测试注入的 env 会被无视，
+      // 于是"环境变量回退"这条分支在自检里测不到）。
+      ...describeOpenAlexKey(config, env),
       envVar: OPENALEX_API_KEY_ENV
     },
     // 【ConvFusion.com】：只给"服务器地址 + 有没有凭据"。⚠️ 不联网、不带凭据。
@@ -13287,9 +13435,10 @@ async function fetchLatestRelease(fetchImpl, timeoutMs) {
 function createSettingsRpcHandler(deps) {
   const env = () => deps.env ?? process.env;
   const state = () => buildSettingsState(deps.getConfig(), deps.store, deps.resolvePath ?? resolveCustomizationPath, describeLocalDependencies, env(), deps.version);
-  const netOptions = () => ({
+  const netOptions = (workspaceId) => ({
     ...deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {},
-    ...deps.serverTimeoutMs === void 0 ? {} : { timeoutMs: deps.serverTimeoutMs }
+    ...deps.serverTimeoutMs === void 0 ? {} : { timeoutMs: deps.serverTimeoutMs },
+    ...workspaceId ? { workspaceId } : {}
   });
   let downloadProgress = null;
   let uploadProgress = null;
@@ -13359,6 +13508,21 @@ function createSettingsRpcHandler(deps) {
     const merged = { ...deps.getConfig(), ...patch };
     return { ok: true, value: buildAccountState(merged, env(), account, { tokens }) };
   };
+  const persistConfigPatch = async (patch) => {
+    if (!deps.setConfig) {
+      return fail("storage-unavailable", "\u8BBE\u7F6E\u5B58\u50A8\u5F53\u524D\u4E0D\u53EF\u7528\uFF0C\u65E0\u6CD5\u4FDD\u5B58\u3002\u8BF7\u68C0\u67E5 DSH \u7684\u8BBE\u7F6E\u670D\u52A1\u662F\u5426\u6B63\u5E38\u3002");
+    }
+    try {
+      await deps.setConfig(patch);
+    } catch (e) {
+      return fail("storage-unavailable", `\u4FDD\u5B58\u5931\u8D25\uFF1A${e instanceof Error ? e.message : String(e)}`);
+    }
+    return { ok: true, value: {} };
+  };
+  const retrievalStatus = (config) => ({
+    ...describeOpenAlexKey(config, env()),
+    envVar: OPENALEX_API_KEY_ENV
+  });
   const tryBalance = async (base, apiKey) => {
     try {
       return await fetchTokenBalance(base, apiKey, netOptions());
@@ -13409,6 +13573,29 @@ function createSettingsRpcHandler(deps) {
     }
     return { changed, unchanged };
   };
+  const attributeRecord = async (root, record, workId, fingerprint, workName) => {
+    if (record.workId) {
+      if (!workId)
+        return "not-mine";
+      return record.workId === workId ? "mine" : "not-mine";
+    }
+    if (record.rootFingerprint) {
+      if (!fingerprint)
+        return "unknown";
+      return record.rootFingerprint === fingerprint ? "mine" : "not-mine";
+    }
+    for (const [relPath, digest] of Object.entries(record.files ?? {}).slice(0, 3)) {
+      try {
+        if (await fileDigest(resolve5(root, relPath)) === digest)
+          return "mine";
+      } catch {
+      }
+    }
+    const nameAtPublish = (record.title ?? "").trim();
+    if (!nameAtPublish)
+      return "mine";
+    return nameAtPublish === workName.trim() ? "mine" : "unknown";
+  };
   const collectLocalWorks = async () => {
     const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : { available: false, reason: "\u5BBF\u4E3B\u672A\u63D0\u4F9B\u5DE5\u4F5C\u533A\u6CE8\u518C\u8868\u8BFB\u53D6\u63A5\u53E3", items: [] };
     const skillContent = (id) => effectiveSkillContentById(id, deps.store);
@@ -13433,17 +13620,29 @@ function createSettingsRpcHandler(deps) {
       } catch {
       }
       const title = w.title.trim() || basename(canonical);
-      const published = PROJECT_DIRECTIONS.flatMap((direction) => {
-        const record = publishedStore.get(root, direction);
-        return record ? [{
-          direction,
-          projectId: record.projectId,
-          version: record.version,
-          updatedAt: record.updatedAt,
-          serverUrl: record.serverUrl,
-          accountId: record.accountId
-        }] : [];
-      });
+      const workNameForAttr = researchWorkName(root, title).name;
+      const idForAttr = readLocalIdentity(root, deps.workIdentity).workspaceId;
+      const fingerprintForAttr = researchRootFingerprint(root);
+      const published = await (async () => {
+        const rows = [];
+        for (const direction of PROJECT_DIRECTIONS) {
+          const record = publishedStore.get(root, direction);
+          if (!record)
+            continue;
+          const mine = await attributeRecord(root, record, idForAttr, fingerprintForAttr, workNameForAttr);
+          if (mine !== "mine")
+            continue;
+          rows.push({
+            direction,
+            projectId: record.projectId,
+            version: record.version,
+            updatedAt: record.updatedAt,
+            serverUrl: record.serverUrl,
+            accountId: record.accountId
+          });
+        }
+        return rows;
+      })();
       if (progress)
         sources.set(w.id, { root, title, progress });
       const workName = researchWorkName(root, title).name;
@@ -13523,7 +13722,8 @@ function createSettingsRpcHandler(deps) {
           projectId: c.record.projectId,
           serverUrl: base,
           accountId: c.record.accountId,
-          role: "owner"
+          role: "owner",
+          ...researchRootFingerprint(c.item.researchRoot) ? { rootFingerprint: researchRootFingerprint(c.item.researchRoot) } : {}
         });
         deps.workIdentity?.set(c.item.researchRoot, identity);
         writeWorkMarker(c.item.researchRoot, identity);
@@ -13540,26 +13740,36 @@ function createSettingsRpcHandler(deps) {
         continue;
       it.workId = readLocalIdentity(it.researchRoot, deps.workIdentity).workspaceId;
     }
+    const serverHasIds = checks.some((c) => c.workspaceId !== void 0);
+    if (serverHasIds) {
+      for (const it of scoped) {
+        if (!it.workId && it.published.length > 0)
+          it.published = [];
+      }
+    }
     return scoped;
   };
-  const recordOn = (root, base, direction) => {
+  const recordOn = async (item, base, direction) => {
+    const root = item.root;
     const record = publishedStore.get(root, direction);
     if (!record)
       return void 0;
-    return serverAddressKey(record.serverUrl) === serverAddressKey(base) ? record : void 0;
+    if (serverAddressKey(record.serverUrl) !== serverAddressKey(base))
+      return void 0;
+    const mine = await attributeRecord(root, record, readLocalIdentity(root, deps.workIdentity).workspaceId, researchRootFingerprint(root), researchWorkName(root, item.title).name);
+    return mine === "mine" ? record : void 0;
   };
   const syncRecordsFromWorkList = (items) => {
     if (items.length === 0)
       return;
     const ids = new Set(items.map((it) => it.projectId));
     const checkedAt = (/* @__PURE__ */ new Date()).toISOString();
-    for (const [key, record] of Object.entries(publishedStore.all())) {
+    for (const record of Object.values(publishedStore.all())) {
       if (!ids.has(record.projectId))
         continue;
       if (record.serverVisibility === "PUBLISHED" && record.checkedAt)
         continue;
-      const { researchRoot: researchRoot2, direction } = parsePublishedStoreKey(key);
-      publishedStore.set(researchRoot2, { ...record, direction, serverVisibility: "PUBLISHED", checkedAt });
+      publishedStore.updateByProject(record.projectId, { serverVisibility: "PUBLISHED", checkedAt });
     }
   };
   return async (endpoint, payload) => {
@@ -13576,6 +13786,45 @@ function createSettingsRpcHandler(deps) {
          */
         case "dependencies/check":
           return { ok: true, value: describeLocalDependencies() };
+        /*
+         * ── OpenAlex 检索凭据（2026-10 修：改由**宿主**落盘）──────────────
+         *
+         * ⚠️ 这两条端点的存在理由是一个实测出来的故障：**浏览器那侧的
+         * `configForm.set()` 会静默不写**。
+         *
+         * `dsh-client-ui-settings` 只在**页面来源是 loopback** 时把写入交给宿主：
+         *
+         * ```js
+         * const persistence = ctx.remote.$host.isLoopback ? "host" : "memory"
+         * …
+         * enqueue(op) { if (this.persistence === "memory") return Promise.resolve(false) }
+         * ```
+         *
+         * 即：非 loopback 页面上 `set()` 不抛错、只是 resolve `false` 且**一个字节都不写**。
+         * 而界面当时忽略了这个布尔值、照样回一句「已保存」并清空输入框 —— 用户看到的
+         * 就是"明明设置了 OpenAlex API Key，却总是显示未配置"（2026-10 用户实测报告）。
+         *
+         * 宿主这条路是**本来就在用**的：`account/login` 就是用 `deps.setConfig` 把
+         * `serverUrl` / `convfusionProdApiKey` 落进 profile 配置（本机 profile 里有实证）。
+         * 走它有三个好处：① 不依赖页面来源；② 凭据只在「profile 配置 ↔ 宿主内存」之间
+         * 流动，不回浏览器（同 `account/*` 的纪律）；③ 写完能立刻回一个**准确的**
+         * 检索状态，界面不用等下一次整页读。
+         */
+        case "retrieval/saveKey": {
+          const apiKey = asString3(p.apiKey).trim();
+          if (!apiKey)
+            return fail("bad-request", "\u8BF7\u586B\u5199 OpenAlex API Key\u3002");
+          const saved = await persistConfigPatch({ openalexApiKey: apiKey });
+          if (!saved.ok)
+            return saved;
+          return { ok: true, value: { retrieval: retrievalStatus({ ...deps.getConfig(), openalexApiKey: apiKey }) } };
+        }
+        case "retrieval/clearKey": {
+          const cleared = await persistConfigPatch({ openalexApiKey: "" });
+          if (!cleared.ok)
+            return cleared;
+          return { ok: true, value: { retrieval: retrievalStatus({ ...deps.getConfig(), openalexApiKey: "" }) } };
+        }
         /**
          * 插件更新检查：比较当前版本与 GitHub 最新 Release。
          *
@@ -13890,11 +14139,109 @@ function createSettingsRpcHandler(deps) {
           const listed = await collectLocalWorks();
           const config = deps.getConfig();
           const apiKey = resolveConvFusionApiKey(config, env());
-          const items = await verifyPublished(listed.items, apiKey, resolveServerUrl(config, env()).url);
+          const base = resolveServerUrl(config, env()).url;
+          const items = await verifyPublished(listed.items, apiKey, base);
+          const serverProjects = apiKey ? await fetchProjects(base, apiKey, netOptions()).catch(() => []) : [];
+          const publishedRemote = serverProjects.filter((p2) => p2.visibility === "PUBLISHED");
+          const attachedProjects = new Set(items.flatMap((it) => it.published.map((r) => r.projectId)));
+          const baseKey = serverAddressKey(base);
+          const detachedById = /* @__PURE__ */ new Map();
+          const servedProjects = /* @__PURE__ */ new Set();
+          const byWorkId = /* @__PURE__ */ new Map();
+          for (const it of items) {
+            if (it.workId)
+              byWorkId.set(it.workId, it);
+          }
+          for (const p2 of publishedRemote) {
+            const workId = p2.workspaceId ?? null;
+            const local = workId ? byWorkId.get(workId) : void 0;
+            const recordRow = {
+              direction: p2.direction,
+              projectId: p2.id,
+              version: 0,
+              updatedAt: p2.updatedAt,
+              serverUrl: base,
+              accountId: ""
+            };
+            if (local) {
+              if (!local.published.some((r) => r.projectId === p2.id))
+                local.published.push(recordRow);
+              attachedProjects.add(p2.id);
+              continue;
+            }
+            const name = (p2.workName ?? "").trim() || p2.title || workId || p2.id;
+            const key = workId ?? `project:${p2.id}`;
+            servedProjects.add(p2.id);
+            const existing = detachedById.get(key);
+            if (existing) {
+              if (!existing.published.some((r) => r.projectId === p2.id))
+                existing.published.push(recordRow);
+              continue;
+            }
+            detachedById.set(key, {
+              id: `published:${key}`,
+              title: name,
+              workName: name,
+              workId,
+              path: "",
+              researchRoot: "",
+              missingDir: true,
+              stage: null,
+              overall: 0,
+              counts: [],
+              paper: false,
+              clarity: "unknown",
+              updatedAt: p2.updatedAt,
+              published: [recordRow],
+              detached: true
+            });
+          }
+          for (const record of Object.values(publishedStore.all())) {
+            if (attachedProjects.has(record.projectId))
+              continue;
+            if (servedProjects.has(record.projectId))
+              continue;
+            if (serverAddressKey(record.serverUrl) !== baseKey)
+              continue;
+            servedProjects.add(record.projectId);
+            const key = record.workId ?? `project:${record.projectId}`;
+            const existing = detachedById.get(key);
+            const row = {
+              direction: record.direction,
+              projectId: record.projectId,
+              version: record.version,
+              updatedAt: record.updatedAt,
+              serverUrl: record.serverUrl,
+              accountId: record.accountId
+            };
+            if (existing) {
+              existing.published.push(row);
+              continue;
+            }
+            const name = (record.title ?? "").trim() || record.workId || record.projectId;
+            detachedById.set(key, {
+              id: `published:${key}`,
+              title: name,
+              workName: name,
+              workId: record.workId ?? null,
+              // 没有研究根：它现在不在这个会话工作区里
+              path: "",
+              researchRoot: "",
+              missingDir: true,
+              stage: null,
+              overall: 0,
+              counts: [],
+              paper: false,
+              clarity: "unknown",
+              updatedAt: record.updatedAt,
+              published: [row],
+              detached: true
+            });
+          }
           return {
             ok: true,
             value: {
-              items,
+              items: [...items, ...detachedById.values()],
               registry: {
                 available: listed.available,
                 ...listed.reason ? { reason: listed.reason } : {}
@@ -13932,7 +14279,7 @@ function createSettingsRpcHandler(deps) {
           const plan = buildUploadPlan(source.root);
           const workName = researchWorkName(source.root, source.title);
           const base = resolveServerUrl(deps.getConfig(), env()).url;
-          const record = recordOn(source.root, base, direction);
+          const record = await recordOn(source, base, direction);
           const remembered = record?.selection ?? null;
           const recommended = plan.categories.filter((c) => c.decision === "recommended").flatMap((c) => c.files.filter((f) => !f.relPath.endsWith("/")).map((f) => f.relPath));
           const exist = /* @__PURE__ */ new Set([...recommended, ...plan.categories.filter((c) => c.decision === "optional").flatMap((c) => c.files.map((f) => f.relPath))]);
@@ -13992,9 +14339,9 @@ function createSettingsRpcHandler(deps) {
               progress: source.progress,
               generatedAt: (/* @__PURE__ */ new Date()).toISOString()
             });
-            const previous = recordOn(source.root, base, direction);
+            const previous = await recordOn(source, base, direction);
             const otherDirection = PROJECT_DIRECTIONS.find((d) => d !== direction);
-            const otherRecord = otherDirection ? recordOn(source.root, base, otherDirection) : void 0;
+            const otherRecord = otherDirection ? await recordOn(source, base, otherDirection) : void 0;
             if (otherRecord && !previous) {
               const otherLabel = otherDirection === "SEEK_STUDENT" ? "\u5BFC\u5E08\u51FA\u9898\uFF08\u62DB\u5B66\u751F\uFF09" : "\u5B66\u751F\u53D1\u5E03\u5DE5\u4F5C\uFF08\u6C42\u6307\u5BFC\uFF09";
               return fail("already-published", `\u8FD9\u9879\u5DE5\u4F5C\u5DF2\u7ECF\u4EE5\u300C${otherLabel}\u300D\u53D1\u5E03\u8FC7\u4E86\u3002\u4E00\u4E2A\u7814\u7A76\u5DE5\u4F5C\u53EA\u80FD\u5C5E\u4E8E\u4E00\u4E2A\u65B9\u5411 \u2014\u2014 \u8981\u7EE7\u7EED\u66F4\u65B0\u8BF7\u70B9\u540C\u4E00\u4E2A\u6309\u94AE\uFF08\u3010\u66F4\u65B0\u3011\uFF09\uFF0C\u4E0D\u80FD\u6539\u53D1\u5230\u53E6\u4E00\u4E2A\u65B9\u5411\u3002`);
@@ -14004,6 +14351,7 @@ function createSettingsRpcHandler(deps) {
             let created = false;
             let renameFailed = null;
             const localIdentity = readLocalIdentity(source.root, deps.workIdentity);
+            let workIdForWrite = localIdentity.workspaceId;
             const rememberIdentity = (workspaceId) => {
               const id2 = normalizeWorkspaceId(workspaceId);
               if (!id2)
@@ -14014,7 +14362,9 @@ function createSettingsRpcHandler(deps) {
                 serverUrl: base,
                 accountId: me.id,
                 // 发布方 = 这项研究的 owner（学生自己的工作是 owner；导师出题也是 owner）
-                role: "owner"
+                role: "owner",
+                // 注册表按路径存 → 记下"这条身份属于当时住在这里的那项研究"
+                ...researchRootFingerprint(source.root) ? { rootFingerprint: researchRootFingerprint(source.root) } : {}
               });
               try {
                 deps.workIdentity?.set(source.root, identity);
@@ -14035,13 +14385,16 @@ function createSettingsRpcHandler(deps) {
               }, netOptions());
               created = true;
               rememberIdentity(project.workspaceId);
+              workIdForWrite = normalizeWorkspaceId(project.workspaceId) ?? workIdForWrite;
               return project.id;
             };
             if (!projectId)
               projectId = await create();
             if (!created && !localIdentity.workspaceId) {
               try {
-                rememberIdentity((await fetchProject(base, apiKey, projectId, netOptions())).workspaceId);
+                const project = await fetchProject(base, apiKey, projectId, netOptions());
+                rememberIdentity(project.workspaceId);
+                workIdForWrite = workIdForWrite ?? normalizeWorkspaceId(project.workspaceId);
               } catch {
               }
             }
@@ -14049,7 +14402,7 @@ function createSettingsRpcHandler(deps) {
               baseVersion,
               content,
               intentKey: crypto.randomUUID()
-            }, netOptions());
+            }, netOptions(workIdForWrite));
             const saveStateWithRebase = async (version2) => {
               try {
                 return await saveState(version2);
@@ -14113,7 +14466,7 @@ function createSettingsRpcHandler(deps) {
                 continue;
               const results = await uploadProjectFiles(base, apiKey, projectId, payload2, {
                 stateVersion: uploaded.version,
-                ...netOptions()
+                ...netOptions(workIdForWrite)
               });
               uploadedFiles += results.length;
               uploadedBytes += results.reduce((n, r) => n + r.size, 0);
@@ -14123,7 +14476,7 @@ function createSettingsRpcHandler(deps) {
             progress.running = false;
             const { visibility, chargedTokens } = await publishProject(base, apiKey, projectId, {
               intentKey: `convfusion-dsh-publish-${projectId}-v${uploaded.version}`,
-              ...netOptions()
+              ...netOptions(workIdForWrite)
             });
             if (reusable && previous?.title !== workName) {
               try {
@@ -14249,9 +14602,15 @@ function createSettingsRpcHandler(deps) {
           const apiKey = resolveConvFusionApiKey(config, env());
           if (!apiKey)
             return fail("not-configured", "\u5C1A\u672A\u767B\u5F55 ConvFusion.com\u3002");
+          const jcr = asJcrLevel(p.jcrLevel);
+          const ccf = asCcfLevel(p.ccfLevel);
+          const level = jcr !== null ? { system: "JCR", level: jcr } : ccf !== null ? { system: "CCF", level: ccf } : null;
+          if (level === null && (p.jcrLevel !== void 0 || p.ccfLevel !== void 0)) {
+            return fail("bad-request", "\u8BBA\u6587\u7B49\u7EA7\u4E0D\u5408\u6CD5\uFF1AJCR \u53EA\u80FD\u586B 1\u20134\uFF0CCCF \u53EA\u80FD\u586B A/B/C\u3002");
+          }
           try {
             const base = resolveServerUrl(config, env()).url;
-            const suggestion = await fetchFeeSuggestion(base, apiKey, netOptions());
+            const suggestion = await fetchFeeSuggestion(base, apiKey, netOptions(), level);
             return { ok: true, value: { suggestion } };
           } catch (e) {
             return serverFail(e);
@@ -14281,6 +14640,11 @@ function createSettingsRpcHandler(deps) {
           const type = asString3(condition.type);
           if (!type)
             return fail("bad-request", "\u7F3A\u5C11\u6210\u529F\u6761\u4EF6\u7C7B\u578B\u3002");
+          const jcr = asJcrLevel(condition.jcrLevel);
+          const ccf = asCcfLevel(condition.ccfLevel);
+          if (condition.jcrLevel !== void 0 && jcr === null || condition.ccfLevel !== void 0 && ccf === null) {
+            return fail("bad-request", "\u8BBA\u6587\u7B49\u7EA7\u4E0D\u5408\u6CD5\uFF1AJCR \u53EA\u80FD\u586B 1\u20134\uFF0CCCF \u53EA\u80FD\u586B A/B/C\u3002");
+          }
           try {
             const base = resolveServerUrl(config, env()).url;
             const proposal = await fetchPropose(base, apiKey, projectId, {
@@ -14288,7 +14652,12 @@ function createSettingsRpcHandler(deps) {
               totalFee,
               depositAmount,
               successPaymentAmount,
-              successCondition: { type, description: asString3(condition.description) || null }
+              successCondition: {
+                type,
+                description: asString3(condition.description) || null,
+                ...jcr === null ? {} : { jcrLevel: jcr },
+                ...ccf === null ? {} : { ccfLevel: ccf }
+              }
             }, netOptions());
             return { ok: true, value: { proposal } };
           } catch (e) {
@@ -14666,7 +15035,9 @@ function createSettingsRpcHandler(deps) {
                 serverUrl: base,
                 accountId: await resolveAccountId(base, apiKey) ?? "",
                 // 下 `owner` 侧 = 我在别人的研究里当导师（拿的是学生的工作区）；反之亦然
-                role: source === "owner" ? "mentor" : "owner"
+                role: source === "owner" ? "mentor" : "owner",
+                // 注册表按路径存 → 记下"这条身份属于当时住在这里的那项研究"
+                ...researchRootFingerprint(settled.researchRoot) ? { rootFingerprint: researchRootFingerprint(settled.researchRoot) } : {}
               });
               try {
                 deps.workIdentity?.set(settled.researchRoot, identity);
@@ -15975,7 +16346,10 @@ function createCodexUiHost(options = {}) {
     resolveSessionWorkspace: (id) => workspaces.get(id)?.path,
     listLocalWorkspaces: async () => ({ available: true, items: workspaceRows() }),
     paidBriefStore: createFilePaidBriefStore(() => path("paid-briefs.json")),
-    publishedStore: createFilePublishedStore(() => path("published.json")),
+    publishedStore: createFilePublishedStore(() => path("published.json"), {
+      workIdOf: (root) => readLocalIdentity(root, workIdentity).workspaceId,
+      fingerprintOf: researchRootFingerprint
+    }),
     syncStore: createFileSyncWatermarkStore(() => path("sync-watermarks.json")),
     syncNotes,
     workIdentity
@@ -16005,14 +16379,11 @@ function createCodexUiHost(options = {}) {
     if (endpoint === "codex/settings") {
       if (payload?.field === "autoContinue" && typeof payload.value === "boolean") await setConfig({ autoContinue: payload.value });
       else if (payload?.field === "autoContinueMaxRounds" && Number.isInteger(payload.value) && payload.value >= 0 && payload.value <= 100) await setConfig({ autoContinueMaxRounds: payload.value });
-      else if (payload?.field === "openalexApiKey" && typeof payload.value === "string") await setConfig({ openalexApiKey: payload.value.trim() });
       else return failure("field", "Unsupported setting");
       return { ok: true, value: { configured: Boolean(getConfig().openalexApiKey) } };
     }
     if (endpoint === "codex/continuation") return { ok: true, value: { enabled: getConfig().autoContinue, maxRounds: getConfig().autoContinueMaxRounds } };
     if (endpoint === "codex/export-methods") return root ? { ok: true, value: exportMethods(root, payload?.full === true) } : failure("workspace", "\u8BF7\u5728\u9879\u76EE\u804A\u5929\u4E2D\u6253\u5F00 ConvFusion \u5DE5\u4F5C\u53F0");
-    if (endpoint === "codex/sync" && !root) return failure("workspace", "\u8BF7\u5728\u9879\u76EE\u804A\u5929\u4E2D\u6253\u5F00 ConvFusion \u5DE5\u4F5C\u53F0");
-    if (endpoint === "codex/sync") return { ok: true, value: prepareSync(root, payload?.zip ?? "") };
     const result = await handler(String(endpoint), payload ?? {});
     if (endpoint === "progress/workspace" && root && result.ok && result.value?.research) {
       const latest = latestCodexTurn(home, root);
@@ -16034,18 +16405,6 @@ function createCodexUiHost(options = {}) {
     if (!state) return failure("auth", "\u754C\u9762\u8FDE\u63A5\u5DF2\u5931\u6548\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00 ConvFusion");
     if (root !== void 0 && root !== state.root) return failure("workspace", "Workspace is not registered");
     if (endpoint === "codex/bootstrap") return { ok: true, value: sessionInfo(token, state) };
-    if (endpoint === "codex/workspaces") return { ok: true, value: workspaceRows() };
-    if (endpoint === "codex/select-workspace") {
-      if (!state.selectable) return failure("workspace", "\u804A\u5929\u5DE5\u4F5C\u53F0\u7ED1\u5B9A\u5F53\u524D\u4EFB\u52A1\uFF0C\u8BF7\u5728\u76EE\u6807\u9879\u76EE\u804A\u5929\u4E2D\u6253\u5F00\u5DE5\u4F5C\u53F0");
-      try {
-        state.root = registerWorkspace(payload?.path, true).path;
-        saveSession(token, state);
-        return { ok: true, value: sessionInfo(token, state) };
-      } catch (error2) {
-        const message = error2.code === "ENOENT" ? "\u76EE\u5F55\u4E0D\u5B58\u5728\uFF0C\u8BF7\u68C0\u67E5\u8DEF\u5F84" : error2.code === "EACCES" ? "\u65E0\u6CD5\u8BFB\u53D6\u8BE5\u76EE\u5F55\uFF0C\u8BF7\u68C0\u67E5\u8BBF\u95EE\u6743\u9650" : error2.message;
-        return failure("workspace", message);
-      }
-    }
     if (endpoint === "progress/workspace") payload = { ...payload, sessionId: bootstrap(state.root).sessionId ?? "" };
     return dispatch(state.root, endpoint, payload);
   };

@@ -308,6 +308,14 @@ export interface LocalWorkItem {
         /** 记录属于哪个账号。 */
         accountId: string;
     }>;
+    /**
+     * **本机当前没有打开**这项研究工作（研究根不在当前会话工作区里），但它在网络上仍属于我。
+     *
+     * 界面据此只显示"名字 + work_id + 已在网络中"，**不给发布/更新按钮** ——
+     * 没有文件就没有可上传的内容。这样用户换进换出研究时，之前发布过的工作依然看得见
+     * （列表按 **work_id** 归属，而不是按文件夹在不在）。
+     */
+    detached?: boolean;
 }
 /** 服务器上的账号（`GET /api/v1/auth/me`）。**不含任何凭据。** */
 export interface AccountWire {
@@ -590,6 +598,8 @@ export declare function compareVersions(a: string, b: string): number;
  * |---|---|---|
  * | `state` | `{}` | 整页状态（类别 → Skill → 章节） |
  * | `dependencies/check` | `{}` | 重新探测本地外部依赖（tectonic），供【系统设置】的"重新检查" |
+ * | `retrieval/saveKey` | `{ apiKey }` | 保存 OpenAlex API Key（**宿主侧落盘**，见端点实现里的理由）；回检索状态 |
+ * | `retrieval/clearKey` | `{}` | 清除 OpenAlex API Key（回到"跟随环境变量"）；回检索状态 |
  * | `version/check` | `{}` | 插件更新检查（GitHub Releases `latest`；离线/无 release 时 `latest:null`） |
  * | `customization/save` | `{ skillId, section, text }` | 写入覆盖（空文本 = 清除） |
  * | `customization/reset` | `{ skillId, section }` | 清除一个章节的覆盖 |
@@ -612,8 +622,8 @@ export declare function compareVersions(a: string, b: string): number;
  * | `work/list` | `{}` | 研究网络里已公开的研究工作（需登录；条数由服务器定） |
  * | `work/summary` | `{ projectId }` | 一项研究工作的摘要（免费） |
  * | `work/brief` | `{ projectId, intentKey }` | 一项研究工作的简报（非 owner 花 1 Token） |
- * | `mentor/fee-suggestion` | `{}` | 默认指导费用建议（100 / 20 / 80，导师可改） |
- * | `mentor/propose` | `{ projectId, guidanceScope, totalFee, depositAmount, successPaymentAmount, successCondition }` | 发起指导提案（免费；同一项目同一导师只能有一个生效提案） |
+ * | `mentor/fee-suggestion` | `{ jcrLevel?, ccfLevel? }` | 指导费用建议：给论文等级（JCR 1–4 / CCF A–C）→ **该等级的价格**；不给 → 兜底价（100 / 20 / 80，非论文类条件用） |
+ * | `mentor/propose` | `{ projectId, guidanceScope, totalFee, depositAmount, successPaymentAmount, successCondition }` | 发起指导提案（免费；同一项目同一导师只能有一个生效提案）。**论文类条件必须带等级**（`successCondition.jcrLevel` / `ccfLevel`），服务器缺等级直接 400 |
  * | `mentor/list` | `{}` | 我涉及的指导提案（我发起的 + 我收到的）；ACCEPTED 的带 `reviewFiles`（导师已上传几份，服务器 `review_files`）与 **`sync`**（"学生更新了工作区吗"：与本地水位比对的结果，`null` = 无从判断） |
  * | `mentor/accept` | `{ proposalId, intentKey }` | 接受指导（研究者）→ **冻结押金**、建合同与关系 |
  * | `mentor/reject` | `{ proposalId }` | 拒绝指导（研究者） |

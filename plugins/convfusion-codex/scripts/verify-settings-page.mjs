@@ -71,17 +71,53 @@ function assertEq(a, b, label) {
 
 const inlineCount = (haystack, needle) => haystack.split(needle).length - 1
 
+/**
+ * 读一个**客户端纯逻辑模块**并按 ESM 求值。
+ *
+ * 客户端的产物是 esbuild 打包的 `lib/client.js`（没有单文件 JS 产物），所以纯逻辑
+ * （不依赖 React）没法像宿主模块那样 `import(lib(...))`。这里用仓库已有的 esbuild
+ * 现场转译源码 —— 测的是**源码本身**，也不必为测试改构建布局。
+ *
+ * ⚠️ 定义在**顶层**：它被多个段落用（含文件末尾的 [9] 渲染段），
+ * 放进某个 `{ }` 段落里就只有那一段看得见。
+ */
+async function importClientModule(rel) {
+  const esbuild = await import('esbuild')
+  const code = readFileSync(join(PKG, 'src/client', rel), 'utf8')
+  const out = await esbuild.transform(code, { loader: 'ts', format: 'esm' })
+  return import(`data:text/javascript;base64,${Buffer.from(out.code).toString('base64')}`)
+}
+
 const HOME = mkdtempSync(join(tmpdir(), 'cf-settings-'))
 mkdirSync(join(HOME, 'convfusion'), { recursive: true })
 
 /* ── 夹具：一个「配置可变」的 host 设置面 ───────────────────────────── */
-function makeHost({ file = 'skill-customizations.json', dir = join(HOME, 'convfusion') } = {}) {
+function makeHost({
+  file = 'skill-customizations.json',
+  dir = join(HOME, 'convfusion'),
+  /** true = 这个宿主有可用的设置存储（能落盘配置补丁）—— 见 [1h]。 */
+  writableConfig = false,
+} = {}) {
   let config = { customizationFile: file, customizationDir: dir }
+  const writes = []
   const store = CUST.createFileCustomizationStore(() => CFG.resolveCustomizationPath(config))
-  const handler = RPC.createSettingsRpcHandler({ getConfig: () => config, store })
+  const handler = RPC.createSettingsRpcHandler({
+    getConfig: () => config,
+    store,
+    ...(writableConfig
+      ? {
+          setConfig: async (patch) => {
+            writes.push(patch)
+            // 真实实现里这次写入**立刻**生效（落盘后 `getConfig()` 就看得见）
+            config = { ...config, ...patch }
+          },
+        }
+      : {}),
+  })
   return {
     handler,
     store,
+    writes,
     get config() {
       return config
     },
@@ -265,7 +301,14 @@ console.log('\n[1d] 定制文件不出现在界面上')
   assert(!src.includes('尚未创建'), '不再显示"尚未创建"这类内部状态')
   // 界面**可以**写 OpenAlex Key（Tab 3），但绝不能再写定制文件相关字段
   assert(!/scope\.set\(\s*['"]customization/.test(src), '界面不往 scope 写 customization* 字段')
-  assert(!/scope\.set\(\s*['"]openalexApiKey/.test(src) === false, 'Tab 3 用 scope 写 OpenAlex Key')
+  /*
+   * ⚠️ 2026-10：Tab 3 的 Key **不许**再走 `scope.set('openalexApiKey', …)`。
+   * 那条路在非 loopback 页面上是静默 no-op（`configForm.set()` resolve `false` 且不写盘），
+   * 而返回值当时被忽略 → 界面谎报「已保存」，用户看到的是"设置了却总是未配置"。
+   * 现在走宿主的 `retrieval/saveKey` / `retrieval/clearKey`（见 [1h] 的端点断言）。
+   */
+  assert(!/scope\.set\(\s*['"]openalexApiKey/.test(src), 'Tab 3 **不再**用 scope 写 OpenAlex Key（会静默失败）')
+  assert(/retrieval\/saveKey/.test(src) && /retrieval\/clearKey/.test(src), 'Tab 3 的保存 / 清除走宿主端点')
 
   // 但底层配置仍然存在（文件仍可经设置文档 / profile patch 调整）
   const cfg = readFileSync(join(PKG, 'src', 'config.ts'), 'utf8')
@@ -757,6 +800,72 @@ console.log('\n[1f] OpenAlex Key 的存储与暴露面')
   assertEq(depRes.ok, true, 'dependencies/check 端点可用')
   assertEq(typeof depRes.value.tectonic.available, 'boolean', '端点返回 tectonic 状态')
   assert(!('categories' in depRes.value), '端点只返回依赖报告（不重算整页状态）')
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * 1h. OpenAlex Key 的**写入**必须走宿主（2026-10 用户实测 Bug 的回归锁）
+ *
+ * 故障现象：「明明设置了 OpenAlex API Key，却总是显示未配置」。
+ * 根因：旧实现由**浏览器**写 `configForm.set('openalexApiKey', …)`，而
+ * `dsh-client-ui-settings` 只在**页面来源是 loopback** 时才把写入交给宿主：
+ *
+ * ```js
+ * const persistence = ctx.remote.$host.isLoopback ? "host" : "memory"
+ * enqueue(op) { if (this.persistence === "memory") return Promise.resolve(false) }   // ← 静默 no-op
+ * ```
+ *
+ * 而那个返回值当时被忽略了：界面照样说「已保存」、清空输入框，一个字节都没写。
+ * 现在两条端点都由宿主落盘（与 `account/login` 保存凭据同一条路，本机 profile 有实证），
+ * 所以这里钉四件事：① 写入真的落到配置；② 回的是**刚写完**的状态；
+ * ③ 空 Key 本地拒绝、设置存储不可用时明确报错（绝不静默）；④ 返回值里没有密钥。
+ * ════════════════════════════════════════════════════════════════════════ */
+console.log('\n[1h] OpenAlex Key 由宿主落盘（retrieval/saveKey / clearKey）')
+{
+  const secret = 'sk-openalex-regression-value'
+
+  // ① 保存 → 真的写进配置，并回"已配置"
+  const h = makeHost({ writableConfig: true })
+  const saved = await h.handler('retrieval/saveKey', { apiKey: secret })
+  assertEq(saved.ok, true, 'retrieval/saveKey 成功')
+  assertEq(h.config.openalexApiKey, secret, '密钥真的落进配置（不是只回一句"已保存"）')
+  assertEq(h.writes.length, 1, '只写一次设置存储')
+  assertEq(saved.value.retrieval.configured, true, '回的是**刚写完**的状态：已配置')
+  assertEq(saved.value.retrieval.source, 'settings', '来源 = settings')
+  assertEq(saved.value.retrieval.envVar, 'OPENALEX_API_KEY', '带上环境变量名（界面提示要用）')
+  assert(!JSON.stringify(saved.value).includes(secret), '返回值里**没有**密钥明文')
+  // 整页状态也跟着变（徽章不必等下一次手动刷新）
+  assertEq((await h.handler('state', {})).value.retrieval.configured, true, 'state 随之报告已配置')
+
+  // ② 清除 → 回到"未配置"（配置里是空串，不是删字段）
+  const cleared = await h.handler('retrieval/clearKey', {})
+  assertEq(cleared.ok, true, 'retrieval/clearKey 成功')
+  assertEq(h.config.openalexApiKey, '', '密钥被清空')
+  assertEq(cleared.value.retrieval.configured, false, '回的状态是未配置')
+
+  // ③ 空 Key 本地拒绝（不必跑一趟宿主设置存储）
+  const empty = makeHost({ writableConfig: true })
+  assertEq((await empty.handler('retrieval/saveKey', { apiKey: '   ' })).error.code, 'bad-request', '空 Key → bad-request')
+  assertEq(empty.writes.length, 0, '空 Key 不写设置存储')
+
+  // ④ 设置存储不可用 → **明确报错**（"看着保存成功、重启后没了"是最坏的形态）
+  const readOnly = makeHost()
+  assertEq(
+    (await readOnly.handler('retrieval/saveKey', { apiKey: secret })).error.code,
+    'storage-unavailable',
+    '没有设置存储 → storage-unavailable（不装作保存成功）',
+  )
+
+  // ⑤ 环境变量回退仍然有效：清除设置里的 Key 之后，环境变量里的那份说了算
+  const envHost = makeHost({ writableConfig: true })
+  await envHost.handler('retrieval/clearKey', {})
+  const envState = RPC.buildSettingsState(
+    { customizationFile: 'x.json', customizationDir: '/tmp', openalexApiKey: '' },
+    CUST.createMemoryCustomizationStore(),
+    undefined,
+    undefined,
+    { OPENALEX_API_KEY: 'from-env' },
+  )
+  assertEq(envState.retrieval.source, 'env', '设置里没有 → 回退到环境变量（source=env）')
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1799,63 +1908,35 @@ console.log('\n[12] 指导关系中：第三个 Tab + 接受冻结押金的二�
    * "我在哪一侧 + 项目哪个方向"选，不能只用"导师 / 学生"两个词。
    */
   assert(
-    /if \(!view\.iAmOwner\) \{/.test(src) && /if \(view\.iAmOwner\) return true/.test(src),
+    /if \(view\.iAmOwner\) return true/.test(src) && /acceptedProgressKey\(p, view\)/.test(src),
     '文案与下载可用性都按"我在哪一侧"（owner 侧 = 项目所有者）判',
   )
-  // 执行真实函数，串起账号 → 角色/侧别 → 文案；只检查源码里存在 key 会漏掉分支写反。
-  {
-    const { transform } = await import('esbuild')
-    const declarations = [
-      src.match(/^const PROPOSAL_STATUS_KEYS[^]*?^}/m)?.[0],
-      ...['proposalView', 'progressLabelKey'].map((name) =>
-        src.match(new RegExp(`^function ${name}\\([^]*?^}`, 'm'))?.[0]),
-    ]
-    if (declarations.some((code) => !code)) throw new Error('找不到指导状态计算函数')
-    const out = await transform(`${declarations.join('\n')}\nexport { proposalView, progressLabelKey }`, {
-      loader: 'ts', format: 'esm',
-    })
-    const { proposalView, progressLabelKey } = await import(
-      `data:text/javascript;base64,${Buffer.from(out.code).toString('base64')}`
-    )
-    const cases = [
-      ['SEEK_MENTOR', 'researcher', true, 'studentWaiting', 'studentGot'],
-      ['SEEK_MENTOR', 'mentor', false, 'mentorWaiting', 'mentorDone'],
-      ['SEEK_STUDENT', 'researcher', false, 'iToDeliver', 'iDelivered'],
-      ['SEEK_STUDENT', 'mentor', true, 'studentToDeliver', 'studentDelivered'],
-    ]
-    for (const [direction, role, isOwner, waiting, delivered] of cases) {
-      const p = {
-        direction, status: 'ACCEPTED',
-        mentor: { id: 'mentor-account' }, researcher: { id: 'researcher-account' },
-      }
-      const view = proposalView(p, `${role}-account`)
-      assertEq(view.myRole, role, `${direction} ${role}：账号角色正确`)
-      assertEq(view.iAmOwner, isOwner, `${direction} ${role}：文件侧别正确`)
-      for (const [reviewFiles, key] of [[0, waiting], [3, delivered]]) {
-        assertEq(
-          progressLabelKey({ ...p, reviewFiles }, view),
-          `community.mentor.progress.${key}`,
-          `${direction} ${role}：${reviewFiles ? '已交付' : '未交付'}的状态称呼正确`,
-        )
-      }
-      assertEq(
-        progressLabelKey({ ...p, status: 'PROPOSED', reviewFiles: 3 }, view),
-        'community.mentor.status.PROPOSED',
-        `${direction} ${role}：未接受的提案不显示交付进展`,
-      )
-    }
-  }
+  /*
+   * ⚠️ 四组文案的**取值规则**在纯函数 `src/client/mentorship-labels.ts` 里，上面已经
+   * 行为级断言了四种（方向 × 视角）组合 + 文案本身。这里只钉住两件事：
+   *   ① 规则确实由那个纯函数决定（不是又散回 JSX 里）；
+   *   ② 词条用的是**语义化名字**（`*Guided` = 导师的动作、`*Deliver*` = 学生的动作）——
+   *      旧名字（studentGot / mentorDone / studentToDeliver …）编码了错误的心理模型，
+   *      正是"方向 A 两侧配反"那个 bug 的来源，不该再回来。
+   */
+  assert(/from '\.\/mentorship-labels\.js'/.test(src), '进展文案走纯函数模块（可被自检直接断言）')
   for (const k of [
-    'studentWaiting',
-    'studentGot',
-    'mentorWaiting',
-    'mentorDone',
+    'awaitingMentor',
+    'mentorGuided',
+    'iToGuide',
+    'iGuided',
     'iToDeliver',
     'iDelivered',
-    'studentToDeliver',
+    'awaitingStudent',
     'studentDelivered',
   ]) {
     assert(zhDict.includes(`'community.mentor.progress.${k}'`), `进展文案有中文：${k}`)
+  }
+  for (const gone of ['studentGot', 'studentWaiting', 'mentorDone', 'mentorWaiting', 'studentToDeliver']) {
+    assert(
+      !zhDict.includes(`'community.mentor.progress.${gone}'`),
+      `旧的、按角色猜的名字已移除：${gone}`,
+    )
   }
   /*
    * 行首必须同时说出"**哪份工作、和谁**"（2026-10 用户要求）：
@@ -1902,8 +1983,25 @@ console.log('\n[12] 指导关系中：第三个 Tab + 接受冻结押金的二�
   /*
    * ⚠️ 用 `iAmAcceptor`（谁该接受）而不是"我是不是学生"：方向 B 里该接受的是
    * **导师**，主次的行序也要跟着翻。
+   *
+   * ⚠️ 判据本体已搬进纯函数 `mentorship-view.ts`（四格表在下面的行为断言里逐一钉住），
+   * 这里只钉"界面**读的是**这个派生量，而不是自己现推一遍方向"。
    */
-  assert(src.includes('iAmAcceptor: !iProposed'), '"该我接受"= 我不是发起人（两个方向同一判据）')
+  {
+    const mvSrc = readFileSync(join(PKG, 'src/client/mentorship-view.ts'), 'utf8')
+    assert(src.includes("from './mentorship-view.js'"), '方向派生量走纯函数模块（界面不再自己推方向）')
+    assert(
+      mvSrc.includes('iAmAcceptor: !iProposed'),
+      '纯函数里"该我接受"= 我不是发起人（两个方向同一判据）',
+    )
+    assert(
+      /iAmPayer: myRole === 'researcher'/.test(mvSrc),
+      '纯函数里"押金冻我的吗"= 我是不是学生（**不是** !iAmOwner）',
+    )
+    // 界面里不该再出现"自己推谁付钱"的老写法
+    assert(!/iPayer = !/.test(src), '界面不再用 `iPayer = !iAmOwner` 那套（接受人 ≠ 付款人）',
+    )
+  }
 
   // 动作只长在「我收到的 + 等待响应」那一行（其余状态纯跟踪）
   assert(
@@ -2009,12 +2107,12 @@ console.log('\n[12] 指导关系中：第三个 Tab + 接受冻结押金的二�
   // 第二行插槽：挂在 WorkRow 的按钮**下面**
   assert(src.includes('below={'), 'WorkRow 有第二行动作插槽')
   assert(src.includes('{below}'), 'WorkRow 真的渲染这个插槽')
-  // 导师侧只填**总费用**：指导范围已删、成功条件不由导师定、押金比例由平台定
+  // 导师侧只填**总费用**：指导范围已删、押金比例由平台定（v0.6.3 起成功条件与论文等级
+  // 由用户在对话框里选 —— 等级是价格依据，见下面 ⑥b）
   const pd = src.slice(src.indexOf('function ProposeDialog('), src.indexOf('function DownloadDialog('))
   assertEq((pd.match(/<input/g) ?? []).length, 1, '提案对话框只剩一个输入框（总费用）')
   assert(!pd.includes('scopeLabel') && !pd.includes('scopePlaceholder'), '对话框不再采集指导范围')
-  assert(!pd.includes('conditionLabel') && !pd.includes('conditionPlaceholder'), '对话框不再采集成功条件')
-  // 钱怎么分 + 成功条件谁定 = **一段话**（分两行会让对话框多一行高）
+  // 钱怎么分 = **一段话**（分两行会让对话框多一行高）
   assertEq((pd.match(/feeNote/g) ?? []).length, 1, '费用说明只占一段')
   assert(!pd.includes('conditionByStudent'), '不再有独立的成功条件说明行')
   assert(zhDict.includes('成功条件由对方确认'), '这一段里说明了成功条件由对方确认')
@@ -2030,9 +2128,85 @@ console.log('\n[12] 指导关系中：第三个 Tab + 接受冻结押金的二�
   assert(pd.includes('percent: Math.round(ratio * 100)'), '界面显示的百分比来自同一比例')
   // 服务器仍要求非空 → 送过渡值；展示端遇占位符整行不显示
   assert(/PROPOSE_SCOPE_PLACEHOLDER = '-'/.test(src), '指导范围送占位符（服务器仍必填）')
-  assert(/PROPOSE_DEFAULT_CONDITION = 'MUTUAL_COMPLETION'/.test(src), '成功条件送平台默认值')
+  assert(/PROPOSE_DEFAULT_CONDITION = 'MUTUAL_COMPLETION'/.test(src), '成功条件默认「双方确认完成」')
   // 指导范围已彻底不展示（导师不采集 → 展示它是死代码）
   assert(!src.includes('scopeRow'), '列表/对话框都不再渲染指导范围')
+
+  /*
+   * ── ⑥b 论文等级定价（v0.6.3，服务器 §3.2.4）──────────────────────────────
+   *
+   * 这一版把"价格"从"约定总额"改成**等级定价**：`PAPER_ACCEPTED` / `PAPER_PUBLISHED`
+   * 的价格**就是**等级，服务器缺等级直接 400 `INVALID_PROPOSAL`。所以界面上必须
+   * ① 能选条件、② 论文类条件必须能选等级、③ 选了等级才去问服务器价钱、
+   * ④ 把等级随提案发出去。四条缺一条就是"必然失败"或"按错价成交"。
+   *
+   * 另外钉住一条纪律：**价目表不许抄到客户端**（平台调价后界面会撒谎）。
+   */
+  assert(/from '\.\/paper-level\.js'/.test(src), '等级规则走纯函数模块 paper-level.ts（可被自检直接断言）')
+  assert(pd.includes('SUCCESS_CONDITION_KEYS'), '成功条件由用户在下拉里选（不再是写死的过渡值）')
+  assert(/isPaperCondition\(condition\)/.test(pd) && /\{paper \? \(/.test(pd), '等级下拉只在论文类条件下出现')
+  assert(
+    pd.includes("(['JCR', 'CCF'] as PaperLevelSystem[])") && pd.includes('levelOptions(system)'),
+    '等级下拉按体系分组（JCR 分区 / CCF 类别），取值来自纯函数',
+  )
+  assert(
+    /const valid = Number\.isInteger\(totalNum\) && totalNum > 0 && \(!paper \|\| level !== null\)/.test(pd),
+    '论文类条件未选等级 = 不能提交（服务器的规则是缺等级 400，界面不把它做成一次莫名失败）',
+  )
+  assert(
+    /successCondition: \{\s*type: condition,\s*\.\.\.levelQuery\(level\),/.test(pd),
+    '提案带出条件 + 等级（levelQuery 只发 jcrLevel 或 ccfLevel 一个字段）',
+  )
+  assert(
+    /if \(isPaperCondition\(terms\.condition\) && !terms\.level\)/.test(src),
+    '论文类条件在选等级前**不取兜底价**（100 不是"论文被接收"的价钱）',
+  )
+  assert(
+    /post\('mentor\/fee-suggestion', levelQuery\(terms\.level\)\)/.test(src),
+    '等级 → 金额由服务器算（客户端只传等级）',
+  )
+  assert(!/\b(500|600|800|1000)\b/.test(pd), '客户端没有抄价目表（500 / 600 / 800 / 1000 一个都不出现）')
+  assert(
+    /t\('community\.mentor\.levelRequired'\)/.test(pd) && zhDict.includes('等级就是价格'),
+    '未选等级时说明原因（等级就是价格）',
+  )
+  assert(
+    /paperLevelOf\(p\.successCondition\)/.test(src) && /paperLevelText\(level\)/.test(src),
+    '列表行把等级报出来（同样的价钱按几区定价是两回事）',
+  )
+
+  /*
+   * ── ⑥c 接受前的**资金池**拦截（v0.6.3）────────────────────────────────
+   *
+   * 押金只能从 `funded` 冻结，赠送额度**不能**付给导师。客户端已经知道这件事，
+   * 就必须在**点之前**拦住 —— 否则用户看到"余额明明够"却拿到 402，完全无从理解。
+   * 而两池未知（旧宿主）= 判不出来 → **不拦**（旧服务器上两池本来就是一体的）。
+   */
+  assert(
+    /const payable = funded === null \? null : funded >= proposal\.depositAmount/.test(src),
+    '用资金池（不是两池之和）判断押金付不付得起',
+  )
+  assert(/const short = iPayer && payable === false/.test(src), '只有"冻的是我的钱"时才拦')
+  assert(/disabled=\{short\}/.test(src), '资金池不足 → 【确认接受】禁用（不是点了才失败）')
+  assert(
+    /t\('community\.mentor\.acceptNoFunded'/.test(src) && zhDict.includes('测试阶段请联系管理员发放 Token'),
+    '拦住时说清原因 + 可行动作（测试阶段找管理员发放 Token）',
+  )
+  assert(
+    /funded=\{state\?\.tokens\?\.funded \?\? null\}/.test(src) &&
+      /grant=\{state\?\.tokens\?\.grant \?\? null\}/.test(src),
+    '接受框拿到两池（旧宿主 → null，退回按可用余额判断）',
+  )
+  // 两池必须分开显示：混成一个"可用余额"会让人在 402 面前完全不明白为什么
+  assert(
+    /t\('community\.token\.funded'\)/.test(src) && /t\('community\.token\.grant'\)/.test(src),
+    '余额弹窗分列资金池 / 赠送',
+  )
+  assert(zhDict.includes('赠送只能买平台自营服务'), '悬浮提示里说明赠送额度的边界')
+  // 环形图只画弧：字放进 SVG 会被等比缩到不可读（v0.6.3 顺手修掉）
+  const donut = src.slice(src.indexOf('function TokenDonut('), src.indexOf('/** 环形图旁边的一行图例'))
+  assert(donut.includes('<circle') && !donut.includes('<text'), '环形图只画弧，数字交给 HTML 图例（缩放不改变字号）')
+  assert(/function TokenLegendRow\(/.test(src), '有 HTML 图例组件（色点 + 名称 + 精确数字）')
   // 显示规则：**读过详情**之后才出现（业务上不允许没看内容就发指导申请）
   assert(
     /const canPropose = detailRead\.has\(w\.projectId\) \|\| briefFree\(w\)/.test(src),
@@ -2283,20 +2457,6 @@ console.log('\n[13] 指导闭环：下载 / 上传')
   assert(/progress=\{publishProgress\}/.test(src), '发布对话框也拿得到进度')
   assert(/setPublishProgress\(v\)/.test(src), '发布期间按秒轮询（与回传同一条端点）')
   /* 一个研究工作**只属于一个方向**的规则见下方 `publishActionPlan` 的行为断言。 */
-/**
- * 读一个**客户端纯逻辑模块**并按 ESM 求值。
- *
- * 客户端的产物是 esbuild 打包的 `lib/client.js`（没有单文件 JS 产物），所以纯逻辑
- * （不依赖 React）没法像宿主模块那样 `import(lib(...))`。这里用仓库已有的 esbuild
- * 现场转译源码 —— 测的是**源码本身**，也不必为测试改构建布局。
- */
-async function importClientModule(rel) {
-  const esbuild = await import('esbuild')
-  const code = readFileSync(join(PKG, 'src/client', rel), 'utf8')
-  const out = await esbuild.transform(code, { loader: 'ts', format: 'esm' })
-  return import(`data:text/javascript;base64,${Buffer.from(out.code).toString('base64')}`)
-}
-
   {
     // 字典片段直接读（`dictHas` 在后面的 i18n 段落里，作用域不同）
     const zhDictText = readFileSync(join(PKG, 'src', 'client', 'i18n', 'zh.ts'), 'utf8')
@@ -2365,7 +2525,189 @@ async function importClientModule(rel) {
   // 历史数据（旧版本允许一个工作两个方向各发一次）：主按钮一个，另一个进下拉而不是丢掉
   const legacy = planOf(true, ['SEEK_MENTOR', 'SEEK_STUDENT'])
   assertEq(legacy.more.length, 1, '历史双发：另一个方向进下拉（让用户仍有路可走，不静默丢掉）')
+
+  /*
+   * ──【指导中】的进展文案：**视角由方向决定，不是由角色决定** ──────────────
+   *
+   * 用户实测到的 bug：方向 A（学生发布工作）下两侧配反了 —— 学生看到「我已指导」
+   * （导师的第一人称），导师看到「导师已指导」（给学生的第三人称）。
+   * 这里把四种（方向 × 视角）组合**逐一**钉住，并连**文案**一起断言
+   * （只断言 key 的话，把两个 key 的文案对调也能过）。
+   */
+  {
+    const { acceptedProgressKey } = await importClientModule('mentorship-labels.ts')
+    const keyOf = (direction, iAmOwner, reviewFiles) =>
+      acceptedProgressKey({ status: 'ACCEPTED', direction, reviewFiles }, { iAmOwner })
+    // 方向 A：学生是 owner，导师交付
+    assertEq(keyOf('SEEK_MENTOR', true, 3), 'community.mentor.progress.mentorGuided', '方向 A · 学生看已完成：说导师')
+    assertEq(keyOf('SEEK_MENTOR', true, 0), 'community.mentor.progress.awaitingMentor', '方向 A · 学生看未完成：等导师')
+    assertEq(keyOf('SEEK_MENTOR', false, 3), 'community.mentor.progress.iGuided', '方向 A · 导师看已完成：说我')
+    assertEq(keyOf('SEEK_MENTOR', false, 0), 'community.mentor.progress.iToGuide', '方向 A · 导师看未完成：待我')
+    // 方向 B：导师是 owner，学生交付
+    assertEq(keyOf('SEEK_STUDENT', true, 3), 'community.mentor.progress.studentDelivered', '方向 B · 导师看已完成：说学生')
+    assertEq(keyOf('SEEK_STUDENT', true, 0), 'community.mentor.progress.awaitingStudent', '方向 B · 导师看未完成：等学生')
+    assertEq(keyOf('SEEK_STUDENT', false, 3), 'community.mentor.progress.iDelivered', '方向 B · 学生看已完成：说我')
+    assertEq(keyOf('SEEK_STUDENT', false, 0), 'community.mentor.progress.iToDeliver', '方向 B · 学生看未完成：待我')
+    // `reviewFiles` 查不到（null）→ 当"还没交付"（与旧行为一致：不撒谎说已完成）
+    assertEq(keyOf('SEEK_MENTOR', false, null), 'community.mentor.progress.iToGuide', '查不到文件数 → 按"待交付"')
+    // 未 ACCEPTED → 交给状态名（不在本函数里混）
+    assertEq(acceptedProgressKey({ status: 'PROPOSED', direction: 'SEEK_MENTOR' }, { iAmOwner: true }), null, '非 ACCEPTED → 返回 null')
+
+    const zhText = readFileSync(join(PKG, 'src/client/i18n/zh.ts'), 'utf8')
+    const textOf = (key) => new RegExp(`'${key}': '([^']*)'`).exec(zhText)?.[1] ?? ''
+    assertEq(textOf('community.mentor.progress.mentorGuided'), '导师已指导', '学生看到的是「导师已指导」')
+    assertEq(textOf('community.mentor.progress.iGuided'), '我已指导', '导师看到的是「我已指导」')
+    assertEq(textOf('community.mentor.progress.iToGuide'), '待我指导', '导师未交付时是「待我指导」')
+    assertEq(textOf('community.mentor.progress.awaitingMentor'), '等待指导意见', '学生未收到时是「等待指导意见」')
+    assertEq(textOf('community.mentor.progress.studentDelivered'), '学生已交付', '方向 B 导师看到的是「学生已交付」')
+    assertEq(textOf('community.mentor.progress.iDelivered'), '我已交付', '方向 B 学生看到的是「我已交付」')
+  }
   assert(!/republishMentor|republishStudent/.test(src), '两个方向各自的"更新"文案已从源码移除')
+
+  /*
+   * ── 方向 × 我的角色：四格逐一钉住（很会配反的一层）──────────────────────
+   *
+   * 这一层的每个派生量错了都**不报错**：只是把"该我动作"说成"等对方"、
+   * 把上传写进对方那一侧、把"冻我自己的钱"说成"冻学生的钱"。
+   *
+   * `iAmPayer` 尤其要钉：押金**永远从学生（`researcher_id`）账上冻**
+   * （服务器 `accept_proposal` 不变量，两个方向都是学生出钱），而**两个方向的接受人
+   * 都是 owner**（A 学生接受、B 导师接受）—— 所以 `!iAmOwner` 在实际接受人身上恒为
+   * false：方向 A 的学生会被说成"冻学生的钱"，而且**拿不到"用自己资金池提前拦住"
+   * 这条保护**（服务器在 SEEK_MENTOR 方向没有别的地方能预检，见
+   * `dev-notes/v0.6.3-paper-level-pricing.md` §5）。判据只能是我是不是学生。
+   */
+  {
+    const { mentorshipView } = await importClientModule('mentorship-view.ts')
+    const MENTOR = 'm-1'
+    const STUDENT = 'r-1'
+    // 方向 A `SEEK_MENTOR`：学生发布研究求指导 → 导师发起、学生接受、学生出钱
+    const viewA = (me) =>
+      mentorshipView(
+        { direction: 'SEEK_MENTOR', mentorId: MENTOR, researcherId: STUDENT, proposedById: MENTOR },
+        me,
+      )
+    // 方向 B `SEEK_STUDENT`：导师出题招学生 → 学生出价、导师接受、学生出钱
+    const viewB = (me) =>
+      mentorshipView(
+        { direction: 'SEEK_STUDENT', mentorId: MENTOR, researcherId: STUDENT, proposedById: STUDENT },
+        me,
+      )
+    const pick = (v, keys) => keys.map((k) => `${k}=${v[k]}`).join(' ')
+    const KEYS = ['myRole', 'iAmOwner', 'iProposed', 'iAmAcceptor', 'iAmPayer', 'mySide', 'otherSide']
+    assertEq(
+      pick(viewA(STUDENT), KEYS),
+      'myRole=researcher iAmOwner=true iProposed=false iAmAcceptor=true iAmPayer=true mySide=owner otherSide=mentor',
+      '方向 A · 学生：我接受、我付钱、我在 owner 侧',
+    )
+    assertEq(
+      pick(viewA(MENTOR), KEYS),
+      'myRole=mentor iAmOwner=false iProposed=true iAmAcceptor=false iAmPayer=false mySide=mentor otherSide=owner',
+      '方向 A · 导师：我发起、我不付钱',
+    )
+    assertEq(
+      pick(viewB(MENTOR), KEYS),
+      'myRole=mentor iAmOwner=true iProposed=false iAmAcceptor=true iAmPayer=false mySide=owner otherSide=mentor',
+      '方向 B · 导师：我接受，但冻的是**学生**的钱（iAmPayer=false）',
+    )
+    assertEq(
+      pick(viewB(STUDENT), KEYS),
+      'myRole=researcher iAmOwner=false iProposed=true iAmAcceptor=false iAmPayer=true mySide=mentor otherSide=owner',
+      '方向 B · 学生：我出价、我付钱（但接受的是导师）',
+    )
+    // 两个方向的**接受人都是 owner** —— 所以 `iAmPayer` 绝不等于 `!iAmOwner`
+    const acceptors = [viewA(STUDENT), viewB(MENTOR)]
+    assert(
+      acceptors.every((v) => v.iAmAcceptor && v.iAmOwner),
+      '两个方向的接受人都是 owner（`!iAmOwner` 在这里恒为 false，不能拿来判谁付钱）',
+    )
+    assert(
+      acceptors[0].iAmPayer === true && acceptors[1].iAmPayer === false,
+      '接受人里：方向 A 的学生要拦、方向 B 的导师不拦（接受人 ≠ 付款人）',
+    )
+    // 旧服务器不返回 `proposed_by_id` → 按方向推断（这是方向的定义，不是猜）
+    const legacyA = mentorshipView({ direction: 'SEEK_MENTOR', mentorId: MENTOR }, STUDENT)
+    assertEq(legacyA.iProposed, false, '旧服务器：方向 A 按"导师发起"推断（学生是要动作的一方）')
+    const legacyB = mentorshipView({ direction: 'SEEK_STUDENT', mentorId: MENTOR }, MENTOR)
+    assertEq(legacyB.iProposed, false, '旧服务器：方向 B 按"学生发起"推断（导师是要动作的一方）')
+    // 未登录 / 旧宿主没有我的 id → 兜底成研究者（那一页本来也不渲染，只为不崩）
+    assertEq(
+      mentorshipView({ direction: 'SEEK_MENTOR' }, null).myRole,
+      'researcher',
+      '拿不到我的 id → 兜底研究者（不崩）',
+    )
+  }
+
+  /*
+   * ── 论文等级（JCR / CCF）的取值规则：纯函数逐一钉住（v0.6.3）──────────────
+   *
+   * 这段规则错了**不会报错**：会把条件发成必然 400（缺等级），或者把等级丢了按兜底价
+   * 成交。三条断言分别对应"哪些条件需要等级"、"取值合法域"、"发出去只发一个字段"。
+   */
+  {
+    const {
+      isPaperCondition,
+      levelQuery,
+      decodeLevel,
+      encodeLevel,
+      paperLevelOf,
+      paperLevelText,
+      levelOptions,
+      asJcrLevel,
+      asCcfLevel,
+    } = await importClientModule('paper-level.ts')
+    // ① 只有论文类两种条件要等级
+    assertEq(isPaperCondition('PAPER_ACCEPTED'), true, 'PAPER_ACCEPTED 需要等级')
+    assertEq(isPaperCondition('PAPER_PUBLISHED'), true, 'PAPER_PUBLISHED 需要等级')
+    assertEq(isPaperCondition('MUTUAL_COMPLETION'), false, '双方确认完成**不带**等级')
+    assertEq(isPaperCondition(undefined), false, '条件缺失不猜成论文类')
+    // ② 取值合法域：JCR 1–4 整数、CCF A/B/C 大写（大小写不敏感）
+    assertEq(asJcrLevel(2), 2, 'JCR 2 合法')
+    assertEq(asJcrLevel(0), null, 'JCR 0 非法')
+    assertEq(asJcrLevel(5), null, 'JCR 5 非法')
+    assertEq(asJcrLevel('2'), null, 'JCR 只认数字（字符串不是等级）')
+    assertEq(asCcfLevel('b'), 'B', 'CCF 小写归一成大写')
+    assertEq(asCcfLevel('D'), null, 'CCF 只认 A/B/C')
+    // ③ 发出去**只发一个字段**（服务器以 JCR 优先，客户端不把两个都发过去）
+    assertEq(levelQuery({ system: 'JCR', level: 2 }), { jcrLevel: 2 }, 'JCR → jcrLevel')
+    assertEq(levelQuery({ system: 'CCF', level: 'B' }), { ccfLevel: 'B' }, 'CCF → ccfLevel')
+    assertEq(levelQuery(null), {}, '没有等级 → 不带任何字段')
+    assertEq(levelQuery({ system: 'JCR', level: 9 }), {}, '非法等级不发字段（不许猜一个）')
+    // ④ 下拉框取值 ⇄ 等级的往返（一个字符串 = 一份完整状态，不留半选状态）
+    assertEq(decodeLevel('JCR:2'), { system: 'JCR', level: 2 }, '下拉值 JCR:2 → 等级')
+    assertEq(decodeLevel('CCF:A'), { system: 'CCF', level: 'A' }, '下拉值 CCF:A → 等级')
+    assertEq(decodeLevel(''), null, '空串 = 还没选')
+    assertEq(decodeLevel('JCR:9'), null, '越界的下拉值不认')
+    assertEq(encodeLevel({ system: 'JCR', level: 2 }), 'JCR:2', '等级 → 下拉值')
+    assertEq(encodeLevel(null), '', '没有等级 → 空串')
+    // ⑤ 读回提案里的等级：与服务器的优先顺序一致（先 jcr 后 ccf）
+    assertEq(
+      paperLevelOf({ jcrLevel: 3, ccfLevel: 'A' }),
+      { system: 'JCR', level: 3 },
+      '两个都给时以 JCR 为准（与服务器定价一致）',
+    )
+    assertEq(paperLevelOf({ ccfLevel: 'B' }), { system: 'CCF', level: 'B' }, '只有 CCF 时读 CCF')
+    assertEq(paperLevelOf({}), null, '非论文类条件没有等级')
+    // ⑥ 展示文案（中英词典里同名条目）
+    assertEq(
+      paperLevelText({ system: 'JCR', level: 2 }),
+      { key: 'community.mentor.level.JCR', params: { level: '2' } },
+      'JCR 等级 → 词条 + 参数',
+    )
+    assertEq(
+      paperLevelText({ system: 'CCF', level: 'A' }),
+      { key: 'community.mentor.level.CCF', params: { level: 'A' } },
+      'CCF 等级 → 词条 + 参数',
+    )
+    assertEq(paperLevelText(null), null, '没有等级就没有文案')
+    // ⑦ 下拉选项：JCR 四项、CCF 三项（顺序即优先级，不排序）
+    assertEq(levelOptions('JCR'), [1, 2, 3, 4], 'JCR 选项 1–4（1 最高）')
+    assertEq(levelOptions('CCF'), ['A', 'B', 'C'], 'CCF 选项 A–C（A 最高）')
+    const zhText = readFileSync(join(PKG, 'src/client/i18n/zh.ts'), 'utf8')
+    const textOf = (key) => new RegExp(`'${key}': '([^']*)'`).exec(zhText)?.[1] ?? ''
+    assertEq(textOf('community.mentor.level.JCR'), 'JCR {level} 区', '中文写「JCR 2 区」')
+    assertEq(textOf('community.mentor.level.CCF'), 'CCF-{level}', '中文写「CCF-B」')
+  }
   assert(!/readAsDataURL/.test(src), '不再走 base64（宿主读盘取代了它）')
   // 只查**代码**：注释里还会提到 base64（解释为什么不用它），那不算违规
   assert(!/base64\s*:/.test(src) && !/atob\(/.test(src), '界面里没有 base64 编解码代码')
@@ -2463,6 +2805,229 @@ async function importClientModule(rel) {
     'community.mentor.peerDeleted',
   ]) {
     assert(zhDict.includes(`'${k}'`), `中文字典含 ${k}`)
+  }
+}
+/*
+ * ════════════════════════════════════════════════════════════════════════
+ * [9] 两个对话框**真的渲染一遍**：资金池拦截 + 两池分列（v0.6.3）
+ *
+ * 光看源码正则不够 —— "资金池不够时那个按钮到底禁没禁、文案里有没有**动作**、
+ * 图例是不是真的四行"这些，只有把组件跑一遍、遍历产出的树才算数。
+ *
+ * `AcceptConfirmDialog` 与 `TokenDialog` 都**没有 hook**（状态在上层的 `CommunityTab`），
+ * 所以能当普通函数调；JSX 在 bundle 里编译成 `jsx(...)` → 返回一棵普通对象树。
+ * ⚠️ 给它们加 hook 会让这一段失效（那时改回断言源码）。
+ * ════════════════════════════════════════════════════════════════════════ */
+console.log('\n[9] 对话框渲染：资金池拦截 + Token 两池')
+{
+  const ZH9 = (await import(join(PKG, 'src', 'client', 'i18n', 'zh.ts'))).zh
+  const t9 = (k, p) => {
+    const tpl = ZH9[k] ?? k
+    return p ? tpl.replace(/\{(\w+)\}/g, (m, n) => (n in p ? String(p[n]) : m)) : tpl
+  }
+  let mod = null
+  try {
+    const code = readFileSync(join(PKG, 'lib', 'client.js'), 'utf8')
+    let captured = null
+    new Function('window', code)({ __ModuleLoader__: { load: (m) => { captured = m } } })
+    mod = captured.factory(createRequire(import.meta.url))
+  } catch (e) {
+    assert(false, `bundle 可在 node 求值：${e instanceof Error ? e.message : String(e)}`)
+  }
+
+  /**
+   * 展开**无 hook 的函数组件**（`TokenDonut` / `TokenLegendRow` 这些）。
+   *
+   * JSX 里 `<TokenLegendRow …/>` 在产出的树上只是一个 `{ type: fn, props }` 节点，
+   * 子节点要**调用它**才拿得到 —— 它们没有 hook，所以直接调是安全的。
+   * DOM 字符串标签（'div' / 'svg' …）不能调，原样返回。
+   */
+  const expand = (node) => {
+    if (node !== null && typeof node === 'object' && !Array.isArray(node) && typeof node.type === 'function') {
+      try {
+        return expand(node.type(node.props ?? {}))
+      } catch {
+        return node
+      }
+    }
+    return node
+  }
+  /** 深度收集节点（含数组与 children）。 */
+  const collect = (node, pred, out = []) => {
+    const n0 = expand(node)
+    if (n0 === null || n0 === undefined || typeof n0 !== 'object') return out
+    if (Array.isArray(n0)) {
+      for (const x of n0) collect(x, pred, out)
+      return out
+    }
+    if (pred(n0)) out.push(n0)
+    const kids = n0.props?.children
+    if (Array.isArray(kids)) for (const k of kids) collect(k, pred, out)
+    else collect(kids, pred, out)
+    return out
+  }
+  /** 整棵树里的可见文字（拼接）。 */
+  const textOf = (node) => {
+    const n0 = expand(node)
+    if (n0 === null || n0 === undefined || typeof n0 === 'boolean') return ''
+    if (typeof n0 === 'string' || typeof n0 === 'number') return String(n0)
+    if (Array.isArray(n0)) return n0.map(textOf).join('')
+    return textOf(n0.props?.children)
+  }
+  const buttons = (tree) => collect(tree, (n) => n.type === 'button')
+
+  if (mod) {
+    // 身份/方向派生量走**同一个纯函数**（不是测试里另写一套），这样"谁付钱"这条
+    // 不会在测试和界面之间各说各话。
+    const { mentorshipView } = await importClientModule('mentorship-view.ts')
+    const proposal = {
+      id: 'p1',
+      projectId: 'proj1',
+      direction: 'SEEK_MENTOR',
+      mentor: { id: 'm1', displayName: '张老师' },
+      researcher: { id: 'r1', displayName: '李同学' },
+      guidanceScope: '-',
+      totalFee: 800,
+      depositAmount: 160,
+      successPaymentAmount: 640,
+      successCondition: { type: 'PAPER_ACCEPTED', description: null, jcrLevel: 2 },
+      status: 'PROPOSED',
+      expiresAt: '2026-10-03T00:00:00Z',
+      createdAt: '2026-09-19T00:00:00Z',
+    }
+    /** 我在一条提案里的派生量（与界面同一套判据）。 */
+    const viewOf = (p, me) =>
+      mentorshipView(
+        {
+          direction: p.direction,
+          mentorId: p.mentor?.id ?? null,
+          researcherId: p.researcher?.id ?? null,
+          proposedById: p.status === 'PROPOSED' ? (p.direction === 'SEEK_MENTOR' ? 'm1' : 'r1') : null,
+        },
+        me,
+      )
+    const party = { id: 'm1', displayName: '张老师', profile: { institution: '某大学' } }
+    const dialogOf = (over = {}) =>
+      mod.AcceptConfirmDialog({
+        t: t9,
+        proposal,
+        party,
+        partyIsMentor: true,
+        iPayer: viewOf(proposal, 'r1').iAmPayer,
+        balance: 500,
+        funded: 10,
+        grant: 490,
+        onCancel: () => {},
+        onConfirm: () => {},
+        ...over,
+      })
+
+    // ⓪ 先确认"这条提案的接受人是学生"—— 后面的拦截才有意义
+    assertEq(viewOf(proposal, 'r1').iAmAcceptor, true, '方向 A：学生是该接受的人')
+    assertEq(viewOf(proposal, 'r1').iAmPayer, true, '方向 A：学生是付款人（iPayer 由纯函数给出）')
+
+    // ① 资金池不够（赠送额度再多也不行）：按钮禁用 + 原因 + **动作**
+    const short = dialogOf()
+    const shortText = textOf(short)
+    const confirmBtn = buttons(short).find((b) => textOf(b).includes('确认接受'))
+    assert(confirmBtn !== undefined, '确认框里有【确认接受】按钮')
+    assertEq(confirmBtn.props.disabled, true, '资金池不足 → 按钮**禁用**（不是点了才拿到 402）')
+    assert(shortText.includes('资金池只有 10 Token'), '说清资金池有多少')
+    assert(shortText.includes('不能付给导师'), '说清赠送额度为什么不算数')
+    assert(shortText.includes('测试阶段请联系管理员发放 Token'), '给出**可行动作**')
+    assert(shortText.includes('JCR 2 区'), '论文类条件把等级摆出来（接受的是"按这个等级定价"的约定）')
+    assert(shortText.includes('冻结押金 160 Token（仍是你的'), '方向 A 用第一人称说"仍是你的"（接受人就是付款人）')
+
+    // ② 资金池够：按钮可用（别把能接受的人挡住）
+    const enough = dialogOf({ funded: 200, grant: 0 })
+    assertEq(
+      buttons(enough).find((b) => textOf(b).includes('确认接受')).props.disabled,
+      false,
+      '资金池够 → 按钮可用',
+    )
+    assert(!textOf(enough).includes('联系管理员'), '够用时不出现"联系管理员"')
+
+    // ③ 旧宿主（没有两池）：按可用余额判断，**不拦**
+    const legacy = dialogOf({ funded: null, grant: null, balance: 500 })
+    assertEq(
+      buttons(legacy).find((b) => textOf(b).includes('确认接受')).props.disabled,
+      false,
+      '旧宿主（判不出两池）→ 不拦（旧语义下全部余额都能付导师）',
+    )
+    assert(textOf(legacy).includes('当前可用余额：500 Token'), '旧宿主显示旧的"可用余额"一行')
+
+    // ④ 方向 B（导师接受，冻的是**学生**的钱）：不按我的余额拦
+    const proposalB = { ...proposal, direction: 'SEEK_STUDENT' }
+    assertEq(viewOf(proposalB, 'm1').iAmAcceptor, true, '方向 B：导师是该接受的人')
+    assertEq(viewOf(proposalB, 'm1').iAmPayer, false, '方向 B：付款人是学生，不是导师')
+    const other = mod.AcceptConfirmDialog({
+      t: t9,
+      proposal: proposalB,
+      party: { id: 'r1', displayName: '李同学' },
+      partyIsMentor: false,
+      iPayer: viewOf(proposalB, 'm1').iAmPayer,
+      balance: 0,
+      funded: 0,
+      grant: 500,
+      onCancel: () => {},
+      onConfirm: () => {},
+    })
+    assertEq(
+      buttons(other).find((b) => textOf(b).includes('确认接受')).props.disabled,
+      false,
+      '方向 B 冻的是学生的钱 → 不用我的资金池判断',
+    )
+    assert(textOf(other).includes('学生的资金池不足'), '方向 B 的 402 说法如实指向学生（不是"你余额不足"）')
+
+    // ⑤ 余额弹窗：两池分列 + 环形图不含字
+    const tokens = { available: 500, frozen: 20, total: 520, grant: 490, funded: 10 }
+    const tokenTree = mod.TokenDialog({
+      t: t9,
+      tokens,
+      requests: [],
+      loading: false,
+      amount: '',
+      reason: '',
+      submitting: false,
+      error: null,
+      receipt: null,
+      onAmount: () => {},
+      onReason: () => {},
+      onApply: () => {},
+      onRefresh: () => {},
+      onClose: () => {},
+    })
+    const tokenText = textOf(tokenTree)
+    for (const label of ['资金池', '赠送', '冻结', '合计']) {
+      assert(tokenText.includes(label), `余额弹窗分列「${label}」`)
+    }
+    assert(tokenText.includes('490'), '赠送额度显示精确数字')
+    assert(tokenText.includes('可付导师') && tokenText.includes('仅自营服务'), '两池各带一句边界说明')
+    const svg = collect(tokenTree, (n) => n.type === 'svg')
+    assertEq(svg.length, 1, '弹窗里有一个环形图')
+    assertEq(collect(svg[0], (n) => n.type === 'text').length, 0, '环形图里**没有** SVG 文字（数字交给 HTML 图例）')
+    assertEq(collect(svg[0], (n) => n.type === 'circle').length, 4, '环形图 = 轨道 + 资金池 + 赠送 + 冻结（四段）')
+
+    // ⑥ 旧服务器（没有两池）：退回"可用 / 合计"，不凭空画两段
+    const legacyTree = mod.TokenDialog({
+      t: t9,
+      tokens: { available: 7, frozen: 3, total: 10, grant: null, funded: null },
+      requests: [],
+      loading: false,
+      amount: '',
+      reason: '',
+      submitting: false,
+      error: null,
+      receipt: null,
+      onAmount: () => {},
+      onReason: () => {},
+      onApply: () => {},
+      onRefresh: () => {},
+      onClose: () => {},
+    })
+    const legacyMsg = textOf(legacyTree)
+    assert(legacyMsg.includes('可用'), '旧服务器退回显示「可用」')
+    assert(!legacyMsg.includes('资金池'), '旧服务器不显示「资金池」（那一版没有这个概念）')
   }
 }
 console.log(`\n${failed === 0 ? '✅' : '❌'} settings-page: ${passed} passed, ${failed} failed`)

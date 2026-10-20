@@ -7,7 +7,7 @@
 <p align="center"><strong>面向 Codex 的科研工作流插件</strong></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.6.2--codex.7-4a43ea" alt="Version 0.6.2-codex.7">
+  <img src="https://img.shields.io/badge/version-v0.6.4--codex.1-4a43ea" alt="Version 0.6.4-codex.1">
   <img src="https://img.shields.io/badge/Codex-plugin-4a43ea" alt="Codex Plugin">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-22c55e" alt="MIT License"></a>
 </p>

@@ -1201,7 +1201,14 @@ section('[6b] 研究工作：列表 / 摘要 / 简报')
  * ════════════════════════════════════════════════════════════════════════ */
 section('[6c] Token 余额')
 {
-  const BALANCE = { available_balance: 7, frozen_balance: 3, total_balance: 10 }
+  // 服务器 v0.6.3 起把余额分成**两池**：赠送（只能买自营服务）/ 资金（能付导师、能提现）
+  const BALANCE = {
+    available_balance: 7,
+    frozen_balance: 3,
+    total_balance: 10,
+    grant_balance: 5,
+    funded_balance: 2,
+  }
   const meAndBalance = async (call) => {
     if (call.url.endsWith('/api/v1/auth/me')) return { status: 200, body: ME }
     if (call.url.endsWith('/api/v1/tokens')) return { status: 200, body: BALANCE }
@@ -1215,9 +1222,29 @@ section('[6c] Token 余额')
   assertEq(res.value.tokens.available, 7, '登录后带回可用余额')
   assertEq(res.value.tokens.frozen, 3, '冻结余额也带回（押金仍是用户的钱）')
   assertEq(res.value.tokens.total, 10, '总额用服务器给的值')
+  assertEq(res.value.tokens.grant, 5, '赠送额度带回（grant_balance）')
+  assertEq(res.value.tokens.funded, 2, '资金池带回（funded_balance）')
   assertEq(h.calls.length, 2, '两次请求：/auth/me + /tokens')
   assertEq(h.calls[1].headers.authorization, `Bearer ${KEY}`, '余额接口同样带凭据')
   keyLeak(res.value, 'account/login（含余额）')
+
+  // ── 旧服务器（不返回两池）：读作 null，**不是** 0 ──
+  // 读成 0 会让界面把"能付导师"说成 0，把一个本来能接受指导的账号挡住。
+  {
+    const legacy = makeHost({
+      config: { convfusionApiKey: KEY },
+      handler: async (call) => {
+        if (call.url.endsWith('/api/v1/auth/me')) return { status: 200, body: ME }
+        return { status: 200, body: { available_balance: 7, frozen_balance: 3, total_balance: 10 } }
+      },
+    })
+    const legacyRes = await legacy.handler('account/tokens', {})
+    assertEq(legacyRes.value.tokens.grant, null, '旧服务器：赠送额度 = null（不是 0）')
+    assertEq(legacyRes.value.tokens.funded, null, '旧服务器：资金池 = null（不是 0）')
+    // "要不要拦"的判据在**客户端**（它才看得见余额又要做决定），由
+    // `verify-settings-page.mjs` 的 [9] 段真的渲染一遍 AcceptConfirmDialog 来钉：
+    // 有 funded → 只认它；funded 为 null（旧宿主）→ 不拦（旧语义下两池本来就是一体的）。
+  }
 
   // ── verify 也带余额（「重新验证」顺带把数字刷新）──
   const v = makeHost({ config: { convfusionApiKey: KEY }, handler: meAndBalance })
@@ -1725,8 +1752,10 @@ section('[6e] 发布本机研究（work/publish）')
     conflictOnce = false,
     failPublish = false,
     serverVersion = null,
-    /* 建项目时服务器返回的 `workspace_id`；`null` = 模拟**老服务器**（没有这个字段）。 */
+    /** 建项目/回查项目时服务器返回的 `workspace_id`。 */
     returnWorkspaceId = 'ws_11111111111111111111111111111111',
+    /** `true` = 模拟**老服务器**（响应里**没有**这个字段 → 插件按"无法判定"处理）。 */
+    omitWorkspaceId = false,
     /* 附件请求**进行中**的钩子：测试据此在那一刻读进度端点（模拟界面按秒轮询）。 */
     onFilesPost = null,
   } = {}) => {
@@ -1750,7 +1779,7 @@ section('[6e] 发布本机研究（work/publish）')
           visibility: 'PRIVATE',
           status: 'ACTIVE',
           // 服务器给这项工作一个**跨项目生命周期不变**的身份（v3 规格：POST /projects 回 workspace_id）
-          ...(returnWorkspaceId === null ? {} : { workspace_id: returnWorkspaceId }),
+          ...(omitWorkspaceId ? {} : { workspace_id: returnWorkspaceId }),
           updated_at: '',
         })
       }
@@ -1782,7 +1811,7 @@ section('[6e] 发布本机研究（work/publish）')
           title: 'x',
           visibility: 'PUBLISHED',
           status: 'ACTIVE',
-          ...(returnWorkspaceId === null ? {} : { workspace_id: returnWorkspaceId }),
+          ...(omitWorkspaceId ? {} : { workspace_id: returnWorkspaceId }),
           updated_at: '',
         })
       }
@@ -1815,6 +1844,155 @@ section('[6e] 发布本机研究（work/publish）')
       fetchImpl: server.fetchImpl,
       ...(workIdentity ? { workIdentity } : {}),
     })
+
+  /**
+   * ════════════════════════════════════════════════════════════════════════
+   * 用户的真实用法：**同一个会话工作区里换进换出多项研究**
+   *
+   * 他们把 `workspace/` 改名挪走、把另一项研究挪成 `workspace/`，反复切换。
+   * 所以**路径不能当身份**：身份跟目录走（研究根里的 `.convfusion/work.json`），
+   * 发布记录按 `workspace_id` 存，路径 → 身份的"注册表"只是一层**用指纹核对的缓存**。
+   *
+   * 完整循环：发布 A → 换成 B（A 的记录还在）→ 换回 A。
+   * ════════════════════════════════════════════════════════════════════════
+   */
+  /*
+   * ════════════════════════════════════════════════════════════════════════
+   * 【6k】换进换出：**同一个路径**住不同研究 —— 路径不是身份
+   *
+   * 用户的真实用法：把 `workspace/` 整个目录挪走（改名），把另一项研究挪成
+   * `workspace/`，反复切换。研究根的**路径始终不变**，变的是谁住在里面。
+   *
+   * 完整循环：A 就位并发布 → 挪走 A、换进新研究 B → 挪走 B、把 A 换回来。
+   * 断言三件事：
+   *   ① A 的身份写在 **A 的目录里**（标记跟着目录走）+ 注册表缓存带 A 的指纹；
+   *   ② B 住进同一路径时**不继承** A 的身份与发布记录（缓存指纹不符 → 不采信）；
+   *   ③ A 换回来时立刻认得，仍显示它的发布记录（【更新研究工作】）。
+   * ════════════════════════════════════════════════════════════════════════
+   */
+  section('[6k] 换进换出：同一个路径住不同研究（路径不是身份）')
+  {
+    const WI2 = await import(lib('research/work-identity.js'))
+    const swap = join(HOME3, 'swap')
+    const live = join(swap, 'workspace') // 会话里的研究根：**路径固定**
+    const stashA = join(swap, 'stash-a')
+    const stashB = join(swap, 'stash-b')
+    for (const [d, topic, createdAt] of [
+      ['stash-a', '研究 A：换出去又换回来', '2026-01-01T00:00:00.000Z'],
+      ['stash-b', '研究 B：换进来的新研究', '2026-02-02T00:00:00.000Z'],
+    ]) {
+      fs.mkdirSync(join(swap, d), { recursive: true })
+      fs.writeFileSync(
+        join(swap, d, 'project.md'),
+        `---\ncreated_at: ${createdAt}\ntopic: ${topic}\n---\n\n# ${topic}\n`,
+      )
+      fs.writeFileSync(join(swap, d, 'research-state.md'), `# ${topic}\n\n- Version: v1\n`)
+    }
+
+    const WS_A = 'ws_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    const identity = WI2.createMemoryWorkIdentityStore()
+    const store = PUB.createMemoryPublishedStore(undefined, {
+      workIdOf: (r) => WI2.readLocalIdentity(r, identity).workspaceId,
+      fingerprintOf: WI2.researchRootFingerprint,
+    })
+    const serverFor = (ws) => {
+      const srv = makePublisher({ returnWorkspaceId: ws })
+      return srv
+    }
+    let srv = serverFor(WS_A)
+    const host = () =>
+      RPC.createSettingsRpcHandler({
+        getConfig: () =>
+          CFG.resolveConfig({
+            customizationFile: 'x.json',
+            customizationDir: HOME3,
+            convfusionApiKey: KEY,
+            serverUrl: 'http://localhost:8000',
+          }),
+        store: CUST.createMemoryCustomizationStore(),
+        listLocalWorkspaces: async () => ({
+          available: true,
+          items: [{ id: 'ws-one', title: '切换中的工作区', path: swap, updatedAt: '' }],
+        }),
+        publishedStore: store,
+        fetchImpl: srv.fetchImpl,
+        workIdentity: identity,
+      })
+    const mineRow = async () => {
+      const res = await host()('work/mine', {})
+      return (res.value?.items ?? []).find((x) => !x.detached)
+    }
+
+    // ① A 就位 → 发布
+    fs.renameSync(stashA, live)
+    const LIVE = fs.realpathSync(live)
+    const fpA = WI2.researchRootFingerprint(LIVE)
+    assert(Boolean(fpA), 'A 的研究根有指纹')
+    const pubA = await host()('work/publish', { id: 'ws-one' })
+    assert(pubA.ok, `A 发布成功${pubA.ok ? '' : `（${pubA.error?.code}）`}`)
+    assertEq(WI2.readWorkMarker(LIVE)?.workspaceId, WS_A, '身份写在 **A 的目录**里（跟着目录走）')
+    assertEq(identity.get(LIVE)?.rootFingerprint, fpA, '注册表缓存带 A 的指纹')
+
+    // ② 挪走 A、换进 B（同一路径、新研究）
+    fs.renameSync(live, stashA)
+    fs.renameSync(stashB, live)
+    const rowB = await mineRow()
+    assertEq(rowB?.workId ?? null, null, 'B 拿不到 A 的身份（注册表指纹不符 → 不采信）')
+    assertEq(rowB?.published.length, 0, 'B 也不继承 A 的发布记录（**路径不是身份**）')
+
+    // ③ 挪走 B、把 A 换回来 → 立刻认得
+    fs.renameSync(live, stashB)
+    fs.renameSync(stashA, live)
+    const rowA = await mineRow()
+    assertEq(rowA?.workId, WS_A, 'A 换回来：身份立刻认得（标记跟着目录）')
+    assertEq(rowA?.published.length, 1, 'A 换回来：仍显示它的发布记录（【更新研究工作】）')
+  }
+
+
+  /*
+   * ── ⑩ 「服务器 + 本机」两个数据源都命中同一个项目 → **只能一行** ────────────
+   *
+   * 用户 2026-10 实测：H-MEM 在【我的】里出现了**两次** —— 带 `ws_…` 的那行来自
+   * 服务器列表，不带 id 的那行来自**本机记录**（旧记录没有 `workId` 字段，map 键是
+   * `project:<id>`，而服务器那条键是 `ws_…`，**按键去重必然重**）。去重必须按 **projectId**。
+   */
+  section('[6l] 两源命中同一项目 → 一行')
+  {
+    const PROJECT = 'proj-two-sources'
+    const WS_ONE = 'ws_dddddddddddddddddddddddddddddddd'
+    const store = PUB.createMemoryPublishedStore()
+    store.set(fs.realpathSync(root), {
+      direction: 'SEEK_STUDENT',
+      projectId: PROJECT,
+      serverUrl: 'http://localhost:8000',
+      accountId: 'acc-1',
+      version: 1,
+      contentHash: 'sha256:x',
+      title: '两源合并的工作',
+      files: {},
+      selection: [],
+    })
+    const server = makePublisher({ returnWorkspaceId: WS_ONE })
+    server.fetchImpl = async (url, init) => {
+      if (String(url).endsWith('/api/v1/projects') && (init?.method ?? 'GET') === 'GET') {
+        return {
+          ok: true, status: 200, headers: { get: () => null },
+          json: async () => [{
+            id: PROJECT, workspace_id: WS_ONE, visibility: 'PUBLISHED',
+            direction: 'SEEK_STUDENT', title: '两源合并的工作', updated_at: '2026-10-15T00:00:00Z',
+          }],
+        }
+      }
+      return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({}) }
+    }
+    const mine = await makePubHost(server, store)('work/mine', {})
+    const rows = (mine.value?.items ?? []).filter((x) =>
+      x.published.some((r) => r.projectId === PROJECT) || x.id.includes(PROJECT),
+    )
+    assertEq(rows.length, 1, `同一个项目只出现一行（实测 ${rows.length} 行）`)
+    assertEq(rows[0]?.workId, WS_ONE, '合并成的那一行带出 work_id（服务器那一半给的）')
+    assertEq(rows[0]?.detached, true, '本机没打开 → detached（不给更新按钮）')
+  }
 
   // ── 未登录：本地就拒 ──
   {
@@ -1925,12 +2103,24 @@ section('[6e] 发布本机研究（work/publish）')
       forgetIdentity()
       const store1 = PUB.createMemoryPublishedStore()
       const identity1 = WI.createMemoryWorkIdentityStore()
-      const host1 = makePubHost(makePublisher({ returnWorkspaceId: WSID }), store1, {}, identity1)
+      const server1 = makePublisher({ returnWorkspaceId: WSID })
+      const host1 = makePubHost(server1, store1, {}, identity1)
       assert((await host1('work/publish', { id: 'ws-pub' })).ok, '首传成功')
       assert(fs.existsSync(markerPath), '本机标记写下了（<研究根>/.convfusion/work.json）')
       // `readWorkMarker` 回的是**解析后的对象**（驼峰字段；文件里是 snake_case）
       assertEq(WI.readWorkMarker(K_ROOT)?.workspaceId, WSID, '标记里是**服务器返回的**身份')
       assertEq(identity1.get(K_ROOT)?.workspaceId, WSID, '插件侧注册表也记一份（解压前就能判）')
+      {
+        // 三个**写请求**都带上身份：服务器只要在一个环节校验，就能拦住"写进别人的项目"
+        const writes = server1.calls.filter(
+          (c) => c.method === 'POST' && /(\/state|\/files|\/publish)$/.test(c.url),
+        )
+        assert(writes.length >= 3, `三个写请求都发出去了（实测 ${writes.length} 个）`)
+        assert(
+          writes.every((c) => (c.headers ?? {})['x-workspace-id'] === WSID),
+          '传状态 / 传附件 / 发布都带 X-Workspace-Id（服务器据此拒绝写错项目）',
+        )
+      }
 
       // ② 再传（换了本地发布记录、但标记还在）→ 建项目时**沿用**同一个身份
       const store2 = PUB.createMemoryPublishedStore()
@@ -1968,7 +2158,7 @@ section('[6e] 发布本机研究（work/publish）')
       // ④ **老服务器**不返回 id → 什么都不写（绝不编造身份）
       forgetIdentity()
       const host4 = makePubHost(
-        makePublisher({ returnWorkspaceId: null }),
+        makePublisher({ omitWorkspaceId: true }),
         PUB.createMemoryPublishedStore(),
         {},
         WI.createMemoryWorkIdentityStore(),
@@ -2040,6 +2230,269 @@ section('[6e] 发布本机研究（work/publish）')
     assertEq(store.get(K)?.projectId, 'srv-project-1', '映射记录写入（工作区 → project_id）')
     assertEq(store.get(K)?.version, 1, '映射记录版本号')
   }
+
+    /*
+     * ── 用户的工作习惯：在同一个会话工作区里**换进换出**多项研究 ──────────────
+     *
+     * 把当前 `workspace/` 改名、把另一项研究改名成 `workspace/`。记录键若还是**路径**，
+     * 新占用者就会继承旧研究的记录 → 点【更新研究工作】把新工作的状态写进**旧工作的项目**
+     * （覆盖，不可逆），附件还会拿旧指纹跳过该传的文件。所以键改成**工作身份**，
+     * 并用「占用者守卫」（身份 + `project.md` 的 created_at 指纹）拦住继承。
+     */
+    {
+      const WI = await import(lib('research/work-identity.js'))
+      const K_ROOT = fs.realpathSync(root)
+      const WS_A = 'ws_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      const WS_B = 'ws_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+
+      /** 直接造一条"属于 A 的旧记录"（键=路径，模拟迁移前的落盘）。 */
+      const seedLegacy = (store, { fingerprint = null } = {}) => {
+        const seed = PUB.createMemoryPublishedStore()
+        seed.set(K_ROOT, {
+          direction: 'SEEK_MENTOR',
+          projectId: 'srv-project-1',
+          serverUrl: 'http://localhost:8000',
+          accountId: 'acc-1',
+          version: 1,
+          contentHash: 'sha256:x',
+          files: {},
+          selection: [],
+          workId: WS_A,
+          ...(fingerprint ? { rootFingerprint: fingerprint } : {}),
+        })
+        // 再灌进被测 store（模拟"这份 JSON 已经在盘上"）
+        for (const [key, record] of Object.entries(seed.all())) store.set(key.split('\u0000')[0], record)
+      }
+
+      // ① 路径上的研究换成了 B（标记是 B）→ A 的记录**读不到**（不会写进 A 的项目）
+      {
+        fs.rmSync(path.join(K_ROOT, '.convfusion'), { recursive: true, force: true })
+        WI.writeWorkMarker(K_ROOT, { workspaceId: WS_B })
+        const store = PUB.createMemoryPublishedStore()
+        seedLegacy(store)
+        const scoped = PUB.createMemoryPublishedStore(store.all(), {
+          workIdOf: (r) => WI.readWorkMarker(r)?.workspaceId ?? null,
+        })
+        assertEq(scoped.get(K_ROOT, 'SEEK_MENTOR'), undefined, '路径换过住户（标记是 B）→ A 的记录读不到')
+      }
+
+      // ② 新占用者**还没有标记**，但指纹不同 → 同样读不到（这正是"新建的研究"那种情形）
+      {
+        fs.rmSync(path.join(K_ROOT, '.convfusion'), { recursive: true, force: true })
+        const store = PUB.createMemoryPublishedStore()
+        seedLegacy(store, { fingerprint: '2026-01-01T00:00:00.000Z' })
+        const scoped = PUB.createMemoryPublishedStore(store.all(), {
+          workIdOf: () => null,
+          fingerprintOf: () => '2026-10-13T00:49:11.929Z',
+        })
+        assertEq(scoped.get(K_ROOT, 'SEEK_MENTOR'), undefined, '指纹不同（路径换过住户）→ 记录读不到')
+      }
+
+      // ③ 指纹相同（同一项研究，只是搬了个位置/备份回来）→ 照旧读得到
+      {
+        const fp = '2026-10-13T00:49:11.929Z'
+        const store = PUB.createMemoryPublishedStore()
+        seedLegacy(store, { fingerprint: fp })
+        const scoped = PUB.createMemoryPublishedStore(store.all(), {
+          workIdOf: () => WS_A,
+          fingerprintOf: () => fp,
+        })
+        assertEq(scoped.get(K_ROOT, 'SEEK_MENTOR')?.projectId, 'srv-project-1', '同一项研究（指纹/身份一致）照旧读得到')
+      }
+
+      // ④ 有身份时**按身份落盘**，并迁掉旧的路径键（否则身份缺失时它会被误读）
+      {
+        const store = PUB.createMemoryPublishedStore()
+        const scoped = PUB.createMemoryPublishedStore(store.all(), {
+          workIdOf: () => WS_A,
+          fingerprintOf: () => '2026-10-13T00:49:11.929Z',
+        })
+        scoped.set(K_ROOT, {
+          direction: 'SEEK_MENTOR',
+          projectId: 'p-new',
+          serverUrl: 'http://localhost:8000',
+          accountId: 'acc-1',
+          version: 1,
+          publishedAt: '',
+          updatedAt: '',
+        })
+        const keys = Object.keys(scoped.all())
+        assertEq(keys.length, 1, '迁移：旧的路径键被删掉（同一方向不留两条）')
+        assert(keys[0].startsWith(WS_A), `键以工作身份开头（实测 ${keys[0].slice(0, 12)}…）`)
+        assertEq(scoped.all()[keys[0]].workId, WS_A, '记录里也记下了身份（供下次守卫）')
+
+        // 换个方向时互不影响
+        scoped.set(K_ROOT, {
+          direction: 'SEEK_STUDENT',
+          projectId: 'p-topic',
+          serverUrl: 'http://localhost:8000',
+          accountId: 'acc-1',
+          version: 1,
+          publishedAt: '',
+          updatedAt: '',
+        })
+        assertEq(Object.keys(scoped.all()).length, 2, '两个方向各一条（都按身份）')
+      }
+
+      // ⑤ 服务器给 id、而这项工作没有 id → 列表不显示"已在网络中"（也就没有【更新】按钮）
+      {
+        const store = PUB.createMemoryPublishedStore()
+        store.set(K_ROOT, {
+          direction: 'SEEK_MENTOR',
+          projectId: 'srv-project-1',
+          serverUrl: 'http://localhost:8000',
+          accountId: 'acc-1',
+          version: 1,
+          contentHash: 'sha256:x',
+          files: {},
+          selection: [],
+        })
+        const host = makePubHost(makePublisher({ returnWorkspaceId: WS_A }), store)
+        const mine = await host('work/mine', {})
+        const item = (mine.value?.items ?? []).find((x) => x.id === 'ws-pub')
+        // 服务器能回 workspace_id（对齐会补上）→ 这条记录仍然有效，且身份已补
+        assertEq(item?.workId, WS_A, '服务器支持身份 → 核对时把 id 补上')
+        assertEq(item?.published.length, 1, 'id 补上后记录仍然有效（显示更新按钮）')
+      }
+
+      // ⑦ **老服务器**（没有身份字段）→ 记录照旧（否则会诱使用户重复发布，多出一个项目）
+      {
+        fs.rmSync(path.join(K_ROOT, '.convfusion'), { recursive: true, force: true })
+        const store = PUB.createMemoryPublishedStore()
+        store.set(K_ROOT, {
+          direction: 'SEEK_MENTOR',
+          projectId: 'srv-project-1',
+          serverUrl: 'http://localhost:8000',
+          accountId: 'acc-1',
+          version: 1,
+          contentHash: 'sha256:x',
+          files: {},
+          selection: [],
+        })
+        const host = makePubHost(makePublisher({ omitWorkspaceId: true }), store)
+        const mine = await host('work/mine', {})
+        const item = (mine.value?.items ?? []).find((x) => x.id === 'ws-pub')
+        assertEq(item?.published.length, 1, '老服务器没有身份概念 → 记录照旧（不变更行为）')
+        assertEq(item?.workId ?? null, null, '拿不到身份就如实为空')
+      }
+
+      // ⑧ 服务器**有**身份概念、而这项工作本机拿不到 id（项目本身没有 id）→ 当"未发布"处理
+      {
+        fs.rmSync(path.join(K_ROOT, '.convfusion'), { recursive: true, force: true })
+        const store = PUB.createMemoryPublishedStore()
+        store.set(K_ROOT, {
+          direction: 'SEEK_MENTOR',
+          projectId: 'srv-project-1',
+          serverUrl: 'http://localhost:8000',
+          accountId: 'acc-1',
+          version: 1,
+          contentHash: 'sha256:x',
+          files: {},
+          selection: [],
+        })
+        // 服务器会回这个字段、但值是 null（项目在身份概念之前建的）
+        const host = makePubHost(makePublisher({ returnWorkspaceId: null }), store)
+        const mine = await host('work/mine', {})
+        const item = (mine.value?.items ?? []).find((x) => x.id === 'ws-pub')
+        assertEq(
+          item?.published.length,
+          0,
+          '有身份概念但拿不到 id → 当作"未发布"（界面显示【寻找…】，不会出现【更新研究工作】）',
+        )
+      }
+
+      fs.rmSync(path.join(K_ROOT, '.convfusion'), { recursive: true, force: true })
+    }
+
+    /*
+     * ── ⑨ 用户实测的故障：**新建的研究**占用了旧路径 ───────────────────────
+     *
+     * 旧记录（v0.6.2 之前写的：没有 workId、没有指纹，但有名字与文件指纹）会"贴"到
+     * 现在住在这个路径上的新研究身上 —— 界面显示"已在网络中"，点【更新研究工作】
+     * 就把新研究的状态写进**旧研究的服务器项目**（覆盖，不可逆）。
+     *
+     * 归属判定必须只认**能自证**的记录：文件指纹对得上（同一项研究）或名字未变；
+     * 名字不同且文件都对不上 → 不认（当成"未发布"）。
+     */
+    {
+      const WI = await import(lib('research/work-identity.js'))
+      const K_ROOT = fs.realpathSync(root)
+      fs.rmSync(path.join(K_ROOT, '.convfusion'), { recursive: true, force: true })
+      const legacy = {
+        direction: 'SEEK_MENTOR',
+        projectId: 'srv-project-1',
+        serverUrl: 'http://localhost:8000',
+        accountId: 'acc-1',
+        version: 1,
+        contentHash: 'sha256:x',
+        // 旧研究的名字与文件指纹（都不属于现在这个路径上的研究）
+        title: '旧的研究工作（H-MEM 期刊版）',
+        files: { 'project.md': 'sha256:deadbeef' },
+        selection: ['project.md'],
+      }
+      const WS_NEW = 'ws_cccccccccccccccccccccccccccccccc'
+
+      // ① 列表：不显示"已在网络中"，也不把旧身份盖到新研究上
+      {
+        const store = PUB.createMemoryPublishedStore()
+        store.set(K_ROOT, { ...legacy })
+        const host = makePubHost(makePublisher({ returnWorkspaceId: WS_NEW }), store)
+        const mine = await host('work/mine', {})
+        const item = (mine.value?.items ?? []).find((x) => x.id === 'ws-pub')
+        assertEq(item?.published.length, 0, '路径上换了研究 → 旧记录不算它的（不显示"已在网络中"）')
+        assertEq(item?.workId ?? null, null, '也不会把旧研究的身份盖到新研究上')
+      }
+
+      // ② 发布：不复用旧研究的项目（新建一个），避免写进别人的项目
+      {
+        const store = PUB.createMemoryPublishedStore()
+        store.set(K_ROOT, { ...legacy })
+        const server = makePublisher({ returnWorkspaceId: WS_NEW })
+        const pub = await makePubHost(server, store)('work/publish', { id: 'ws-pub' })
+        assert(pub.ok, '新研究发布成功')
+        assert(
+          server.calls.some((c) => c.method === 'POST' && c.url.endsWith('/api/v1/projects')),
+          '归属不明 → **新建项目**（绝不复用旧研究的 project_id）',
+        )
+      }
+
+      // ④ 已在网络、但本机**没打开**的研究工作 → 列表里仍要出现（detached，无发布按钮）
+      {
+        const store = PUB.createMemoryPublishedStore()
+        // 另一项研究的记录（projectId 不属于当前任何研究根）
+        store.set(K_ROOT, { ...legacy, projectId: 'srv-elsewhere', title: '另一项已在网络的研究' })
+        const host = makePubHost(makePublisher({ returnWorkspaceId: WS_NEW }), store)
+        const mine = await host('work/mine', {})
+        const rows = mine.value?.items ?? []
+        const detached = rows.find((x) => x.detached)
+        assert(Boolean(detached), '本机没打开、但在网络上的研究工作仍出现在列表里')
+        assertEq(detached?.workName, '另一项已在网络的研究', 'detached 行显示记录里的研究工作名')
+        assertEq(detached?.published.length, 1, 'detached 行带出它的发布记录（界面显示"已在网络中"）')
+        assertEq(detached?.researchRoot, '', 'detached 行没有研究根（本机没打开它）')
+        // 同一个项目不会重复出现（已归属当前研究根的记录不再造一行）
+        assertEq(
+          rows.filter((x) => x.published.some((r) => r.projectId === 'srv-elsewhere')).length,
+          1,
+          '同一个项目只出现一次（不重复造 detached 行）',
+        )
+      }
+
+      // ③ 同一项研究改名（文件没变）→ 文件指纹是正面证据 → 认（继续走"改名"路径）
+      {
+        const store = PUB.createMemoryPublishedStore()
+        store.set(K_ROOT, {
+          ...legacy,
+          title: '改名前的工作名',
+          files: {}, // 没有文件证据 → 只能看名字
+        })
+        const host = makePubHost(makePublisher({ returnWorkspaceId: WS_NEW }), store)
+        const mine = await host('work/mine', {})
+        const item = (mine.value?.items ?? []).find((x) => x.id === 'ws-pub')
+        assertEq(item?.published.length, 0, '名字不同且无文件证据 → 不认（保守的一侧）')
+      }
+    }
+
+    fs.rmSync(path.join(root, '.convfusion'), { recursive: true, force: true })
 
   // ── 再点一次：复用同一个项目，上传 v2，**不再建项目** ──
   {
@@ -2671,7 +3124,13 @@ section('[6h] 「已在网络中」以服务器为准')
     })
     const server2 = makeServer6({ project: 'PUBLISHED' })
     const swapped = await makeHost6(server2, other)('work/mine', {})
-    assertEq(server2.calls.length, 0, '记录属于别的服务器 → 不去当前服务器上核对')
+    // 【我的】现在有**服务器那一半数据源**（GET /projects），所以这里不是"零联网"；
+    // 要求的是"**不逐个**拿别的服务器的记录去当前服务器上核对"
+    assertEq(
+      server2.calls.filter((u) => /\/projects\/srv-9$/.test(u)).length,
+      0,
+      '记录属于别的服务器 → 不拿它去当前服务器上核对',
+    )
     /*
      * ⚠️ **用户报的问题**：切到另一台服务器后，【我的】还带着上一台的「已在网络中」。
      * 记录属于别的服务器 = 在**当前**这台服务器上根本没发布过 —— 必须显示成未发布，
@@ -3343,6 +3802,54 @@ section('[9] 指导关系（mentor/*）')
   assertEq(feeRes.value.suggestion.suggestedFee, 100, 'suggested_fee → suggestedFee')
   assertEq(feeRes.value.suggestion.suggestedDeposit, 20, 'suggested_deposit → suggestedDeposit')
   assertEq(feeRes.value.suggestion.suggestedSuccessPayment, 80, 'suggested_success_payment → suggestedSuccessPayment')
+  assert(
+    !fee.calls[0].url.includes('?'),
+    '不给等级 = 兜底价（非论文类条件的价钱），URL 上不带 jcr_level / ccf_level',
+  )
+
+  /*
+   * ── 论文等级定价（v0.6.3 §3.2.4）：等级 → 价格 ──────────────────────────
+   *
+   * 服务器按 `?jcr_level=2` / `?ccf_level=B` 定价。客户端**只传等级、不抄价目表**，
+   * 所以宿主这一层的责任就一条：把等级原样、且**只发一个字段**递过去。
+   * 两个等级都给时以 JCR 为准（与服务器 PaperPriceCalculator 的优先级一致）。
+   */
+  {
+    const byJcr = makeHost({
+      config: LOGGED_IN,
+      handler: async (call) => {
+        assert(call.url.endsWith('?jcr_level=2'), 'JCR 等级走 ?jcr_level=2')
+        return { status: 200, body: { suggested_fee: 800, suggested_deposit: 160, suggested_success_payment: 640 } }
+      },
+    })
+    const jcrRes = await byJcr.handler('mentor/fee-suggestion', { jcrLevel: 2 })
+    assertEq(jcrRes.value.suggestion.suggestedFee, 800, 'JCR 2 区 → 该等级的价格（金额由服务器算）')
+
+    const byCcf = makeHost({
+      config: LOGGED_IN,
+      handler: async (call) => {
+        assert(call.url.endsWith('?ccf_level=B'), 'CCF 等级走 ?ccf_level=B')
+        return { status: 200, body: { suggested_fee: 600, suggested_deposit: 120, suggested_success_payment: 480 } }
+      },
+    })
+    const ccfRes = await byCcf.handler('mentor/fee-suggestion', { ccfLevel: 'b' })
+    assertEq(ccfRes.value.suggestion.suggestedFee, 600, 'CCF 小写 b 归一成大写 B 再发（服务器只认 A/B/C）')
+
+    const both = makeHost({
+      config: LOGGED_IN,
+      handler: async (call) => {
+        assert(call.url.endsWith('?jcr_level=1') && !call.url.includes('ccf_level'), '两个都给 → 只发 JCR')
+        return { status: 200, body: { suggested_fee: 1000, suggested_deposit: 200, suggested_success_payment: 800 } }
+      },
+    })
+    await both.handler('mentor/fee-suggestion', { jcrLevel: 1, ccfLevel: 'C' })
+
+    // 非法等级：本地就拦下，不白跑一趟网络（服务器会 422）
+    const bad = makeHost({ config: LOGGED_IN, handler: async () => ({ status: 200, body: {} }) })
+    assertEq((await bad.handler('mentor/fee-suggestion', { jcrLevel: 9 })).error.code, 'bad-request', 'JCR 9 → 本地拒绝')
+    assertEq((await bad.handler('mentor/fee-suggestion', { ccfLevel: 'D' })).error.code, 'bad-request', 'CCF D → 本地拒绝')
+    assertEq(bad.calls.length, 0, '非法等级不发请求')
+  }
 
   // ── 发起提案：POST /projects/{id}/mentorship-proposals（免费，不扣 Token）──
   const propose = makeHost({
@@ -3372,7 +3879,65 @@ section('[9] 指导关系（mentor/*）')
     assertEq(sent.deposit_amount, 20, 'body：deposit_amount')
     assertEq(sent.success_payment_amount, 80, 'body：success_payment_amount')
     assertEq(sent.success_condition.type, 'MUTUAL_COMPLETION', 'body：success_condition.type')
+    assertEq(
+      sent.success_condition.jcr_level,
+      undefined,
+      '非论文类条件**不带**等级（带了服务器也只是忽略，但界面的语义就不清了）',
+    )
     assertEq(propose.calls[0].headers.authorization, `Bearer ${KEY}`, '发起提案带 Bearer 凭据')
+  }
+
+  /*
+   * ── 论文类提案：等级必须随 `success_condition` 发出去（v0.6.3）───────────
+   *
+   * 服务器把"等级就是价格"这条规则放在服务层：`PAPER_ACCEPTED` / `PAPER_PUBLISHED`
+   * 缺 `jcr_level` / `ccf_level` 直接 400 `INVALID_PROPOSAL`。等级是**价格依据**，
+   * 漏发 = 这份提案的价钱事后无法被重新推导出来。
+   */
+  {
+    const paper = makeHost({
+      config: LOGGED_IN,
+      handler: async () => ({ status: 201, body: ENRICHED }),
+    })
+    const paperRes = await paper.handler('mentor/propose', {
+      projectId: PROJECT_ID,
+      guidanceScope: '指导实验设计与论文写作',
+      totalFee: 800,
+      depositAmount: 160,
+      successPaymentAmount: 640,
+      successCondition: { type: 'PAPER_ACCEPTED', description: null, jcrLevel: 2 },
+    })
+    assert(paperRes.ok, '论文类提案可以发起')
+    const sentPaper = JSON.parse(paper.calls[0].body)
+    assertEq(sentPaper.success_condition.type, 'PAPER_ACCEPTED', 'body：条件类型 = 论文被接收')
+    assertEq(sentPaper.success_condition.jcr_level, 2, 'body：等级写在 success_condition.jcr_level（snake_case）')
+    assertEq(sentPaper.success_condition.ccf_level, undefined, '只发一个等级字段（不给 ccf_level）')
+
+    const paperCcf = makeHost({ config: LOGGED_IN, handler: async () => ({ status: 201, body: ENRICHED }) })
+    await paperCcf.handler('mentor/propose', {
+      projectId: PROJECT_ID,
+      guidanceScope: 'x',
+      totalFee: 600,
+      depositAmount: 120,
+      successPaymentAmount: 480,
+      successCondition: { type: 'PAPER_PUBLISHED', description: null, ccfLevel: 'b' },
+    })
+    const sentCcf = JSON.parse(paperCcf.calls[0].body)
+    assertEq(sentCcf.success_condition.ccf_level, 'B', 'body：CCF 小写 b → 大写 B')
+    assertEq(sentCcf.success_condition.jcr_level, undefined, 'CCF 提案不带 jcr_level')
+
+    // 非法等级：本地拦（服务器 422），且**不**把非法值转发出去
+    const badLevel = makeHost({ config: LOGGED_IN, handler: async () => ({ status: 201, body: ENRICHED }) })
+    const badRes = await badLevel.handler('mentor/propose', {
+      projectId: PROJECT_ID,
+      guidanceScope: 'x',
+      totalFee: 100,
+      depositAmount: 20,
+      successPaymentAmount: 80,
+      successCondition: { type: 'PAPER_ACCEPTED', description: null, jcrLevel: 7 },
+    })
+    assertEq(badRes.error.code, 'bad-request', '非法等级 → 本地 bad-request')
+    assertEq(badLevel.calls.length, 0, '非法等级不发请求')
   }
   assertEq(proposeRes.value.proposal.status, 'PROPOSED', '新提案状态 = PROPOSED')
   assertEq(proposeRes.value.proposal.mentor.displayName, '张老师', '内嵌导师身份 → mentor.displayName')
@@ -3477,6 +4042,64 @@ section('[9] 指导关系（mentor/*）')
   const poorRes = await poor.handler('mentor/accept', { proposalId: ENRICHED.id, intentKey: 'intent-2' })
   assertEq(poorRes.ok, false, '押金不足 → 不算成功')
   assertEq(poorRes.error.code, 'insufficient-tokens', '402 → insufficient-tokens（界面的"先获取 Token"分支）')
+
+  /*
+   * 402 的**资金池**分支（v0.6.3）：服务器只在 funded-only 的扣费路径（付给导师 /
+   * 提现）给出 `details.funded` + `details.grant`。这时"余额不足"是不够准确的 ——
+   * 用户账上**有钱**，只是那一池不能付给导师。所以文案必须说清这件事，
+   * 并给出唯一可行动作（自助付费尚未开通 → 找管理员发放）。
+   */
+  {
+    const fundedBody = err('INSUFFICIENT_TOKENS', 'not enough funded', {
+      required: 160,
+      available: 500,
+      funded: 10,
+      grant: 490,
+    })
+    const fundedPoor = makeHost({
+      config: LOGGED_IN,
+      handler: async () => ({ status: 402, body: fundedBody }),
+    })
+    const fundedRes = await fundedPoor.handler('mentor/accept', {
+      proposalId: ENRICHED.id,
+      intentKey: 'intent-3',
+    })
+    assertEq(fundedRes.error.code, 'insufficient-tokens', '资金池不足同样是 insufficient-tokens')
+    assert(fundedRes.error.message.includes('资金池'), '文案说的是**资金池**不足（不是笼统的"余额不足"）')
+    assert(fundedRes.error.message.includes('赠送额度'), '并说明赠送额度不能付给导师')
+    assert(fundedRes.error.message.includes('联系管理员发放'), '给出可行动作（测试阶段找管理员发放 Token）')
+
+    // `details.funded` / `details.grant` 也要带出来：界面以后要靠它分辨两种 402
+    let caught = null
+    try {
+      await SC.fetchAcceptProposal('http://127.0.0.1:8000', KEY, ENRICHED.id, 'intent-3b', {
+        fetchImpl: async () => ({
+          ok: false,
+          status: 402,
+          json: async () => fundedBody,
+          arrayBuffer: async () => new ArrayBuffer(0),
+        }),
+      })
+    } catch (e) {
+      caught = e
+    }
+    assert(caught !== null && caught.name === 'ServerError', '402 抛 ServerError（不是普通 Error）')
+    assertEq(caught.fundedTokens, 10, 'details.funded 带出来（fundedTokens）')
+    assertEq(caught.grantTokens, 490, 'details.grant 带出来（grantTokens）')
+    assertEq(caught.requiredTokens, 160, 'details.required 照旧带出来')
+
+    // 普通（两池未分开的）402 文案不变：不无中生有地说"资金池"
+    const legacyPoor = makeHost({
+      config: LOGGED_IN,
+      handler: async () => ({
+        status: 402,
+        body: err('INSUFFICIENT_TOKENS', 'not enough', { required: 20, available: 0 }),
+      }),
+    })
+    const legacyRes = await legacyPoor.handler('mentor/accept', { proposalId: ENRICHED.id, intentKey: 'intent-4' })
+    assert(!legacyRes.error.message.includes('资金池'), '没有 funded 细节时不说"资金池"（旧服务器不分开报两池）')
+    assert(legacyRes.error.message.includes('不会重复扣费'), '402 文案照旧说明幂等重试（不会重复扣费）')
+  }
 
   // ── 拒绝：POST /mentorship-proposals/{id}/reject ──
   const reject = makeHost({

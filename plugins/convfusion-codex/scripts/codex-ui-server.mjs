@@ -10,7 +10,7 @@ import { createFilePaidBriefStore } from '../lib/research/paid-briefs.js'
 import { createFilePublishedStore } from '../lib/research/published-store.js'
 import { createFileSyncWatermarkStore } from '../lib/research/sync-watermarks.js'
 import { createFileSyncNoteStore } from '../lib/research/sync-note.js'
-import { createFileWorkIdentityStore } from '../lib/research/work-identity.js'
+import { createFileWorkIdentityStore, readLocalIdentity, researchRootFingerprint } from '../lib/research/work-identity.js'
 import { effectiveSkillContentById } from '../lib/research/library.js'
 import { listSystemSkills } from '../lib/research/skills.js'
 import { researchWorkspaceOf } from '../lib/research/workspace.js'
@@ -92,7 +92,10 @@ export function createCodexUiHost(options = {}) {
     resolveSessionWorkspace: (id) => workspaces.get(id)?.path,
     listLocalWorkspaces: async () => ({ available: true, items: workspaceRows() }),
     paidBriefStore: createFilePaidBriefStore(() => path('paid-briefs.json')),
-    publishedStore: createFilePublishedStore(() => path('published.json')),
+    publishedStore: createFilePublishedStore(() => path('published.json'), {
+      workIdOf: (root) => readLocalIdentity(root, workIdentity).workspaceId,
+      fingerprintOf: researchRootFingerprint,
+    }),
     syncStore: createFileSyncWatermarkStore(() => path('sync-watermarks.json')),
     syncNotes, workIdentity,
   })
@@ -115,14 +118,11 @@ export function createCodexUiHost(options = {}) {
     if (endpoint === 'codex/settings') {
       if (payload?.field === 'autoContinue' && typeof payload.value === 'boolean') await setConfig({ autoContinue: payload.value })
       else if (payload?.field === 'autoContinueMaxRounds' && Number.isInteger(payload.value) && payload.value >= 0 && payload.value <= 100) await setConfig({ autoContinueMaxRounds: payload.value })
-      else if (payload?.field === 'openalexApiKey' && typeof payload.value === 'string') await setConfig({ openalexApiKey: payload.value.trim() })
       else return failure('field', 'Unsupported setting')
       return { ok: true, value: { configured: Boolean(getConfig().openalexApiKey) } }
     }
     if (endpoint === 'codex/continuation') return { ok: true, value: { enabled: getConfig().autoContinue, maxRounds: getConfig().autoContinueMaxRounds } }
     if (endpoint === 'codex/export-methods') return root ? { ok: true, value: exportMethods(root, payload?.full === true) } : failure('workspace', '请在项目聊天中打开 ConvFusion 工作台')
-    if (endpoint === 'codex/sync' && !root) return failure('workspace', '请在项目聊天中打开 ConvFusion 工作台')
-    if (endpoint === 'codex/sync') return { ok: true, value: prepareSync(root, payload?.zip ?? '') }
     // Never accept host transport/directory callbacks from UI input: only the shared RPC dispatcher.
     const result = await handler(String(endpoint), payload ?? {})
     if (endpoint === 'progress/workspace' && root && result.ok && result.value?.research) {
@@ -145,19 +145,7 @@ export function createCodexUiHost(options = {}) {
     if (!state) return failure('auth', '界面连接已失效，请重新打开 ConvFusion')
     if (root !== undefined && root !== state.root) return failure('workspace', 'Workspace is not registered')
     if (endpoint === 'codex/bootstrap') return { ok: true, value: sessionInfo(token, state) }
-    if (endpoint === 'codex/workspaces') return { ok: true, value: workspaceRows() }
-    if (endpoint === 'codex/select-workspace') {
-      if (!state.selectable) return failure('workspace', '聊天工作台绑定当前任务，请在目标项目聊天中打开工作台')
-      try {
-        state.root = registerWorkspace(payload?.path, true).path
-        saveSession(token, state)
-        return { ok: true, value: sessionInfo(token, state) }
-      } catch (error) {
-        const message = error.code === 'ENOENT' ? '目录不存在，请检查路径' : error.code === 'EACCES' ? '无法读取该目录，请检查访问权限' : error.message
-        return failure('workspace', message)
-      }
-    }
-    // Progress always follows this page's selection, never an arbitrary session ID from the UI.
+    // Progress always follows this page's task, never an arbitrary session ID from the UI.
     if (endpoint === 'progress/workspace') payload = { ...payload, sessionId: bootstrap(state.root).sessionId ?? '' }
     return dispatch(state.root, endpoint, payload)
   }

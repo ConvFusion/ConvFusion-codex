@@ -39,14 +39,14 @@ try {
   const taskSession = responses.get(8).result.structuredContent.uiSession
   const uiCall = (id, token, endpoint, extra = {}) => ({ jsonrpc: '2.0', id, method: 'tools/call', params: { name: 'research_ui_action', arguments: { ui_session: token, endpoint, ...extra } } })
   // The initial STDIO process has exited. Its cached tool result must work in
-  // a new process, including a selection that a third process then resumes.
-  const replacement = run([uiCall(1, globalSession, 'codex/select-workspace', { payload: { path: workspace } })])
+  // a new process; task and global capabilities retain their original scope.
+  const replacement = run([uiCall(1, globalSession, 'codex/bootstrap')])
   assert.equal(replacement.status, 0, replacement.stderr)
   const selected = JSON.parse(replacement.stdout.trim()).result
   assert.equal(selected.isError, false, 'new STDIO process accepts an existing global page')
-  assert.equal(selected.structuredContent.value.workspaceRoot, workspace)
+  assert.equal(selected.structuredContent.value.workspaceRoot, null)
   const resumed = run([
-    uiCall(1, globalSession, 'codex/bootstrap', { workspace_root: workspace }),
+    uiCall(1, globalSession, 'codex/bootstrap'),
     uiCall(2, taskSession, 'codex/bootstrap', { workspace_root: workspace }),
     uiCall(3, taskSession, 'codex/select-workspace', { workspace_root: workspace, payload: { path: temp } }),
     uiCall(4, globalSession, 'codex/bootstrap', { workspace_root: temp }),
@@ -54,10 +54,10 @@ try {
   ])
   assert.equal(resumed.status, 0, resumed.stderr)
   const continued = new Map(resumed.stdout.trim().split('\n').map((line) => { const msg = JSON.parse(line); return [msg.id, msg.result] }))
-  assert.equal(continued.get(1).structuredContent.value.workspaceRoot, workspace)
+  assert.equal(continued.get(1).structuredContent.value.workspaceRoot, null)
   assert.equal(continued.get(1).structuredContent.value.uiScope, 'global')
   assert.equal(continued.get(2).structuredContent.value.uiScope, 'workspace')
-  assert.equal(continued.get(3).structuredContent.error.code, 'workspace', 'restarting must preserve task directory restrictions')
+  assert.equal(continued.get(3).structuredContent.ok, false, 'directory switch endpoint remains unavailable after restart')
   assert.equal(continued.get(4).structuredContent.error.code, 'workspace')
   assert.equal(continued.get(5).structuredContent.error.code, 'auth')
   const hook = spawnSync(process.execPath, ['lib/codex-hooks.mjs'], { cwd: installed, input: JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'installed', cwd: workspace }), encoding: 'utf8', env: { ...process.env, CONVFUSION_CODEX_HOME: join(temp, 'home') }, timeout: 20000 })

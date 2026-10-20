@@ -56,6 +56,15 @@ export interface WorkIdentity {
     role: 'owner' | 'mentor';
     /** 写入时刻（ISO）。 */
     updatedAt: string;
+    /**
+     * 写入这条记录时**研究根的指纹**（`project.md` 的 `created_at`）。
+     *
+     * ⚠️ 注册表按**路径**存，而路径会换住户（用户在同一个会话工作区里换进换出多项研究）。
+     * 指纹是"这个路径当时住的是哪项研究"的凭据：读取时对不上 → **不采信**这条记录
+     * （2026-10 实测：H-MEM 的 id 被贴到换进来的新研究上，界面因此显示"已在网络中"）。
+     * 老记录没有这个字段 → 无从核对 → 也不采信（让发布记录自己的名字/文件证据去判）。
+     */
+    rootFingerprint?: string;
 }
 /** 注册表（`$DSH_HOME/convfusion/work-identities.json`）。 */
 export interface WorkIdentityStore {
@@ -78,6 +87,29 @@ export interface WorkIdentityStore {
  * 判据只要求：`ws_` 开头、后面至少 16 位十六进制（当前是 32 位）。
  */
 export declare function isWorkspaceId(value: unknown): value is string;
+/**
+ * 研究根的**指纹**：`project.md` frontmatter 里的 `created_at`。
+ *
+ * ## 它解决什么
+ *
+ * 用户会在**同一个会话工作区**里换进换出多项研究（把当前 `workspace/` 改名、
+ * 把另一项研究改名成 `workspace/`）。凡是**以路径为键**的本机记录
+ * （发布记录、身份注册表）都会被新占用者继承 —— 那意味着"把 A 的发布写进 B"
+ * 或者"允许 B 的快照写进 A 的研究"。
+ *
+ * 指纹就是为这两种情况准备的判据：**同一条路径，住的是不是当初那项研究**。
+ *
+ * ## 为什么用 `created_at`
+ *
+ * - 它在创建研究根时写下（`project.md` 的 frontmatter），之后**从不改动**；
+ * - 它**跟着目录走**：改名、移动、备份、恢复都不变 —— 这正是我们要的语义
+ *   （身份跟着研究走，路径只是"当前住址"）；
+ * - 同一项研究的两份拷贝共享它（`.convfusion/work.json` 也共享），所以
+ *   "同一项研究的另一个快照"不会被误判成"另一项研究"。
+ *
+ * 读不到（没有 `project.md` / 没有该字段）→ `null` = **不知道**，调用方按"不拦"处理。
+ */
+export declare function researchRootFingerprint(researchRoot: string): string | null;
 /** `workspace_id` 的规范形（小写、去空白）；非法 → `null`。 */
 export declare function normalizeWorkspaceId(value: unknown): string | null;
 /** 读到的标记（缺字段就是缺字段，不编造）。 */
@@ -193,5 +225,7 @@ export declare function makeWorkIdentity(input: {
     accountId: string;
     role: 'owner' | 'mentor';
     updatedAt?: string;
+    /** 研究根指纹（`project.md` 的 `created_at`）—— 注册表按路径存，靠它认住户。 */
+    rootFingerprint?: string;
 }): WorkIdentity;
 //# sourceMappingURL=work-identity.d.ts.map

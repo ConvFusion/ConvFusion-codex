@@ -67,6 +67,8 @@ export const zh = {
 
   'community.title': 'ConvFusion.com',
   'community.entry.label': '科V社区',
+  // 顶部品牌入口（图标 + 科V社区）的悬浮说明：入口名与设置页标题**故意分开**
+  'community.button.title': '打开科V社区（账号 · 研究网络）',
   'community.notice.published': '{title} · 研究状态 v{version}',
   'community.notice.tokens': '{tokens} Token',
   'community.notice.files': '{count} 附件',
@@ -156,6 +158,9 @@ export const zh = {
   'community.dash.token': 'Token 余额',
   'community.dash.tokenFrozen': '冻结 {frozen}',
   'community.dash.tokenTotal': '合计 {total}',
+  // v0.6.3：两池分开报 —— 只有资金池能付给导师（赠送额度只能买平台自营服务）
+  'community.dash.tokenPools': '资金池 {funded} · 赠送 {grant}',
+  'community.dash.tokenPoolsFrozen': '资金池 {funded} · 赠送 {grant} · 冻 {frozen}',
   'community.dash.storage': '存储空间',
   'community.dash.storageSub': '已用 {used} / {total}',
   'community.dash.projects': '已发布项目',
@@ -243,6 +248,17 @@ export const zh = {
   'community.mentor.feeNote':
     '押金 {percent}%（{deposit} Token）接受时冻结，成功条件由对方确认，其余 {success} Token 成果验证后支付。',
   'community.mentor.feeInvalid': '总费用请填正整数。',
+  // ── 成功条件 + 论文等级（v0.6.3：价格 = 等级）────────────────────────
+  // 条件由用户在对话框里选；论文类两种条件**必须**选等级（服务器缺等级直接 400），
+  // 等级 → 金额由服务器算（fee-suggestion），界面只传等级、不抄价目表。
+  'community.mentor.conditionLabel': '成功条件',
+  'community.mentor.levelLabel': '论文等级',
+  'community.mentor.levelNone': '选择等级',
+  'community.mentor.levelSystem.JCR': 'JCR 分区',
+  'community.mentor.levelSystem.CCF': 'CCF 类别',
+  'community.mentor.level.JCR': 'JCR {level} 区',
+  'community.mentor.level.CCF': 'CCF-{level}',
+  'community.mentor.levelRequired': '论文类条件必须选等级：等级就是价格。',
   'community.tip.propose': '向这项工作发起指导申请（免费，对方接受后才冻结押金）',
   'community.tip.proposed': '已经发起过：这条申请正在等待对方响应',
   // 导师信息（Profile）：接受之前总得知道要跟谁合作
@@ -256,6 +272,7 @@ export const zh = {
   'community.mentor.profileInterests': '研究兴趣',
   'community.mentor.profileExpertise': '研究专长',
   'community.mentor.unknownParty': '未知用户',
+  'community.hint.detachedWork': '本机当前未打开这项工作（切回它的研究目录后才能更新）',
   'community.mentor.untitledProject': '未命名项目',
   'community.mentor.mentorIs': '导师：{name}',
   // 方向 B 里要判断/确认的对象是出价的学生
@@ -263,15 +280,20 @@ export const zh = {
   // 「指导中」只留状态 + 费用数字：描述性文字（指导范围 / 成功条件 / 简介 / 机构）全部去掉
   'community.mentor.feeText': '{total} Token（押金 {deposit} · 成功 {success}）',
   // 关系建立之后的**进展**（提案状态接受后就不再变了，光看它永远是"已接受"）。
-  // `review_files` 数的是**非 owner 那一侧**：方向 A 是导师的指导产物，方向 B 是学生的交付 ——
-  // 所以四个说法都要有，不能只用"导师/学生"这两个词。
-  'community.mentor.progress.studentWaiting': '等待指导意见',
-  'community.mentor.progress.studentGot': '导师已指导',
-  'community.mentor.progress.mentorWaiting': '待我指导',
-  'community.mentor.progress.mentorDone': '我已指导',
+  //
+  // ⚠️ 视角由**方向**决定，不是由角色决定（配反过一次，用户实测抓到）：
+  //   · 方向 A（学生发布工作求指导）→ **学生是 owner**，非 owner 那一侧（导师）交付指导产物；
+  //   · 方向 B（导师出题招学生）    → **导师是 owner**，非 owner 那一侧（学生）交付研究进展。
+  // `review_files` 数的正是**非 owner 那一侧** → owner 侧说"对方"、非 owner 侧说"我"。
+  // 命名取"谁在做这个动作"：`*Guided` = 导师的动作，`*Deliver*` = 学生的动作。
+  // 规则在 src/client/mentorship-labels.ts（纯函数，自检逐一断言四种组合）。
+  'community.mentor.progress.awaitingMentor': '等待指导意见',
+  'community.mentor.progress.mentorGuided': '导师已指导',
+  'community.mentor.progress.iToGuide': '待我指导',
+  'community.mentor.progress.iGuided': '我已指导',
   'community.mentor.progress.iToDeliver': '待我交付',
   'community.mentor.progress.iDelivered': '我已交付',
-  'community.mentor.progress.studentToDeliver': '等待学生交付',
+  'community.mentor.progress.awaitingStudent': '等待学生交付',
   'community.mentor.progress.studentDelivered': '学生已交付',
   // 「对方更新了 → 重新下载」的两态（判据：时间戳变大 / 文件数变，见 sync-watermarks.ts）。
   // 水位记的是 **owner 侧**，所以只有"下载 owner 侧"的一方（= 非 owner）看得到：措辞用"对方"。
@@ -294,8 +316,10 @@ export const zh = {
   'community.mentor.acceptDone': '已接受指导，冻结押金 {deposit} Token。',
   // 方向 B：接受的人是导师，冻的是**学生**的押金（回执与 402 都不能写成"你的余额不足"）
   'community.mentor.acceptDoneOther': '已接受，冻结学生的押金 {deposit} Token。',
-  'community.mentor.acceptNoTokens': '可用 Token 不足 {deposit}，先获取 Token 再试。',
-  'community.mentor.acceptNoTokensOther': '学生的可用 Token 不足 {deposit}，无法接受；请学生充值后再试。',
+  'community.mentor.acceptNoTokens':
+    '资金池不足 {deposit} Token（赠送额度不能付给导师）。测试阶段请联系管理员发放 Token。',
+  'community.mentor.acceptNoTokensOther':
+    '学生的资金池不足 {deposit} Token，无法接受；请学生联系管理员发放 Token。',
   'community.mentor.rejectDone': '已拒绝这次申请。',
   // 接受指导的确认框（押金冻结 = 真正动 Token，不能点击即生效）
   'community.mentor.acceptConfirmTitle': '接受指导会冻结押金',
@@ -304,8 +328,14 @@ export const zh = {
   'community.mentor.acceptConfirmBadgeOther': '学生冻结 {deposit} Token',
   'community.mentor.acceptConfirm': '确认接受',
   'community.mentor.acceptFreezeNote': '接受后冻结押金 {deposit} Token（仍是你的，只是暂不可用）。',
-  'community.mentor.acceptFreezeNoteOther': '接受后从**学生**的账户冻结押金 {deposit} Token；学生余额不足时会失败。',
+  'community.mentor.acceptFreezeNoteOther': '接受后从**学生**的账户冻结押金 {deposit} Token；学生的资金池不足时会失败。',
   'community.mentor.acceptBalance': '当前可用余额：{balance} Token',
+  // 押金只能从**资金池**冻结（赠送额度不能付给导师）：有资金池就只报它，别报总数误导
+  'community.mentor.acceptPools': '资金池 {funded} Token · 赠送 {grant} Token（赠送不能付给导师）',
+  'community.mentor.acceptFundedOnly': '资金池 {funded} Token',
+  // 资金池不够 → 点【确认接受】**之前**就拦住，并给出可行动作（自助付费尚未开通）
+  'community.mentor.acceptNoFunded':
+    '资金池只有 {funded} Token，不够冻结押金 {deposit}（赠送额度 {grant} 不能付给导师）。测试阶段请联系管理员发放 Token。',
   // 指导闭环的文件交换（关系建立之后）
   // 下载 = 把服务器上的工作区快照 **只当成一个 ZIP 存下来**，写进用户选的 DSH 工作区
   // （不走浏览器默认下载，也不输地址；解压与整理交给用户自己处理）
@@ -400,10 +430,16 @@ export const zh = {
   'community.briefConfirm.confirm': '确认读取',
   'community.tip.balance': '点击查看余额与续费',
   // ── Token 余额弹窗 + 续费申请（2026-09 用户要求）──
+  // v0.6.3：余额分**两池** —— 只有资金池能付给导师、能提现；赠送额度只能买平台自营服务。
+  // 混成一个"可用余额"会让人在点【接受指导】时撞上 402 而完全不明白为什么（数字明明够）。
   'community.token.dialogTitle': 'Token 余额',
   'community.token.available': '可用',
   'community.token.frozen': '冻结',
   'community.token.total': '合计',
+  'community.token.funded': '资金池',
+  'community.token.grant': '赠送',
+  'community.token.fundedHint': '可付导师',
+  'community.token.grantHint': '仅自营服务',
   'community.token.renewHint':
     '目前 Token 由管理员发放。提交申请后，管理员会在服务器上处理；暂未开通自助付费。',
   'community.token.pendingLine': '已申请 {amount} Token，等待管理员处理。',
@@ -418,6 +454,8 @@ export const zh = {
   'community.token.receipt': '已提交续费申请（{amount} Token），等待管理员处理。',
   'community.tip.balanceDetail':
     '可用 {available} · 冻结 {frozen}（冻结仍是你的，只是锁住了）；点击查看余额与续费',
+  'community.tip.balancePools':
+    '资金池 {funded} · 赠送 {grant}（赠送只能买平台自营服务，不能付给导师）；点击查看余额与续费',
   'community.tip.keyPrivacy': '凭据只保存在本机（DSH 设置），不会回传浏览器，也不会写进对话内容。',
   'community.tip.envKey': '凭据来自环境变量，请修改环境变量后重启 DSH',
   // 只留最短标记：完整解释在 community.tip.balanceDetail 里（悬浮可见）
@@ -507,8 +545,6 @@ export const zh = {
   'system.retrieval.clearing': '清除中…',
   'system.retrieval.saved': '已保存 OpenAlex API Key',
   'system.retrieval.cleared': '已清除 OpenAlex API Key',
-  'system.retrieval.savedRefreshFailed': 'API Key 已保存，但状态刷新失败，请点击上方“重试”。',
-  'system.retrieval.clearedRefreshFailed': 'API Key 已清除，但状态刷新失败，请点击上方“重试”。',
   'system.retrieval.saveFailed': '保存失败：{detail}',
   'system.retrieval.clearFailed': '清除失败：{detail}',
 

@@ -174,8 +174,27 @@
  *   下次发布花费），供【账号】卡片新加的**仪表板**画"存储空间"那一块。
  *   旧宿主没有这个端点 → 界面那一块显示"未知"（**不是** 0），并提示宿主需重启，
  *   故照旧升号。
+ *
+ * - `28`：**论文等级定价 + Token 分池**（服务器 v0.6.3）。三处形状/语义变化，每一处
+ *   旧宿主都会**安静地做错事**，所以必须升号：
+ *   · `state.tokens` 增加 **`grant` / `funded`**（两池；`null` = 旧服务器不分开说）——
+ *     旧宿主只有"可用"一个数，新界面读不到两池就**不会**在【接受】前按资金池拦截，
+ *     用户会直接撞 402；反过来若把缺失读成 0，又会把本来能接受的账号挡住；
+ *   · `mentor/fee-suggestion` 增加入参 **`jcrLevel` / `ccfLevel`**（论文等级 → 价格）——
+ *     旧宿主忽略它，界面选了"JCR 2区"却拿回兜底价 100，用户按错价发起提案；
+ *   · `mentor/propose` 的 `successCondition` 增加 **`jcrLevel` / `ccfLevel`**，且论文类
+ *     条件（`PAPER_ACCEPTED` / `PAPER_PUBLISHED`）**必须**带等级（服务器缺等级直接 400
+ *     `INVALID_PROPOSAL`）—— 旧宿主会把这个字段丢掉，于是论文类提案一律发不出去。
+ *   故照旧升号，让设置页把"宿主需重启"说出来。
+ *
+ * - `29`：新增 **`retrieval/saveKey`** / **`retrieval/clearKey`**（OpenAlex API Key 改由
+ *   **宿主**落盘）。起因是一个实测故障：浏览器那侧的 `configForm.set()` 在**非 loopback
+ *   页面**上会静默变成 no-op（`dsh-client-ui-settings` 的 `persistence = isLoopback ?
+ *   'host' : 'memory'`），而旧界面忽略它的布尔返回值、照样说「已保存」——
+ *   表现为"明明设置了 OpenAlex API Key，却总是显示未配置"。旧宿主没有这两个端点
+ *   → `unknown-endpoint`，界面提示"宿主需重启"（不升号的话，用户只会看到又一次失败）。
  */
-export declare const HOST_PROTOCOL = 27;
+export declare const HOST_PROTOCOL = 29;
 /** 状态响应里的协议字段名（两边共用，避免拼错）。 */
 export declare const HOST_PROTOCOL_FIELD = "protocol";
 //# sourceMappingURL=protocol.d.ts.map
