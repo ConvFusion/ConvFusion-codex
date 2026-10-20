@@ -74,7 +74,7 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
     <main key={current.workspaceRoot ?? 'global'}>
       {tab === 'community' && <CommunityTab send={transport} initial={null} t={t} session={bridge} />}
       {tab === 'progress' && <><ContinuationSettings zh={zh} />{current.sessionId ? <ResearchProgressPanel sessionId={current.sessionId} t={t} send={transport} /> : <p role="status">{zh ? '在项目聊天中 @ 使用 ConvFusion 并打开工作台，即可查看该项目的研究进展。' : 'Use @ to invoke ConvFusion in a project chat and open the workbench to view its research progress.'}</p>}</>}
-      {tab === 'methods' && <><MethodsExport zh={zh} enabled={Boolean(current.workspaceRoot)} /><ConvFusionProjectSettings send={transport} t={t} session={bridge} /></>}
+      {tab === 'methods' && <><MethodsExport zh={zh} enabled={Boolean(current.workspaceRoot)} /><ConvFusionProjectSettings send={transport} t={t} session={bridge} showCommunityTab={false} /></>}
     </main>
     {syncDraft !== null && <dialog ref={(node) => { if (node && !node.open) node.showModal() }} onCancel={() => setSyncDraft(null)} aria-label={zh ? '同步请求' : 'Sync request'} className="sync-request">
       <h2>{zh ? '同步请求' : 'Sync request'}</h2>

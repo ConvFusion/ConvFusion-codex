@@ -119,6 +119,8 @@ export interface ConvFusionSettingsProps {
   t: Translate
   /** 传输实现（缺省 = 浏览器同源 fetch）。 */
   send?: SettingsSend | undefined
+  /** 宿主已有独立研究网络入口时，省略设置页内的同一入口。 */
+  showCommunityTab?: boolean | undefined
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -944,6 +946,7 @@ export function ConvFusionProjectSettings({
   session,
   t,
   send = fetchSettingsSend,
+  showCommunityTab = true,
 }: ConvFusionSettingsProps): JSX.Element {
   const [state, setState] = React.useState<HostState | null>(null)
   const [error, setError] = React.useState<string | null>(null)
@@ -1252,9 +1255,9 @@ export function ConvFusionProjectSettings({
         <TabButton active={tab === 'local'} onClick={() => setTab('local')}>
           ⚙ {t('settings.tab.local')}
         </TabButton>
-        <TabButton active={tab === 'community'} onClick={() => setTab('community')}>
+        {showCommunityTab && <TabButton active={tab === 'community'} onClick={() => setTab('community')}>
           ◈ {t('settings.tab.community')}
-        </TabButton>
+        </TabButton>}
         <TabButton active={tab === 'retrieval'} onClick={() => setTab('retrieval')}>
           ⚙ {t('settings.tab.system')}
           {state && (!state.retrieval.configured || state.dependencies?.tectonic.available === false) ? (
@@ -1316,7 +1319,7 @@ export function ConvFusionProjectSettings({
       ) : null}
 
       {/* ── Tab 2：ConvFusion.com（账号 + 服务器 + 研究工作）──────── */}
-      {tab === 'community' ? (
+      {showCommunityTab && tab === 'community' ? (
         <CommunityTab session={session} send={send} initial={state?.account ?? null} t={t} />
       ) : null}
 

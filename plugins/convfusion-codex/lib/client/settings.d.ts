@@ -73,6 +73,8 @@ export interface ConvFusionSettingsProps {
     t: Translate;
     /** 传输实现（缺省 = 浏览器同源 fetch）。 */
     send?: SettingsSend | undefined;
+    /** 宿主已有独立研究网络入口时，省略设置页内的同一入口。 */
+    showCommunityTab?: boolean | undefined;
 }
 interface HostSection {
     section: string;
@@ -247,7 +249,7 @@ export declare const fetchSettingsSend: SettingsSend;
 export declare function loadSettingsState(send?: SettingsSend, options?: {
     timeoutMs?: number;
 }, t?: Translate): Promise<SettingsLoad>;
-export declare function ConvFusionProjectSettings({ session, t, send, }: ConvFusionSettingsProps): JSX.Element;
+export declare function ConvFusionProjectSettings({ session, t, send, showCommunityTab, }: ConvFusionSettingsProps): JSX.Element;
 /** **本机**研究工作（宿主 `LocalWorkItem` 的镜像）—— 数据来自磁盘，不需要登录。 */
 /**
  * 一项研究工作的**方向**（宿主 `ProjectDirection` 的镜像）。

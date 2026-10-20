@@ -2586,7 +2586,8 @@ window.__ModuleLoader__.load({
 		function ConvFusionProjectSettings({
 		  session,
 		  t,
-		  send = fetchSettingsSend
+		  send = fetchSettingsSend,
+		  showCommunityTab = true
 		}) {
 		  const [state, setState] = import_react.default.useState(null);
 		  const [error, setError] = import_react.default.useState(null);
@@ -2811,7 +2812,7 @@ window.__ModuleLoader__.load({
 		        "⚙ ",
 		        t("settings.tab.local")
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(TabButton, { active: tab === "community", onClick: () => setTab("community"), children: [
+		      showCommunityTab && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(TabButton, { active: tab === "community", onClick: () => setTab("community"), children: [
 		        "◈ ",
 		        t("settings.tab.community")
 		      ] }),
@@ -2856,7 +2857,7 @@ window.__ModuleLoader__.load({
 		      ] })
 		    ] }) : null,
 		    loading && !state ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: S.hint, children: t("settings.status.loading") }) }) }) : null,
-		    tab === "community" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(CommunityTab, { session, send, initial: state?.account ?? null, t }) : null,
+		    showCommunityTab && tab === "community" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(CommunityTab, { session, send, initial: state?.account ?? null, t }) : null,
 		    tab === "retrieval" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
 		      SystemTab,
 		      {
