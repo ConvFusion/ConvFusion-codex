@@ -15609,6 +15609,9 @@ function collectResearchContext(source) {
   }
   return {
     ...rootPrefix ? { rootPrefix } : {},
+    // 绝对路径：渲染时与 `rootPrefix` 一起给出，避免模型 `cd` 后按相对路径扑空
+    // （`resolve` 兜住调用方传相对路径的测试/边界情况 —— 提示里写的是"绝对根"）
+    researchRoot: resolve7(ws),
     project: loadProjectFile(ws),
     activePaperId,
     allPapers,
@@ -15691,7 +15694,10 @@ function renderResearchContext(ctx, userInput = "") {
   const root = ctx.rootPrefix ? `${ctx.rootPrefix}/` : "";
   lines.push("## Research project");
   lines.push("");
-  if (ctx.rootPrefix) {
+  if (ctx.researchRoot) {
+    const relativeNote = ctx.rootPrefix ? ` (\`${root}\` relative to the session workspace)` : "";
+    lines.push(`- Files root: \`${ctx.researchRoot}\`${relativeNote} \u2014 all research files live there; every path in this context is relative to that root. The root is fixed to the directory the session was created in: changing the working directory (\`cd\`) does not move it, so resolve research paths against the absolute root above, not against the current directory.`);
+  } else if (ctx.rootPrefix) {
     lines.push(`- Files root: \`${root}\` \u2014 all research files live in this subdirectory of the session workspace; every path in this context is relative to that root.`);
   }
   lines.push(`- Topic: ${p.topic}`);

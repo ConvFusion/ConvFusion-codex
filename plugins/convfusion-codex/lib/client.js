@@ -41,6 +41,7 @@ window.__ModuleLoader__.load({
 		  COMMUNITY_VIEW_ID: () => COMMUNITY_VIEW_ID,
 		  COMMUNITY_VIEW_ORDER: () => COMMUNITY_VIEW_ORDER,
 		  CONVFUSION_VIEW_SLOT: () => CONVFUSION_VIEW_SLOT,
+		  CategoryFileTreeView: () => CategoryFileTreeView,
 		  CommunityTab: () => CommunityTab,
 		  CommunityView: () => CommunityView,
 		  ConvFusionComButton: () => ConvFusionComButton,
@@ -52,20 +53,26 @@ window.__ModuleLoader__.load({
 		  TokenDialog: () => TokenDialog,
 		  apply: () => apply,
 		  applyNavIcon: () => applyNavIcon,
+		  buildUploadTree: () => buildUploadTree,
+		  canDownloadProposal: () => canDownloadProposal,
 		  convfusionTabSpecs: () => convfusionTabSpecs,
 		  currentMainSessionId: () => currentMainSessionId,
+		  downloadSideCount: () => downloadSideCount,
+		  folderState: () => folderState,
 		  inject: () => inject,
 		  installConvFusionTabs: () => installConvFusionTabs,
 		  installNavIcon: () => installNavIcon,
 		  loadSettingsState: () => loadSettingsState,
 		  logoUrl: () => favicon_default,
+		  nodeFilePaths: () => nodeFilePaths,
 		  percentText: () => percentText,
 		  preferredCategory: () => preferredCategory,
 		  preferredSection: () => preferredSection,
 		  preferredSkill: () => preferredSkill,
 		  readProgressValue: () => readProgressValue,
 		  shortenPath: () => shortenPath,
-		  syncCommandLine: () => syncCommandLine
+		  syncCommandLine: () => syncCommandLine,
+		  treeFilePaths: () => treeFilePaths
 		});
 		module.exports = __toCommonJS(index_exports);
 
@@ -157,6 +164,8 @@ window.__ModuleLoader__.load({
 		  "community.publish.unchanged": "no content changes",
 		  "community.publish.expand": "Expand",
 		  "community.publish.collapse": "Collapse",
+		  "community.publish.moreItems": "{count} more item(s) — tick the folder to select them all",
+		  "community.publish.skippedDir": "skipped",
 		  "community.publish.tooLarge": "over the per-file limit",
 		  "community.publish.oversizeWarning": "{count} file(s) exceed the server per-file limit (100 MB) and will not be uploaded.",
 		  "community.publish.summary": "{files} file(s) selected · {size} · {batches} batch(es)",
@@ -893,6 +902,8 @@ window.__ModuleLoader__.load({
 		  "community.publish.unchanged": "内容无变化",
 		  "community.publish.expand": "展开",
 		  "community.publish.collapse": "收起",
+		  "community.publish.moreItems": "还有 {count} 项（勾选本目录即可整枝选择）",
+		  "community.publish.skippedDir": "整枝已跳过",
 		  "community.publish.tooLarge": "超过单文件上限",
 		  "community.publish.oversizeWarning": "有 {count} 个文件超过服务器单文件上限（100 MB），不会上传。",
 		  "community.publish.summary": "已选 {files} 个文件 · {size} · {batches} 批上传",
@@ -1867,6 +1878,125 @@ window.__ModuleLoader__.load({
 		  const path = zipPath.trim();
 		  const ref = /\s/.test(path) ? `@"${path}"` : `@${path}`;
 		  return `/research sync ${ref}`;
+		}
+
+		// src/client/upload-tree.ts
+		function compareName(a, b) {
+		  return a.toLowerCase().localeCompare(b.toLowerCase(), "en");
+		}
+		function treeFilePaths(nodes) {
+		  const out = [];
+		  const walk = (list) => {
+		    for (const n of list) {
+		      if (n.kind === "file") out.push(n.path);
+		      else walk(n.children);
+		    }
+		  };
+		  walk(nodes);
+		  return out;
+		}
+		function nodeFilePaths(node) {
+		  if (node.kind === "file") return [node.path];
+		  return treeFilePaths(node.children);
+		}
+		function folderState(node, selection) {
+		  const files = nodeFilePaths(node);
+		  if (files.length === 0) return "none";
+		  let hit = 0;
+		  for (const f of files) if (selection.has(f)) hit += 1;
+		  if (hit === 0) return "none";
+		  return hit === files.length ? "all" : "some";
+		}
+		function sortNodes(nodes) {
+		  nodes.sort((a, b) => {
+		    if (a.kind !== b.kind) return a.kind === "dir" ? -1 : 1;
+		    return compareName(a.name, b.name);
+		  });
+		  for (const n of nodes) if (n.kind === "dir") sortNodes(n.children);
+		  return nodes;
+		}
+		function flattenSingleRoot(nodes) {
+		  let current = nodes;
+		  let prefix = "";
+		  while (current.length === 1) {
+		    const only = current[0];
+		    if (only === void 0 || only.kind !== "dir" || only.placeholder) break;
+		    if (only.children.length === 0) break;
+		    prefix = only.path;
+		    current = only.children;
+		  }
+		  return { nodes: current, prefix };
+		}
+		function buildUploadTree(files) {
+		  const roots = [];
+		  const dirs = /* @__PURE__ */ new Map();
+		  const dirOf = (path, placeholder = false) => {
+		    const existing = dirs.get(path);
+		    if (existing) {
+		      if (placeholder) existing.placeholder = true;
+		      return existing;
+		    }
+		    const cut = path.lastIndexOf("/");
+		    const name = cut < 0 ? path : path.slice(cut + 1);
+		    const node = {
+		      kind: "dir",
+		      name,
+		      path,
+		      count: 0,
+		      bytes: 0,
+		      placeholder,
+		      children: []
+		    };
+		    dirs.set(path, node);
+		    if (cut < 0) roots.push(node);
+		    else dirOf(path.slice(0, cut)).children.push(node);
+		    return node;
+		  };
+		  for (const f of files) {
+		    const raw = String(f.relPath ?? "");
+		    if (raw === "") continue;
+		    const isPlaceholder = raw.endsWith("/");
+		    const path = isPlaceholder ? raw.replace(/\/+$/, "") : raw;
+		    if (path === "") continue;
+		    if (isPlaceholder) {
+		      dirOf(path, true);
+		      continue;
+		    }
+		    const cut = path.lastIndexOf("/");
+		    const name = cut < 0 ? path : path.slice(cut + 1);
+		    const parent = cut < 0 ? void 0 : dirOf(path.slice(0, cut));
+		    const node = {
+		      kind: "file",
+		      name,
+		      path,
+		      count: 1,
+		      bytes: Number(f.size) || 0,
+		      placeholder: false,
+		      children: []
+		    };
+		    if (parent === void 0) roots.push(node);
+		    else parent.children.push(node);
+		  }
+		  const accumulate = (node) => {
+		    if (node.kind === "file") return;
+		    let count = 0;
+		    let bytes = 0;
+		    for (const child of node.children) {
+		      accumulate(child);
+		      count += child.count;
+		      bytes += child.bytes;
+		    }
+		    node.count = count;
+		    node.bytes = bytes;
+		  };
+		  for (const node of roots) accumulate(node);
+		  const clearPlaceholder = (node) => {
+		    if (node.kind !== "dir") return;
+		    if (node.count > 0) node.placeholder = false;
+		    for (const child of node.children) clearPlaceholder(child);
+		  };
+		  for (const node of roots) clearPlaceholder(node);
+		  return sortNodes(roots);
 		}
 
 		// src/client/publish-actions.ts
@@ -3024,17 +3154,19 @@ window.__ModuleLoader__.load({
 		  const accepted = acceptedProgressKey(p, view);
 		  return accepted ?? PROPOSAL_STATUS_KEYS[p.status] ?? p.status;
 		}
+		function downloadSideCount(p, view) {
+		  return view.otherSide === "owner" ? p.workspaceFiles : p.reviewFiles;
+		}
 		function canDownloadProposal(p, view) {
 		  if (p.status !== "ACCEPTED") return false;
-		  if (view.iAmOwner) return true;
-		  if (p.reviewFiles === null || p.reviewFiles === void 0) return true;
-		  return p.reviewFiles > 0;
+		  const count = downloadSideCount(p, view);
+		  return typeof count !== "number" ? true : count > 0;
 		}
 		function sideSyncHint(t, p, view) {
 		  const sync = p.syncBySide ? p.syncBySide[view.otherSide] : p.sync;
 		  if (!sync) return null;
 		  if ("neverDownloaded" in sync) {
-		    const count = view.otherSide === "owner" ? p.workspaceFiles : p.reviewFiles;
+		    const count = downloadSideCount(p, view);
 		    if (typeof count !== "number" || count === 0) return null;
 		    return t("community.mentor.peerNeverDownloaded");
 		  }
@@ -3400,8 +3532,7 @@ window.__ModuleLoader__.load({
 		  maxFileBytes,
 		  selection,
 		  expanded,
-		  onToggleCategory,
-		  onToggleFile,
+		  onToggleFiles,
 		  onToggleExpand
 		}) {
 		  const visible = categories.filter((c) => c.decision !== "excluded" && c.files.length > 0);
@@ -3424,7 +3555,7 @@ window.__ModuleLoader__.load({
 		                ref: (el) => {
 		                  if (el) el.indeterminate = some;
 		                },
-		                onChange: (e) => onToggleCategory(cat.id, files.map((f) => f.relPath), e.target.checked),
+		                onChange: (e) => onToggleFiles(files.map((f) => f.relPath), e.target.checked),
 		                style: { marginTop: 3 }
 		              }
 		            ),
@@ -3441,33 +3572,202 @@ window.__ModuleLoader__.load({
 		            ] }),
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.linkBtn, onClick: () => onToggleExpand(cat.id), children: isOpen ? t("community.publish.collapse") : t("community.publish.expand") })
 		          ] }),
-		          isOpen ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { maxHeight: 200, overflow: "auto", padding: "4px 12px 10px 34px" }, children: files.map((f) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
-		            "label",
+		          isOpen ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { maxHeight: 240, overflow: "auto", padding: "4px 12px 10px 34px" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		            CategoryFileTree,
 		            {
-		              style: { display: "flex", alignItems: "center", gap: 8, padding: "2px 0" },
-		              children: [
-		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		                  "input",
-		                  {
-		                    type: "checkbox",
-		                    checked: selection.has(f.relPath),
-		                    onChange: (e) => onToggleFile(f.relPath, e.target.checked)
-		                  }
-		                ),
-		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.mono, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }, children: f.relPath }),
-		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { ...S.hint, marginLeft: "auto", whiteSpace: "nowrap" }, children: [
-		                  formatBytes(f.size),
-		                  f.size > maxFileBytes ? ` ⚠ ${t("community.publish.tooLarge")}` : ""
-		                ] })
-		              ]
-		            },
-		            f.relPath
-		          )) }) : null
+		              t,
+		              categoryId: cat.id,
+		              files,
+		              selection,
+		              maxFileBytes,
+		              onToggleFiles
+		            }
+		          ) }) : null
 		        ]
 		      },
 		      cat.id
 		    );
 		  }) });
+		}
+		function CategoryFileTree({
+		  t,
+		  categoryId,
+		  files,
+		  selection,
+		  maxFileBytes,
+		  onToggleFiles
+		}) {
+		  const tree = import_react.default.useMemo(() => flattenSingleRoot(buildUploadTree(files)), [files]);
+		  const [open, setOpen] = import_react.default.useState(() => /* @__PURE__ */ new Set());
+		  const toggleOpen = (path) => setOpen((prev) => {
+		    const next = new Set(prev);
+		    const key = `${categoryId}::${path}`;
+		    if (next.has(key)) next.delete(key);
+		    else next.add(key);
+		    return next;
+		  });
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		    CategoryFileTreeView,
+		    {
+		      t,
+		      nodes: tree.nodes,
+		      prefix: tree.prefix,
+		      open,
+		      categoryId,
+		      selection,
+		      maxFileBytes,
+		      onToggleFiles,
+		      onToggleOpen: toggleOpen
+		    }
+		  );
+		}
+		var MAX_CHILD_ROWS = 200;
+		function CategoryFileTreeView({
+		  t,
+		  nodes,
+		  prefix = "",
+		  open,
+		  categoryId,
+		  selection,
+		  maxFileBytes,
+		  onToggleFiles,
+		  onToggleOpen
+		}) {
+		  const renderNodes = (list, depth) => {
+		    const shown = list.slice(0, MAX_CHILD_ROWS);
+		    const hidden = list.length - shown.length;
+		    const rows = shown.flatMap((node) => {
+		      const pad = 8 + depth * 14;
+		      if (node.kind === "dir") {
+		        const isOpen = open.has(`${categoryId}::${node.path}`);
+		        const state = folderState(node, selection);
+		        const rows2 = [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+		            "div",
+		            {
+		              style: { display: "flex", alignItems: "center", gap: 6, padding: "2px 0", paddingLeft: pad },
+		              children: [
+		                node.placeholder ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { width: 14 } }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		                  "button",
+		                  {
+		                    type: "button",
+		                    "aria-label": isOpen ? t("community.publish.collapse") : t("community.publish.expand"),
+		                    onClick: () => onToggleOpen(node.path),
+		                    style: {
+		                      ...S.linkBtn,
+		                      // `+/−` 用等宽字体 + 固定宽高：开合时不左右跳动，也不依赖旋转动画
+		                      width: 14,
+		                      height: 14,
+		                      lineHeight: "14px",
+		                      padding: 0,
+		                      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+		                      fontSize: 13,
+		                      textAlign: "center",
+		                      color: "var(--dsw-alias-text-secondary)"
+		                    },
+		                    children: isOpen ? "−" : "+"
+		                  }
+		                ),
+		                node.placeholder ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { width: 13 } }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		                  "input",
+		                  {
+		                    type: "checkbox",
+		                    checked: state === "all",
+		                    ref: (el) => {
+		                      if (el) el.indeterminate = state === "some";
+		                    },
+		                    onChange: (e) => onToggleFiles(nodeFilePaths(node), e.target.checked)
+		                  }
+		                ),
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+		                  "button",
+		                  {
+		                    type: "button",
+		                    onClick: () => onToggleOpen(node.path),
+		                    disabled: node.placeholder,
+		                    style: {
+		                      ...S.mono,
+		                      minWidth: 0,
+		                      overflow: "hidden",
+		                      textOverflow: "ellipsis",
+		                      background: "none",
+		                      border: "none",
+		                      padding: 0,
+		                      textAlign: "left",
+		                      cursor: node.placeholder ? "default" : "pointer",
+		                      color: node.placeholder ? "var(--dsw-alias-text-secondary)" : "inherit",
+		                      font: "inherit",
+		                      fontFamily: "var(--dsw-alias-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)"
+		                    },
+		                    children: [
+		                      node.name,
+		                      "/"
+		                    ]
+		                  }
+		                ),
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, marginLeft: "auto", whiteSpace: "nowrap" }, children: node.placeholder ? t("community.publish.skippedDir") : `${node.count} · ${formatBytes(node.bytes)}` })
+		              ]
+		            },
+		            `d:${node.path}`
+		          )
+		        ];
+		        if (isOpen && node.children.length > 0) rows2.push(...renderNodes(node.children, depth + 1));
+		        return rows2;
+		      }
+		      return [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+		          "label",
+		          {
+		            style: { display: "flex", alignItems: "center", gap: 8, padding: "2px 0", paddingLeft: pad + 33 },
+		            children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		                "input",
+		                {
+		                  type: "checkbox",
+		                  checked: selection.has(node.path),
+		                  onChange: (e) => onToggleFiles([node.path], e.target.checked)
+		                }
+		              ),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		                "span",
+		                {
+		                  style: { ...S.mono, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" },
+		                  title: node.path,
+		                  children: node.name
+		                }
+		              ),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { ...S.hint, marginLeft: "auto", whiteSpace: "nowrap" }, children: [
+		                formatBytes(node.bytes),
+		                node.bytes > maxFileBytes ? ` ⚠ ${t("community.publish.tooLarge")}` : ""
+		              ] })
+		            ]
+		          },
+		          `f:${node.path}`
+		        )
+		      ];
+		    });
+		    if (hidden > 0) {
+		      rows.push(
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          "div",
+		          {
+		            style: { ...S.hint, padding: "2px 0", paddingLeft: 8 + depth * 14 + 33 },
+		            children: t("community.publish.moreItems", { count: hidden })
+		          },
+		          `more:${depth}:${list.length}`
+		        )
+		      );
+		    }
+		    return rows;
+		  };
+		  if (nodes.length === 0) return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noUploadFiles") });
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
+		    prefix ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.hint, ...S.mono, padding: "2px 0 4px 8px", opacity: 0.75 }, children: [
+		      prefix,
+		      "/"
+		    ] }) : null,
+		    renderNodes(nodes, 0)
+		  ] });
 		}
 		function PublishDialog({
 		  t,
@@ -3477,8 +3777,7 @@ window.__ModuleLoader__.load({
 		  expanded,
 		  busy,
 		  progress,
-		  onToggleCategory,
-		  onToggleFile,
+		  onToggleFiles,
 		  onToggleExpand,
 		  onRemember,
 		  onCancel,
@@ -3532,8 +3831,7 @@ window.__ModuleLoader__.load({
 		                  maxFileBytes: data.plan.limits.maxFileBytes,
 		                  selection,
 		                  expanded,
-		                  onToggleCategory,
-		                  onToggleFile,
+		                  onToggleFiles,
 		                  onToggleExpand
 		                }
 		              ),
@@ -4364,8 +4662,7 @@ window.__ModuleLoader__.load({
 		  progress,
 		  notice,
 		  onSelectWorkspace,
-		  onToggleCategory,
-		  onToggleFile,
+		  onToggleFiles,
 		  onToggleExpand,
 		  onUpload,
 		  onClose
@@ -4421,8 +4718,7 @@ window.__ModuleLoader__.load({
 		              maxFileBytes: plan.plan.limits.maxFileBytes,
 		              selection,
 		              expanded,
-		              onToggleCategory,
-		              onToggleFile,
+		              onToggleFiles,
 		              onToggleExpand
 		            }
 		          ),
@@ -4524,6 +4820,8 @@ window.__ModuleLoader__.load({
 		    }
 		  );
 		}
+		var COMMUNITY_LIST_CACHE = /* @__PURE__ */ new Map();
+		var communityCacheKey = (server, accountId, kind, sessionId = "") => JSON.stringify([server, accountId, kind, sessionId]);
 		function CommunityTab({
 		  send,
 		  initial,
@@ -4689,6 +4987,9 @@ window.__ModuleLoader__.load({
 		  const account = state?.account ?? null;
 		  const configured = state?.keyConfigured ?? false;
 		  const activeServer = state?.serverUrl ?? "";
+		  const listScope = JSON.stringify([activeServer, account?.id, configured, session?.sessionId]);
+		  const currentListScope = import_react.default.useRef(listScope);
+		  currentListScope.current = listScope;
 		  const canMentor = Boolean(
 		    account && (account.roles.includes("MENTOR") || account.roles.includes("ADMIN"))
 		  );
@@ -4710,21 +5011,30 @@ window.__ModuleLoader__.load({
 		      post("work/list", { direction }),
 		      post("mentor/list", {})
 		    ]);
+		    if (currentListScope.current !== listScope) return;
 		    setLoading(false);
 		    if (proposalsRes.ok) {
-		      setProposals(proposalsRes.value.proposals ?? []);
+		      const items2 = proposalsRes.value.proposals ?? [];
+		      setProposals(items2);
+		      COMMUNITY_LIST_CACHE.set(communityCacheKey(activeServer, account?.id ?? null, "proposals", session?.sessionId), items2);
 		    }
 		    if (!res.ok) {
 		      setError(res.error ?? { code: "unknown", message: t("community.error.readWorkList") });
 		      setList(null);
 		      return;
 		    }
-		    setList(res.value.items ?? []);
-		  }, [post]);
+		    const items = res.value.items ?? [];
+		    setList(items);
+		    COMMUNITY_LIST_CACHE.set(
+		      communityCacheKey(activeServer, account?.id ?? null, direction === "SEEK_STUDENT" ? "joinable" : "works"),
+		      items
+		    );
+		  }, [post, activeServer, account?.id, listScope, session?.sessionId]);
 		  const loadProposals = import_react.default.useCallback(async () => {
 		    setProposalsLoading(true);
 		    setProposalsError(null);
 		    const res = await post("mentor/list", {});
+		    if (currentListScope.current !== listScope) return;
 		    setProposalsLoading(false);
 		    if (!res.ok) {
 		      setProposals(null);
@@ -4733,8 +5043,10 @@ window.__ModuleLoader__.load({
 		      );
 		      return;
 		    }
-		    setProposals(res.value.proposals ?? []);
-		  }, [post]);
+		    const proposals2 = res.value.proposals ?? [];
+		    setProposals(proposals2);
+		    COMMUNITY_LIST_CACHE.set(communityCacheKey(activeServer, account?.id ?? null, "proposals", session?.sessionId), proposals2);
+		  }, [post, activeServer, account?.id, listScope, session?.sessionId]);
 		  const requestAccept = (p) => {
 		    setMentorNotice(null);
 		    setAcceptConfirm(p);
@@ -4875,21 +5187,13 @@ window.__ModuleLoader__.load({
 		    const preferred = v.currentWorkspaceId && items.some((w) => w.id === v.currentWorkspaceId) ? v.currentWorkspaceId : "";
 		    if (preferred) void selectUploadWorkspace(preferred);
 		  };
-		  const toggleUploadCategory = (_categoryId, files, next) => {
+		  const toggleUploadFiles = (relPaths, next) => {
 		    setUploadSelected((prev) => {
 		      const out = new Set(prev);
-		      for (const rel of files) {
+		      for (const rel of relPaths) {
 		        if (next) out.add(rel);
 		        else out.delete(rel);
 		      }
-		      return out;
-		    });
-		  };
-		  const toggleUploadFile = (relPath, next) => {
-		    setUploadSelected((prev) => {
-		      const out = new Set(prev);
-		      if (next) out.add(relPath);
-		      else out.delete(relPath);
 		      return out;
 		    });
 		  };
@@ -5092,6 +5396,7 @@ window.__ModuleLoader__.load({
 		    setMineLoading(true);
 		    setMineError(null);
 		    const res = await post("work/mine", {});
+		    if (currentListScope.current !== listScope) return;
 		    setMineLoading(false);
 		    if (!res.ok) {
 		      setMine(null);
@@ -5103,19 +5408,45 @@ window.__ModuleLoader__.load({
 		    const value = res.value;
 		    setMine(value.items ?? []);
 		    setMineRegistry(value.registry ?? null);
-		  }, [post]);
+		    COMMUNITY_LIST_CACHE.set(communityCacheKey(activeServer, account?.id ?? null, "mine", session?.sessionId), value);
+		  }, [post, activeServer, account?.id, listScope, session?.sessionId]);
 		  import_react.default.useEffect(() => {
-		    if (!activeServer) return;
+		    if (!activeServer) {
+		      setMine(null);
+		      setMineRegistry(null);
+		      setMineError(null);
+		      setMineLoading(false);
+		      return;
+		    }
+		    const key = communityCacheKey(activeServer, account?.id ?? null, "mine", session?.sessionId);
+		    const hit = COMMUNITY_LIST_CACHE.get(key);
+		    if (hit !== void 0) {
+		      const value = hit;
+		      setMine(value.items ?? []);
+		      setMineRegistry(value.registry ?? null);
+		      setMineError(null);
+		      setMineLoading(false);
+		      return;
+		    }
 		    void loadMine();
-		  }, [activeServer, loadMine]);
+		  }, [activeServer, account?.id, loadMine]);
 		  import_react.default.useEffect(() => {
 		    if (!activeServer || !configured) {
 		      setProposals(null);
 		      setProposalsError(null);
+		      setProposalsLoading(false);
+		      return;
+		    }
+		    const key = communityCacheKey(activeServer, account?.id ?? null, "proposals", session?.sessionId);
+		    const hit = COMMUNITY_LIST_CACHE.get(key);
+		    if (hit !== void 0) {
+		      setProposals(hit);
+		      setProposalsError(null);
+		      setProposalsLoading(false);
 		      return;
 		    }
 		    void loadProposals();
-		  }, [activeServer, configured, loadProposals]);
+		  }, [activeServer, account?.id, configured, loadProposals]);
 		  const openPublish = async (w, direction) => {
 		    setDialogLoading({ id: w.id, direction });
 		    setPublishNotice(null);
@@ -5217,9 +5548,25 @@ window.__ModuleLoader__.load({
 		      setDetail(null);
 		      return;
 		    }
-		    void loadWorks("SEEK_MENTOR");
-		    void loadWorks("SEEK_STUDENT");
-		  }, [account, activeServer, loadWorks]);
+		    const keyMentor = communityCacheKey(activeServer, account.id, "works");
+		    const keyJoin = communityCacheKey(activeServer, account.id, "joinable");
+		    const hitMentor = COMMUNITY_LIST_CACHE.get(keyMentor);
+		    const hitJoin = COMMUNITY_LIST_CACHE.get(keyJoin);
+		    setOpen(null);
+		    setDetail(null);
+		    if (hitMentor !== void 0) {
+		      setWorks(hitMentor);
+		      setWorksError(null);
+		      setWorksLoading(false);
+		    }
+		    if (hitJoin !== void 0) {
+		      setJoinable(hitJoin);
+		      setJoinableError(null);
+		      setJoinableLoading(false);
+		    }
+		    if (hitMentor === void 0) void loadWorks("SEEK_MENTOR");
+		    if (hitJoin === void 0) void loadWorks("SEEK_STUDENT");
+		  }, [account?.id, activeServer, loadWorks]);
 		  const toggleSummary = async (w) => {
 		    if (open?.projectId === w.projectId && open.kind === "summary") {
 		      setOpen(null);
@@ -5865,20 +6212,13 @@ window.__ModuleLoader__.load({
 		        expanded: dialog.expanded,
 		        busy: publishing !== null,
 		        progress: publishProgress,
-		        onToggleCategory: (categoryId, files, next) => setDialog((d) => {
+		        onToggleFiles: (relPaths, next) => setDialog((d) => {
 		          if (!d) return d;
 		          const sel = new Set(d.selection);
-		          for (const f of files) {
+		          for (const f of relPaths) {
 		            if (next) sel.add(f);
 		            else sel.delete(f);
 		          }
-		          return { ...d, selection: sel };
-		        }),
-		        onToggleFile: (relPath, next) => setDialog((d) => {
-		          if (!d) return d;
-		          const sel = new Set(d.selection);
-		          if (next) sel.add(relPath);
-		          else sel.delete(relPath);
 		          return { ...d, selection: sel };
 		        }),
 		        onToggleExpand: (categoryId) => setDialog((d) => {
@@ -6060,8 +6400,7 @@ window.__ModuleLoader__.load({
 		        progress: uploadProgress,
 		        notice: exchangeNotice,
 		        onSelectWorkspace: (id) => void selectUploadWorkspace(id),
-		        onToggleCategory: toggleUploadCategory,
-		        onToggleFile: toggleUploadFile,
+		        onToggleFiles: toggleUploadFiles,
 		        onToggleExpand: toggleUploadExpand,
 		        onUpload: () => void runUpload(),
 		        onClose: () => setExchange(null)
@@ -6239,11 +6578,8 @@ window.__ModuleLoader__.load({
 		                      gap: 2
 		                    },
 		                    children: [
-		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: view.iAmAcceptor ? view.counterparty?.displayName ?? t("community.mentor.unknownParty") : proposalWorkLabel(p) ?? t("community.mentor.untitledProject") }),
-		                      (() => {
-		                        const line = view.iAmAcceptor ? proposalWorkLabel(p) ?? t("community.mentor.untitledProject") : view.counterparty?.displayName ?? "";
-		                        return line ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: line }) : null;
-		                      })(),
+		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: proposalWorkLabel(p) ?? t("community.mentor.untitledProject") }),
+		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: view.counterparty?.displayName ?? t("community.mentor.unknownParty") }),
 		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: feeText(p) }),
 		                      sideSyncHint(t, p, view) ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-warn-primary)" }, children: sideSyncHint(t, p, view) }) : null
 		                    ]

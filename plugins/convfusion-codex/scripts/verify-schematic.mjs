@@ -28,6 +28,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const lib = (f) => pathToFileURL(join(ROOT, 'lib', f)).href
 
 const S = await import(lib('research/schematic/index.js'))
+const { findDiagramPython } = await import(lib('research/diagram/export.js'))
 
 let failed = 0
 let passed = 0
@@ -292,6 +293,16 @@ if (existsSync(skillPath)) {
   ok('技能给出「选哪个」的判据（Which tool 段）', /^## Which tool$/m.test(md))
   ok('技能说明一篇论文不混用两者', /one paper uses one of them/i.test(md))
   ok('技能不再声称"本技能不导出 PDF"', !/does not export PDF/i.test(md))
+}
+
+/* ── 换行、回边与长说明必须验证导出的 PDF ─────────────────────── */
+try {
+  const probe = findDiagramPython()
+  if (!probe.ok) throw new Error(probe.error)
+  const report = execFileSync(probe.python, [join(ROOT, 'scripts/verify-figure-layout.py'), out, JSON.stringify(specBase)], { encoding: 'utf8' })
+  ok('说明换行、回边单走廊与长说明 PDF 回归通过', report.includes('Figure layout passed'))
+} catch (error) {
+  ok('说明换行、回边单走廊与长说明 PDF 回归通过', false, String(error))
 }
 
 /* ── 结果 ─────────────────────────────────────────────────────── */
