@@ -34,16 +34,52 @@ ConvFusion 帮助研究者在 Codex 中完成文献整理、研究规划、实�
 
 ## 安装
 
+### Codex 桌面版
+
+1. 打开 Codex 的**设置 → 插件**，点击右上角的**添加**，选择**添加插件市场**。
+
+   ![在插件设置中选择“添加插件市场”](./assets/readme/codex-install-01-add-marketplace.png)
+2. 在**来源**中输入本项目的 GitHub 仓库 `ConvFusion/ConvFusion-codex`，然后点击**添加市场**。
+
+   ![填写 ConvFusion 插件市场的 GitHub 仓库来源](./assets/readme/codex-install-02-marketplace-source.png)
+3. 添加完成后，在**市场**标签页确认列表中出现 **ConvFusion**，再点击右上角的**浏览目录**。
+
+   ![确认 ConvFusion 市场已添加并打开插件目录](./assets/readme/codex-install-03-browse-directory.png)
+4. 切换到**个人**分类，在 **ConvFusion** 分组中找到 **ConvFusion Research**，点击右侧的 **＋** 按钮安装，并按界面提示完成后续操作。
+
+   ![在个人插件目录中安装 ConvFusion Research](./assets/readme/codex-install-04-install-plugin.png)
+
+### 命令行安装
+
 ```bash
 codex plugin marketplace add ConvFusion/ConvFusion-codex --ref main
 codex plugin add convfusion-codex@convfusion
 ```
 
+### 安装后：启用钩子（Hooks）
+
 安装后重新打开 Codex 或创建一个新任务，无需单独部署服务。
 
-自动上下文、回合进展和自动推进需要在 Codex 中审核并信任插件的 Hooks。未启用 Hooks 时，仍可通过聊天和工作台使用研究工具。
+钩子让插件在会话开始、提交需求和调用工具前自动刷新研究上下文，并在每轮结束时记录研究进展、按设定的轮数上限衔接后续研究。安装插件后，还需要单独审核并信任这些钩子，才能使用自动上下文、回合进展和自动推进功能。
+
+1. 打开**设置 → 钩子**，在**来自插件**中选择 **ConvFusion Research**。
+
+   ![在钩子设置中选择 ConvFusion Research](./assets/readme/codex-hooks-01-open-settings.png)
+2. 展开查看各项钩子的配置，按 Codex 提示完成信任审核，并打开需要使用的开关。蓝色开关表示已启用；使用完整的自动上下文、回合进展和自动推进功能时，请启用该插件的全部钩子。
+
+   ![查看并启用 ConvFusion Research 的各项钩子](./assets/readme/codex-hooks-02-enable-hooks.png)
+
+自动推进仅适用于已授权的研究任务，受轮数上限控制，可在工作台的研究进展页关闭或调整。**未启用钩子时，仍可通过聊天和工作台使用研究工具。**
 
 ## 更新
+
+### Codex 桌面版
+
+打开**设置 → 插件 → 市场**，找到 **ConvFusion**，点击右侧的**升级**按钮，等待界面提示更新完成即可。
+
+![在插件市场设置中升级 ConvFusion](./assets/readme/codex-upgrade-marketplace.png)
+
+### 命令行更新
 
 ```bash
 codex plugin marketplace upgrade convfusion
@@ -71,7 +107,7 @@ $convfusion-research 帮我建立一个关于无人机视觉-LiDAR 跨模态定�
 
 ## 交互界面
 
-在 Codex 的插件应用列表中打开 **ConvFusion 工作台**，即可登录账号、浏览研究网络和研究方法。
+在 Codex 的侧边栏或插件应用列表中打开 **ConvFusion 工作台**，即可登录账号、浏览研究网络和研究方法。
 
 也可以在聊天中提出：
 
