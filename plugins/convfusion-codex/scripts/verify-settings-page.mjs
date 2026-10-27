@@ -2464,7 +2464,7 @@ console.log('\n[13] 指导闭环：下载 / 上传')
   assert(src.includes("t('community.exchange.zipOnly')"), '对话框说明"只存 ZIP，不解压"')
   assert(src.includes("t('community.exchange.destHint', { dest })"), '落点路径可见')
   assert(
-    /post\('mentor\/download',\s*\{[\s\S]{0,200}?workspaceId: target\.selection/.test(src),
+    /workspaceId: target\.selection/.test(src) && /post\(session\?\.downloadTasks \? 'mentor\/downloadStart' : 'mentor\/download', downloadPayload\(attempted\)\)/.test(src),
     '下载按工作区 id 提交（路径由宿主解析，客户端递不进任意路径）',
   )
   /*
@@ -2493,7 +2493,7 @@ console.log('\n[13] 指导闭环：下载 / 上传')
    * 比对在宿主（本地水位 vs 服务器 workspace_*），界面只负责**显示与刷新**。
    */
   assert(
-    /community\.exchange\.downloadDone[\s\S]{0,600}?await loadProposals\(\)/.test(src),
+    /community\.exchange\.downloadDone[\s\S]{0,600}?(?:await|void) loadProposals\(\)/.test(src),
     '下载成功后刷新提案（"学生更新了"的提示当场消失，而不是等下次刷新）',
   )
   /*

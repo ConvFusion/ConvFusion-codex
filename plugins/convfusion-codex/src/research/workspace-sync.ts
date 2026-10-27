@@ -31,7 +31,7 @@ import {
   openSync,
   readdirSync,
   readFileSync,
-  renameSync,
+  linkSync,
   statSync,
   unlinkSync,
   writeSync,
@@ -111,6 +111,8 @@ export function safeDirName(raw: string, fallback = 'download'): string {
  * `commit` 因此先查 ZIP 结尾的 EOCD（中央目录结束记录）与条目数，不合格**抛错**。
  */
 export interface DownloadPart {
+  /** Temporary path, used to recover a worker interrupted before cleanup. */
+  readonly path: string
   /** 已经写到盘上的字节数（进度用）。 */
   readonly received: number
   /** 顺序追加一块。 */
@@ -222,6 +224,7 @@ export function openDownloadPart(dir: string, nameHint = 'download'): DownloadPa
   }
 
   return {
+    path: partPath,
     get received() {
       return received
     },
@@ -255,11 +258,14 @@ export function openDownloadPart(dir: string, nameHint = 'download'): DownloadPa
       const stem = name.replace(/\.zip$/i, '')
       let target = join(dir, name)
       let n = 2
-      while (existsSync(target)) {
-        target = join(dir, `${stem}-${n}.zip`)
-        n += 1
+      for (;;) {
+        try { linkSync(partPath, target); break }
+        catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+          target = join(dir, `${stem}-${n++}.zip`)
+        }
       }
-      renameSync(partPath, target)
+      try { unlinkSync(partPath) } catch { /* Published successfully; cleanup can be retried later. */ }
       return { path: target, name: relative(dir, target), bytes: received }
     },
 

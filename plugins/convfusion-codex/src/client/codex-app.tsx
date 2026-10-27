@@ -7,7 +7,7 @@ import { ResearchProgressPanel } from './progress-panel.js'
 import { dictionaries, type Translate } from './i18n/index.js'
 import logo from '../../assets/favicon.svg'
 
-type Session = { workspaceRoot: string | null; sessionId: string | null; title: string; version: string; uiScope: 'global' | 'workspace'; uiSession: string; url?: string }
+type Session = { workspaceRoot: string | null; sessionId: string | null; title: string; version: string; uiScope: 'global' | 'workspace'; uiSession: string; downloadTasks?: boolean; url?: string }
 let session: Session | undefined
 let app: App | undefined
 const inHost = window.parent !== window
@@ -18,7 +18,7 @@ const ready = new Promise<Session>((resolve) => { boot = resolve })
 const transport: SettingsSend = async (endpoint, payload, signal) => {
   if (app) {
     if (!session) await ready
-    const result = await app.callServerTool({ name: 'research_ui_action', arguments: { ...(session!.workspaceRoot ? { workspace_root: session!.workspaceRoot } : {}), ui_session: session!.uiSession, endpoint, payload: payload ?? {} } })
+    const result = await app.callServerTool({ name: 'research_ui_action', arguments: { ...(session!.workspaceRoot ? { workspace_root: session!.workspaceRoot } : {}), ui_session: session!.uiSession, endpoint, payload: payload ?? {} } }, { signal })
     const value = result.structuredContent
     if (value && typeof value.ok === 'boolean') return value as unknown as Awaited<ReturnType<SettingsSend>>
     throw new Error('界面未收到服务返回的数据')
@@ -47,11 +47,11 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
     return template.replace(/\{(\w+)\}/g, (match, name: string) => params && name in params ? String(params[name]) : match)
   }, [language])
   const zh = language === 'zh'
-  const bridge = current.sessionId ? {
-    sessionId: current.sessionId, draftEmpty: false,
+  const bridge = {
+    sessionId: current.sessionId ?? '', draftEmpty: false, downloadTasks: current.downloadTasks === true,
     syncCommand: (zip: string) => `$convfusion-research 同步研究资料 ${JSON.stringify(zip)}`,
     ...(app && current.uiScope === 'workspace' ? { prepareSync: (text: string) => { setSyncDraft(text); setSendError('') } } : {}),
-  } : undefined
+  }
   const sendSync = async () => {
     if (!app || !syncDraft?.trim()) return
     setSending(true); setSendError('')

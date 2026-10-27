@@ -74,6 +74,7 @@
  */
 import { existsSync, realpathSync, statSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
 import { CONVFUSION_API_KEY_ENV, OPENALEX_API_KEY_ENV, defaultServerUrl, serverUrlPresets, serverSlotOf, serverAddressKey, } from './config.js';
 import { HOST_PROTOCOL, HOST_PROTOCOL_FIELD } from './protocol.js';
 import { checkSideChange } from './research/sync-watermarks.js';
@@ -1158,7 +1159,7 @@ export function createSettingsRpcHandler(deps) {
             publishedStore.updateByProject(record.projectId, { serverVisibility: 'PUBLISHED', checkedAt });
         }
     };
-    return async (endpoint, payload) => {
+    return async (endpoint, payload, downloadControl) => {
         const p = (payload ?? {});
         try {
             switch (endpoint) {
@@ -2726,7 +2727,11 @@ export function createSettingsRpcHandler(deps) {
                          */
                         const latest = new Map();
                         for (const f of files)
-                            latest.set(f.relativePath, f.size);
+                            latest.set(f.relativePath, f);
+                        const downloadRevision = createHash('sha256').update(JSON.stringify([
+                            remoteWorkspaceId,
+                            [...latest.values()].sort((a, b) => a.relativePath.localeCompare(b.relativePath)),
+                        ])).digest('hex');
                         const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : null;
                         /*
                          * **逐项校验目标工作区**（这一步是 v23 的全部意义）：
@@ -2754,7 +2759,8 @@ export function createSettingsRpcHandler(deps) {
                             ok: true,
                             value: {
                                 files: latest.size,
-                                bytes: [...latest.values()].reduce((sum, size) => sum + size, 0),
+                                bytes: [...latest.values()].reduce((sum, file) => sum + file.size, 0),
+                                downloadRevision,
                                 available: listed?.available ?? false,
                                 reason: listed?.reason ?? null,
                                 /*
@@ -2782,7 +2788,7 @@ export function createSettingsRpcHandler(deps) {
                     }
                 }
                 case 'mentor/download': {
-                    const config = deps.getConfig();
+                    const config = downloadControl?.config ?? deps.getConfig();
                     const apiKey = resolveConvFusionApiKey(config, env());
                     if (!apiKey)
                         return fail('not-configured', '尚未登录 ConvFusion.com。');
@@ -2830,12 +2836,18 @@ export function createSettingsRpcHandler(deps) {
                     const progress = { projectId, received: 0, running: true };
                     downloadProgress = progress;
                     try {
+                        downloadControl?.onPart(part.path);
+                        downloadControl?.check();
                         const base = resolveServerUrl(config, env()).url;
                         const { received, filename, fileCount, sourceUpdatedAt, workspaceId: archivedId, } = await fetchProjectArchive(base, apiKey, projectId, part, {
                             source,
                             ...netOptions(),
+                            signal: downloadControl?.signal,
+                            check: downloadControl?.check,
+                            onHeaders: downloadControl?.onHeaders,
                             onProgress: (n) => {
                                 progress.received = n;
+                                downloadControl?.onProgress(n);
                             },
                         });
                         /*
@@ -2851,7 +2863,11 @@ export function createSettingsRpcHandler(deps) {
                             ? buildDownloadTarget({ id: target.id, title: target.title, path: target.path }, archivedId, deps.workIdentity)
                             : inspected;
                         // 校验（ZIP 完整性 + 条目数）在这一步：不合格会抛错，半成品同时被清掉
+                        downloadControl?.validating();
+                        downloadControl?.check();
                         const saved = part.commit(filename ?? fallback, { fileCount });
+                        downloadControl?.onSaved({ dir: target.path, ...saved, researchRoot: settled.researchRoot,
+                            workspaceStatus: settled.status, workspaceLayout: settled.layout, workspaceId: authoritative });
                         /*
                          * 存下**这一版**的水位 —— 两个值都取自**本次归档响应**本身，
                          * 不取下载前后列表里的：下载前的可能比 ZIP 旧（多提示一次、不漏），
@@ -2863,11 +2879,14 @@ export function createSettingsRpcHandler(deps) {
                          * 老服务器没有 `X-Source-Updated-At` → 不写：保持"未知"比写一个错的水位强。
                          */
                         if (sourceUpdatedAt) {
-                            deps.syncStore?.set(base, projectId, source, {
-                                updatedAt: sourceUpdatedAt,
-                                fileCount,
-                                downloadedAt: new Date().toISOString(),
-                            });
+                            try {
+                                deps.syncStore?.set(base, projectId, source, {
+                                    updatedAt: sourceUpdatedAt,
+                                    fileCount,
+                                    downloadedAt: new Date().toISOString(),
+                                });
+                            }
+                            catch { /* A bookkeeping error must not report a saved ZIP as failed. */ }
                         }
                         /*
                          * **落身份**（v23）：把"这个工作区属于哪一项研究"记下来，下次下载就能判定。
@@ -2891,27 +2910,30 @@ export function createSettingsRpcHandler(deps) {
                          * 把两项研究认成一项 —— 下一次下载的判定就全错了。`unknown` / `unverifiable`
                          * 同理：还没确认，就不写（由提示词里的 agent 在整合完成后写）。
                          */
-                        if (identityId && settled.status === 'same' && settled.layout !== null && settled.researchRoot) {
-                            const identity = makeWorkIdentity({
-                                workspaceId: identityId,
-                                projectId,
-                                serverUrl: base,
-                                accountId: (await resolveAccountId(base, apiKey)) ?? '',
-                                // 下 `owner` 侧 = 我在别人的研究里当导师（拿的是学生的工作区）；反之亦然
-                                role: source === 'owner' ? 'mentor' : 'owner',
-                                // 注册表按路径存 → 记下"这条身份属于当时住在这里的那项研究"
-                                ...(researchRootFingerprint(settled.researchRoot)
-                                    ? { rootFingerprint: researchRootFingerprint(settled.researchRoot) }
-                                    : {}),
-                            });
-                            try {
-                                deps.workIdentity?.set(settled.researchRoot, identity);
+                        try {
+                            if (identityId && settled.status === 'same' && settled.layout !== null && settled.researchRoot) {
+                                const identity = makeWorkIdentity({
+                                    workspaceId: identityId,
+                                    projectId,
+                                    serverUrl: base,
+                                    accountId: (await resolveAccountId(base, apiKey)) ?? '',
+                                    // 下 `owner` 侧 = 我在别人的研究里当导师（拿的是学生的工作区）；反之亦然
+                                    role: source === 'owner' ? 'mentor' : 'owner',
+                                    // 注册表按路径存 → 记下"这条身份属于当时住在这里的那项研究"
+                                    ...(researchRootFingerprint(settled.researchRoot)
+                                        ? { rootFingerprint: researchRootFingerprint(settled.researchRoot) }
+                                        : {}),
+                                });
+                                try {
+                                    deps.workIdentity?.set(settled.researchRoot, identity);
+                                }
+                                catch {
+                                    /* 记账失败不该让下载失败：文件已经在盘上了 */
+                                }
+                                writeWorkMarker(settled.researchRoot, identity);
                             }
-                            catch {
-                                /* 记账失败不该让下载失败：文件已经在盘上了 */
-                            }
-                            writeWorkMarker(settled.researchRoot, identity);
                         }
+                        catch { /* ZIP is already saved; identity bookkeeping is optional. */ }
                         /*
                          * 记一张**待同步便签**：`/research sync @这个.zip` 靠它知道"这是服务器上的哪项研究"。
                          *

@@ -484,6 +484,10 @@ export const STALL_TIMEOUT_MS = 30_000
  * 因此进度是真的、内存不随文件大小增长。
  */
 export interface BinaryStreamOptions extends ServerRequestOptions {
+  signal?: AbortSignal
+  /** Worker ownership/cancellation must be checked before writing or publishing. */
+  check?: () => void
+  onHeaders?: (totalBytes: number | null) => void
   /** 每收到一块就回调（**顺序**调用，调用方可以同步写盘）。 */
   onChunk?: (chunk: Uint8Array) => void
   /** 累计收到多少字节（进度用；每块一次）。 */
@@ -1313,6 +1317,18 @@ export async function fetchProjectFilesWithIdentity(
  * 两个阶段各有各的超时：**响应头**用 `timeoutMs`（服务器还在打包，超过就该说超时），
  * **正文**用 `stallTimeoutMs` 的卡死判据（见 {@link readBody}）。
  */
+async function waitForAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise
+  if (signal.aborted) { promise.catch(() => {}); signal.throwIfAborted() }
+  let abort: () => void = () => {}
+  const cancelled = new Promise<never>((_resolve, reject) => {
+    abort = () => reject(signal.reason ?? new Error('Cancelled'))
+    signal.addEventListener('abort', abort, { once: true })
+  })
+  try { return await Promise.race([promise, cancelled]) }
+  finally { signal.removeEventListener('abort', abort) }
+}
+
 async function fetchBinary(
   base: string,
   path: string,
@@ -1333,65 +1349,73 @@ async function fetchBinary(
   if (typeof fetchImpl !== 'function') throw new ServerError('unreachable', '当前运行环境没有可用的 fetch。')
   const timeoutMs = options.timeoutMs ?? SERVER_TIMEOUT_MS
   const controller = new AbortController()
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => {
-      controller.abort()
-      reject(new ServerError('unreachable', `${label}超时（${Math.round(timeoutMs / 1000)} 秒）。`))
-    }, timeoutMs)
-  })
-  let res: Awaited<ReturnType<FetchLike>>
+  const abort = () => controller.abort(options.signal?.reason)
+  options.signal?.addEventListener('abort', abort, { once: true })
   try {
-    res = await Promise.race([
-      fetchImpl(apiUrl(base, path), {
-        method: 'GET',
-        headers: { authorization: `Bearer ${apiKey}` },
-        signal: controller.signal,
-      }),
-      timeout,
-    ])
-  } catch (e) {
-    if (e instanceof ServerError) throw e
-    throw new ServerError('unreachable', `${label}失败：${e instanceof Error ? e.message : String(e)}`)
-  } finally {
-    if (timer !== undefined) clearTimeout(timer)
-  }
-  if (!res.ok) {
-    let body: unknown
+    options.signal?.throwIfAborted()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        controller.abort()
+        reject(new ServerError('unreachable', `${label}超时（${Math.round(timeoutMs / 1000)} 秒）。`))
+      }, timeoutMs)
+    })
+    let res: Awaited<ReturnType<FetchLike>>
     try {
-      body = await res.json()
-    } catch {
-      body = undefined
+      res = await waitForAbort(Promise.race([
+        fetchImpl(apiUrl(base, path), {
+          method: 'GET',
+          headers: { authorization: `Bearer ${apiKey}` },
+          signal: controller.signal,
+        }),
+        timeout,
+      ]), options.signal)
+    } catch (e) {
+      if (e instanceof ServerError) throw e
+      throw new ServerError('unreachable', `${label}失败：${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      if (timer !== undefined) clearTimeout(timer)
     }
-    throw mapHttpError(res.status, body)
-  }
-  const contentDisposition = res.headers?.get('content-disposition') ?? null
-  const fileCount = asNumberOrNull(res.headers?.get('x-file-count'))
-  /*
-   * 这一版的水位（服务器 `GET /files/archive` 的 `X-Source-Updated-At`）。
-   *
-   * ⚠️ **只信归档自己报的**：下载前后列表里的 `workspace_updated_at` 可能与 ZIP 错位 ——
-   * 取早了多提示一次（能接受），取晚了**会漏文件**（学生在下载途中又传了）。
-   * 老服务器没这个头 → `null` → 调用方不存水位（宁可保持"未知"，不写个错的）。
-   */
-  const sourceUpdatedAt = res.headers?.get('x-source-updated-at') ?? null
-  /*
-   * 这一版归档属于**哪一项研究**（服务器 `GET /files/archive` 的 `X-Workspace-Id`）。
-   *
-   * 与 `GET /files` 响应体顶层的 `workspace_id` 是**同一个值**（服务器两侧一致），
-   * 所以"预检时比对的目标"和"落盘后记下的身份"不会错位。老服务器没有这个头 → `null`
-   * → 不写身份（保持"未知"比写一个错的强）。
-   */
-  const workspaceId = normalizeWorkspaceId(res.headers?.get('x-workspace-id'))
-  const received = await readBody(res, options, label, controller)
-  return {
-    bytes: received.bytes,
-    contentDisposition,
-    fileCount,
-    sourceUpdatedAt,
-    workspaceId,
-    received: received.total,
-  }
+    if (!res.ok) {
+      let body: unknown
+      try {
+        body = await waitForAbort(res.json(), options.signal)
+      } catch {
+        body = undefined
+      }
+      throw mapHttpError(res.status, body)
+    }
+    const rawLength = res.headers?.get('content-length')
+    const length = rawLength ? Number(rawLength) : NaN
+    options.onHeaders?.(Number.isSafeInteger(length) && length >= 0 ? length : null)
+    const contentDisposition = res.headers?.get('content-disposition') ?? null
+    const fileCount = asNumberOrNull(res.headers?.get('x-file-count'))
+    /*
+     * 这一版的水位（服务器 `GET /files/archive` 的 `X-Source-Updated-At`）。
+     *
+     * ⚠️ **只信归档自己报的**：下载前后列表里的 `workspace_updated_at` 可能与 ZIP 错位 ——
+     * 取早了多提示一次（能接受），取晚了**会漏文件**（学生在下载途中又传了）。
+     * 老服务器没这个头 → `null` → 调用方不存水位（宁可保持"未知"，不写个错的）。
+     */
+    const sourceUpdatedAt = res.headers?.get('x-source-updated-at') ?? null
+    /*
+     * 这一版归档属于**哪一项研究**（服务器 `GET /files/archive` 的 `X-Workspace-Id`）。
+     *
+     * 与 `GET /files` 响应体顶层的 `workspace_id` 是**同一个值**（服务器两侧一致），
+     * 所以"预检时比对的目标"和"落盘后记下的身份"不会错位。老服务器没有这个头 → `null`
+     * → 不写身份（保持"未知"比写一个错的强）。
+     */
+    const workspaceId = normalizeWorkspaceId(res.headers?.get('x-workspace-id'))
+    const received = await readBody(res, options, label, controller)
+    return {
+      bytes: received.bytes,
+      contentDisposition,
+      fileCount,
+      sourceUpdatedAt,
+      workspaceId,
+      received: received.total,
+    }
+  } finally { options.signal?.removeEventListener('abort', abort) }
 }
 
 /** `X-File-Count` 这类头：非数字/缺失都当"没给"，不是 0。 */
@@ -1462,12 +1486,14 @@ async function readBody(
     })
     stall.catch(() => {})
     try {
-      return await Promise.race([p, stall])
+      return await waitForAbort(Promise.race([p, stall]), options.signal)
     } finally {
       if (timer !== undefined) clearTimeout(timer)
     }
   }
   const take = (chunk: Uint8Array): void => {
+    options.signal?.throwIfAborted()
+    options.check?.()
     total += chunk.byteLength
     if (onChunk) onChunk(chunk)
     else chunks.push(chunk)
@@ -1488,6 +1514,7 @@ async function readBody(
       if (buf.byteLength > 0) take(buf)
     }
   } catch (e) {
+    controller.abort()
     if (stalled) {
       throw new ServerError(
         'unreachable',
@@ -1559,7 +1586,7 @@ export async function fetchProjectArchive(
     base,
     `/projects/${encodeURIComponent(id)}/files/archive${sourceQuery(options.source)}`,
     key,
-    { ...options, onChunk: (chunk) => sink.write(chunk) },
+    { ...options, timeoutMs: options.timeoutMs ?? 120_000, onChunk: (chunk) => sink.write(chunk) },
     '下载工作区快照',
   )
   return {

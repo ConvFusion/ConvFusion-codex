@@ -7,14 +7,15 @@ import { pathToFileURL } from "node:url";
 
 // scripts/codex-ui-server.mjs
 import { createServer } from "node:http";
-import { createHash as createHash2, randomBytes as randomBytes3 } from "node:crypto";
-import { existsSync as existsSync30, readFileSync as readFileSync27, realpathSync as realpathSync5, statSync as statSync10 } from "node:fs";
-import { basename as basename4, dirname as dirname14, isAbsolute as isAbsolute9, join as join29, resolve as resolve10, relative as relative7, sep as sep5 } from "node:path";
+import { createHash as createHash4, randomBytes as randomBytes4 } from "node:crypto";
+import { existsSync as existsSync30, readFileSync as readFileSync27, realpathSync as realpathSync5, statSync as statSync11 } from "node:fs";
+import { basename as basename5, dirname as dirname15, isAbsolute as isAbsolute9, join as join30, resolve as resolve10, relative as relative7, sep as sep5 } from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 
 // lib/settings-rpc.js
-import { existsSync as existsSync23, realpathSync, statSync as statSync7 } from "node:fs";
+import { existsSync as existsSync22, realpathSync, statSync as statSync7 } from "node:fs";
 import { basename, resolve as resolve5 } from "node:path";
+import { createHash } from "node:crypto";
 
 // lib/config.js
 import { homedir as homedir2 } from "node:os";
@@ -2353,11 +2354,11 @@ function loadSkillLibrary(workspace, store) {
   };
 }
 function recommendSkills(workspace, context, store) {
-  const view = loadSkillLibrary(workspace, store);
+  const view2 = loadSkillLibrary(workspace, store);
   const terms = [context.topic ?? "", ...context.keywords ?? []].join(" ").toLowerCase().split(/[^a-z0-9\u4e00-\u9fff]+/).filter((t) => t.length >= 3);
   if (terms.length === 0)
     return [];
-  return view.entries.map((e) => {
+  return view2.entries.map((e) => {
     const hay = `${e.document.name} ${e.document.id} ${e.purpose} ${e.whenToUse} ${e.document.category ?? ""}`.toLowerCase();
     const score = terms.reduce((n, t) => hay.includes(t) ? n + 1 : n, 0);
     return { e, score };
@@ -2377,7 +2378,7 @@ function skillSummaries(_workspace) {
 
 // lib/research/workspace-sync.js
 import { randomBytes } from "node:crypto";
-import { closeSync, existsSync as existsSync6, mkdirSync as mkdirSync4, openSync, readdirSync as readdirSync3, readFileSync as readFileSync6, renameSync as renameSync3, statSync, unlinkSync, writeSync } from "node:fs";
+import { closeSync, mkdirSync as mkdirSync4, openSync, readdirSync as readdirSync3, readFileSync as readFileSync6, linkSync, statSync, unlinkSync, writeSync } from "node:fs";
 import { isAbsolute as isAbsolute3, join as join6, normalize, relative as relative2, resolve as resolve3, sep } from "node:path";
 function safeJoin(root, relativePath) {
   const rel = (relativePath ?? "").trim();
@@ -2405,16 +2406,16 @@ var EOCD_WINDOW = EOCD_SIZE + 65535;
 function zipTailCheck(tail) {
   if (tail.byteLength < EOCD_SIZE)
     return { ok: false, reason: "\u6570\u636E\u592A\u77ED\uFF0C\u4E0D\u50CF\u4E00\u4E2A\u5B8C\u6574\u7684 ZIP" };
-  const view = new DataView(tail.buffer, tail.byteOffset, tail.byteLength);
+  const view2 = new DataView(tail.buffer, tail.byteOffset, tail.byteLength);
   for (let i = tail.byteLength - EOCD_SIZE; i >= 0; i -= 1) {
-    if (view.getUint32(i, true) !== EOCD_SIGNATURE)
+    if (view2.getUint32(i, true) !== EOCD_SIGNATURE)
       continue;
-    const commentLength = view.getUint16(i + 20, true);
+    const commentLength = view2.getUint16(i + 20, true);
     if (i + EOCD_SIZE + commentLength !== tail.byteLength)
       continue;
-    const entries = view.getUint16(i + 10, true);
-    const size = view.getUint32(i + 16, true);
-    const offset = view.getUint32(i + 12, true);
+    const entries = view2.getUint16(i + 10, true);
+    const size = view2.getUint32(i + 16, true);
+    const offset = view2.getUint32(i + 12, true);
     const zip64 = entries === 65535 || size === 4294967295 || offset === 4294967295;
     return { ok: true, entries: zip64 ? null : entries };
   }
@@ -2467,6 +2468,7 @@ function openDownloadPart(dir, nameHint = "download") {
     return new Error(message);
   };
   return {
+    path: partPath,
     get received() {
       return received;
     },
@@ -2500,11 +2502,20 @@ function openDownloadPart(dir, nameHint = "download") {
       const stem = name.replace(/\.zip$/i, "");
       let target = join6(dir, name);
       let n = 2;
-      while (existsSync6(target)) {
-        target = join6(dir, `${stem}-${n}.zip`);
-        n += 1;
+      for (; ; ) {
+        try {
+          linkSync(partPath, target);
+          break;
+        } catch (error2) {
+          if (error2.code !== "EEXIST")
+            throw error2;
+          target = join6(dir, `${stem}-${n++}.zip`);
+        }
       }
-      renameSync3(partPath, target);
+      try {
+        unlinkSync(partPath);
+      } catch {
+      }
       return { path: target, name: relative2(dir, target), bytes: received };
     },
     abort() {
@@ -2914,8 +2925,8 @@ async function postProjectFiles(base, apiKey, projectId, files, options, timeout
   const form = new FormData();
   for (const f of files) {
     const name = f.relPath.slice(f.relPath.lastIndexOf("/") + 1);
-    const view = f.bytes;
-    const buf = view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength);
+    const view2 = f.bytes;
+    const buf = view2.buffer.slice(view2.byteOffset, view2.byteOffset + view2.byteLength);
     form.append("files", new Blob([buf]), name);
     form.append("relative_paths", f.relPath);
   }
@@ -3013,59 +3024,89 @@ async function fetchProjectFilesWithIdentity(base, apiKey, projectId, options = 
   });
   return { files, workspaceId };
 }
+async function waitForAbort(promise, signal) {
+  if (!signal)
+    return promise;
+  if (signal.aborted) {
+    promise.catch(() => {
+    });
+    signal.throwIfAborted();
+  }
+  let abort = () => {
+  };
+  const cancelled = new Promise((_resolve, reject) => {
+    abort = () => reject(signal.reason ?? new Error("Cancelled"));
+    signal.addEventListener("abort", abort, { once: true });
+  });
+  try {
+    return await Promise.race([promise, cancelled]);
+  } finally {
+    signal.removeEventListener("abort", abort);
+  }
+}
 async function fetchBinary(base, path, apiKey, options, label) {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   if (typeof fetchImpl !== "function")
     throw new ServerError("unreachable", "\u5F53\u524D\u8FD0\u884C\u73AF\u5883\u6CA1\u6709\u53EF\u7528\u7684 fetch\u3002");
   const timeoutMs = options.timeoutMs ?? SERVER_TIMEOUT_MS;
   const controller = new AbortController();
-  let timer;
-  const timeout = new Promise((_resolve, reject) => {
-    timer = setTimeout(() => {
-      controller.abort();
-      reject(new ServerError("unreachable", `${label}\u8D85\u65F6\uFF08${Math.round(timeoutMs / 1e3)} \u79D2\uFF09\u3002`));
-    }, timeoutMs);
-  });
-  let res;
+  const abort = () => controller.abort(options.signal?.reason);
+  options.signal?.addEventListener("abort", abort, { once: true });
   try {
-    res = await Promise.race([
-      fetchImpl(apiUrl(base, path), {
-        method: "GET",
-        headers: { authorization: `Bearer ${apiKey}` },
-        signal: controller.signal
-      }),
-      timeout
-    ]);
-  } catch (e) {
-    if (e instanceof ServerError)
-      throw e;
-    throw new ServerError("unreachable", `${label}\u5931\u8D25\uFF1A${e instanceof Error ? e.message : String(e)}`);
-  } finally {
-    if (timer !== void 0)
-      clearTimeout(timer);
-  }
-  if (!res.ok) {
-    let body;
+    options.signal?.throwIfAborted();
+    let timer;
+    const timeout = new Promise((_resolve, reject) => {
+      timer = setTimeout(() => {
+        controller.abort();
+        reject(new ServerError("unreachable", `${label}\u8D85\u65F6\uFF08${Math.round(timeoutMs / 1e3)} \u79D2\uFF09\u3002`));
+      }, timeoutMs);
+    });
+    let res;
     try {
-      body = await res.json();
-    } catch {
-      body = void 0;
+      res = await waitForAbort(Promise.race([
+        fetchImpl(apiUrl(base, path), {
+          method: "GET",
+          headers: { authorization: `Bearer ${apiKey}` },
+          signal: controller.signal
+        }),
+        timeout
+      ]), options.signal);
+    } catch (e) {
+      if (e instanceof ServerError)
+        throw e;
+      throw new ServerError("unreachable", `${label}\u5931\u8D25\uFF1A${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      if (timer !== void 0)
+        clearTimeout(timer);
     }
-    throw mapHttpError(res.status, body);
+    if (!res.ok) {
+      let body;
+      try {
+        body = await waitForAbort(res.json(), options.signal);
+      } catch {
+        body = void 0;
+      }
+      throw mapHttpError(res.status, body);
+    }
+    const rawLength = res.headers?.get("content-length");
+    const length = rawLength ? Number(rawLength) : NaN;
+    options.onHeaders?.(Number.isSafeInteger(length) && length >= 0 ? length : null);
+    const contentDisposition = res.headers?.get("content-disposition") ?? null;
+    const fileCount = asNumberOrNull(res.headers?.get("x-file-count"));
+    const sourceUpdatedAt = res.headers?.get("x-source-updated-at") ?? null;
+    const workspaceId = normalizeWorkspaceId(res.headers?.get("x-workspace-id"));
+    const received = await readBody(res, options, label, controller);
+    return {
+      bytes: received.bytes,
+      contentDisposition,
+      fileCount,
+      sourceUpdatedAt,
+      workspaceId,
+      received: received.total
+    };
+  } finally {
+    options.signal?.removeEventListener("abort", abort);
   }
-  const contentDisposition = res.headers?.get("content-disposition") ?? null;
-  const fileCount = asNumberOrNull(res.headers?.get("x-file-count"));
-  const sourceUpdatedAt = res.headers?.get("x-source-updated-at") ?? null;
-  const workspaceId = normalizeWorkspaceId(res.headers?.get("x-workspace-id"));
-  const received = await readBody(res, options, label, controller);
-  return {
-    bytes: received.bytes,
-    contentDisposition,
-    fileCount,
-    sourceUpdatedAt,
-    workspaceId,
-    received: received.total
-  };
 }
 function asNumberOrNull(raw) {
   if (raw === null || raw === void 0)
@@ -3099,13 +3140,15 @@ async function readBody(res, options, label, controller) {
     stall.catch(() => {
     });
     try {
-      return await Promise.race([p, stall]);
+      return await waitForAbort(Promise.race([p, stall]), options.signal);
     } finally {
       if (timer !== void 0)
         clearTimeout(timer);
     }
   };
   const take = (chunk) => {
+    options.signal?.throwIfAborted();
+    options.check?.();
     total += chunk.byteLength;
     if (onChunk)
       onChunk(chunk);
@@ -3129,6 +3172,7 @@ async function readBody(res, options, label, controller) {
         take(buf);
     }
   } catch (e) {
+    controller.abort();
     if (stalled) {
       throw new ServerError("unreachable", `${label}\u4E2D\u65AD\uFF1A${Math.round(stallMs / 1e3)} \u79D2\u6CA1\u6709\u6536\u5230\u6570\u636E\uFF08\u5DF2\u6536 ${humanBytes(total)}\uFF09\u2014\u2014 \u7F51\u7EDC\u4E0D\u7A33\u6216\u670D\u52A1\u5668\u4E2D\u65AD\uFF0C\u8BF7\u91CD\u8BD5\u3002`);
     }
@@ -3162,7 +3206,7 @@ async function fetchProjectArchive(base, apiKey, projectId, sink, options = {}) 
   const id = (projectId ?? "").trim();
   if (!id)
     throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
-  const { contentDisposition, fileCount, sourceUpdatedAt, workspaceId, received } = await fetchBinary(base, `/projects/${encodeURIComponent(id)}/files/archive${sourceQuery(options.source)}`, key, { ...options, onChunk: (chunk) => sink.write(chunk) }, "\u4E0B\u8F7D\u5DE5\u4F5C\u533A\u5FEB\u7167");
+  const { contentDisposition, fileCount, sourceUpdatedAt, workspaceId, received } = await fetchBinary(base, `/projects/${encodeURIComponent(id)}/files/archive${sourceQuery(options.source)}`, key, { ...options, timeoutMs: options.timeoutMs ?? 12e4, onChunk: (chunk) => sink.write(chunk) }, "\u4E0B\u8F7D\u5DE5\u4F5C\u533A\u5FEB\u7167");
   return {
     received,
     filename: filenameFromDisposition(contentDisposition),
@@ -3598,7 +3642,7 @@ async function fetchRejectProposal(base, apiKey, proposalId, options = {}) {
 }
 
 // lib/research/workspace.js
-import { existsSync as existsSync8, readFileSync as readFileSync8, statSync as statSync2 } from "node:fs";
+import { existsSync as existsSync7, readFileSync as readFileSync8, statSync as statSync2 } from "node:fs";
 import { isAbsolute as isAbsolute4, join as join8, resolve as resolve4 } from "node:path";
 
 // lib/research/research-data.js
@@ -3761,14 +3805,14 @@ function normalizeSectionName(title) {
 }
 
 // lib/research/project.js
-import { existsSync as existsSync7, mkdirSync as mkdirSync5, readFileSync as readFileSync7, writeFileSync as writeFileSync4 } from "node:fs";
+import { existsSync as existsSync6, mkdirSync as mkdirSync5, readFileSync as readFileSync7, writeFileSync as writeFileSync4 } from "node:fs";
 import { dirname as dirname6, join as join7 } from "node:path";
 function projectPath(workspace) {
   return join7(workspace, PROJECT_FILE);
 }
 function loadProjectFile(workspace) {
   const file = projectPath(workspace);
-  if (!existsSync7(file))
+  if (!existsSync6(file))
     return null;
   let source;
   try {
@@ -3851,7 +3895,7 @@ function sanitizeTopic(raw) {
 }
 function updateProjectTopic(workspace, input) {
   const file = projectPath(workspace);
-  if (!existsSync7(file))
+  if (!existsSync6(file))
     return { changed: false, error: "No project.md in this workspace." };
   const source = readFileSync7(file, "utf8");
   const current = loadProjectFile(workspace)?.topic ?? "";
@@ -3916,11 +3960,11 @@ function updateProjectTopic(workspace, input) {
   return { changed: true, previous: current, current: next, initial };
 }
 function hasProjectDefinition(workspace) {
-  return existsSync7(projectPath(workspace));
+  return existsSync6(projectPath(workspace));
 }
 function readProjectSection(workspace, section) {
   const file = projectPath(workspace);
-  if (!existsSync7(file))
+  if (!existsSync6(file))
     return null;
   const body = stripFrontmatter(readFileSync7(file, "utf8"));
   const m = body.match(sectionRegex(section));
@@ -3949,7 +3993,7 @@ ${text.trim()}
 function updateProjectDefinition(workspace, input) {
   const field = input.field;
   const file = projectPath(workspace);
-  if (!existsSync7(file))
+  if (!existsSync6(file))
     return { changed: false, field, error: "No project.md in this workspace." };
   const sectionOf = {
     statement: "Research Statement",
@@ -4046,7 +4090,7 @@ function isResearchWorkspace(dir) {
   } catch {
     return false;
   }
-  return existsSync8(join8(dir, PROJECT_FILE)) || existsSync8(join8(dir, RESEARCH_STATE_FILE));
+  return existsSync7(join8(dir, PROJECT_FILE)) || existsSync7(join8(dir, RESEARCH_STATE_FILE));
 }
 var RESEARCH_ROOT_DIR = "workspace";
 function researchWorkspaceOf(sessionWorkspace) {
@@ -7169,11 +7213,11 @@ var CONVFUSION_MESSAGE_SOURCE = Object.freeze({
 });
 
 // lib/research/claims.js
-import { existsSync as existsSync10, mkdirSync as mkdirSync7, readFileSync as readFileSync10, readdirSync as readdirSync5, rmSync as rmSync3, writeFileSync as writeFileSync6 } from "node:fs";
+import { existsSync as existsSync9, mkdirSync as mkdirSync7, readFileSync as readFileSync10, readdirSync as readdirSync5, rmSync as rmSync3, writeFileSync as writeFileSync6 } from "node:fs";
 import { join as join10 } from "node:path";
 
 // lib/research/evidence.js
-import { existsSync as existsSync9, mkdirSync as mkdirSync6, readFileSync as readFileSync9, readdirSync as readdirSync4, rmSync as rmSync2, writeFileSync as writeFileSync5 } from "node:fs";
+import { existsSync as existsSync8, mkdirSync as mkdirSync6, readFileSync as readFileSync9, readdirSync as readdirSync4, rmSync as rmSync2, writeFileSync as writeFileSync5 } from "node:fs";
 import { join as join9 } from "node:path";
 var EVIDENCE_HISTORY = `${EVIDENCE_DIR}/.history`;
 function normalizeSource(raw) {
@@ -7342,7 +7386,7 @@ function createEvidence(workspace, input) {
   }
   const dir = ensureDir(workspace);
   const file = join9(dir, `${id}.md`);
-  if (existsSync9(file))
+  if (existsSync8(file))
     return { error: `Evidence \`${id}\` \u5DF2\u5B58\u5728\u3002` };
   const now = (/* @__PURE__ */ new Date()).toISOString();
   const status = input.status ?? "unverified";
@@ -7372,10 +7416,10 @@ function createEvidence(workspace, input) {
 function snapshot2(workspace, doc, note) {
   const dir = join9(workspace, EVIDENCE_HISTORY.replace(`${EVIDENCE_DIR}/`, `${EVIDENCE_DIR}/`));
   mkdirSync6(dir, { recursive: true });
-  const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
+  const stamp2 = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
   try {
     const current = readFileSync9(doc.path, "utf8");
-    writeFileSync5(join9(dir, `${doc.id}.${stamp}.md`), `<!-- snapshot: ${note} -->
+    writeFileSync5(join9(dir, `${doc.id}.${stamp2}.md`), `<!-- snapshot: ${note} -->
 ${current}`, "utf8");
   } catch {
   }
@@ -7542,7 +7586,7 @@ function createClaim(workspace, input) {
   const dir = join10(workspace, CLAIMS_DIR);
   mkdirSync7(dir, { recursive: true });
   const file = join10(dir, `${id}.md`);
-  if (existsSync10(file))
+  if (existsSync9(file))
     return { error: `Claim \`${id}\` \u5DF2\u5B58\u5728\u3002` };
   const now = (/* @__PURE__ */ new Date()).toISOString();
   writeFileSync6(file, serializeClaimDocument({
@@ -7670,7 +7714,7 @@ function createDecision(workspace, input) {
   const dir = join10(workspace, DECISIONS_DIR);
   mkdirSync7(dir, { recursive: true });
   const file = join10(dir, `${id}.md`);
-  if (existsSync10(file))
+  if (existsSync9(file))
     return { error: `Decision \`${id}\` \u5DF2\u5B58\u5728\u3002` };
   const now = (/* @__PURE__ */ new Date()).toISOString();
   writeFileSync6(file, serializeDecisionDocument({
@@ -7878,7 +7922,7 @@ function isLegacyStylePlanId(id) {
 }
 
 // lib/research/research-state.js
-import { existsSync as existsSync11, mkdirSync as mkdirSync8, readFileSync as readFileSync12, readdirSync as readdirSync7, rmSync as rmSync4, writeFileSync as writeFileSync7 } from "node:fs";
+import { existsSync as existsSync10, mkdirSync as mkdirSync8, readFileSync as readFileSync12, readdirSync as readdirSync7, rmSync as rmSync4, writeFileSync as writeFileSync7 } from "node:fs";
 import { join as join12 } from "node:path";
 function normalizeMaturity(raw) {
   const v = (raw ?? "").trim();
@@ -7962,7 +8006,7 @@ function emptyMaturity() {
 }
 function createResearchState(workspace, input = {}) {
   const file = statePath(workspace);
-  if (existsSync11(file))
+  if (existsSync10(file))
     return { error: "Research State \u5DF2\u5B58\u5728\uFF0C\u8BF7\u7528 applyStateUpdate \u66F4\u65B0\u3002" };
   const now = (/* @__PURE__ */ new Date()).toISOString();
   const maturity = { ...emptyMaturity(), ...input.maturity ?? {} };
@@ -7974,7 +8018,7 @@ function ensureResearchState(workspace) {
   return loadResearchState(workspace) ?? createResearchState(workspace);
 }
 function archiveStateVersion(workspace, doc, note) {
-  if (!existsSync11(doc.path))
+  if (!existsSync10(doc.path))
     return void 0;
   let current;
   try {
@@ -7985,7 +8029,7 @@ function archiveStateVersion(workspace, doc, note) {
   const dir = join12(workspace, STATE_HISTORY_DIR);
   mkdirSync8(dir, { recursive: true });
   const file = join12(dir, `v${doc.version.replace(/^v/i, "")}.md`);
-  if (existsSync11(file)) {
+  if (existsSync10(file)) {
     const existing = readFileSync12(file, "utf8").replace(/^<!--\s*snapshot:[\s\S]*?-->\r?\n/, "");
     if (existing.trim() === current.trim())
       return void 0;
@@ -8233,15 +8277,15 @@ function buildResearchIndex(workspace) {
 }
 
 // lib/research/stage-signals.js
-import { existsSync as existsSync16, readFileSync as readFileSync16, readdirSync as readdirSync10, statSync as statSync4 } from "node:fs";
+import { existsSync as existsSync15, readFileSync as readFileSync16, readdirSync as readdirSync10, statSync as statSync4 } from "node:fs";
 import { join as join17, relative as relative3, sep as sep2 } from "node:path";
 
 // lib/research/paper.js
-import { existsSync as existsSync13, mkdirSync as mkdirSync10, readFileSync as readFileSync13, readdirSync as readdirSync9, rmSync as rmSync5, writeFileSync as writeFileSync8 } from "node:fs";
+import { existsSync as existsSync12, mkdirSync as mkdirSync10, readFileSync as readFileSync13, readdirSync as readdirSync9, rmSync as rmSync5, writeFileSync as writeFileSync8 } from "node:fs";
 import { join as join14 } from "node:path";
 
 // lib/research/workspace-layout.js
-import { existsSync as existsSync12, mkdirSync as mkdirSync9, readdirSync as readdirSync8, statSync as statSync3 } from "node:fs";
+import { existsSync as existsSync11, mkdirSync as mkdirSync9, readdirSync as readdirSync8, statSync as statSync3 } from "node:fs";
 import { join as join13 } from "node:path";
 
 // lib/research/output-data.js
@@ -8317,7 +8361,7 @@ function ensureWorkspaceLayout(workspace) {
   const created = [];
   for (const rel of coreDirs()) {
     const abs = join13(workspace, rel);
-    if (!existsSync12(abs)) {
+    if (!existsSync11(abs)) {
       mkdirSync9(abs, { recursive: true });
       created.push(rel);
     }
@@ -8330,7 +8374,7 @@ function ensurePaperLayout(workspace, paperId) {
   for (const sub of PAPER_SUBDIRS) {
     const rel = `papers/${paperId}/${sub}`;
     const abs = join13(workspace, rel);
-    if (!existsSync12(abs)) {
+    if (!existsSync11(abs)) {
       mkdirSync9(abs, { recursive: true });
       created.push(rel);
     }
@@ -8368,7 +8412,7 @@ function inspectWorkspace(workspace) {
   const present = new Set(topLevel);
   const entries = WORKSPACE_LAYOUT.filter((e) => !e.path.includes("/")).map((e) => {
     const abs = join13(workspace, e.path);
-    const exists = existsSync12(abs);
+    const exists = existsSync11(abs);
     let empty = false;
     if (exists) {
       try {
@@ -8382,7 +8426,7 @@ function inspectWorkspace(workspace) {
   const unexpectedTopLevel = topLevel.filter((t) => !ALLOWED_TOP_LEVEL.has(t) && !t.startsWith("."));
   let unexpectedOutputDirs = [];
   const outputsPath = join13(workspace, OUTPUTS_DIR);
-  if (existsSync12(outputsPath)) {
+  if (existsSync11(outputsPath)) {
     try {
       unexpectedOutputDirs = readdirSync8(outputsPath, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith(".")).map((e) => e.name).filter((n) => !["patents", "reports", "slides"].includes(n));
     } catch {
@@ -8481,10 +8525,10 @@ ${lines.join("\n")}
 `;
 }
 function hasManuscript(workspace) {
-  const active = getActivePaperId(workspace);
-  if (existsSync13(join14(paperDir(workspace, active), "paper.md")))
+  const active2 = getActivePaperId(workspace);
+  if (existsSync12(join14(paperDir(workspace, active2), "paper.md")))
     return true;
-  return listPaperIds(workspace).some((id) => existsSync13(join14(paperDir(workspace, id), "paper.md")));
+  return listPaperIds(workspace).some((id) => existsSync12(join14(paperDir(workspace, id), "paper.md")));
 }
 function listPaperIds(workspace) {
   try {
@@ -8567,7 +8611,7 @@ function resolvePaperParameter(workspace, paperParam) {
 }
 function readPaper(workspace, paperId = DEFAULT_PAPER_ID) {
   const dir = paperDir(workspace, paperId);
-  if (!existsSync13(dir))
+  if (!existsSync12(dir))
     return null;
   const manuscriptSource = readTextOrNull(filePath(workspace, paperId, PAPER_FILES.manuscript));
   const metadataSource = readTextOrNull(filePath(workspace, paperId, PAPER_FILES.metadata));
@@ -8585,10 +8629,10 @@ function readPaper(workspace, paperId = DEFAULT_PAPER_ID) {
     present: {
       manuscript: manuscriptSource !== null,
       metadata: metadataSource !== null,
-      evolution: existsSync13(filePath(workspace, paperId, PAPER_FILES.evolution)),
-      claims: existsSync13(filePath(workspace, paperId, PAPER_FILES.claims)),
-      evidence: existsSync13(filePath(workspace, paperId, PAPER_FILES.evidence)),
-      gaps: existsSync13(filePath(workspace, paperId, PAPER_FILES.gaps))
+      evolution: existsSync12(filePath(workspace, paperId, PAPER_FILES.evolution)),
+      claims: existsSync12(filePath(workspace, paperId, PAPER_FILES.claims)),
+      evidence: existsSync12(filePath(workspace, paperId, PAPER_FILES.evidence)),
+      gaps: existsSync12(filePath(workspace, paperId, PAPER_FILES.gaps))
     }
   };
 }
@@ -8607,7 +8651,7 @@ function createPaper(workspace, input = {}) {
     return { error: `\u975E\u6CD5 Paper id\uFF1A${paperId}\uFF08kebab-case\uFF0C\u5982 paper-d1-benchmark\uFF09` };
   }
   const dir = paperDir(workspace, paperId);
-  if (existsSync13(filePath(workspace, paperId, PAPER_FILES.manuscript))) {
+  if (existsSync12(filePath(workspace, paperId, PAPER_FILES.manuscript))) {
     return { error: `Paper \`${paperId}\` \u5DF2\u5B58\u5728\u3002` };
   }
   if (input.paperType && !PAPER_TYPES.includes(input.paperType.toLowerCase())) {
@@ -8776,7 +8820,7 @@ function listEvolutionEvents(workspace, paperId = DEFAULT_PAPER_ID) {
 }
 
 // lib/research/paper-download.js
-import { existsSync as existsSync14, mkdirSync as mkdirSync11, readFileSync as readFileSync14, writeFileSync as writeFileSync9 } from "node:fs";
+import { existsSync as existsSync13, mkdirSync as mkdirSync11, readFileSync as readFileSync14, writeFileSync as writeFileSync9 } from "node:fs";
 import { join as join15 } from "node:path";
 var FULLTEXT_DIR = "research/literature/fulltext";
 var FULLTEXT_MANIFEST = `${FULLTEXT_DIR}/manifest.json`;
@@ -8883,7 +8927,7 @@ function readManifest(workspace) {
 }
 function writeManifest(workspace, manifest) {
   const abs = join15(workspace, FULLTEXT_DIR);
-  if (!existsSync14(abs))
+  if (!existsSync13(abs))
     mkdirSync11(abs, { recursive: true });
   writeFileSync9(join15(workspace, FULLTEXT_MANIFEST), `${JSON.stringify(manifest, null, 2)}
 `, "utf8");
@@ -8970,7 +9014,7 @@ async function downloadPaper(workspace, input, deps) {
   const candidates = resolveDownloadCandidates(input.links);
   const slug = slugifyTitle(input.title);
   const dirAbs = join15(workspace, FULLTEXT_DIR);
-  if (!existsSync14(dirAbs))
+  if (!existsSync13(dirAbs))
     mkdirSync11(dirAbs, { recursive: true });
   const outcome = await downloadFromCandidates(candidates, deps);
   const createdAt = (/* @__PURE__ */ new Date()).toISOString();
@@ -9963,13 +10007,13 @@ function normaliseState(input) {
 }
 
 // lib/research/action-construction/workspace.js
-import { appendFileSync, existsSync as existsSync15, mkdirSync as mkdirSync12, readFileSync as readFileSync15, writeFileSync as writeFileSync10 } from "node:fs";
+import { appendFileSync, existsSync as existsSync14, mkdirSync as mkdirSync12, readFileSync as readFileSync15, writeFileSync as writeFileSync10 } from "node:fs";
 import { dirname as dirname7, join as join16 } from "node:path";
 var ACTION_STATE_FILE = "research/action-state.json";
 var ACTION_LOG_FILE = "research/action-construction.jsonl";
 function ensureDir2(path) {
   const dir = dirname7(path);
-  if (!existsSync15(dir))
+  if (!existsSync14(dir))
     mkdirSync12(dir, { recursive: true });
 }
 function actionStatePath(workspace) {
@@ -9980,7 +10024,7 @@ function actionLogPath(workspace) {
 }
 function readActionState(workspace) {
   const path = actionStatePath(workspace);
-  if (!existsSync15(path))
+  if (!existsSync14(path))
     return null;
   try {
     return normaliseState(readFileSync15(path, "utf8"));
@@ -10029,7 +10073,7 @@ function appendActionRecord(workspace, record) {
 }
 function readActionRecords(workspace, limit = 5) {
   const path = actionLogPath(workspace);
-  if (!existsSync15(path))
+  if (!existsSync14(path))
     return [];
   const rows = [];
   for (const line of readFileSync15(path, "utf8").split("\n")) {
@@ -10044,7 +10088,7 @@ function readActionRecords(workspace, limit = 5) {
 }
 function summariseActionRecords(workspace) {
   const path = actionLogPath(workspace);
-  if (!existsSync15(path))
+  if (!existsSync14(path))
     return { count: 0, inBudget: 0, latest: null };
   let count = 0;
   let inBudget = 0;
@@ -10093,7 +10137,7 @@ function buildSignalContext(workspace) {
   const plans = listPlanDocuments(workspace);
   const literatureEvidence = evidence.filter((e) => e.sourceKind === "literature");
   const settledEvidence = evidence.filter((e) => e.status === "supported" || e.status === "verified");
-  const hasExperiments = existsSync16(join17(workspace, "experiments"));
+  const hasExperiments = existsSync15(join17(workspace, "experiments"));
   const hasManuscript2 = hasManuscript(workspace);
   let topicCount = 0;
   try {
@@ -10152,7 +10196,7 @@ function buildSignalContext(workspace) {
       if (!statSync4(dir).isDirectory())
         continue;
       const outline = join17(dir, "paper-outlines.md");
-      if (existsSync16(outline)) {
+      if (existsSync15(outline)) {
         const st = statSync4(outline);
         if (!paperOutline || st.mtimeMs > paperOutline.mtimeMs) {
           paperOutline = { path: `papers/${d}/paper-outlines.md`, mtimeMs: st.mtimeMs };
@@ -10160,7 +10204,7 @@ function buildSignalContext(workspace) {
       }
       for (const rel of [join17("latex", "main.tex"), "paper.md"]) {
         const f = join17(dir, rel);
-        if (!existsSync16(f))
+        if (!existsSync15(f))
           continue;
         const st = statSync4(f);
         if (st.mtimeMs > latestManuscriptMs)
@@ -10171,7 +10215,7 @@ function buildSignalContext(workspace) {
     paperOutline = null;
     latestManuscriptMs = 0;
   }
-  const hasActionState = existsSync16(join17(workspace, ACTION_STATE_FILE));
+  const hasActionState = existsSync15(join17(workspace, ACTION_STATE_FILE));
   const actionConstruction = summariseActionRecords(workspace);
   return { project, evidence, claims, decisions, plans, literatureEvidence, settledEvidence, hasExperiments, hasManuscript: hasManuscript2, topicCount, fulltextCount, budgetPlan, latestRunArtifactMs, hasActionState, actionConstruction, paperOutline, latestManuscriptMs };
 }
@@ -10426,7 +10470,7 @@ function assessAdvance(input) {
 var DEFAULT_AUTO_CONTINUE = { enabled: true, maxRounds: 3 };
 
 // lib/research/output.js
-import { existsSync as existsSync17, mkdirSync as mkdirSync13, readFileSync as readFileSync17, readdirSync as readdirSync11, rmSync as rmSync6, writeFileSync as writeFileSync11 } from "node:fs";
+import { existsSync as existsSync16, mkdirSync as mkdirSync13, readFileSync as readFileSync17, readdirSync as readdirSync11, rmSync as rmSync6, writeFileSync as writeFileSync11 } from "node:fs";
 import { join as join18 } from "node:path";
 
 // lib/research/output-profiles.js
@@ -10842,7 +10886,7 @@ function listOutputs(workspace, type) {
   for (const d of dirs.filter((e) => e.isDirectory() && !e.name.startsWith(".")).sort((a, b) => a.name.localeCompare(b.name))) {
     const file = OUTPUT_MAIN_FILE[type];
     const abs = join18(outputTypeDir(workspace, type), d.name, file);
-    if (!existsSync17(abs))
+    if (!existsSync16(abs))
       continue;
     const doc = parseOutputArtifact(abs, `${outputTypeRelDir(type)}/${d.name}/${file}`, type);
     if (doc)
@@ -10879,7 +10923,7 @@ function createOutput(workspace, input) {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(id))
     return { error: `\u975E\u6CD5 Output id\uFF1A${id}\uFF08kebab-case\uFF09` };
   const file = outputPath(workspace, input.type, id);
-  if (existsSync17(file))
+  if (existsSync16(file))
     return { error: `Output \`${id}\` \u5DF2\u5B58\u5728\u3002` };
   const profile = getOutputProfile(input.type);
   const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -11126,11 +11170,11 @@ function outputImpactSummary(workspace) {
 }
 
 // lib/research/paper-evolution.js
-import { existsSync as existsSync19, mkdirSync as mkdirSync15, readFileSync as readFileSync19, readdirSync as readdirSync12, rmSync as rmSync7, writeFileSync as writeFileSync13 } from "node:fs";
+import { existsSync as existsSync18, mkdirSync as mkdirSync15, readFileSync as readFileSync19, readdirSync as readdirSync12, rmSync as rmSync7, writeFileSync as writeFileSync13 } from "node:fs";
 import { join as join20 } from "node:path";
 
 // lib/research/paper-gaps.js
-import { existsSync as existsSync18, mkdirSync as mkdirSync14, readFileSync as readFileSync18, writeFileSync as writeFileSync12 } from "node:fs";
+import { existsSync as existsSync17, mkdirSync as mkdirSync14, readFileSync as readFileSync18, writeFileSync as writeFileSync12 } from "node:fs";
 import { join as join19 } from "node:path";
 function gapsPath(workspace, paperId) {
   return join19(paperDir(workspace, paperId), PAPER_FILES.gaps);
@@ -11306,7 +11350,7 @@ function detectPaperGaps(workspace, paperId) {
   const map = buildEvidenceMap(workspace, paperId);
   const claimsFile = join19(paperDir(workspace, paperId), PAPER_FILES.claims);
   const mappedClaims = claims.filter((c) => c.sections.length > 0);
-  if (!existsSync18(claimsFile) && mappedClaims.length === 0 && listEvidence(workspace).length > 0) {
+  if (!existsSync17(claimsFile) && mappedClaims.length === 0 && listEvidence(workspace).length > 0) {
     out.push({
       type: "no-claim-map",
       description: 'The manuscript has no Claim/Evidence map (no `claims.md`, and the text references no Claim ids), so "which section does this evidence support?" cannot be answered for any of it. Until that map exists, per-evidence "unused" reports would be noise, not findings.',
@@ -11976,7 +12020,7 @@ function latestTurnReport(sessionId) {
 }
 
 // lib/research/work-name.js
-import { existsSync as existsSync20, readdirSync as readdirSync13, readFileSync as readFileSync20, statSync as statSync5 } from "node:fs";
+import { existsSync as existsSync19, readdirSync as readdirSync13, readFileSync as readFileSync20, statSync as statSync5 } from "node:fs";
 import { join as join21 } from "node:path";
 var WORK_NAME_LIMIT = 200;
 var PLACEHOLDER_TITLES = /* @__PURE__ */ new Set(["title", "untitled", "paper", "manuscript", "\u672A\u547D\u540D", "\u65E0\u9898"]);
@@ -11994,7 +12038,7 @@ function titleFromLatex(root, paperId) {
   const main = join21(paperDir(root, paperId), "latex", "main.tex");
   let text;
   try {
-    if (!existsSync20(main))
+    if (!existsSync19(main))
       return null;
     text = readFileSync20(main, "utf8");
   } catch {
@@ -12030,11 +12074,11 @@ function paperTitleOf(root) {
   const docs = listPapers(root);
   if (docs.length === 0)
     return null;
-  const active = getActivePaperId(root);
+  const active2 = getActivePaperId(root);
   const ordered = [...docs].sort((a, b) => {
-    if (a.id === active)
+    if (a.id === active2)
       return -1;
-    if (b.id === active)
+    if (b.id === active2)
       return 1;
     return mtimeOf(join21(paperDir(root, b.id))) - mtimeOf(join21(paperDir(root, a.id)));
   });
@@ -12521,7 +12565,7 @@ function planUploadBatches(root, selection) {
 }
 
 // lib/research/published-store.js
-import { existsSync as existsSync21, mkdirSync as mkdirSync16, readFileSync as readFileSync21, renameSync as renameSync4, writeFileSync as writeFileSync14 } from "node:fs";
+import { existsSync as existsSync20, mkdirSync as mkdirSync16, readFileSync as readFileSync21, renameSync as renameSync3, writeFileSync as writeFileSync14 } from "node:fs";
 import { dirname as dirname8 } from "node:path";
 var KEY_SEP = "\0";
 function occupantMatches(record, workId, fingerprint) {
@@ -12595,7 +12639,7 @@ function createFilePublishedStore(resolvePath, scope = {}) {
   const load = () => {
     const path = resolvePath();
     try {
-      if (!existsSync21(path))
+      if (!existsSync20(path))
         return {};
       return parseTable3(readFileSync21(path, "utf8"));
     } catch {
@@ -12608,7 +12652,7 @@ function createFilePublishedStore(resolvePath, scope = {}) {
     const tmp = `${path}.tmp`;
     writeFileSync14(tmp, `${JSON.stringify(table, null, 2)}
 `, "utf8");
-    renameSync4(tmp, path);
+    renameSync3(tmp, path);
   };
   return {
     ...scopedOps(load, save, scope),
@@ -12701,7 +12745,7 @@ function createMemoryPublishedStore(seed = {}, scope = {}) {
 
 // lib/research/latex-compile.js
 import { spawnSync } from "node:child_process";
-import { existsSync as existsSync22, readFileSync as readFileSync22 } from "node:fs";
+import { existsSync as existsSync21, readFileSync as readFileSync22 } from "node:fs";
 import { dirname as dirname9, join as join23 } from "node:path";
 var COMPILE_TIMEOUT_MS = 3e5;
 var TECTONIC_ENV = "CONVFUSION_TECTONIC";
@@ -12713,7 +12757,7 @@ var TECTONIC_CANDIDATES = [
 ];
 function findTectonic(env = process.env) {
   const override = (env[TECTONIC_ENV] ?? "").trim();
-  if (override && existsSync22(override))
+  if (override && existsSync21(override))
     return override;
   for (const c of TECTONIC_CANDIDATES) {
     if (!c.includes("/")) {
@@ -12723,7 +12767,7 @@ function findTectonic(env = process.env) {
         return out;
       continue;
     }
-    if (existsSync22(c))
+    if (existsSync21(c))
       return c;
   }
   return void 0;
@@ -12812,7 +12856,7 @@ function compileLatex(texPath, opts = {}) {
       reason: "\u672A\u627E\u5230 tectonic \u53EF\u6267\u884C\u6587\u4EF6\uFF08\u8BD5\u8FC7 PATH\u3001/opt/homebrew/bin\u3001/usr/local/bin\u3001/Library/TeX/texbin\uFF09\u3002"
     };
   }
-  if (!existsSync22(texPath)) {
+  if (!existsSync21(texPath)) {
     return { success: false, pdfPath: "", logs: "", errors: [], reason: `LaTeX \u6587\u4EF6\u4E0D\u5B58\u5728\uFF1A${texPath}` };
   }
   const workDir = dirname9(texPath);
@@ -12827,10 +12871,10 @@ function compileLatex(texPath, opts = {}) {
   });
   const logs = `${res.stderr ?? ""}${res.stdout ?? ""}`.trim();
   const pdfPath = texPath.replace(/\.tex$/i, ".pdf");
-  const pdfExists = existsSync22(pdfPath);
+  const pdfExists = existsSync21(pdfPath);
   let fullLog = logs;
   const logPath = texPath.replace(/\.tex$/i, ".log");
-  if (existsSync22(logPath)) {
+  if (existsSync21(logPath)) {
     try {
       fullLog = `${logs}
 ${readFileSync22(logPath, "utf8")}`;
@@ -13325,7 +13369,7 @@ function buildSettingsState(config, store, resolvePath = resolveCustomizationPat
   const entryCount = Object.values(customizations).reduce((n, sections) => n + Object.keys(sections).length, 0);
   let exists = false;
   try {
-    exists = existsSync23(path);
+    exists = existsSync22(path);
   } catch {
     exists = false;
   }
@@ -13352,10 +13396,10 @@ function buildSettingsState(config, store, resolvePath = resolveCustomizationPat
   };
 }
 async function fileDigest(absPath) {
-  const { createHash: createHash3 } = await import("node:crypto");
+  const { createHash: createHash5 } = await import("node:crypto");
   const { readFile } = await import("node:fs/promises");
   const buf = await readFile(absPath);
-  return `sha256:${createHash3("sha256").update(buf).digest("hex")}`;
+  return `sha256:${createHash5("sha256").update(buf).digest("hex")}`;
 }
 var MIN_UPLOAD_BYTES_PER_SEC = 50 * 1024;
 var UPLOAD_TIMEOUT_MAX_MS = 30 * 60 * 1e3;
@@ -13563,7 +13607,7 @@ function createSettingsRpcHandler(deps) {
     const unchanged = [];
     for (const [relPath, digest] of Object.entries(known)) {
       const abs = resolve5(researchRoot2, relPath);
-      if (!existsSync23(abs))
+      if (!existsSync22(abs))
         continue;
       const now = await fileDigest(abs);
       if (now === digest)
@@ -13772,7 +13816,7 @@ function createSettingsRpcHandler(deps) {
       publishedStore.updateByProject(record.projectId, { serverVisibility: "PUBLISHED", checkedAt });
     }
   };
-  return async (endpoint, payload) => {
+  return async (endpoint, payload, downloadControl) => {
     const p = payload ?? {};
     try {
       switch (endpoint) {
@@ -14948,7 +14992,11 @@ function createSettingsRpcHandler(deps) {
             const remoteWorkspaceId = page.workspaceId;
             const latest = /* @__PURE__ */ new Map();
             for (const f of files)
-              latest.set(f.relativePath, f.size);
+              latest.set(f.relativePath, f);
+            const downloadRevision = createHash("sha256").update(JSON.stringify([
+              remoteWorkspaceId,
+              [...latest.values()].sort((a, b) => a.relativePath.localeCompare(b.relativePath))
+            ])).digest("hex");
             const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : null;
             const built = (listed?.items ?? []).map((it) => buildDownloadTarget(it, remoteWorkspaceId, deps.workIdentity));
             const sessionId = asString3(p.sessionId);
@@ -14959,7 +15007,8 @@ function createSettingsRpcHandler(deps) {
               ok: true,
               value: {
                 files: latest.size,
-                bytes: [...latest.values()].reduce((sum, size) => sum + size, 0),
+                bytes: [...latest.values()].reduce((sum, file) => sum + file.size, 0),
+                downloadRevision,
                 available: listed?.available ?? false,
                 reason: listed?.reason ?? null,
                 /*
@@ -14986,7 +15035,7 @@ function createSettingsRpcHandler(deps) {
           }
         }
         case "mentor/download": {
-          const config = deps.getConfig();
+          const config = downloadControl?.config ?? deps.getConfig();
           const apiKey = resolveConvFusionApiKey(config, env());
           if (!apiKey)
             return fail("not-configured", "\u5C1A\u672A\u767B\u5F55 ConvFusion.com\u3002");
@@ -15009,41 +15058,63 @@ function createSettingsRpcHandler(deps) {
           const progress = { projectId, received: 0, running: true };
           downloadProgress = progress;
           try {
+            downloadControl?.onPart(part.path);
+            downloadControl?.check();
             const base = resolveServerUrl(config, env()).url;
             const { received, filename, fileCount, sourceUpdatedAt, workspaceId: archivedId } = await fetchProjectArchive(base, apiKey, projectId, part, {
               source,
               ...netOptions(),
+              signal: downloadControl?.signal,
+              check: downloadControl?.check,
+              onHeaders: downloadControl?.onHeaders,
               onProgress: (n) => {
                 progress.received = n;
+                downloadControl?.onProgress(n);
               }
             });
             const authoritative = archivedId ?? remoteClaimed;
             const settled = archivedId && remoteClaimed && archivedId !== remoteClaimed ? buildDownloadTarget({ id: target.id, title: target.title, path: target.path }, archivedId, deps.workIdentity) : inspected;
+            downloadControl?.validating();
+            downloadControl?.check();
             const saved = part.commit(filename ?? fallback, { fileCount });
+            downloadControl?.onSaved({
+              dir: target.path,
+              ...saved,
+              researchRoot: settled.researchRoot,
+              workspaceStatus: settled.status,
+              workspaceLayout: settled.layout,
+              workspaceId: authoritative
+            });
             if (sourceUpdatedAt) {
-              deps.syncStore?.set(base, projectId, source, {
-                updatedAt: sourceUpdatedAt,
-                fileCount,
-                downloadedAt: (/* @__PURE__ */ new Date()).toISOString()
-              });
-            }
-            const identityId = authoritative;
-            if (identityId && settled.status === "same" && settled.layout !== null && settled.researchRoot) {
-              const identity = makeWorkIdentity({
-                workspaceId: identityId,
-                projectId,
-                serverUrl: base,
-                accountId: await resolveAccountId(base, apiKey) ?? "",
-                // 下 `owner` 侧 = 我在别人的研究里当导师（拿的是学生的工作区）；反之亦然
-                role: source === "owner" ? "mentor" : "owner",
-                // 注册表按路径存 → 记下"这条身份属于当时住在这里的那项研究"
-                ...researchRootFingerprint(settled.researchRoot) ? { rootFingerprint: researchRootFingerprint(settled.researchRoot) } : {}
-              });
               try {
-                deps.workIdentity?.set(settled.researchRoot, identity);
+                deps.syncStore?.set(base, projectId, source, {
+                  updatedAt: sourceUpdatedAt,
+                  fileCount,
+                  downloadedAt: (/* @__PURE__ */ new Date()).toISOString()
+                });
               } catch {
               }
-              writeWorkMarker(settled.researchRoot, identity);
+            }
+            const identityId = authoritative;
+            try {
+              if (identityId && settled.status === "same" && settled.layout !== null && settled.researchRoot) {
+                const identity = makeWorkIdentity({
+                  workspaceId: identityId,
+                  projectId,
+                  serverUrl: base,
+                  accountId: await resolveAccountId(base, apiKey) ?? "",
+                  // 下 `owner` 侧 = 我在别人的研究里当导师（拿的是学生的工作区）；反之亦然
+                  role: source === "owner" ? "mentor" : "owner",
+                  // 注册表按路径存 → 记下"这条身份属于当时住在这里的那项研究"
+                  ...researchRootFingerprint(settled.researchRoot) ? { rootFingerprint: researchRootFingerprint(settled.researchRoot) } : {}
+                });
+                try {
+                  deps.workIdentity?.set(settled.researchRoot, identity);
+                } catch {
+                }
+                writeWorkMarker(settled.researchRoot, identity);
+              }
+            } catch {
             }
             try {
               deps.syncNotes?.put({
@@ -15096,7 +15167,7 @@ function createSettingsRpcHandler(deps) {
 }
 
 // lib/research/paid-briefs.js
-import { existsSync as existsSync24, mkdirSync as mkdirSync17, readFileSync as readFileSync23, renameSync as renameSync5, writeFileSync as writeFileSync15 } from "node:fs";
+import { existsSync as existsSync23, mkdirSync as mkdirSync17, readFileSync as readFileSync23, renameSync as renameSync4, writeFileSync as writeFileSync15 } from "node:fs";
 import { dirname as dirname10 } from "node:path";
 function paidBriefKey(serverUrl, accountId, projectId) {
   return `${serverUrl.trim()}|${accountId.trim()}|${projectId.trim()}`;
@@ -15121,7 +15192,7 @@ function createFilePaidBriefStore(resolvePath) {
   const load = () => {
     try {
       const path = resolvePath();
-      if (!existsSync24(path))
+      if (!existsSync23(path))
         return {};
       return parseTable4(readFileSync23(path, "utf8"));
     } catch {
@@ -15134,7 +15205,7 @@ function createFilePaidBriefStore(resolvePath) {
     const tmp = `${path}.tmp`;
     writeFileSync15(tmp, `${JSON.stringify(table, null, 2)}
 `, "utf8");
-    renameSync5(tmp, path);
+    renameSync4(tmp, path);
   };
   return {
     has: (serverUrl, accountId, projectId) => Boolean(load()[paidBriefKey(serverUrl, accountId, projectId)]),
@@ -15151,7 +15222,7 @@ function createFilePaidBriefStore(resolvePath) {
 }
 
 // lib/research/sync-note.js
-import { existsSync as existsSync25, mkdirSync as mkdirSync18, readFileSync as readFileSync24, realpathSync as realpathSync2, renameSync as renameSync6, writeFileSync as writeFileSync16 } from "node:fs";
+import { existsSync as existsSync24, mkdirSync as mkdirSync18, readFileSync as readFileSync24, realpathSync as realpathSync2, renameSync as renameSync5, writeFileSync as writeFileSync16 } from "node:fs";
 import { dirname as dirname11, resolve as resolve6 } from "node:path";
 var SYNC_NOTE_LIMIT = 50;
 function canonicalZipPath(zipPath) {
@@ -15179,7 +15250,7 @@ function parseNotes(text) {
 function createFileSyncNoteStore(resolvePath) {
   const read = () => {
     const file = resolvePath();
-    if (!existsSync25(file))
+    if (!existsSync24(file))
       return [];
     try {
       return parseNotes(readFileSync24(file, "utf8"));
@@ -15194,7 +15265,7 @@ function createFileSyncNoteStore(resolvePath) {
       const tmp = `${file}.tmp`;
       writeFileSync16(tmp, `${JSON.stringify(notes, null, 2)}
 `, "utf8");
-      renameSync6(tmp, file);
+      renameSync5(tmp, file);
     } catch {
     }
   };
@@ -15282,7 +15353,7 @@ function renderUnmetPrerequisites(status) {
 }
 
 // lib/research/plan-library.js
-import { existsSync as existsSync26, mkdirSync as mkdirSync19, readFileSync as readFileSync25, readdirSync as readdirSync15, rmSync as rmSync8, writeFileSync as writeFileSync17 } from "node:fs";
+import { existsSync as existsSync25, mkdirSync as mkdirSync19, readFileSync as readFileSync25, readdirSync as readdirSync15, rmSync as rmSync8, writeFileSync as writeFileSync17 } from "node:fs";
 import { join as join24 } from "node:path";
 function planHistoryDir(workspace, id) {
   return join24(workspace, PLAN_HISTORY_DIR, id);
@@ -15365,7 +15436,7 @@ function createPlan(workspace, input) {
   }
   const dir = ensurePlansDir(workspace);
   const file = join24(dir, `${id}.md`);
-  if (existsSync26(file))
+  if (existsSync25(file))
     return { error: `Plan \`${id}\` \u5DF2\u5B58\u5728\u3002` };
   const now = (/* @__PURE__ */ new Date()).toISOString();
   const sections = input.sections ?? planSectionsTemplate(input);
@@ -15903,24 +15974,24 @@ ${context.replace("the native skill list", "`research_methods` (list or read an 
 }
 
 // lib/codex/storage.js
-import { createHash, randomBytes as randomBytes2 } from "node:crypto";
-import { existsSync as existsSync27, readFileSync as readFileSync26, mkdirSync as mkdirSync20, writeFileSync as writeFileSync18, renameSync as renameSync7, chmodSync, realpathSync as realpathSync3, statSync as statSync8, openSync as openSync2, closeSync as closeSync2, unlinkSync as unlinkSync2 } from "node:fs";
+import { createHash as createHash2, randomBytes as randomBytes2 } from "node:crypto";
+import { existsSync as existsSync26, readFileSync as readFileSync26, mkdirSync as mkdirSync20, writeFileSync as writeFileSync18, renameSync as renameSync6, chmodSync, realpathSync as realpathSync3, statSync as statSync8, openSync as openSync2, closeSync as closeSync2, unlinkSync as unlinkSync2 } from "node:fs";
 import { homedir as homedir3 } from "node:os";
 import { basename as basename2, dirname as dirname12, isAbsolute as isAbsolute6, join as join25 } from "node:path";
 function codexHome(env = process.env) {
   return env.CONVFUSION_CODEX_HOME || join25(env.CODEX_HOME || join25(homedir3(), ".codex"), "convfusion");
 }
 function stateKey(value) {
-  return createHash("sha256").update(value).digest("hex").slice(0, 24);
+  return createHash2("sha256").update(value).digest("hex").slice(0, 24);
 }
 function readPrivateJson(path, fallback) {
-  return existsSync27(path) ? JSON.parse(readFileSync26(path, "utf8")) : fallback;
+  return existsSync26(path) ? JSON.parse(readFileSync26(path, "utf8")) : fallback;
 }
 function writePrivateJson(path, value) {
   mkdirSync20(dirname12(path), { recursive: true, mode: 448 });
   const temp = `${path}.${randomBytes2(8).toString("hex")}.tmp`;
   writeFileSync18(temp, JSON.stringify(value, null, 2) + "\n", { mode: 384, flag: "wx" });
-  renameSync7(temp, path);
+  renameSync6(temp, path);
   chmodSync(path, 384);
 }
 function withPrivateLock(path, work) {
@@ -15989,7 +16060,7 @@ function latestCodexTurn(home, root) {
 }
 
 // lib/research/methods-export.js
-import { existsSync as existsSync28, mkdirSync as mkdirSync21, writeFileSync as writeFileSync19 } from "node:fs";
+import { existsSync as existsSync27, mkdirSync as mkdirSync21, writeFileSync as writeFileSync19 } from "node:fs";
 import { join as join27 } from "node:path";
 var METHODS_EXPORT_FILE = "research/methods-export.md";
 function groupByCategory(docs) {
@@ -16091,14 +16162,14 @@ function writeMethodsExport(workspace, opts = {}) {
   const rel = opts.path?.trim() || METHODS_EXPORT_FILE;
   const abs = join27(workspace, rel);
   const dir = abs.slice(0, abs.lastIndexOf("/"));
-  if (dir && !existsSync28(dir))
+  if (dir && !existsSync27(dir))
     mkdirSync21(dir, { recursive: true });
   writeFileSync19(abs, result.markdown, "utf8");
   return { ...result, path: rel };
 }
 
 // lib/research/sync-request.js
-import { closeSync as closeSync3, existsSync as existsSync29, openSync as openSync3, readdirSync as readdirSync16, readSync, statSync as statSync9 } from "node:fs";
+import { closeSync as closeSync3, existsSync as existsSync28, openSync as openSync3, readdirSync as readdirSync16, readSync, statSync as statSync9 } from "node:fs";
 import { basename as basename3, dirname as dirname13, isAbsolute as isAbsolute8, join as join28, resolve as resolve9 } from "node:path";
 function normalizeZipRef(ref, sessionWorkspace) {
   let s = ref.trim();
@@ -16116,7 +16187,7 @@ function resolveZipReference(ref, sessionWorkspace) {
   if (!ref.trim()) {
     return { ok: false, path, error: "\u6CA1\u6709\u7ED9\u51FA\u538B\u7F29\u5305", candidates: [] };
   }
-  if (existsSync29(path)) {
+  if (existsSync28(path)) {
     try {
       if (!statSync9(path).isFile()) {
         return { ok: false, path, error: `${path} \u4E0D\u662F\u6587\u4EF6`, candidates: [] };
@@ -16193,9 +16264,9 @@ function collectSyncFacts(input) {
   const root = input.researchRoot;
   const note = input.noteStore?.get(input.zip);
   const local = readLocalIdentity(root, input.identityStore);
-  const hasResearch = hasProjectDefinition(root) || existsSync29(join28(root, "research-state.md"));
+  const hasResearch = hasProjectDefinition(root) || existsSync28(join28(root, "research-state.md"));
   const status = syncStatusOf(judgeWorkspace({
-    exists: existsSync29(root),
+    exists: existsSync28(root),
     hasResearch,
     localWorkspaceId: local.workspaceId,
     remoteWorkspaceId: note?.remoteWorkspaceId ?? null
@@ -16275,17 +16346,258 @@ function buildSyncText(facts, rootPrefix) {
   return lines.join("\n");
 }
 
+// lib/codex/downloads.js
+import { createHash as createHash3, randomBytes as randomBytes3 } from "node:crypto";
+import { existsSync as existsSync29, statSync as statSync10, unlinkSync as unlinkSync3 } from "node:fs";
+import { dirname as dirname14, join as join29, basename as basename4 } from "node:path";
+var active = (job) => ["running", "finalizing", "cancelling"].includes(job.state);
+var stamp = (file) => {
+  if (typeof file !== "string")
+    return null;
+  try {
+    const s = statSync10(file);
+    return s.isFile() ? [s.dev, s.ino, s.size, s.mtimeMs, s.ctimeMs].join(":") : null;
+  } catch {
+    return null;
+  }
+};
+var resultStamp = (result) => stamp(result?.value?.path);
+var view = ({ id, state, phase, received, totalBytes, result }) => ({ id, state, phase, received, totalBytes, ...result ? { result } : {} });
+function createDownloadJobs(home) {
+  const workers = /* @__PURE__ */ new Map();
+  const fileOf = (scope) => join29(home, "download-jobs", `${createHash3("sha256").update(scope).digest("hex")}.json`);
+  const cancellationFile = (scope, intent) => join29(home, "download-cancellations", `${createHash3("sha256").update(JSON.stringify([scope, intent])).digest("hex")}.json`);
+  const cancelledIntent = (scope, intent) => intent && existsSync29(cancellationFile(scope, intent)) ? {
+    id: `cancelled-${createHash3("sha256").update(intent).digest("hex").slice(0, 32)}`,
+    state: "cancelled",
+    phase: "preparing",
+    received: 0,
+    totalBytes: null,
+    pid: 0,
+    heartbeat: 0,
+    directory: "",
+    revision: null,
+    intents: [intent],
+    result: { ok: false, error: { code: "cancelled", message: "\u4E0B\u8F7D\u5DF2\u53D6\u6D88\u3002" } }
+  } : null;
+  const read = (file) => readPrivateJson(file, null);
+  const clean = (job) => {
+    if (job.part && dirname14(job.part) === job.directory && /^\.convfusion-.*\.zip\.part$/.test(basename4(job.part))) {
+      try {
+        unlinkSync3(job.part);
+      } catch {
+      }
+    }
+  };
+  const recover = (file) => {
+    const job = read(file);
+    if (!job)
+      return null;
+    let alive = true;
+    if (active(job)) {
+      try {
+        process.kill(job.pid, 0);
+      } catch (e) {
+        alive = e.code !== "ESRCH";
+      }
+      if (!alive || Date.now() - job.heartbeat > 45e3) {
+        if (job.result?.ok && job.stamp && resultStamp(job.result) === job.stamp)
+          job.state = "succeeded";
+        else {
+          job.state = "interrupted";
+          job.result = { ok: false, error: { code: "interrupted", message: "\u4E0B\u8F7D\u8FDB\u7A0B\u5DF2\u4E2D\u65AD\uFF0C\u8BF7\u91CD\u65B0\u4E0B\u8F7D\u3002" } };
+        }
+        writePrivateJson(file, job);
+        clean(job);
+      }
+    } else if (job.state === "succeeded" && (!job.stamp || resultStamp(job.result) !== job.stamp)) {
+      job.state = "interrupted";
+      job.result = { ok: false, error: { code: "local-file-changed", message: "\u5DF2\u4E0B\u8F7D\u7684 ZIP \u5DF2\u88AB\u79FB\u52A8\u3001\u5220\u9664\u6216\u4FEE\u6539\uFF0C\u8BF7\u91CD\u65B0\u4E0B\u8F7D\u3002" } };
+      writePrivateJson(file, job);
+    }
+    return job;
+  };
+  const get = (scope, revision, id, intent) => {
+    const file = fileOf(scope);
+    return withPrivateLock(file, () => {
+      const cancelled = cancelledIntent(scope, intent);
+      if (cancelled)
+        return !id || id === cancelled.id ? view(cancelled) : null;
+      const job = recover(file);
+      if (!job || id && job.id !== id)
+        return null;
+      if (intent && !job.intents.includes(intent))
+        return null;
+      if (!id && !intent && job.state === "succeeded" && job.revision !== revision)
+        return null;
+      return view(job);
+    });
+  };
+  const start = (scope, revision, directory, execute, verifyRevision, intent) => {
+    const file = fileOf(scope);
+    let created = false;
+    const initial = withPrivateLock(file, () => {
+      const cancelled = cancelledIntent(scope, intent);
+      if (cancelled)
+        return cancelled;
+      const old = recover(file);
+      if (old && (active(old) || old.state === "succeeded" && (old.revision === revision || !!intent && old.intents.includes(intent)))) {
+        if (intent && !old.intents.includes(intent)) {
+          old.intents = [...old.intents, intent].slice(-128);
+          writePrivateJson(file, old);
+        }
+        return old;
+      }
+      const job = { id: randomBytes3(16).toString("hex"), state: "running", phase: "preparing", received: 0, totalBytes: null, pid: process.pid, heartbeat: Date.now(), revision, directory, intents: intent ? [intent] : [] };
+      writePrivateJson(file, job);
+      created = true;
+      return job;
+    });
+    if (!created)
+      return view(initial);
+    const controller = new AbortController();
+    let lastProgress = 0;
+    let latestReceived = 0;
+    const change = (update) => withPrivateLock(file, () => {
+      const job = read(file);
+      if (!job || job.id !== initial.id || !active(job))
+        return;
+      update(job);
+      writePrivateJson(file, job);
+    });
+    const check = () => {
+      controller.signal.throwIfAborted();
+      const job = read(file);
+      if (!job || job.id !== initial.id || !["running", "finalizing"].includes(job.state)) {
+        controller.abort();
+        controller.signal.throwIfAborted();
+      }
+    };
+    const control = {
+      signal: controller.signal,
+      check,
+      onPart: (part) => {
+        check();
+        change((job) => {
+          job.part = part;
+        });
+      },
+      onProgress: (received) => {
+        latestReceived = received;
+        if (Date.now() - lastProgress < 250)
+          return;
+        lastProgress = Date.now();
+        change((job) => {
+          job.received = received;
+          job.phase = "downloading";
+          job.heartbeat = Date.now();
+        });
+      },
+      onHeaders: (totalBytes) => change((job) => {
+        job.totalBytes = totalBytes;
+      }),
+      validating: () => {
+        check();
+        change((job) => {
+          job.phase = "validating";
+          job.received = latestReceived;
+        });
+      },
+      onSaved: (value) => change((job) => {
+        job.state = "finalizing";
+        job.result = { ok: true, value };
+        job.stamp = stamp(value.path) ?? void 0;
+      })
+    };
+    const heartbeat = setInterval(() => {
+      try {
+        check();
+        change((job) => {
+          job.heartbeat = Date.now();
+          job.received = latestReceived;
+        });
+      } catch {
+        controller.abort();
+      }
+    }, 500);
+    const done = Promise.resolve().then(async () => {
+      let result;
+      try {
+        result = await execute(control);
+      } catch {
+        result = { ok: false, error: { code: "download-failed", message: "\u4E0B\u8F7D\u672A\u5B8C\u6210\uFF0C\u8BF7\u91CD\u8BD5\u3002" } };
+      }
+      let settledRevision = null;
+      if (result.ok) {
+        try {
+          settledRevision = await verifyRevision();
+        } catch {
+        }
+      }
+      change((job) => {
+        job.received = latestReceived;
+        job.revision = settledRevision === revision ? revision : null;
+        if (result.ok) {
+          job.state = "succeeded";
+          job.result = result;
+          job.stamp = resultStamp(result) ?? void 0;
+        } else if (job.state === "cancelling" || controller.signal.aborted) {
+          job.state = "cancelled";
+          job.result = { ok: false, error: { code: "cancelled", message: "\u4E0B\u8F7D\u5DF2\u53D6\u6D88\u3002" } };
+        } else {
+          job.state = "failed";
+          job.result = result;
+        }
+      });
+    }).catch(() => {
+      controller.abort();
+    }).finally(() => {
+      clearInterval(heartbeat);
+      workers.delete(initial.id);
+    });
+    workers.set(initial.id, { controller, done });
+    return view(initial);
+  };
+  const cancel = (scope, id, intent) => {
+    const file = fileOf(scope);
+    const result = withPrivateLock(file, () => {
+      const job = recover(file);
+      if (!job || (id ? job.id !== id : !intent || !job.intents.includes(intent))) {
+        if (id || !intent)
+          return null;
+        writePrivateJson(cancellationFile(scope, intent), { cancelled: true });
+        return view(cancelledIntent(scope, intent));
+      }
+      if (job.state === "running") {
+        job.state = "cancelling";
+        writePrivateJson(file, job);
+      }
+      return view(job);
+    });
+    if (result?.state === "cancelling")
+      workers.get(result.id)?.controller.abort();
+    return result;
+  };
+  return { get, start, cancel, async close() {
+    const current = [...workers.values()];
+    for (const worker of current)
+      worker.controller.abort();
+    await Promise.all(current.map((worker) => worker.done));
+  } };
+}
+
 // scripts/codex-ui-server.mjs
-var pluginRoot = resolve10(dirname14(fileURLToPath4(new URL("../scripts/codex-ui-server.mjs", import.meta.url).href)), "..");
-var pkg = JSON.parse(readFileSync27(join29(pluginRoot, "package.json"), "utf8"));
+var pluginRoot = resolve10(dirname15(fileURLToPath4(new URL("../scripts/codex-ui-server.mjs", import.meta.url).href)), "..");
+var pkg = JSON.parse(readFileSync27(join30(pluginRoot, "package.json"), "utf8"));
 var UI_URI = "ui://convfusion/workbench-v1.html";
 var UI_MIME = "text/html;profile=mcp-app";
 var failure = (code, message) => ({ ok: false, error: { code, message, details: {} } });
 function createCodexUiHost(options = {}) {
   const env = options.env ?? process.env;
   const home = resolve10(options.home ?? codexHome(env));
-  const path = (name) => join29(home, name);
+  const path = (name) => join30(home, name);
   const workspaces = /* @__PURE__ */ new Map();
+  const downloads = createDownloadJobs(home);
   const saved = readPrivateJson(path("workspaces.json"), []);
   if (Array.isArray(saved)) for (const row of saved) {
     if (typeof row?.path === "string" && isAbsolute9(row.path) && existsSync30(row.path)) workspaces.set(row.id, row);
@@ -16295,7 +16607,7 @@ function createCodexUiHost(options = {}) {
   const workIdentity = createFileWorkIdentityStore(() => path("work-identities.json"));
   let server;
   let launch;
-  const sessionPath = (token) => typeof token === "string" && /^[a-f0-9]{64}$/.test(token) ? path(join29("ui-sessions", `${createHash2("sha256").update(token).digest("hex")}.json`)) : null;
+  const sessionPath = (token) => typeof token === "string" && /^[a-f0-9]{64}$/.test(token) ? path(join30("ui-sessions", `${createHash4("sha256").update(token).digest("hex")}.json`)) : null;
   const readSession = (token) => {
     const file = sessionPath(token);
     if (!file) return null;
@@ -16333,11 +16645,11 @@ function createCodexUiHost(options = {}) {
   const registerWorkspace = (root, persist = false) => {
     if (typeof root !== "string" || !isAbsolute9(root)) throw new Error("\u8BF7\u8F93\u5165\u9879\u76EE\u6587\u4EF6\u5939\u7684\u7EDD\u5BF9\u8DEF\u5F84");
     const canonical = realpathSync5(root);
-    if (!statSync10(canonical).isDirectory()) throw new Error("\u8BF7\u9009\u62E9\u73B0\u6709\u7684\u9879\u76EE\u6587\u4EF6\u5939");
+    if (!statSync11(canonical).isDirectory()) throw new Error("\u8BF7\u9009\u62E9\u73B0\u6709\u7684\u9879\u76EE\u6587\u4EF6\u5939");
     const fromPlugin = relative7(realpathSync5(pluginRoot), canonical);
     if (!fromPlugin || !fromPlugin.startsWith(`..${sep5}`) && fromPlugin !== ".." && !isAbsolute9(fromPlugin)) throw new Error("\u8BF7\u9009\u62E9\u7814\u7A76\u9879\u76EE\u76EE\u5F55\uFF0C\u4E0D\u80FD\u4F7F\u7528\u63D2\u4EF6\u5B89\u88C5\u76EE\u5F55");
     const id = stateKey(canonical);
-    workspaces.set(id, { id, title: basename4(canonical), path: canonical, updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
+    workspaces.set(id, { id, title: basename5(canonical), path: canonical, updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
     if (persist) registerCodexWorkspace(home, canonical);
     return workspaces.get(id);
   };
@@ -16364,7 +16676,7 @@ function createCodexUiHost(options = {}) {
     for (const row of readCodexWorkspaces(home)) workspaces.set(row.id, row);
     return [...workspaces.values()].filter((row) => {
       try {
-        return statSync10(row.path).isDirectory();
+        return statSync11(row.path).isDirectory();
       } catch {
         return false;
       }
@@ -16373,11 +16685,11 @@ function createCodexUiHost(options = {}) {
   const exportMethods = (root, full = false) => {
     const researchRoot2 = researchWorkspaceOf(root);
     const { markdown, ...result } = writeMethodsExport(researchRoot2, { store, full });
-    return { ...result, path: isAbsolute9(result.path) ? result.path : join29(researchRoot2, result.path) };
+    return { ...result, path: isAbsolute9(result.path) ? result.path : join30(researchRoot2, result.path) };
   };
   const bootstrap = (root) => {
     const row = root ? registerWorkspace(root) : null;
-    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? "\u7814\u7A76\u5DE5\u4F5C\u53F0", version: pkg.version };
+    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? "\u7814\u7A76\u5DE5\u4F5C\u53F0", version: pkg.version, downloadTasks: true };
   };
   const dispatch = async (root, endpoint, payload) => {
     if (root) registerWorkspace(root);
@@ -16390,6 +16702,38 @@ function createCodexUiHost(options = {}) {
     }
     if (endpoint === "codex/continuation") return { ok: true, value: { enabled: getConfig().autoContinue, maxRounds: getConfig().autoContinueMaxRounds } };
     if (endpoint === "codex/export-methods") return root ? { ok: true, value: exportMethods(root, payload?.full === true) } : failure("workspace", "\u8BF7\u5728\u9879\u76EE\u804A\u5929\u4E2D\u6253\u5F00 ConvFusion \u5DE5\u4F5C\u53F0");
+    if (["mentor/downloadStart", "mentor/downloadStatus", "mentor/downloadCancel"].includes(endpoint)) {
+      const config = getConfig();
+      const apiKey = resolveConvFusionApiKey(config, env);
+      if (!apiKey) return failure("not-configured", "\u5C1A\u672A\u767B\u5F55 ConvFusion.com\u3002");
+      const target = workspaceRows().find((row) => row.id === payload?.workspaceId);
+      if (!target || typeof payload?.projectId !== "string" || !payload.projectId.trim()) return failure("bad-request", "\u8BF7\u9009\u62E9\u7814\u7A76\u9879\u76EE\u548C\u76EE\u6807\u5DE5\u4F5C\u533A\u3002");
+      payload = { ...payload, projectId: payload.projectId.trim() };
+      const directory = realpathSync5(target.path);
+      const source = payload.source === "mentor" ? "mentor" : "owner";
+      const intent = typeof payload.intent === "string" && /^[a-zA-Z0-9-]{1,128}$/.test(payload.intent) ? payload.intent : void 0;
+      const scope = JSON.stringify([resolveServerUrl(config, env).url, createHash4("sha256").update(apiKey).digest("hex"), payload.projectId, source, directory]);
+      if (endpoint === "mentor/downloadCancel") {
+        if (typeof payload.jobId !== "string" && !intent) return failure("bad-request", "\u7F3A\u5C11\u4E0B\u8F7D\u4EFB\u52A1\u6807\u8BC6\u3002");
+        return { ok: true, value: { job: downloads.cancel(scope, payload.jobId, intent) } };
+      }
+      if (endpoint === "mentor/downloadStatus") return { ok: true, value: { job: downloads.get(scope, payload.revision, payload.jobId, intent) } };
+      const preflight = await handler("mentor/downloadState", { ...payload, source });
+      if (!preflight.ok) return preflight;
+      const revision = preflight.value.downloadRevision;
+      const job = downloads.start(
+        scope,
+        revision,
+        directory,
+        (control) => handler("mentor/download", { ...payload, source }, { ...control, config }),
+        async () => {
+          const after = await handler("mentor/downloadState", { ...payload, source });
+          return after.ok ? after.value.downloadRevision : null;
+        },
+        intent
+      );
+      return { ok: true, value: { job } };
+    }
     const result = await handler(String(endpoint), payload ?? {});
     if (endpoint === "progress/workspace" && root && result.ok && result.value?.research) {
       const latest = latestCodexTurn(home, root);
@@ -16404,7 +16748,7 @@ function createCodexUiHost(options = {}) {
     const facts = collectSyncFacts({ zip: resolved.path, sessionWorkspace: root, researchRoot: researchWorkspaceOf(root), noteStore: syncNotes, identityStore: workIdentity });
     return { ok: facts.zipOk, facts, instructions: buildSyncText(facts, researchWorkspaceOf(root) === root ? "" : "workspace") };
   };
-  const uiHtml = () => readFileSync27(join29(pluginRoot, "lib/codex-ui.html"), "utf8");
+  const uiHtml = () => readFileSync27(join30(pluginRoot, "lib/codex-ui.html"), "utf8");
   const sessionInfo = (token, state) => ({ ...bootstrap(state.root), uiScope: state.selectable ? "global" : "workspace", uiSession: token });
   const dispatchSession = async (token, root, endpoint, payload) => {
     const state = readSession(token);
@@ -16460,7 +16804,7 @@ function createCodexUiHost(options = {}) {
       throw error2;
     });
     await launch;
-    const token = randomBytes3(32).toString("hex");
+    const token = randomBytes4(32).toString("hex");
     const state = { root: selected, selectable: root === void 0 };
     saveSession(token, state);
     return { ...sessionInfo(token, state), url: `${origin}/#${token}` };
@@ -16484,6 +16828,7 @@ function createCodexUiHost(options = {}) {
       return id ? { id, content: effectiveSkillContentById(id, store) ?? null } : listSystemSkills().map(({ id: id2, name, category, kind, code, label }) => ({ id: id2, name, category, kind, code, label }));
     },
     async close() {
+      await downloads.close();
       if (server) await new Promise((resolve12) => server.close(resolve12));
       server = void 0;
       launch = void 0;
@@ -16520,10 +16865,10 @@ var NamedEntries = class {
     const data = this.data;
     if (data.has(name)) throw this.duplicateError(name);
     data.set(name, value);
-    let active = true;
+    let active2 = true;
     return () => {
-      if (!active) return;
-      active = false;
+      if (!active2) return;
+      active2 = false;
       data.delete(name);
       if (data.size === 0 && this.data === data) this.data = /* @__PURE__ */ new Map();
     };
@@ -16584,10 +16929,10 @@ var AnonymousEntries = class {
     const data = this.data;
     const key = Symbol();
     data.set(key, value);
-    let active = true;
+    let active2 = true;
     return () => {
-      if (!active) return;
-      active = false;
+      if (!active2) return;
+      active2 = false;
       data.delete(key);
       if (data.size === 0 && this.data === data) this.data = /* @__PURE__ */ new Map();
     };
@@ -18882,21 +19227,21 @@ var ToolRuntime = class extends Service {
   * Restrictions do not make known tools invalid, but a mode collapse does.
   */
   wireSchemas(scope) {
-    const view = this.view(scope);
+    const view2 = this.view(scope);
     const mode = this.modeFor(scope);
     if (mode === "native") return {
-      schemas: [...view.visible.values()].map((definition) => this.schemaOf(definition, false)),
-      knownNames: [...view.knownNames]
+      schemas: [...view2.visible.values()].map((definition) => this.schemaOf(definition, false)),
+      knownNames: [...view2.knownNames]
     };
     this.requirePtcRuntime(mode);
-    const schemas = [...view.visible.values()].map((definition) => this.schemaOf(definition, false));
+    const schemas = [...view2.visible.values()].map((definition) => this.schemaOf(definition, false));
     if (mode === "ptc") return {
       schemas: schemas.filter((schema) => schema.name === RUN_CODE_NAME),
       knownNames: [RUN_CODE_NAME]
     };
     return {
       schemas,
-      knownNames: [...view.knownNames, RUN_CODE_NAME]
+      knownNames: [...view2.knownNames, RUN_CODE_NAME]
     };
   }
   /**
@@ -20686,12 +21031,12 @@ function escapeSectionTitle(title) {
 }
 
 // lib/research/research-tools.js
-import { existsSync as existsSync36, mkdirSync as mkdirSync24, readFileSync as readFileSync30, readdirSync as readdirSync20, renameSync as renameSync8, statSync as statSync15, writeFileSync as writeFileSync23 } from "node:fs";
-import { isAbsolute as isAbsolute11, join as join36 } from "node:path";
+import { existsSync as existsSync36, mkdirSync as mkdirSync24, readFileSync as readFileSync30, readdirSync as readdirSync20, renameSync as renameSync7, statSync as statSync16, writeFileSync as writeFileSync23 } from "node:fs";
+import { isAbsolute as isAbsolute11, join as join37 } from "node:path";
 
 // lib/research/state-sync.js
-import { readdirSync as readdirSync17, statSync as statSync11, writeFileSync as writeFileSync20 } from "node:fs";
-import { join as join30 } from "node:path";
+import { readdirSync as readdirSync17, statSync as statSync12, writeFileSync as writeFileSync20 } from "node:fs";
+import { join as join31 } from "node:path";
 var STATE_AUTO_HEADING = "### Auto-synced artifacts";
 var AUTO_NOTE = "*Auto-maintained by ConvFusion: everything from this heading to the end of this section is rewritten on every sync. Keep hand-written content above this line.*";
 var STATE_AUTO_MAX_ITEMS = 40;
@@ -20704,7 +21049,7 @@ function firstLine2(input) {
   return oneLine(input.split(/\r?\n/).find((l) => l.trim()) ?? "");
 }
 function countResultFiles(workspace, experiment) {
-  const dir = join30(workspace, "experiments", experiment, "results");
+  const dir = join31(workspace, "experiments", experiment, "results");
   try {
     return readdirSync17(dir, { withFileTypes: true }).filter((e) => e.isFile()).length;
   } catch {
@@ -20713,14 +21058,14 @@ function countResultFiles(workspace, experiment) {
 }
 function listExperimentDirs(workspace) {
   try {
-    return readdirSync17(join30(workspace, "experiments"), { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith(".")).map((e) => e.name).sort();
+    return readdirSync17(join31(workspace, "experiments"), { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith(".")).map((e) => e.name).sort();
   } catch {
     return [];
   }
 }
 function countFulltexts(workspace) {
   try {
-    return readdirSync17(join30(workspace, FULLTEXT_DIR)).filter((f) => /\.(pdf|html|txt)$/i.test(f)).length;
+    return readdirSync17(join31(workspace, FULLTEXT_DIR)).filter((f) => /\.(pdf|html|txt)$/i.test(f)).length;
   } catch {
     return 0;
   }
@@ -20729,7 +21074,7 @@ function newestMtimeMs(paths) {
   let newest = 0;
   for (const p of paths) {
     try {
-      newest = Math.max(newest, statSync11(p).mtimeMs);
+      newest = Math.max(newest, statSync12(p).mtimeMs);
     } catch {
     }
   }
@@ -20877,7 +21222,7 @@ function reconcileStateWithArtifacts(workspace) {
 function artifactPathsFor(workspace, dimension2) {
   const dirOf = (rel) => {
     try {
-      return readdirSync17(join30(workspace, rel)).map((f) => join30(workspace, rel, f));
+      return readdirSync17(join31(workspace, rel)).map((f) => join31(workspace, rel, f));
     } catch {
       return [];
     }
@@ -20892,7 +21237,7 @@ function artifactPathsFor(workspace, dimension2) {
     case "Literature":
       return dirOf("research/literature");
     case "Experiments":
-      return listExperimentDirs(workspace).map((d) => join30(workspace, "experiments", d));
+      return listExperimentDirs(workspace).map((d) => join31(workspace, "experiments", d));
     default:
       return [];
   }
@@ -23604,8 +23949,8 @@ function renderEdgeLabel(text, pos, anchor) {
 }
 
 // lib/research/diagram/store.js
-import { existsSync as existsSync31, mkdirSync as mkdirSync22, readFileSync as readFileSync28, readdirSync as readdirSync18, statSync as statSync12, writeFileSync as writeFileSync21 } from "node:fs";
-import { join as join31 } from "node:path";
+import { existsSync as existsSync31, mkdirSync as mkdirSync22, readFileSync as readFileSync28, readdirSync as readdirSync18, statSync as statSync13, writeFileSync as writeFileSync21 } from "node:fs";
+import { join as join32 } from "node:path";
 var FIGURES_SUBDIR = "figures";
 var LAST_GOOD_SUBDIR = ".last-good";
 var NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
@@ -23626,17 +23971,17 @@ function sanitizeDiagramName(raw) {
   return { ok: true, name: trimmed };
 }
 function figuresDir(paperDir2) {
-  return join31(paperDir2, FIGURES_SUBDIR);
+  return join32(paperDir2, FIGURES_SUBDIR);
 }
 function diagramPaths(ws, paperId, name) {
-  const paperDir2 = join31(ws, "papers", paperId);
+  const paperDir2 = join32(ws, "papers", paperId);
   const dir = figuresDir(paperDir2);
   return {
     dir,
-    irPath: join31(dir, `${name}.json`),
-    svgPath: join31(dir, `${name}.svg`),
-    lastGoodIrPath: join31(dir, LAST_GOOD_SUBDIR, `${name}.json`),
-    lastGoodSvgPath: join31(dir, LAST_GOOD_SUBDIR, `${name}.svg`),
+    irPath: join32(dir, `${name}.json`),
+    svgPath: join32(dir, `${name}.svg`),
+    lastGoodIrPath: join32(dir, LAST_GOOD_SUBDIR, `${name}.json`),
+    lastGoodSvgPath: join32(dir, LAST_GOOD_SUBDIR, `${name}.svg`),
     relIr: `papers/${paperId}/${FIGURES_SUBDIR}/${name}.json`,
     relSvg: `papers/${paperId}/${FIGURES_SUBDIR}/${name}.svg`
   };
@@ -23663,7 +24008,7 @@ function writeDiagramSvg(paths, svg) {
   writeFileSync21(paths.svgPath, svg, "utf8");
 }
 function saveLastGood(paths, raw, svg) {
-  const dir = join31(paths.dir, LAST_GOOD_SUBDIR);
+  const dir = join32(paths.dir, LAST_GOOD_SUBDIR);
   if (!existsSync31(dir))
     mkdirSync22(dir, { recursive: true });
   writeFileSync21(paths.lastGoodIrPath, `${JSON.stringify(raw, null, 2)}
@@ -23671,7 +24016,7 @@ function saveLastGood(paths, raw, svg) {
   writeFileSync21(paths.lastGoodSvgPath, svg, "utf8");
 }
 function listDiagramArtifacts(ws, paperId) {
-  const dir = figuresDir(join31(ws, "papers", paperId));
+  const dir = figuresDir(join32(ws, "papers", paperId));
   if (!existsSync31(dir))
     return [];
   const names = /* @__PURE__ */ new Set();
@@ -23687,15 +24032,15 @@ function listDiagramArtifacts(ws, paperId) {
     const stat = (p) => {
       if (!existsSync31(p))
         return null;
-      const s = statSync12(p);
+      const s = statSync13(p);
       return { path: p.slice(p.indexOf(FIGURES_SUBDIR)), bytes: s.size, mtimeMs: s.mtimeMs };
     };
-    const ir = stat(join31(dir, `${name}.json`));
-    const svg = stat(join31(dir, `${name}.svg`));
+    const ir = stat(join32(dir, `${name}.json`));
+    const svg = stat(join32(dir, `${name}.svg`));
     let type = null;
     if (ir !== null) {
       try {
-        const parsed = JSON.parse(readFileSync28(join31(dir, `${name}.json`), "utf8"));
+        const parsed = JSON.parse(readFileSync28(join32(dir, `${name}.json`), "utf8"));
         if (typeof parsed.type === "string")
           type = parsed.type;
       } catch {
@@ -23709,21 +24054,21 @@ function listDiagramArtifacts(ws, paperId) {
 
 // lib/research/diagram/export.js
 import { execFileSync } from "node:child_process";
-import { existsSync as existsSync32, statSync as statSync13 } from "node:fs";
-import { dirname as dirname15, join as join32 } from "node:path";
+import { existsSync as existsSync32, statSync as statSync14 } from "node:fs";
+import { dirname as dirname16, join as join33 } from "node:path";
 import { fileURLToPath as fileURLToPath5 } from "node:url";
-var SVG2PDF_SCRIPT = join32("assets", "diagram", "svg2pdf.py");
+var SVG2PDF_SCRIPT = join33("assets", "diagram", "svg2pdf.py");
 var PYTHON_ENV = "CONVFUSION_PYTHON";
 var EXPORT_TIMEOUT_MS = 3e4;
 var RESULT_PREFIX = "@@SVG2PDF@@ ";
 var COLUMN_WIDTH_PT = 252;
 var MIN_LEGIBLE_PT = 7;
 function findSvg2PdfScript() {
-  const here2 = dirname15(fileURLToPath5(new URL("./research/diagram/export.js", import.meta.url).href));
+  const here2 = dirname16(fileURLToPath5(new URL("./research/diagram/export.js", import.meta.url).href));
   const candidates = [
-    join32(here2, "..", "..", "..", SVG2PDF_SCRIPT),
-    join32(here2, "..", "..", SVG2PDF_SCRIPT),
-    join32(process.cwd(), SVG2PDF_SCRIPT)
+    join33(here2, "..", "..", "..", SVG2PDF_SCRIPT),
+    join33(here2, "..", "..", SVG2PDF_SCRIPT),
+    join33(process.cwd(), SVG2PDF_SCRIPT)
   ];
   for (const candidate of candidates) {
     if (existsSync32(candidate))
@@ -23829,7 +24174,7 @@ function exportDiagramPdf(options) {
   if (!existsSync32(options.pdfPath)) {
     return { ok: false, error: `converter reported success but ${options.pdfPath} does not exist.`, ...base };
   }
-  const size = statSync13(options.pdfPath).size;
+  const size = statSync14(options.pdfPath).size;
   if (size <= 0) {
     return { ok: false, error: `converter wrote an empty ${options.pdfPath}.`, ...base };
   }
@@ -23962,18 +24307,18 @@ function formatDiagnostics(report, limit = 12) {
 
 // lib/research/schematic/index.js
 import { execFileSync as execFileSync2 } from "node:child_process";
-import { existsSync as existsSync33, statSync as statSync14 } from "node:fs";
-import { dirname as dirname16, join as join33 } from "node:path";
+import { existsSync as existsSync33, statSync as statSync15 } from "node:fs";
+import { dirname as dirname17, join as join34 } from "node:path";
 import { fileURLToPath as fileURLToPath6 } from "node:url";
-var SCHEMATIC_SCRIPT = join33("assets", "figures_kit", "render_schematic.py");
+var SCHEMATIC_SCRIPT = join34("assets", "figures_kit", "render_schematic.py");
 var RENDER_TIMEOUT_MS = 6e4;
 var RESULT_PREFIX2 = "@@SCHEMATIC@@ ";
 function findSchematicScript() {
-  const here2 = dirname16(fileURLToPath6(new URL("./research/schematic/index.js", import.meta.url).href));
+  const here2 = dirname17(fileURLToPath6(new URL("./research/schematic/index.js", import.meta.url).href));
   const candidates = [
-    join33(here2, "..", "..", "..", SCHEMATIC_SCRIPT),
-    join33(here2, "..", "..", SCHEMATIC_SCRIPT),
-    join33(process.cwd(), SCHEMATIC_SCRIPT)
+    join34(here2, "..", "..", "..", SCHEMATIC_SCRIPT),
+    join34(here2, "..", "..", SCHEMATIC_SCRIPT),
+    join34(process.cwd(), SCHEMATIC_SCRIPT)
   ];
   for (const candidate of candidates) {
     if (existsSync33(candidate))
@@ -24577,7 +24922,7 @@ function summarizeDelta(delta) {
 
 // lib/research/ir/store.js
 import { existsSync as existsSync34, mkdirSync as mkdirSync23, readFileSync as readFileSync29, readdirSync as readdirSync19, writeFileSync as writeFileSync22 } from "node:fs";
-import { join as join34 } from "node:path";
+import { join as join35 } from "node:path";
 var IR_DIR = `${RESEARCH_DIR}/ir`;
 var IR_HISTORY_DIR = `${IR_DIR}/.history`;
 var IR_STATES_DIR = `${IR_DIR}/states`;
@@ -24600,13 +24945,13 @@ function isIRWriteError(v) {
   return Boolean(v) && typeof v === "object" && typeof v.error === "string";
 }
 function irFile(workspace, id) {
-  return join34(workspace, IR_DIR, `${id.toUpperCase()}.json`);
+  return join35(workspace, IR_DIR, `${id.toUpperCase()}.json`);
 }
 function historyFile(workspace, id, revision) {
-  return join34(workspace, IR_HISTORY_DIR, `${id.toUpperCase()}.rev-${String(revision).padStart(3, "0")}.json`);
+  return join35(workspace, IR_HISTORY_DIR, `${id.toUpperCase()}.rev-${String(revision).padStart(3, "0")}.json`);
 }
 function stateFile(workspace, stateId) {
-  return join34(workspace, IR_STATES_DIR, `${stateId.toUpperCase()}.json`);
+  return join35(workspace, IR_STATES_DIR, `${stateId.toUpperCase()}.json`);
 }
 function readJson(path) {
   try {
@@ -24623,9 +24968,9 @@ function listJson(dir, pattern2) {
   }
 }
 function listIRs(workspace) {
-  const dir = join34(workspace, IR_DIR);
+  const dir = join35(workspace, IR_DIR);
   return listJson(dir, /^IR\d{3,4}\.json$/i).flatMap((f) => {
-    const ir = readJson(join34(dir, f));
+    const ir = readJson(join35(dir, f));
     if (!ir?.id)
       return [];
     const satisfied = ir.evidenceRequirements.filter((r) => (r.satisfiedBy ?? []).length > 0).length;
@@ -24652,15 +24997,15 @@ function readIRRevision(workspace, id, revision) {
 }
 function listIRRevisions(workspace, id) {
   const norm2 = id.trim().toUpperCase();
-  return listJson(join34(workspace, IR_HISTORY_DIR), new RegExp(`^${norm2}\\.rev-\\d{3,4}\\.json$`, "i")).flatMap((f) => {
+  return listJson(join35(workspace, IR_HISTORY_DIR), new RegExp(`^${norm2}\\.rev-\\d{3,4}\\.json$`, "i")).flatMap((f) => {
     const m = f.match(/\.rev-(\d{3,4})\.json$/i);
     return m ? [Number(m[1])] : [];
   });
 }
 function saveIR(workspace, ir) {
-  const dir = join34(workspace, IR_DIR);
+  const dir = join35(workspace, IR_DIR);
   mkdirSync23(dir, { recursive: true });
-  mkdirSync23(join34(workspace, IR_HISTORY_DIR), { recursive: true });
+  mkdirSync23(join35(workspace, IR_HISTORY_DIR), { recursive: true });
   const existing = ir.id ? readIR(workspace, ir.id) : void 0;
   const id = ir.id?.trim().toUpperCase() || nextIrId(workspace);
   if (!parseIrId(id))
@@ -24675,14 +25020,14 @@ function saveIR(workspace, ir) {
   return saved;
 }
 function nextIrId(workspace) {
-  const nums = listJson(join34(workspace, IR_DIR), /^IR\d{3,4}\.json$/i).map((f) => {
+  const nums = listJson(join35(workspace, IR_DIR), /^IR\d{3,4}\.json$/i).map((f) => {
     const m = f.match(/^IR(\d{3,4})\.json$/i);
     return m ? Number(m[1]) : 0;
   });
   return makeIrId(Math.max(0, ...nums) + 1);
 }
 function writeState(workspace, state) {
-  const dir = join34(workspace, IR_STATES_DIR);
+  const dir = join35(workspace, IR_STATES_DIR);
   mkdirSync23(dir, { recursive: true });
   const norm2 = state.stateId.trim().toUpperCase();
   if (!parseStateId(norm2))
@@ -24695,9 +25040,9 @@ function writeState(workspace, state) {
   return { ...state, stateId: norm2 };
 }
 function listStates(workspace) {
-  const dir = join34(workspace, IR_STATES_DIR);
+  const dir = join35(workspace, IR_STATES_DIR);
   return listJson(dir, /^S\d{3,4}\.json$/i).flatMap((f) => {
-    const s = readJson(join34(dir, f));
+    const s = readJson(join35(dir, f));
     return s?.stateId ? [s] : [];
   }).sort((a, b) => (parseStateId(a.stateId) ?? 0) - (parseStateId(b.stateId) ?? 0));
 }
@@ -24710,14 +25055,14 @@ function nextStateId(workspace) {
   return makeStateId(Math.max(0, ...nums) + 1);
 }
 function appendTrace(workspace, entry) {
-  const dir = join34(workspace, IR_DIR);
+  const dir = join35(workspace, IR_DIR);
   mkdirSync23(dir, { recursive: true });
-  writeFileSync22(join34(workspace, IR_TRACE_FILE), `${JSON.stringify(entry)}
+  writeFileSync22(join35(workspace, IR_TRACE_FILE), `${JSON.stringify(entry)}
 `, { encoding: "utf8", flag: "a" });
 }
 function readTrace(workspace) {
   try {
-    return readFileSync29(join34(workspace, IR_TRACE_FILE), "utf8").split("\n").filter((l) => l.trim()).flatMap((l) => {
+    return readFileSync29(join35(workspace, IR_TRACE_FILE), "utf8").split("\n").filter((l) => l.trim()).flatMap((l) => {
       try {
         return [JSON.parse(l)];
       } catch {
@@ -24731,7 +25076,7 @@ function readTrace(workspace) {
 
 // lib/research/ir/transition.js
 import { existsSync as existsSync35 } from "node:fs";
-import { isAbsolute as isAbsolute10, join as join35 } from "node:path";
+import { isAbsolute as isAbsolute10, join as join36 } from "node:path";
 function err2(code, field, message, repair) {
   return { code, layer: "transition", field, message, repair };
 }
@@ -24771,7 +25116,7 @@ function validateTransition(workspace, input) {
       continue;
     }
     if (artifact) {
-      const abs = isAbsolute10(artifact) ? artifact : join35(workspace, artifact);
+      const abs = isAbsolute10(artifact) ? artifact : join36(workspace, artifact);
       if (!existsSync35(abs)) {
         errors.push(err2("R203", `plan.steps.${step.id}`, `Recorded artifact "${artifact}" does not exist on disk.`, "fix_artifact_path"));
       }
@@ -26310,9 +26655,9 @@ ${e.path ?? ""}${e.downloadedFrom ? `
       const a = args;
       const action = String(a.action ?? "status");
       const paperId = resolvePaperParameter(ws, typeof a.paperId === "string" ? a.paperId : void 0);
-      const paperDir2 = join36(ws, "papers", paperId);
-      const latexDir = join36(paperDir2, LATEX_SUBDIR);
-      const texPath = join36(latexDir, MAIN_TEX);
+      const paperDir2 = join37(ws, "papers", paperId);
+      const latexDir = join37(paperDir2, LATEX_SUBDIR);
+      const texPath = join37(latexDir, MAIN_TEX);
       try {
         if (action === "status") {
           if (!existsSync36(latexDir)) {
@@ -26324,13 +26669,13 @@ ${e.path ?? ""}${e.downloadedFrom ? `
             });
           }
           const files = readdirSync20(latexDir).filter((f) => !f.startsWith(".")).map((f) => {
-            const st = statSync15(join36(latexDir, f));
+            const st = statSync16(join37(latexDir, f));
             return `${f} (${st.size} B, ${st.mtime.toISOString()})`;
           });
           return losslessJson({ ok: true, action: "status", files });
         }
         if (action === "compose") {
-          const mdPath = join36(paperDir2, "paper.md");
+          const mdPath = join37(paperDir2, "paper.md");
           if (!existsSync36(mdPath))
             return fail2(`\u8BBA\u6587\u6B63\u6587\u4E0D\u5B58\u5728\uFF1Apapers/${paperId}/paper.md`);
           const source = readFileSync30(mdPath, "utf8");
@@ -26351,12 +26696,12 @@ ${e.path ?? ""}${e.downloadedFrom ? `
           let backup;
           if (existsSync36(texPath)) {
             const ts = (/* @__PURE__ */ new Date()).toISOString().replace(/[-:T]/g, "").slice(0, 15);
-            const bak = join36(latexDir, `main_bak_${ts}.tex`);
-            renameSync8(texPath, bak);
+            const bak = join37(latexDir, `main_bak_${ts}.tex`);
+            renameSync7(texPath, bak);
             backup = `${LATEX_SUBDIR}/main_bak_${ts}.tex`;
           }
           writeFileSync23(texPath, result.latex, "utf8");
-          writeFileSync23(join36(latexDir, INTERMEDIATE_TEX), result.latexIntermediate, "utf8");
+          writeFileSync23(join37(latexDir, INTERMEDIATE_TEX), result.latexIntermediate, "utf8");
           return losslessJson({
             ok: true,
             action: "compose",
@@ -26371,7 +26716,7 @@ ${e.path ?? ""}${e.downloadedFrom ? `
         if (action === "compile") {
           if (!existsSync36(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
-          const cacheDir = join36(ws, "harness", ".tectonic-cache");
+          const cacheDir = join37(ws, "harness", ".tectonic-cache");
           if (!existsSync36(cacheDir))
             mkdirSync24(cacheDir, { recursive: true });
           const res = compileLatex(texPath, { cacheDir });
@@ -26388,7 +26733,7 @@ ${e.path ?? ""}${e.downloadedFrom ? `
         if (action === "errors") {
           if (!existsSync36(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
-          const logPath = join36(latexDir, "main.log");
+          const logPath = join37(latexDir, "main.log");
           if (!existsSync36(logPath))
             return fail2("\u5C1A\u65E0 main.log \u2014\u2014 \u5148\u6267\u884C compile\u3002");
           const errors = parseCompileErrors(readFileSync30(logPath, "utf8"));
@@ -26404,7 +26749,7 @@ ${e.path ?? ""}${e.downloadedFrom ? `
         if (action === "repair") {
           if (!existsSync36(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
-          const logPath = join36(latexDir, "main.log");
+          const logPath = join37(latexDir, "main.log");
           if (!existsSync36(logPath))
             return fail2("\u5C1A\u65E0 main.log \u2014\u2014 \u5148\u6267\u884C compile\uFF0C\u518D repair\u3002");
           const errors = parseCompileErrors(readFileSync30(logPath, "utf8"));
@@ -26642,7 +26987,7 @@ ${JSON.stringify(v.ir ?? null, null, 2)}` }];
           saveLastGood(paths, canonical, build.svg);
           svgWritten = true;
         } else if (existsSync36(paths.svgPath)) {
-          const st = statSync15(paths.svgPath);
+          const st = statSync16(paths.svgPath);
           keptPrevious = `${paths.relSvg} (from ${st.mtime.toISOString()})`;
         }
         return losslessJson({
@@ -26772,7 +27117,7 @@ Do **not** use this tool for statistical charts (bar/line/scatter): those must b
         paperId,
         name,
         outDir: paths.dir,
-        latexFiguresDir: join36(paths.dir, "..", "latex", "figures")
+        latexFiguresDir: join37(paths.dir, "..", "latex", "figures")
       };
       const columnWidthPt = typeof a.column_width_pt === "number" && a.column_width_pt > 0 ? a.column_width_pt : COLUMN_WIDTH_PT;
       const result = renderSchematic({ spec, targetWidthPt: columnWidthPt });
@@ -27036,7 +27381,7 @@ recorded \u2192 ${v.path ?? ""}` : "";
           let planPath = "";
           if (a.plan !== void 0) {
             planPath = String(a.plan);
-            const full = isAbsolute11(planPath) ? planPath : join36(workspace, planPath);
+            const full = isAbsolute11(planPath) ? planPath : join37(workspace, planPath);
             if (!existsSync36(full)) {
               return fail2(`Plan not found: ${planPath}`, { workspace });
             }
@@ -27463,7 +27808,7 @@ function parseBibEntries(text) {
   return { entries, numberToKey };
 }
 function readPaperMeta(paperDir2) {
-  const p = join36(paperDir2, PAPER_FILES.metadata);
+  const p = join37(paperDir2, PAPER_FILES.metadata);
   if (!existsSync36(p))
     return {};
   const fm = parseFrontmatter(readFileSync30(p, "utf8"));

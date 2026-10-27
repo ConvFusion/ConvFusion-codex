@@ -1,6 +1,6 @@
 {
   "name": "convfusion-codex",
-  "version": "0.6.6-codex.1",
+  "version": "0.6.6-codex.2",
   "description": "ConvFusion research operating system as a Codex plugin with a native skill and bundled local MCP adapter.",
   "repository": {
     "type": "git",
@@ -42,7 +42,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
     "version:set": "node scripts/sync-version.mjs",
     "version:check": "node scripts/sync-version.mjs --check",
-    "verify:codex": "npm run version:check && node scripts/verify-codex-plugin.mjs && node scripts/verify-codex-lifecycle.mjs && node scripts/verify-community-lists.mjs",
+    "verify:codex": "npm run version:check && node scripts/verify-codex-plugin.mjs && node scripts/verify-codex-lifecycle.mjs && node scripts/verify-community-lists.mjs && npm run verify:downloads",
+    "verify:downloads": "node scripts/verify-download-tasks.mjs && node scripts/verify-download-ui.mjs",
     "clean": "rm -rf lib",
     "build:ui": "node scripts/build-codex-ui.mjs",
     "verify:action-construction": "node scripts/verify-action-construction.mjs",

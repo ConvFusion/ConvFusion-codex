@@ -1,5 +1,19 @@
 /** Simplified Chinese dictionary; the type rejects missing and extra keys. */
 export declare const zh: {
+    'community.download.unconfirmed': string;
+    'community.download.finalizing': string;
+    'community.download.checking': string;
+    'community.download.preparing': string;
+    'community.download.validating': string;
+    'community.download.cancelling': string;
+    'community.download.cancelled': string;
+    'community.download.cancel': string;
+    'community.download.close': string;
+    'community.download.reconnecting': string;
+    'community.download.received': string;
+    'community.download.failed': string;
+    'community.download.interrupted': string;
+    'community.download.localChanged': string;
     'community.merge.prepare': string;
     'settings.nav': string;
     'settings.version.updateAvailable': string;
@@ -318,10 +332,6 @@ export declare const zh: {
     'community.merge.plan.other': string;
     'community.merge.plan.unknown': string;
     'community.merge.plan.unverifiable': string;
-    'community.merge.pendingHint': string;
-    'community.merge.nameChanged': string;
-    'community.merge.refill': string;
-    'community.merge.downloadFailedHint': string;
     'community.exchange.uploadTitle': string;
     'community.exchange.workspaceLabel': string;
     'community.exchange.workspacePlaceholder': string;

@@ -1,5 +1,19 @@
 /** English is the canonical key set for the ConvFusion browser UI. */
 export declare const en: {
+    readonly 'community.download.unconfirmed': "Download start is unconfirmed. Retry to reconnect to the same task.";
+    readonly 'community.download.finalizing': "Confirming download completion…";
+    readonly 'community.download.checking': "Checking download status…";
+    readonly 'community.download.preparing': "Preparing download…";
+    readonly 'community.download.validating': "Validating and saving ZIP…";
+    readonly 'community.download.cancelling': "Cancelling download…";
+    readonly 'community.download.cancelled': "Download cancelled. You can download again.";
+    readonly 'community.download.cancel': "Cancel download";
+    readonly 'community.download.close': "Close and continue in background";
+    readonly 'community.download.reconnecting': "Download status is unavailable. Reconnecting; the background task may still be running.";
+    readonly 'community.download.received': "Received {done}";
+    readonly 'community.download.failed': "Download did not complete. Please retry.";
+    readonly 'community.download.interrupted': "The download task was interrupted. Please download again.";
+    readonly 'community.download.localChanged': "The local ZIP was moved, deleted or modified. Please download again.";
     readonly 'community.merge.prepare': "Prepare sync request";
     readonly 'settings.nav': "ConvFusion";
     readonly 'settings.version.updateAvailable': "(Update available: v{version})";
@@ -278,7 +292,7 @@ export declare const en: {
     readonly 'community.exchange.downloadTitle': "Download into a workspace";
     readonly 'community.exchange.sizeBadge': "{files} files · {size}";
     readonly 'community.exchange.zipOnly': "Only the ZIP is saved into the chosen workspace; no extraction — the rest is up to you.";
-    readonly 'community.exchange.destHint': "Saves to: {dest}";
+    readonly 'community.exchange.destHint': "Expected destination: {dest}";
     readonly 'community.exchange.downloading': "Downloaded {done} / ≈{total}";
     readonly 'community.exchange.downloadingBtn': "Downloading…";
     readonly 'community.exchange.noWorkspaces': "No DSH workspace available (create one in DSH first).";
@@ -309,19 +323,15 @@ export declare const en: {
     readonly 'community.merge.fillHint': "Replaces whatever is in the input box";
     readonly 'community.merge.copy': "Copy prompt";
     readonly 'community.merge.copied': "Prompt copied to the clipboard.";
-    readonly 'community.merge.copyFailed': "Copy failed — select the prompt in the input box manually.";
+    readonly 'community.merge.copyFailed': "Copy failed. Please try again.";
     readonly 'community.merge.filled': "Merge prompt filled into the input box — send it when you are ready.";
     readonly 'community.merge.otherWorkspace': "Saved to {dir}. That workspace is not this session's workspace — send this command from a session **in that workspace** (DSH can only write its own session workspace).";
-    readonly 'community.merge.noComposer': "Not in a session: copy this command and paste it into a session in the target workspace.";
+    readonly 'community.merge.noComposer': "Copy this command and send it in a chat for the destination workspace.";
     readonly 'community.merge.plan.new': "This workspace has **no** research root yet: step 2 extracts the archive into a new one.";
     readonly 'community.merge.plan.same': "This workspace already holds the **same** research (identity matches): step 2 **merges** the archive into it — not a replacement, information from both sides survives.";
     readonly 'community.merge.plan.other': "This workspace currently holds **another** research (identity differs): step 2 first backs up the whole existing research root (**moves** it, never deletes) and then extracts the download as a **new** research root. The backup stays in place — nothing is lost.";
     readonly 'community.merge.plan.unknown': "This workspace has research but its **identity cannot be read**, so sameness cannot be decided automatically: in the survey, compare both sides' project.md / research-state.md topics and questions, state whether they are the same research and why, and **wait for my confirmation** before acting on either branch.";
     readonly 'community.merge.plan.unverifiable': "The server provided **no** research identity, so sameness cannot be decided automatically: in the survey, compare both sides' project.md / research-state.md topics and questions, state your judgement and its basis, and **wait for my confirmation** before acting on either branch.";
-    readonly 'community.merge.pendingHint': "Downloading: this command is **already in the input box** — send it once this download has landed (sending now would point at a half-written zip; the command blocks that too).";
-    readonly 'community.merge.nameChanged': "The file actually written is `{name}` (different from the pre-check guess).";
-    readonly 'community.merge.refill': "Update command with the real filename";
-    readonly 'community.merge.downloadFailedHint': "Do **not** send the command already in the input box — the zip never landed.";
     readonly 'community.exchange.uploadTitle': "Upload research progress";
     readonly 'community.exchange.workspaceLabel': "Workspace";
     readonly 'community.exchange.workspacePlaceholder': "Choose a workspace to hand back…";
@@ -403,7 +413,7 @@ export declare const en: {
     readonly 'community.error.readSummary': "Failed to load the overview.";
     readonly 'community.error.readBrief': "Failed to load the details.";
     readonly 'community.error.hostRestart': "The host must be restarted: it does not expose the work/mine endpoint yet.";
-    readonly 'community.error.transport': "Cannot reach {route} ({detail}). Check the DSH host log.";
+    readonly 'community.error.transport': "No service response yet ({detail}). Check the connection or reopen the workbench.";
     readonly 'community.notice.charged': "Details read; {tokens} Token charged (balance {balance})";
     readonly 'community.notice.briefRead': "Details read (balance {balance})";
     readonly 'community.placeholder.invitation': "Invitation code cf_inv_…";

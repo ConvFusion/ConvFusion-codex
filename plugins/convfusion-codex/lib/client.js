@@ -81,6 +81,20 @@ window.__ModuleLoader__.load({
 
 		// src/client/i18n/en.ts
 		var en = {
+		  "community.download.unconfirmed": "Download start is unconfirmed. Retry to reconnect to the same task.",
+		  "community.download.finalizing": "Confirming download completion…",
+		  "community.download.checking": "Checking download status…",
+		  "community.download.preparing": "Preparing download…",
+		  "community.download.validating": "Validating and saving ZIP…",
+		  "community.download.cancelling": "Cancelling download…",
+		  "community.download.cancelled": "Download cancelled. You can download again.",
+		  "community.download.cancel": "Cancel download",
+		  "community.download.close": "Close and continue in background",
+		  "community.download.reconnecting": "Download status is unavailable. Reconnecting; the background task may still be running.",
+		  "community.download.received": "Received {done}",
+		  "community.download.failed": "Download did not complete. Please retry.",
+		  "community.download.interrupted": "The download task was interrupted. Please download again.",
+		  "community.download.localChanged": "The local ZIP was moved, deleted or modified. Please download again.",
 		  "community.merge.prepare": "Prepare sync request",
 		  "settings.nav": "ConvFusion",
 		  "settings.version.updateAvailable": "(Update available: v{version})",
@@ -407,7 +421,7 @@ window.__ModuleLoader__.load({
 		  "community.exchange.downloadTitle": "Download into a workspace",
 		  "community.exchange.sizeBadge": "{files} files · {size}",
 		  "community.exchange.zipOnly": "Only the ZIP is saved into the chosen workspace; no extraction — the rest is up to you.",
-		  "community.exchange.destHint": "Saves to: {dest}",
+		  "community.exchange.destHint": "Expected destination: {dest}",
 		  "community.exchange.downloading": "Downloaded {done} / ≈{total}",
 		  "community.exchange.downloadingBtn": "Downloading…",
 		  "community.exchange.noWorkspaces": "No DSH workspace available (create one in DSH first).",
@@ -443,19 +457,15 @@ window.__ModuleLoader__.load({
 		  "community.merge.fillHint": "Replaces whatever is in the input box",
 		  "community.merge.copy": "Copy prompt",
 		  "community.merge.copied": "Prompt copied to the clipboard.",
-		  "community.merge.copyFailed": "Copy failed — select the prompt in the input box manually.",
+		  "community.merge.copyFailed": "Copy failed. Please try again.",
 		  "community.merge.filled": "Merge prompt filled into the input box — send it when you are ready.",
 		  "community.merge.otherWorkspace": "Saved to {dir}. That workspace is not this session's workspace — send this command from a session **in that workspace** (DSH can only write its own session workspace).",
-		  "community.merge.noComposer": "Not in a session: copy this command and paste it into a session in the target workspace.",
+		  "community.merge.noComposer": "Copy this command and send it in a chat for the destination workspace.",
 		  "community.merge.plan.new": "This workspace has **no** research root yet: step 2 extracts the archive into a new one.",
 		  "community.merge.plan.same": "This workspace already holds the **same** research (identity matches): step 2 **merges** the archive into it — not a replacement, information from both sides survives.",
 		  "community.merge.plan.other": "This workspace currently holds **another** research (identity differs): step 2 first backs up the whole existing research root (**moves** it, never deletes) and then extracts the download as a **new** research root. The backup stays in place — nothing is lost.",
 		  "community.merge.plan.unknown": "This workspace has research but its **identity cannot be read**, so sameness cannot be decided automatically: in the survey, compare both sides' project.md / research-state.md topics and questions, state whether they are the same research and why, and **wait for my confirmation** before acting on either branch.",
 		  "community.merge.plan.unverifiable": "The server provided **no** research identity, so sameness cannot be decided automatically: in the survey, compare both sides' project.md / research-state.md topics and questions, state your judgement and its basis, and **wait for my confirmation** before acting on either branch.",
-		  "community.merge.pendingHint": "Downloading: this command is **already in the input box** — send it once this download has landed (sending now would point at a half-written zip; the command blocks that too).",
-		  "community.merge.nameChanged": "The file actually written is `{name}` (different from the pre-check guess).",
-		  "community.merge.refill": "Update command with the real filename",
-		  "community.merge.downloadFailedHint": "Do **not** send the command already in the input box — the zip never landed.",
 		  // Upload = hand back *my copy of the workspace* (the mentor kept working inside the student's workspace/)
 		  "community.exchange.uploadTitle": "Upload research progress",
 		  "community.exchange.workspaceLabel": "Workspace",
@@ -545,7 +555,7 @@ window.__ModuleLoader__.load({
 		  "community.error.readSummary": "Failed to load the overview.",
 		  "community.error.readBrief": "Failed to load the details.",
 		  "community.error.hostRestart": "The host must be restarted: it does not expose the work/mine endpoint yet.",
-		  "community.error.transport": "Cannot reach {route} ({detail}). Check the DSH host log.",
+		  "community.error.transport": "No service response yet ({detail}). Check the connection or reopen the workbench.",
 		  "community.notice.charged": "Details read; {tokens} Token charged (balance {balance})",
 		  "community.notice.briefRead": "Details read (balance {balance})",
 		  "community.placeholder.invitation": "Invitation code cf_inv_…",
@@ -820,6 +830,20 @@ window.__ModuleLoader__.load({
 
 		// src/client/i18n/zh.ts
 		var zh = {
+		  "community.download.unconfirmed": "尚未确认下载是否启动。可以重试；已启动的同一任务会被复用。",
+		  "community.download.finalizing": "正在确认下载完成…",
+		  "community.download.checking": "正在确认下载状态…",
+		  "community.download.preparing": "正在准备下载…",
+		  "community.download.validating": "正在校验并保存 ZIP…",
+		  "community.download.cancelling": "正在取消下载…",
+		  "community.download.cancelled": "下载已取消，可以重新下载。",
+		  "community.download.cancel": "取消下载",
+		  "community.download.close": "关闭，继续后台下载",
+		  "community.download.reconnecting": "暂未取得下载状态，正在重新连接；后台任务可能仍在运行。",
+		  "community.download.received": "已接收 {done}",
+		  "community.download.failed": "下载未完成，请重试。",
+		  "community.download.interrupted": "下载任务已中断，请重新下载。",
+		  "community.download.localChanged": "本地 ZIP 已被移动、删除或修改，请重新下载。",
 		  "community.merge.prepare": "准备同步请求",
 		  "settings.nav": "ConvFusion",
 		  "settings.version.updateAvailable": "(有新版 v{version})",
@@ -1154,7 +1178,7 @@ window.__ModuleLoader__.load({
 		  "community.exchange.downloadTitle": "下载到工作区",
 		  "community.exchange.sizeBadge": "{files} 个文件 · {size}",
 		  "community.exchange.zipOnly": "只把 ZIP 保存到所选工作区，不解压，其余你自己处理。",
-		  "community.exchange.destHint": "保存到：{dest}",
+		  "community.exchange.destHint": "预计保存到：{dest}",
 		  // 下载中：分母是**解压后**的合计（服务器发的是压缩 ZIP），所以写「≈」
 		  "community.exchange.downloading": "已下载 {done} / ≈{total}",
 		  "community.exchange.downloadingBtn": "下载中…",
@@ -1194,19 +1218,15 @@ window.__ModuleLoader__.load({
 		  "community.merge.fillHint": "会替换输入框里现有的内容",
 		  "community.merge.copy": "复制提示词",
 		  "community.merge.copied": "提示词已复制到剪贴板。",
-		  "community.merge.copyFailed": "复制失败，请手动选中输入框里的提示词。",
+		  "community.merge.copyFailed": "复制失败，请重试。",
 		  "community.merge.filled": "整合提示词已填入输入框，确认后发送。",
 		  "community.merge.otherWorkspace": "已保存到 {dir}。这个工作区不是当前会话的工作区 —— 请到**那个工作区**的会话里发送这条命令（DSH 只能写自己会话的工作区）。",
-		  "community.merge.noComposer": "当前不在会话里：复制这条命令，到目标工作区的会话里粘贴发送。",
+		  "community.merge.noComposer": "复制这条命令，到目标工作区的会话里粘贴发送。",
 		  "community.merge.plan.new": "本工作区**还没有**研究工作区：第 2 步把包内内容解压成新的研究根。",
 		  "community.merge.plan.same": "本工作区里已经是**同一项**研究（标识一致）：第 2 步把包内内容与本地内容**融合** —— 不是替换，两侧信息都要保留。",
 		  "community.merge.plan.other": "本工作区里现在是**另一项**研究（标识不一致）：第 2 步先把现有研究根**整体备份**（移动，不是删除），再把下载的这份解压成**新的**研究根。备份会留在原地，什么都不丢。",
 		  "community.merge.plan.unknown": '本工作区里有研究，但**读不到它的标识**，无法自动判断是不是同一项：请在盘查时对照两侧 `project.md` / `research-state.md` 的研究主题与研究问题，给出"同一项 / 另一项"的判断与依据，**等我确认后**再按对应的一支执行。',
 		  "community.merge.plan.unverifiable": "服务器没有提供研究工作标识，**无法自动判断**是不是同一项：请在盘查时对照两侧 `project.md` / `research-state.md` 的研究主题与研究问题，给出判断与依据，**等我确认后**再按对应的一支执行。",
-		  "community.merge.pendingHint": "下载中：这条命令**已经先填进输入框**了 —— 等这一步落盘完成再发送（现在发，zip 还没写完；命令自己也会拦住）。",
-		  "community.merge.nameChanged": "服务器实际落盘的文件名是 `{name}`（与预检猜的不同）。",
-		  "community.merge.refill": "按实际文件名更新命令",
-		  "community.merge.downloadFailedHint": "刚才填进输入框的那条命令**先别发送** —— zip 还没有落盘。",
 		  // 上传 = **回传我这一份工作区**（导师是在学生的 workspace/ 里继续推进研究的）：
 		  // 选工作区 → 勾文件 → 只说清"传什么、多少"，不解释背景
 		  "community.exchange.uploadTitle": "上传研究进展",
@@ -1298,7 +1318,7 @@ window.__ModuleLoader__.load({
 		  "community.error.readSummary": "读取概览失败。",
 		  "community.error.readBrief": "读取详情失败。",
 		  "community.error.hostRestart": "宿主侧需要重启：当前宿主还没有 work/mine 端点。",
-		  "community.error.transport": "无法访问 {route}（{detail}）。请查看 DSH 宿主日志。",
+		  "community.error.transport": "暂未收到服务响应（{detail}）。请检查连接或重新打开工作台。",
 		  "community.notice.charged": "已读取详情，消耗 {tokens} Token（余额 {balance}）",
 		  "community.notice.briefRead": "已读取详情（余额 {balance}）",
 		  "community.placeholder.invitation": "邀请码 cf_inv_…",
@@ -4495,6 +4515,9 @@ window.__ModuleLoader__.load({
 		  busy,
 		  /** 下载中已收到的字节数（宿主如实报告；null = 还没开始/已结束）。 */
 		  received,
+		  totalBytes,
+		  phase,
+		  onCancel,
 		  notice,
 		  targets,
 		  currentWorkspaceId,
@@ -4504,7 +4527,6 @@ window.__ModuleLoader__.load({
 		  onClose,
 		  onFill,
 		  onCopy,
-		  onRefill,
 		  onRequest
 		}) {
 		  const targetOf = (id) => targets?.find((x) => x.id === id);
@@ -4514,7 +4536,7 @@ window.__ModuleLoader__.load({
 		  const warning = chosenTarget ? downloadWarning(t, chosenTarget) : null;
 		  const dest = chosen ? `${chosen.path}/${fileName}` : "";
 		  const ready = Boolean(selection) && files !== null && files > 0 && !busy;
-		  const pct2 = busy && bytes && bytes > 0 && received !== null ? Math.min(100, Math.round(received / bytes * 100)) : null;
+		  const pct2 = busy && totalBytes && totalBytes > 0 && received !== null ? Math.min(100, Math.round(received / totalBytes * 100)) : null;
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(520px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		      t("community.exchange.downloadTitle"),
@@ -4568,11 +4590,6 @@ window.__ModuleLoader__.load({
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.downloadDone", { dir: done.dir, name: done.name }) }),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: done.plan }),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.merge.hint") }),
-		        done.phase === "pending" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.merge.pendingHint") }) : null,
-		        done.correctedPrompt ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.merge.nameChanged", { name: done.name }) }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onRefill, children: t("community.merge.refill") }) })
-		        ] }) : null,
 		        done.canFill && !done.filled ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.merge.fillHint") }) : null,
 		        done.filled ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.merge.filled") }) : done.fillHint ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: done.fillHint }) : null
 		      ] }) : null,
@@ -4588,10 +4605,10 @@ window.__ModuleLoader__.load({
 		        }
 		      ) : null,
 		      busy ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: received === null || !bytes ? t("community.action.loading") : t("community.exchange.downloading", {
-		          done: formatBytes(received),
-		          total: formatBytes(bytes)
-		        }) }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hint, children: [
+		          phase && phase !== "downloading" ? t(`community.download.${phase}`) : t("community.download.received", { done: formatBytes(received ?? 0) }),
+		          pct2 === null ? null : ` · ${pct2}%`
+		        ] }),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		          "div",
 		          {
@@ -4627,7 +4644,8 @@ window.__ModuleLoader__.load({
 		      ) : null,
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") }),
+		        busy && onCancel ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancel, disabled: phase === "cancelling" || phase === "finalizing", children: t("community.download.cancel") }) : null,
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t(busy && onCancel && phase !== "checking" && phase !== "reconnecting" ? "community.download.close" : "community.action.close") }),
 		        done ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCopy, children: t("community.merge.copy") }),
 		          onRequest && done.phase === "ready" && !busy ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onRequest, children: t("community.merge.prepare") }) : null,
@@ -4888,6 +4906,12 @@ window.__ModuleLoader__.load({
 		  const [download, setDownload] = import_react.default.useState(null);
 		  const [downloadBusy, setDownloadBusy] = import_react.default.useState(false);
 		  const [downloadReceived, setDownloadReceived] = import_react.default.useState(null);
+		  const [downloadTotal, setDownloadTotal] = import_react.default.useState(null);
+		  const [downloadPhase, setDownloadPhase] = import_react.default.useState("checking");
+		  const [downloadRefresh, setDownloadRefresh] = import_react.default.useState(0);
+		  const downloadStarting = import_react.default.useRef(null);
+		  const downloadAttempt = import_react.default.useRef();
+		  const downloadRequest = import_react.default.useRef(0);
 		  const [uploadWorkspaces, setUploadWorkspaces] = import_react.default.useState(null);
 		  const [uploadRegistry, setUploadRegistry] = import_react.default.useState(
 		    null
@@ -4927,10 +4951,7 @@ window.__ModuleLoader__.load({
 		          ok: false,
 		          error: {
 		            code: "transport",
-		            message: t("community.error.transport", {
-		              route: SETTINGS_ROUTE_PREFIX,
-		              detail: e instanceof Error ? e.message : String(e)
-		            })
+		            message: t("community.error.transport", { detail: e instanceof Error ? e.message : String(e) })
 		          }
 		        };
 		      }
@@ -4990,6 +5011,13 @@ window.__ModuleLoader__.load({
 		  const listScope = JSON.stringify([activeServer, account?.id, configured, session?.sessionId]);
 		  const currentListScope = import_react.default.useRef(listScope);
 		  currentListScope.current = listScope;
+		  const downloadKey = download ? JSON.stringify([listScope, download.proposal.projectId, download.source, download.selection]) : "";
+		  const downloadKeyRef = import_react.default.useRef(downloadKey);
+		  downloadKeyRef.current = downloadKey;
+		  import_react.default.useEffect(() => {
+		    setDownload(null);
+		    downloadRequest.current += 1;
+		  }, [listScope]);
 		  const canMentor = Boolean(
 		    account && (account.roles.includes("MENTOR") || account.roles.includes("ADMIN"))
 		  );
@@ -5251,6 +5279,8 @@ window.__ModuleLoader__.load({
 		    await loadProposals();
 		  };
 		  const requestDownload = async (p) => {
+		    const request = ++downloadRequest.current;
+		    const scope = listScope;
 		    const prefix = downloadPrefix(p);
 		    const source = viewOf(p).otherSide;
 		    const res = await post("mentor/downloadState", {
@@ -5260,6 +5290,7 @@ window.__ModuleLoader__.load({
 		      // v23：宿主按它算"当前会话的工作区"（预选 + 决定提示词能不能填）
 		      ...session?.sessionId ? { sessionId: session.sessionId } : {}
 		    });
+		    if (request !== downloadRequest.current || scope !== currentListScope.current) return;
 		    if (!res.ok) {
 		      setMentorNotice({ tone: "error", text: res.error?.message ?? t("community.error.unknown") });
 		      return;
@@ -5272,9 +5303,11 @@ window.__ModuleLoader__.load({
 		      (w) => (mine ?? []).some((m) => m.id === w.id && m.published.some((r) => r.projectId === p.projectId))
 		    );
 		    const preferred = [current, own, ...v.items].find(Boolean);
+		    if (!session?.downloadTasks) setDownloadBusy(false);
 		    setDownload({
 		      proposal: p,
 		      source,
+		      revision: v.downloadRevision,
 		      workspaces: v.items,
 		      available: v.available,
 		      reason: v.reason,
@@ -5289,108 +5322,149 @@ window.__ModuleLoader__.load({
 		      done: null
 		    });
 		  };
+		  const downloadPayload = (target) => ({
+		    projectId: target.proposal.projectId,
+		    workspaceId: target.selection,
+		    prefix: downloadPrefix(target.proposal),
+		    projectTitle: target.proposal.projectTitle ?? "",
+		    source: target.source,
+		    revision: target.revision,
+		    intent: target.intent,
+		    ...target.remoteWorkspaceId ? { remoteWorkspaceId: target.remoteWorkspaceId } : {}
+		  });
+		  const finishDownload = (target, v) => {
+		    const canFill = Boolean(session?.setDraft) && target.selection === target.currentWorkspaceId;
+		    const prompt = (session?.syncCommand ?? syncCommandLine)(`${v.dir}/${v.name}`);
+		    const filled = canFill && session?.draftEmpty === true;
+		    if (filled) session?.setDraft?.(prompt);
+		    setDownload((prev) => prev ? { ...prev, fileName: v.name, notice: null, done: {
+		      phase: "ready",
+		      dir: v.dir,
+		      name: v.name,
+		      prompt,
+		      plan: t(`community.merge.plan.${mergeStateOf(v.workspaceStatus)}`),
+		      canFill,
+		      filled,
+		      fillHint: canFill || session?.prepareSync && target.selection === target.currentWorkspaceId ? null : session?.sessionId && target.selection !== target.currentWorkspaceId ? t("community.merge.otherWorkspace", { dir: v.dir }) : t("community.merge.noComposer")
+		    } } : prev);
+		    setMentorNotice({ tone: "success", text: t("community.exchange.downloadDone", { dir: v.dir, name: v.name }) });
+		    void loadProposals();
+		  };
+		  import_react.default.useEffect(() => {
+		    if (!session?.downloadTasks || !download?.selection) return;
+		    const target = download;
+		    let stopped = false;
+		    let timer;
+		    const poll = async () => {
+		      const res = await post("mentor/downloadStatus", { ...downloadPayload(target), jobId: target.jobId });
+		      if (stopped) return;
+		      if (!res.ok) {
+		        setDownloadBusy(true);
+		        setDownloadPhase("reconnecting");
+		        setDownload((prev) => prev ? { ...prev, notice: { tone: "error", text: t("community.download.reconnecting") } } : prev);
+		        timer = setTimeout(() => void poll(), 2e3);
+		        return;
+		      }
+		      const job = res.value.job;
+		      if (!job) {
+		        if (target.intent && downloadStarting.current === target.intent) {
+		          setDownloadBusy(true);
+		          setDownloadPhase("preparing");
+		          timer = setTimeout(() => void poll(), 1e3);
+		          return;
+		        }
+		        setDownloadBusy(false);
+		        setDownloadReceived(null);
+		        if (target.jobId || target.intent) setDownload((prev) => prev ? { ...prev, jobId: void 0, notice: prev.notice ?? { tone: "error", text: t(target.jobId ? "community.download.interrupted" : "community.download.unconfirmed") } } : prev);
+		        return;
+		      }
+		      setDownloadReceived(job.received);
+		      setDownloadTotal(job.totalBytes);
+		      setDownloadPhase(job.state === "cancelling" ? "cancelling" : job.state === "finalizing" ? "finalizing" : job.phase);
+		      const running = ["running", "finalizing", "cancelling"].includes(job.state);
+		      setDownloadBusy(running);
+		      if (running) {
+		        setDownload((prev) => prev ? { ...prev, jobId: job.id, notice: null } : prev);
+		        timer = setTimeout(() => void poll(), 1e3);
+		      } else if (job.state === "succeeded" && job.result?.value) {
+		        finishDownload(target, job.result.value);
+		      } else {
+		        const code = job.result?.error?.code;
+		        const message = job.state === "cancelled" ? t("community.download.cancelled") : code === "interrupted" ? t("community.download.interrupted") : code === "local-file-changed" ? t("community.download.localChanged") : job.result?.error?.message ?? t("community.download.failed");
+		        setDownload((prev) => prev ? { ...prev, jobId: job.id, done: null, notice: { tone: "error", text: message } } : prev);
+		      }
+		    };
+		    setDownloadBusy(true);
+		    setDownloadPhase("checking");
+		    void poll();
+		    return () => {
+		      stopped = true;
+		      if (timer) clearTimeout(timer);
+		    };
+		  }, [downloadKey, download?.jobId, downloadRefresh, session?.downloadTasks, post]);
+		  import_react.default.useEffect(() => () => {
+		    downloadKeyRef.current = "";
+		  }, []);
 		  const runDownload = async () => {
 		    const target = download;
-		    if (!target || !target.selection) return;
-		    const projectId = target.proposal.projectId;
-		    const chosen = target.workspaces?.find((w) => w.id === target.selection);
-		    const chosenTarget = target.targets?.find((x) => x.id === target.selection);
+		    if (!target?.selection || downloadStarting.current) return;
+		    const key = downloadKey;
+		    const attempted = { ...target, intent: target.intent && !target.jobId ? target.intent : crypto.randomUUID() };
+		    downloadStarting.current = attempted.intent;
+		    downloadAttempt.current = attempted.intent;
 		    setDownloadBusy(true);
 		    setDownloadReceived(null);
-		    const provisionalDir = chosen?.path ?? "";
-		    const provisionalState = mergeStateOf(chosenTarget?.status);
-		    const provisionalName = target.fileName;
-		    const canFill = Boolean(session?.setDraft) && target.selection === target.currentWorkspaceId;
-		    const fillHint = canFill ? null : !session ? t("community.merge.noComposer") : t("community.merge.otherWorkspace", { dir: provisionalDir });
-		    const provisionalPrompt = provisionalDir ? (session?.syncCommand ?? syncCommandLine)(`${provisionalDir}/${provisionalName}`) : "";
-		    const autoFilled = Boolean(provisionalPrompt) && canFill && session?.draftEmpty === true;
-		    if (autoFilled) session?.setDraft?.(provisionalPrompt);
-		    setDownload(
-		      (prev) => prev ? {
-		        ...prev,
-		        notice: null,
-		        done: {
-		          phase: "pending",
-		          dir: provisionalDir,
-		          name: provisionalName,
-		          plan: t(`community.merge.plan.${provisionalState}`),
-		          prompt: provisionalPrompt,
-		          correctedPrompt: null,
-		          canFill,
-		          filled: autoFilled,
-		          fillHint
-		        }
-		      } : prev
-		    );
-		    let timer;
-		    const stopPoll = () => {
-		      if (timer !== void 0) clearInterval(timer);
-		      timer = void 0;
-		    };
-		    timer = setInterval(() => {
-		      void post("mentor/downloadProgress", { projectId }).then((p) => {
-		        if (!p.ok) return;
-		        const got = p.value?.received;
-		        if (typeof got === "number") setDownloadReceived(got);
+		    setDownloadTotal(null);
+		    setDownloadPhase("preparing");
+		    setDownload((prev) => prev ? { ...prev, jobId: void 0, intent: attempted.intent, notice: null, done: null } : prev);
+		    let legacyTimer;
+		    if (!session?.downloadTasks) legacyTimer = setInterval(() => {
+		      void post("mentor/downloadProgress", { projectId: target.proposal.projectId }).then((res) => {
+		        if (downloadKeyRef.current !== key || !res.ok) return;
+		        setDownloadReceived(res.value.received);
+		        setDownloadPhase("downloading");
 		      });
 		    }, 1e3);
-		    let res;
 		    try {
-		      res = await post("mentor/download", {
-		        projectId,
-		        workspaceId: target.selection,
-		        prefix: downloadPrefix(target.proposal),
-		        // 便签用它做展示（`/research sync` 的交接文本里给出"这是哪个项目"）
-		        projectTitle: target.proposal.projectTitle ?? "",
-		        // 与预检**同一侧**：否则会出现"预检说有 3 个文件、点下去 404"
-		        source: target.source,
-		        // v23：预检时那一侧的标识。宿主据此**在落盘前再判一次**，并用归档响应头复核。
-		        ...target.remoteWorkspaceId ? { remoteWorkspaceId: target.remoteWorkspaceId } : {}
-		      });
+		      const res = await post(session?.downloadTasks ? "mentor/downloadStart" : "mentor/download", downloadPayload(attempted));
+		      if (downloadKeyRef.current !== key || downloadAttempt.current !== attempted.intent) return;
+		      if (session?.downloadTasks) {
+		        const job = res.ok ? res.value.job : null;
+		        setDownload((prev) => prev ? { ...prev, jobId: job?.id, notice: res.ok ? null : { tone: "error", text: res.error?.code === "transport" ? t("community.download.reconnecting") : res.error?.message ?? t("community.download.failed") } } : prev);
+		        if (!res.ok && res.error?.code !== "transport") setDownloadBusy(false);
+		        else setDownloadRefresh((n) => n + 1);
+		      } else {
+		        setDownloadBusy(false);
+		        if (res.ok) finishDownload(target, res.value);
+		        else setDownload((prev) => prev ? { ...prev, notice: { tone: "error", text: res.error?.message ?? t("community.download.failed") } } : prev);
+		      }
 		    } finally {
-		      stopPoll();
-		      setDownloadBusy(false);
-		      setDownloadReceived(null);
+		      if (legacyTimer) clearInterval(legacyTimer);
+		      if (downloadStarting.current === attempted.intent) downloadStarting.current = null;
 		    }
-		    if (!res.ok) {
-		      setDownload(
-		        (prev) => prev ? {
-		          ...prev,
-		          done: null,
-		          notice: {
-		            tone: "error",
-		            text: `${res.error?.message ?? t("community.error.unknown")} ${t("community.merge.downloadFailedHint")}`
-		          }
-		        } : prev
-		      );
-		      return;
+		  };
+		  const cancelDownload = async () => {
+		    const target = download;
+		    if (!target?.selection) return;
+		    const key = downloadKey;
+		    let jobId = target.jobId;
+		    if (!jobId && !target.intent) {
+		      const current = await post("mentor/downloadStatus", downloadPayload(target));
+		      if (downloadKeyRef.current !== key || !current.ok) return;
+		      jobId = current.value.job?.id;
+		      if (!jobId) return;
 		    }
-		    const v = res.value;
-		    const correctedPrompt = (session?.syncCommand ?? syncCommandLine)(`${v.dir}/${v.name}`);
-		    const nameChanged = Boolean(correctedPrompt) && v.name !== provisionalName;
-		    setDownload(
-		      (prev) => prev ? {
-		        ...prev,
-		        notice: null,
-		        done: {
-		          phase: "ready",
-		          dir: v.dir,
-		          name: v.name,
-		          plan: t(`community.merge.plan.${mergeStateOf(v.workspaceStatus)}`),
-		          // 没变就是同一个文本；变了则保留"已填进去的那一版"，更正版放另一栏等用户点
-		          prompt: nameChanged ? provisionalPrompt : correctedPrompt,
-		          correctedPrompt: nameChanged ? correctedPrompt : null,
-		          canFill,
-		          filled: autoFilled,
-		          fillHint
-		        }
-		      } : prev
-		    );
-		    setMentorNotice({
-		      tone: "success",
-		      text: autoFilled ? t("community.merge.filled") : t("community.exchange.downloadDone", { dir: v.dir, name: v.name })
-		    });
-		    await loadProposals();
+		    setDownloadPhase("cancelling");
+		    const cancelled = await post("mentor/downloadCancel", { ...downloadPayload(target), jobId });
+		    if (downloadKeyRef.current !== key || target.intent && downloadAttempt.current !== target.intent) return;
+		    const job = cancelled.ok ? cancelled.value.job : null;
+		    if (job?.state === "cancelled" && downloadStarting.current === target.intent) downloadStarting.current = null;
+		    setDownload((prev) => prev ? {
+		      ...prev,
+		      jobId: job?.id ?? prev.jobId,
+		      notice: cancelled.ok ? null : { tone: "error", text: t("community.download.reconnecting") }
+		    } : prev);
+		    setDownloadRefresh((n) => n + 1);
 		  };
 		  const loadMine = import_react.default.useCallback(async () => {
 		    setMineLoading(true);
@@ -6331,11 +6405,16 @@ window.__ModuleLoader__.load({
 		        bytes: download.bytes,
 		        busy: downloadBusy,
 		        received: downloadReceived,
+		        totalBytes: downloadTotal,
+		        phase: downloadPhase,
+		        onCancel: session?.downloadTasks && (download.intent || download.jobId) ? () => {
+		          void cancelDownload();
+		        } : void 0,
 		        notice: download.notice,
 		        targets: download.targets,
 		        currentWorkspaceId: download.currentWorkspaceId,
 		        done: download.done,
-		        onSelect: (id) => setDownload((prev) => prev ? { ...prev, selection: id } : prev),
+		        onSelect: (id) => setDownload((prev) => prev ? { ...prev, selection: id, jobId: void 0, intent: void 0, done: null, notice: null } : prev),
 		        onDownload: () => void runDownload(),
 		        onClose: () => setDownload(null),
 		        onFill: () => {
@@ -6358,28 +6437,11 @@ window.__ModuleLoader__.load({
 		          });
 		        },
 		        onRequest: session?.prepareSync && download.selection === download.currentWorkspaceId ? () => {
-		          const prompt = download.done?.correctedPrompt ?? download.done?.prompt;
+		          const prompt = download.done?.prompt;
 		          if (!prompt || download.done?.phase !== "ready") return;
 		          session.prepareSync?.(prompt);
 		          setDownload(null);
-		        } : void 0,
-		        onRefill: () => {
-		          const corrected = download.done?.correctedPrompt;
-		          if (!corrected) return;
-		          if (download.done?.canFill && session?.setDraft) session.setDraft(corrected);
-		          setDownload(
-		            (prev) => prev?.done ? {
-		              ...prev,
-		              done: {
-		                ...prev.done,
-		                prompt: corrected,
-		                correctedPrompt: null,
-		                filled: prev.done.filled || prev.done.canFill
-		              }
-		            } : prev
-		          );
-		          setMentorNotice({ tone: "success", text: t("community.merge.filled") });
-		        }
+		        } : void 0
 		      }
 		    ) : null,
 		    exchange?.mode === "upload" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(

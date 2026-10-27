@@ -385,6 +385,10 @@ export declare const STALL_TIMEOUT_MS = 30000;
  * 因此进度是真的、内存不随文件大小增长。
  */
 export interface BinaryStreamOptions extends ServerRequestOptions {
+    signal?: AbortSignal;
+    /** Worker ownership/cancellation must be checked before writing or publishing. */
+    check?: () => void;
+    onHeaders?: (totalBytes: number | null) => void;
     /** 每收到一块就回调（**顺序**调用，调用方可以同步写盘）。 */
     onChunk?: (chunk: Uint8Array) => void;
     /** 累计收到多少字节（进度用；每块一次）。 */

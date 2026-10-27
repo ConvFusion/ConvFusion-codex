@@ -48,6 +48,8 @@ export declare function safeDirName(raw: string, fallback?: string): string;
  * `commit` 因此先查 ZIP 结尾的 EOCD（中央目录结束记录）与条目数，不合格**抛错**。
  */
 export interface DownloadPart {
+    /** Temporary path, used to recover a worker interrupted before cleanup. */
+    readonly path: string;
     /** 已经写到盘上的字节数（进度用）。 */
     readonly received: number;
     /** 顺序追加一块。 */

@@ -593,13 +593,11 @@ export declare function TokenDialog({ t, tokens, requests, loading, amount, reas
  * **只存 ZIP，不解压**（2026-09 用户拍板）：同名不覆盖（宿主自动加序号），
  * 所选工作区里原有的东西一个都不动。
  *
- * ⚠️ **0.5.8 起多了一道闸门**：每一项先判"这个工作区里已有的 `workspace/` 和我要下载的
- * 是不是**同一项研究**"（判据是服务器的 `workspace_id`）—— 同一项才允许下进去融合，
- * 另一项**在下之前就拦住**（而不是等文件都解压进去了才发现）。
+ * 工作区身份用于说明后续同步方式；下载本身只保存 ZIP，不解压或替换研究文件。
  */
 export declare function DownloadDialog({ t, proposal, fileName, workspaces, workspacesAvailable, workspacesReason, selection, files, bytes, busy,
 /** 下载中已收到的字节数（宿主如实报告；null = 还没开始/已结束）。 */
-received, notice, targets, currentWorkspaceId, done, onSelect, onDownload, onClose, onFill, onCopy, onRefill, onRequest, }: {
+received, totalBytes, phase, onCancel, notice, targets, currentWorkspaceId, done, onSelect, onDownload, onClose, onFill, onCopy, onRequest, }: {
     t: Translate;
     proposal: HostProposal;
     /** 预计保存成的文件名（服务器命名 `<owner>-<title>.zip`；实际以响应头为准）。 */
@@ -616,6 +614,9 @@ received, notice, targets, currentWorkspaceId, done, onSelect, onDownload, onClo
     bytes: number | null;
     busy: boolean;
     received: number | null;
+    totalBytes?: number | null;
+    phase?: string;
+    onCancel?: (() => void) | undefined;
     notice: {
         tone: 'success' | 'error';
         text: string;
@@ -624,19 +625,13 @@ received, notice, targets, currentWorkspaceId, done, onSelect, onDownload, onClo
     targets: HostDownloadTarget[] | null;
     /** 当前会话的工作区 id（标出来 + 说明提示词能不能填）。 */
     currentWorkspaceId: string | null;
-    /**
-     * 「整合提示词」面板；`null` = 没在下载也没下过。
-     *
-     * `phase = 'pending'` 发生在下载**进行中** —— 那时提示词已经先用预检的值填好了
-     * （2026-10 用户要求：不要等下载完才出现），只是文件名还是猜的。
-     */
+    /** Available only after the ZIP has been validated and saved. */
     done: {
-        phase: 'pending' | 'ready';
+        phase: 'ready';
         dir: string;
         name: string;
         plan: string;
         prompt: string;
-        correctedPrompt: string | null;
         canFill: boolean;
         filled: boolean;
         fillHint: string | null;
@@ -648,8 +643,7 @@ received, notice, targets, currentWorkspaceId, done, onSelect, onDownload, onClo
     onFill: () => void;
     /** 复制提示词到剪贴板。 */
     onCopy: () => void;
-    /** 用**实际落盘的文件名**替换提示词（只在这两者不一致时出现）。 */
-    onRefill: () => void;
+    /** Prepare the verified sync request for the current task. */
     onRequest?: (() => void) | undefined;
 }): JSX.Element;
 /**
@@ -667,6 +661,8 @@ received, notice, targets, currentWorkspaceId, done, onSelect, onDownload, onClo
  * session 标准 props 交给会话作用域槽位；设置页没有，所以那里只给「复制提示词」。
  */
 export interface SessionBridge {
+    /** Host supports durable, idempotent background downloads. */
+    downloadTasks?: boolean;
     prepareSync?: ((text: string) => void) | undefined;
     /** Host-specific handoff text; Codex has no DSH slash command. */
     syncCommand?: ((zipPath: string) => string) | undefined;

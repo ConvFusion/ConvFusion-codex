@@ -1,7 +1,7 @@
 {
   "entry": "codex-mcp.mjs",
   "source": "scripts/convfusion-mcp.mjs",
-  "inputCount": 105,
+  "inputCount": 106,
   "dependencies": [
     {
       "id": "@deepseek-ai/cordis@4.0.4",

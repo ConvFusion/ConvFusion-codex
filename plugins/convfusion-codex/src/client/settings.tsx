@@ -4284,9 +4284,7 @@ function downloadWarning(
  * **只存 ZIP，不解压**（2026-09 用户拍板）：同名不覆盖（宿主自动加序号），
  * 所选工作区里原有的东西一个都不动。
  *
- * ⚠️ **0.5.8 起多了一道闸门**：每一项先判"这个工作区里已有的 `workspace/` 和我要下载的
- * 是不是**同一项研究**"（判据是服务器的 `workspace_id`）—— 同一项才允许下进去融合，
- * 另一项**在下之前就拦住**（而不是等文件都解压进去了才发现）。
+ * 工作区身份用于说明后续同步方式；下载本身只保存 ZIP，不解压或替换研究文件。
  */
 export function DownloadDialog({
   t,
@@ -4301,6 +4299,9 @@ export function DownloadDialog({
   busy,
   /** 下载中已收到的字节数（宿主如实报告；null = 还没开始/已结束）。 */
   received,
+  totalBytes,
+  phase,
+  onCancel,
   notice,
   targets,
   currentWorkspaceId,
@@ -4310,7 +4311,6 @@ export function DownloadDialog({
   onClose,
   onFill,
   onCopy,
-  onRefill,
   onRequest,
 }: {
   t: Translate
@@ -4325,24 +4325,21 @@ export function DownloadDialog({
   bytes: number | null
   busy: boolean
   received: number | null
+  totalBytes?: number | null
+  phase?: string
+  onCancel?: (() => void) | undefined
   notice: { tone: 'success' | 'error'; text: string } | null
   /** v23：每个候选工作区的校验结论；`null` = 旧宿主（不显示状态，退回旧行为）。 */
   targets: HostDownloadTarget[] | null
   /** 当前会话的工作区 id（标出来 + 说明提示词能不能填）。 */
   currentWorkspaceId: string | null
-  /**
-   * 「整合提示词」面板；`null` = 没在下载也没下过。
-   *
-   * `phase = 'pending'` 发生在下载**进行中** —— 那时提示词已经先用预检的值填好了
-   * （2026-10 用户要求：不要等下载完才出现），只是文件名还是猜的。
-   */
+  /** Available only after the ZIP has been validated and saved. */
   done: {
-    phase: 'pending' | 'ready'
+    phase: 'ready'
     dir: string
     name: string
     plan: string
     prompt: string
-    correctedPrompt: string | null
     canFill: boolean
     filled: boolean
     fillHint: string | null
@@ -4354,8 +4351,7 @@ export function DownloadDialog({
   onFill: () => void
   /** 复制提示词到剪贴板。 */
   onCopy: () => void
-  /** 用**实际落盘的文件名**替换提示词（只在这两者不一致时出现）。 */
-  onRefill: () => void
+  /** Prepare the verified sync request for the current task. */
   onRequest?: (() => void) | undefined
 }): JSX.Element {
   /*
@@ -4375,13 +4371,9 @@ export function DownloadDialog({
   const warning = chosenTarget ? downloadWarning(t, chosenTarget) : null
   const dest = chosen ? `${chosen.path}/${fileName}` : ''
   const ready = Boolean(selection) && files !== null && files > 0 && !busy
-  /*
-   * 进度条的分母：预检给的字节数是**解压后**的合计（服务器发的是压缩 ZIP），
-   * 所以它只是上界，写「≈」。真实速率实测 ~120 KB/s 时十几 MB 要一两分钟 ——
-   * 这段时间界面必须动，否则「慢」和「死」长得一模一样（2026-09 用户反馈）。
-   */
-  const pct = busy && bytes && bytes > 0 && received !== null
-    ? Math.min(100, Math.round((received / bytes) * 100))
+  // Percentage uses the compressed response length only; the file manifest is not a ZIP size.
+  const pct = busy && totalBytes && totalBytes > 0 && received !== null
+    ? Math.min(100, Math.round((received / totalBytes) * 100))
     : null
   return (
     <div style={S.overlay} role="dialog" aria-modal="true">
@@ -4466,21 +4458,6 @@ export function DownloadDialog({
               <div style={S.hint}>{t('community.exchange.downloadDone', { dir: done.dir, name: done.name })}</div>
               <div style={S.hint}>{done.plan}</div>
               <div style={S.hint}>{t('community.merge.hint')}</div>
-              {/* 下载还没落盘：说清"已经填好了，但要等写完再发" */}
-              {done.phase === 'pending' ? (
-                <div style={S.hint}>{t('community.merge.pendingHint')}</div>
-              ) : null}
-              {/* 落盘后的真名与提示词里猜的不一致 → 给一个更正版（点了才替换） */}
-              {done.correctedPrompt ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <div style={S.hint}>{t('community.merge.nameChanged', { name: done.name })}</div>
-                  <div>
-                    <button type="button" style={S.ghostBtn} onClick={onRefill}>
-                      {t('community.merge.refill')}
-                    </button>
-                  </div>
-                </div>
-              ) : null}
               {/* 输入框非空时「填入输入框」是**替换**：这一句必须在按之前就看得见 */}
               {done.canFill && !done.filled ? <div style={S.hint}>{t('community.merge.fillHint')}</div> : null}
               {done.filled ? (
@@ -4518,12 +4495,10 @@ export function DownloadDialog({
           {busy ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <div style={S.hint}>
-                {received === null || !bytes
-                  ? t('community.action.loading')
-                  : t('community.exchange.downloading', {
-                      done: formatBytes(received),
-                      total: formatBytes(bytes),
-                    })}
+                {phase && phase !== 'downloading'
+                  ? t(`community.download.${phase}`)
+                  : t('community.download.received', { done: formatBytes(received ?? 0) })}
+                {pct === null ? null : ` · ${pct}%`}
               </div>
               <div
                 style={{
@@ -4559,8 +4534,9 @@ export function DownloadDialog({
           ) : null}
           <div style={S.footer}>
             <span style={{ flex: '1 1 auto' }} />
+            {busy && onCancel ? <button type="button" style={S.ghostBtn} onClick={onCancel} disabled={phase === 'cancelling' || phase === 'finalizing'}>{t('community.download.cancel')}</button> : null}
             <button type="button" style={S.ghostBtn} onClick={onClose}>
-              {t('community.action.close')}
+              {t(busy && onCancel && phase !== 'checking' && phase !== 'reconnecting' ? 'community.download.close' : 'community.action.close')}
             </button>
             {done ? (
               <>
@@ -4953,6 +4929,9 @@ function ServerPresetButton({
  * session 标准 props 交给会话作用域槽位；设置页没有，所以那里只给「复制提示词」。
  */
 export interface SessionBridge {
+  /** Host supports durable, idempotent background downloads. */
+  downloadTasks?: boolean
+
   prepareSync?: ((text: string) => void) | undefined
   /** Host-specific handoff text; Codex has no DSH slash command. */
   syncCommand?: ((zipPath: string) => string) | undefined
@@ -5228,6 +5207,9 @@ export function CommunityTab({
      * 所以在这里记下来（侧由 {@link mySide} / {@link otherSide} 按角色定）。
      */
     source: HostFileSide
+    revision?: string
+    jobId?: string
+    intent?: string
     workspaces: Array<{ id: string; title: string; path: string }> | null
     available: boolean
     reason: string | null
@@ -5248,41 +5230,15 @@ export function CommunityTab({
     remoteWorkspaceId: string | null
     /** 当前会话的工作区 id（预选 + 决定提示词能不能填）。 */
     currentWorkspaceId: string | null
-    /**
-     * 下载成功后的「整合提示词」面板（**不自动发送**）。
-     *
-     * 下载完把 ZIP 存下来只是第一步 —— 要让它变成研究前进，还得解压并和本地内容**融合**，
-     * 那件事交给用户会话里的 agent。这里只把提示词准备好：能填就填进输入框，不能填就复制。
-     */
+    /** Receipt and sync command for a verified, saved ZIP. */
     done: {
-      /**
-       * `pending` = 下载还在跑（提示词已经先填好了）；`ready` = 落盘完成、判定已核准。
-       */
-      phase: 'pending' | 'ready'
-      /** ZIP 落在哪个工作区根目录。 */
+      phase: 'ready'
       dir: string
-      /** 落盘后的真名（`pending` 时还是预检的猜测）。 */
       name: string
-      /**
-       * "接下来会发生什么"那句话（**已本地化**）。
-       *
-       * 由构建提示词时的同一套分叉规则算出来（`planKeyOf`）—— 面板与提示词不会各说一套。
-       */
       plan: string
-      /** 当前这段提示词（与输入框里那一版一致）。 */
       prompt: string
-      /**
-       * 落盘后的文件名与提示词里写的**不一致**时的更正版（点按钮才替换）。
-       *
-       * 为什么要它：提示词是**下载前**用预检猜的文件名填的；服务器才是命名的权威，
-       * 同名还会加 `-2`。不一致时把更正版备着，让用户自己决定（绝不静默改掉输入框）。
-       */
-      correctedPrompt: string | null
-      /** 目标就是当前会话的工作区（只有这时填进去才有意义）。 */
       canFill: boolean
-      /** 已经自动填进输入框了吗。 */
       filled: boolean
-      /** 不能填时的解释（`canFill` 为真时是 `null`）—— 由上层按"为什么不能填"算好。 */
       fillHint: string | null
     } | null
   } | null>(null)
@@ -5294,6 +5250,13 @@ export function CommunityTab({
    * `null` = 还没开始收到数据（与 0 不同：0 是"开始了但一个字节还没到"）。
    */
   const [downloadReceived, setDownloadReceived] = React.useState<number | null>(null)
+  const [downloadTotal, setDownloadTotal] = React.useState<number | null>(null)
+  const [downloadPhase, setDownloadPhase] = React.useState('checking')
+  const [downloadRefresh, setDownloadRefresh] = React.useState(0)
+  const downloadStarting = React.useRef<string | null>(null)
+  const downloadAttempt = React.useRef<string | undefined>()
+  const downloadRequest = React.useRef(0)
+
   /**
    * 【上传】对话框：本机可回传的工作区（宿主 `mentor/uploadState`；`null` = 还没读）。
    *
@@ -5376,10 +5339,7 @@ export function CommunityTab({
           ok: false,
           error: {
             code: 'transport',
-            message: t('community.error.transport', {
-              route: SETTINGS_ROUTE_PREFIX,
-              detail: e instanceof Error ? e.message : String(e),
-            }),
+            message: t('community.error.transport', { detail: e instanceof Error ? e.message : String(e) }),
           },
         }
       }
@@ -5456,6 +5416,11 @@ export function CommunityTab({
   const listScope = JSON.stringify([activeServer, account?.id, configured, session?.sessionId])
   const currentListScope = React.useRef(listScope)
   currentListScope.current = listScope
+  const downloadKey = download ? JSON.stringify([listScope, download.proposal.projectId, download.source, download.selection]) : ''
+  const downloadKeyRef = React.useRef(downloadKey)
+  downloadKeyRef.current = downloadKey
+
+  React.useEffect(() => { setDownload(null); downloadRequest.current += 1 }, [listScope])
   /**
    * 能否用【可指导】视图。
    *
@@ -5928,6 +5893,8 @@ export function CommunityTab({
    * （同名不覆盖，会加序号）。
    */
   const requestDownload = async (p: HostProposal): Promise<void> => {
+    const request = ++downloadRequest.current
+    const scope = listScope
     const prefix = downloadPrefix(p)
     // 下载的是**对方那一侧**：方向 A 导师下学生的工作区（owner 侧）、学生取导师的交付
     // （mentor 侧）；方向 B 反过来（学生下导师的选题、导师取学生的进展）。
@@ -5939,11 +5906,13 @@ export function CommunityTab({
       // v23：宿主按它算"当前会话的工作区"（预选 + 决定提示词能不能填）
       ...(session?.sessionId ? { sessionId: session.sessionId } : {}),
     })
+    if (request !== downloadRequest.current || scope !== currentListScope.current) return
     if (!res.ok) {
       setMentorNotice({ tone: 'error', text: res.error?.message ?? t('community.error.unknown') })
       return
     }
     const v = res.value as {
+      downloadRevision?: string
       files: number
       bytes: number
       available: boolean
@@ -5983,9 +5952,11 @@ export function CommunityTab({
       (mine ?? []).some((m) => m.id === w.id && m.published.some((r) => r.projectId === p.projectId)),
     )
     const preferred = [current, own, ...v.items].find(Boolean)
+    if (!session?.downloadTasks) setDownloadBusy(false)
     setDownload({
       proposal: p,
       source,
+      revision: v.downloadRevision,
       workspaces: v.items,
       available: v.available,
       reason: v.reason,
@@ -6001,177 +5972,141 @@ export function CommunityTab({
     })
   }
 
+  type DownloadTarget = NonNullable<typeof download>
+  type Receipt = { dir: string; path: string; name: string; bytes: number; workspaceStatus?: HostDownloadTarget['status'] }
+  type Job = { id: string; state: string; phase: string; received: number; totalBytes: number | null; result?: { ok: boolean; value?: Receipt; error?: { code: string; message: string } } }
+  const downloadPayload = (target: DownloadTarget) => ({
+    projectId: target.proposal.projectId, workspaceId: target.selection,
+    prefix: downloadPrefix(target.proposal), projectTitle: target.proposal.projectTitle ?? '',
+    source: target.source, revision: target.revision, intent: target.intent,
+    ...(target.remoteWorkspaceId ? { remoteWorkspaceId: target.remoteWorkspaceId } : {}),
+  })
+  const finishDownload = (target: DownloadTarget, v: Receipt): void => {
+    const canFill = Boolean(session?.setDraft) && target.selection === target.currentWorkspaceId
+    const prompt = (session?.syncCommand ?? syncCommandLine)(`${v.dir}/${v.name}`)
+    const filled = canFill && session?.draftEmpty === true
+    if (filled) session?.setDraft?.(prompt)
+    setDownload((prev) => prev ? { ...prev, fileName: v.name, notice: null, done: {
+      phase: 'ready', dir: v.dir, name: v.name, prompt,
+      plan: t(`community.merge.plan.${mergeStateOf(v.workspaceStatus)}`), canFill, filled,
+      fillHint: canFill || session?.prepareSync && target.selection === target.currentWorkspaceId ? null
+        : session?.sessionId && target.selection !== target.currentWorkspaceId ? t('community.merge.otherWorkspace', { dir: v.dir }) : t('community.merge.noComposer'),
+    } } : prev)
+    setMentorNotice({ tone: 'success', text: t('community.exchange.downloadDone', { dir: v.dir, name: v.name }) })
+    void loadProposals()
+  }
+
+  // Every status call is short. Reopening the dialog discovers the same task,
+  // including tasks owned by another MCP host. Lost responses never imply failure.
+  React.useEffect(() => {
+    if (!session?.downloadTasks || !download?.selection) return
+    const target = download
+    let stopped = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const poll = async () => {
+      const res = await post('mentor/downloadStatus', { ...downloadPayload(target), jobId: target.jobId })
+      if (stopped) return
+      if (!res.ok) {
+        setDownloadBusy(true)
+        setDownloadPhase('reconnecting')
+        setDownload((prev) => prev ? { ...prev, notice: { tone: 'error', text: t('community.download.reconnecting') } } : prev)
+        timer = setTimeout(() => void poll(), 2000)
+        return
+      }
+      const job = (res.value as { job: Job | null }).job
+      if (!job) {
+        if (target.intent && downloadStarting.current === target.intent) {
+          setDownloadBusy(true); setDownloadPhase('preparing')
+          timer = setTimeout(() => void poll(), 1000)
+          return
+        }
+        setDownloadBusy(false)
+        setDownloadReceived(null)
+        if (target.jobId || target.intent) setDownload((prev) => prev ? { ...prev, jobId: undefined, notice: prev.notice ?? { tone: 'error', text: t(target.jobId ? 'community.download.interrupted' : 'community.download.unconfirmed') } } : prev)
+        return
+      }
+      setDownloadReceived(job.received)
+      setDownloadTotal(job.totalBytes)
+      setDownloadPhase(job.state === 'cancelling' ? 'cancelling' : job.state === 'finalizing' ? 'finalizing' : job.phase)
+      const running = ['running', 'finalizing', 'cancelling'].includes(job.state)
+      setDownloadBusy(running)
+      if (running) {
+        setDownload((prev) => prev ? { ...prev, jobId: job.id, notice: null } : prev)
+        timer = setTimeout(() => void poll(), 1000)
+      } else if (job.state === 'succeeded' && job.result?.value) {
+        finishDownload(target, job.result.value)
+      } else {
+        const code = job.result?.error?.code
+        const message = job.state === 'cancelled' ? t('community.download.cancelled')
+          : code === 'interrupted' ? t('community.download.interrupted')
+          : code === 'local-file-changed' ? t('community.download.localChanged')
+          : job.result?.error?.message ?? t('community.download.failed')
+        setDownload((prev) => prev ? { ...prev, jobId: job.id, done: null, notice: { tone: 'error', text: message } } : prev)
+      }
+    }
+    setDownloadBusy(true)
+    setDownloadPhase('checking')
+    void poll()
+    return () => { stopped = true; if (timer) clearTimeout(timer) }
+  }, [downloadKey, download?.jobId, downloadRefresh, session?.downloadTasks, post])
+
+  React.useEffect(() => () => { downloadKeyRef.current = '' }, [])
+
   const runDownload = async (): Promise<void> => {
     const target = download
-    if (!target || !target.selection) return
-    const projectId = target.proposal.projectId
-    const chosen = target.workspaces?.find((w) => w.id === target.selection)
-    const chosenTarget = target.targets?.find((x) => x.id === target.selection)
+    if (!target?.selection || downloadStarting.current) return
+    const key = downloadKey
+    const attempted = { ...target, intent: target.intent && !target.jobId ? target.intent : crypto.randomUUID() }
+    downloadStarting.current = attempted.intent
+    downloadAttempt.current = attempted.intent
     setDownloadBusy(true)
     setDownloadReceived(null)
-
-    /*
-     * ═══ 第一件事：**先把同步命令填进输入框**（2026-10 用户要求）═══
-     *
-     * 下载一份快照要几秒到两分钟 —— 没必要让用户干等到落盘完成才看见要发的那一行。
-     * 所以这里**在下载之前**就把 `/research sync @<zip>` 填好：**只有文件名是猜的**
-     * （服务器才是命名的权威，同名还会加 `-2`）。
-     *
-     * 名字猜错的代价很小：命令自己会校验——文件不存在时它会把同前缀的候选列出来。
-     * 所以这里不再往文本里塞"以实际为准"的说明，落盘后真名不同时给一个更正按钮即可。
-     */
-    const provisionalDir = chosen?.path ?? ''
-    const provisionalState = mergeStateOf(chosenTarget?.status)
-    const provisionalName = target.fileName
-    /*
-     * 填不填得进输入框有个硬条件：**目标工作区必须就是当前会话的工作区** ——
-     * DSH 的写权限按会话自己的工作区收窄，指向别处的话 agent 根本写不进去，
-     * 填进去就是给用户一段必错的提示词。这时只给「复制提示词」。
-     */
-    const canFill = Boolean(session?.setDraft) && target.selection === target.currentWorkspaceId
-    const fillHint = canFill
-      ? null
-      : !session
-        ? t('community.merge.noComposer')
-        : t('community.merge.otherWorkspace', { dir: provisionalDir })
-    const provisionalPrompt = provisionalDir ? (session?.syncCommand ?? syncCommandLine)(`${provisionalDir}/${provisionalName}`) : ''
-    /*
-     * 输入框空着就直接填好（用户少一步）；里面已经有内容就**绝不动它** ——
-     * 只把提示词备着，等用户点「填入输入框」才替换（那句提示会说"会替换"）。
-     */
-    const autoFilled = Boolean(provisionalPrompt) && canFill && session?.draftEmpty === true
-    if (autoFilled) session?.setDraft?.(provisionalPrompt)
-    setDownload((prev) =>
-      prev
-        ? {
-            ...prev,
-            notice: null,
-            done: {
-              phase: 'pending',
-              dir: provisionalDir,
-              name: provisionalName,
-              plan: t(`community.merge.plan.${provisionalState}`),
-              prompt: provisionalPrompt,
-              correctedPrompt: null,
-              canFill,
-              filled: autoFilled,
-              fillHint,
-            },
-          }
-        : prev,
-    )
-
-    /*
-     * 下载期间**按秒问宿主收到了多少字节**。
-     *
-     * 为什么不在这条请求上做流式：浏览器↔宿主是请求/响应模型，`post` 只在整件事做完
-     * 才返回；而真实快照是十几 MB / 一两分钟（实测 13.6 MB、115 秒），那段时间界面
-     * 若只有一个转圈，用户分不清"慢"和"死" —— 2026-09 就是这么被报上来的。
-     * 轮询的代价是本地一次读取（宿主不触网、不读盘），比改通道简单得多。
-     *
-     * 轮询失败**不打断下载**：进度只是好看，不能让一个辅助调用把主流程弄挂。
-     */
-    let timer: ReturnType<typeof setInterval> | undefined
-    const stopPoll = (): void => {
-      if (timer !== undefined) clearInterval(timer)
-      timer = undefined
-    }
-    timer = setInterval(() => {
-      void post('mentor/downloadProgress', { projectId }).then((p) => {
-        if (!p.ok) return
-        const got = (p.value as { received?: number } | undefined)?.received
-        if (typeof got === 'number') setDownloadReceived(got)
+    setDownloadTotal(null)
+    setDownloadPhase('preparing')
+    setDownload((prev) => prev ? { ...prev, jobId: undefined, intent: attempted.intent, notice: null, done: null } : prev)
+    let legacyTimer: ReturnType<typeof setInterval> | undefined
+    if (!session?.downloadTasks) legacyTimer = setInterval(() => {
+      void post('mentor/downloadProgress', { projectId: target.proposal.projectId }).then((res) => {
+        if (downloadKeyRef.current !== key || !res.ok) return
+        setDownloadReceived((res.value as { received: number }).received)
+        setDownloadPhase('downloading')
       })
     }, 1000)
-    let res: Awaited<ReturnType<typeof post>>
     try {
-      res = await post('mentor/download', {
-        projectId,
-        workspaceId: target.selection,
-        prefix: downloadPrefix(target.proposal),
-        // 便签用它做展示（`/research sync` 的交接文本里给出"这是哪个项目"）
-        projectTitle: target.proposal.projectTitle ?? '',
-        // 与预检**同一侧**：否则会出现"预检说有 3 个文件、点下去 404"
-        source: target.source,
-        // v23：预检时那一侧的标识。宿主据此**在落盘前再判一次**，并用归档响应头复核。
-        ...(target.remoteWorkspaceId ? { remoteWorkspaceId: target.remoteWorkspaceId } : {}),
-      })
-    } finally {
-      stopPoll()
-      setDownloadBusy(false)
-      setDownloadReceived(null)
+      const res = await post(session?.downloadTasks ? 'mentor/downloadStart' : 'mentor/download', downloadPayload(attempted))
+      if (downloadKeyRef.current !== key || downloadAttempt.current !== attempted.intent) return
+      if (session?.downloadTasks) {
+        // Even if start's reply was lost, status finds the job by its stable scope.
+        const job = res.ok ? (res.value as { job: Job }).job : null
+        setDownload((prev) => prev ? { ...prev, jobId: job?.id, notice: res.ok ? null : { tone: 'error', text: res.error?.code === 'transport' ? t('community.download.reconnecting') : res.error?.message ?? t('community.download.failed') } } : prev)
+        if (!res.ok && res.error?.code !== 'transport') setDownloadBusy(false)
+        else setDownloadRefresh((n) => n + 1)
+      } else {
+        setDownloadBusy(false)
+        if (res.ok) finishDownload(target, res.value as Receipt)
+        else setDownload((prev) => prev ? { ...prev, notice: { tone: 'error', text: res.error?.message ?? t('community.download.failed') } } : prev)
+      }
+    } finally { if (legacyTimer) clearInterval(legacyTimer); if (downloadStarting.current === attempted.intent) downloadStarting.current = null }
+  }
+  const cancelDownload = async () => {
+    const target = download
+    if (!target?.selection) return
+    const key = downloadKey
+    let jobId = target.jobId
+    if (!jobId && !target.intent) {
+      const current = await post('mentor/downloadStatus', downloadPayload(target))
+      if (downloadKeyRef.current !== key || !current.ok) return
+      jobId = (current.value as { job: Job | null }).job?.id
+      if (!jobId) return
     }
-    if (!res.ok) {
-      /*
-       * 失败：ZIP 没落盘 → **刚才填进输入框的那段提示词先别发送**。
-       * 面板撤掉、回执说清楚（输入框是用户的，插件不动它）。
-       */
-      setDownload((prev) =>
-        prev
-          ? {
-              ...prev,
-              done: null,
-              notice: {
-                tone: 'error',
-                text: `${res.error?.message ?? t('community.error.unknown')} ${t('community.merge.downloadFailedHint')}`,
-              },
-            }
-          : prev,
-      )
-      return
-    }
-    const v = res.value as {
-      dir: string
-      path: string
-      name: string
-      bytes: number
-      /** v23：目标研究根（已有或将会是）。 */
-      researchRoot?: string | null
-      /** v23：落盘前那一次判定。 */
-      workspaceStatus?: HostDownloadTarget['status']
-      /** v23：这项研究的标识（归档响应头优先）。 */
-      workspaceId?: string | null
-      /** v23：布局（`legacy` 时提示词要换一套备份说法）。 */
-      workspaceLayout?: 'nested' | 'legacy' | null
-    }
-    /*
-     * 下载成功**不等于**事情做完：ZIP 还在工作区根上躺着，要解压并和本地内容**融合**
-     * 才算研究前进了一步。那一步交给用户会话里的 agent —— 那一行命令上面**已经填好了**，
-     * 这里只做一件事：文件名与预检猜的不同时，给一个"按实际文件名更新"的更正版。
-     */
-    const correctedPrompt = (session?.syncCommand ?? syncCommandLine)(`${v.dir}/${v.name}`)
-    const nameChanged = Boolean(correctedPrompt) && v.name !== provisionalName
-    setDownload((prev) =>
-      prev
-        ? {
-            ...prev,
-            notice: null,
-            done: {
-              phase: 'ready',
-              dir: v.dir,
-              name: v.name,
-              plan: t(`community.merge.plan.${mergeStateOf(v.workspaceStatus)}`),
-              // 没变就是同一个文本；变了则保留"已填进去的那一版"，更正版放另一栏等用户点
-              prompt: nameChanged ? provisionalPrompt : correctedPrompt,
-              correctedPrompt: nameChanged ? correctedPrompt : null,
-              canFill,
-              filled: autoFilled,
-              fillHint,
-            },
-          }
-        : prev,
-    )
-    setMentorNotice({
-      tone: 'success',
-      text: autoFilled
-        ? t('community.merge.filled')
-        : t('community.exchange.downloadDone', { dir: v.dir, name: v.name }),
-    })
-    /*
-     * 下载成功的那一刻，宿主已把**这一版的水位**存下 —— 刷新提案让"学生更新了"
-     * 的提示**当场消失**（否则要等下一次刷新才对上，用户会以为提示坏了）。
-     */
-    await loadProposals()
+    setDownloadPhase('cancelling')
+    const cancelled = await post('mentor/downloadCancel', { ...downloadPayload(target), jobId })
+    if (downloadKeyRef.current !== key || target.intent && downloadAttempt.current !== target.intent) return
+    const job = cancelled.ok ? (cancelled.value as { job: Job | null }).job : null
+    if (job?.state === 'cancelled' && downloadStarting.current === target.intent) downloadStarting.current = null
+    setDownload((prev) => prev ? { ...prev, jobId: job?.id ?? prev.jobId,
+      notice: cancelled.ok ? null : { tone: 'error', text: t('community.download.reconnecting') } } : prev)
+    setDownloadRefresh((n) => n + 1)
   }
 
   /* ── 列表加载：**只有登录后才联网**；未登录显示示例数据 ─────────────── */
@@ -7482,11 +7417,14 @@ export function CommunityTab({
           bytes={download.bytes}
           busy={downloadBusy}
           received={downloadReceived}
+          totalBytes={downloadTotal}
+          phase={downloadPhase}
+          onCancel={session?.downloadTasks && (download.intent || download.jobId) ? () => { void cancelDownload() } : undefined}
           notice={download.notice}
           targets={download.targets}
           currentWorkspaceId={download.currentWorkspaceId}
           done={download.done}
-          onSelect={(id) => setDownload((prev) => (prev ? { ...prev, selection: id } : prev))}
+          onSelect={(id) => setDownload((prev) => (prev ? { ...prev, selection: id, jobId: undefined, intent: undefined, done: null, notice: null } : prev))}
           onDownload={() => void runDownload()}
           onClose={() => setDownload(null)}
           onFill={() => {
@@ -7514,34 +7452,12 @@ export function CommunityTab({
             })
           }}
           onRequest={session?.prepareSync && download.selection === download.currentWorkspaceId ? () => {
-            const prompt = download.done?.correctedPrompt ?? download.done?.prompt
+            const prompt = download.done?.prompt
             if (!prompt || download.done?.phase !== 'ready') return
             session.prepareSync?.(prompt)
             setDownload(null)
           } : undefined}
-          onRefill={() => {
-            const corrected = download.done?.correctedPrompt
-            if (!corrected) return
-            /*
-             * 落盘的实际文件名与提示词里猜的不同 → 换成更正版。
-             * 这是**用户明确点的一下**（不是静默改），所以可以替换输入框。
-             */
-            if (download.done?.canFill && session?.setDraft) session.setDraft(corrected)
-            setDownload((prev) =>
-              prev?.done
-                ? {
-                    ...prev,
-                    done: {
-                      ...prev.done,
-                      prompt: corrected,
-                      correctedPrompt: null,
-                      filled: prev.done.filled || prev.done.canFill,
-                    },
-                  }
-                : prev,
-            )
-            setMentorNotice({ tone: 'success', text: t('community.merge.filled') })
-          }}
+
         />
       ) : null}
 

@@ -24,7 +24,7 @@
  * 一个 13 MB / 两分钟的下载，界面要能看见进度，失败时不能留下坏 ZIP 冒充结果。
  */
 import { randomBytes } from 'node:crypto';
-import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeSync, } from 'node:fs';
+import { closeSync, mkdirSync, openSync, readdirSync, readFileSync, linkSync, statSync, unlinkSync, writeSync, } from 'node:fs';
 import { isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 /**
  * 把一个不可信的相对路径解析成根目录下的**安全**绝对路径。
@@ -167,6 +167,7 @@ export function openDownloadPart(dir, nameHint = 'download') {
         return new Error(message);
     };
     return {
+        path: partPath,
         get received() {
             return received;
         },
@@ -202,11 +203,21 @@ export function openDownloadPart(dir, nameHint = 'download') {
             const stem = name.replace(/\.zip$/i, '');
             let target = join(dir, name);
             let n = 2;
-            while (existsSync(target)) {
-                target = join(dir, `${stem}-${n}.zip`);
-                n += 1;
+            for (;;) {
+                try {
+                    linkSync(partPath, target);
+                    break;
+                }
+                catch (error) {
+                    if (error.code !== 'EEXIST')
+                        throw error;
+                    target = join(dir, `${stem}-${n++}.zip`);
+                }
             }
-            renameSync(partPath, target);
+            try {
+                unlinkSync(partPath);
+            }
+            catch { /* Published successfully; cleanup can be retried later. */ }
             return { path: target, name: relative(dir, target), bytes: received };
         },
         abort() {

@@ -72,6 +72,7 @@
  * 所以 v0.1.5 的 `methodTemplates[module][promptId]` 在 v2 里就是
  * `customizations[skillId][section]` —— 存储形态没变，变的只是键的语义。
  */
+import type { DownloadControl } from './codex/downloads.js';
 import type { SkillCustomizationStore } from './research/skill-customization.js';
 import type { PaidBriefStore } from './research/paid-briefs.js';
 import { type WorkIdentityStore, type WorkspaceStatus } from './research/work-identity.js';
@@ -654,7 +655,9 @@ export declare function compareVersions(a: string, b: string): number;
  * 服务器地址与 API Key 只出现在**宿主**与**服务器**之间；本渠道的任何返回值都不得
  * 包含 `cf_live_…`。`account/*` 一律返回 {@link AccountState}（只有可用性 + 账号信息）。
  */
-export declare function createSettingsRpcHandler(deps: SettingsRpcDeps): (endpoint: string, payload: unknown) => Promise<SettingsRpcResult>;
+export declare function createSettingsRpcHandler(deps: SettingsRpcDeps): (endpoint: string, payload: unknown, downloadControl?: DownloadControl & {
+    config?: Config;
+}) => Promise<SettingsRpcResult>;
 /** 最小化的 node:http 请求/响应视图（避免为了类型而依赖 @types/node 之外的东西）。 */
 interface RouteRequest {
     method?: string | undefined;

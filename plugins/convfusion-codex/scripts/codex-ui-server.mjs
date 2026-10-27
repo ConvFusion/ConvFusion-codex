@@ -20,6 +20,8 @@ import { latestCodexTurn } from '../lib/codex/lifecycle.js'
 import { DEFAULT_AUTO_CONTINUE } from '../lib/research/advance.js'
 import { writeMethodsExport } from '../lib/research/methods-export.js'
 import { collectSyncFacts, buildSyncText, resolveZipReference } from '../lib/research/sync-request.js'
+import { createDownloadJobs } from '../lib/codex/downloads.js'
+import { resolveConvFusionApiKey, resolveServerUrl } from '../lib/config.js'
 
 const pluginRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const pkg = JSON.parse(readFileSync(join(pluginRoot, 'package.json'), 'utf8'))
@@ -32,6 +34,7 @@ export function createCodexUiHost(options = {}) {
   const home = resolve(options.home ?? codexHome(env))
   const path = (name) => join(home, name)
   const workspaces = new Map()
+  const downloads = createDownloadJobs(home)
   const saved = readJson(path('workspaces.json'), [])
   if (Array.isArray(saved)) for (const row of saved) {
     if (typeof row?.path === 'string' && isAbsolute(row.path) && existsSync(row.path)) workspaces.set(row.id, row)
@@ -110,7 +113,7 @@ export function createCodexUiHost(options = {}) {
   }
   const bootstrap = (root) => {
     const row = root ? registerWorkspace(root) : null
-    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? '研究工作台', version: pkg.version }
+    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? '研究工作台', version: pkg.version, downloadTasks: true }
   }
   const dispatch = async (root, endpoint, payload) => {
     if (root) registerWorkspace(root)
@@ -123,6 +126,33 @@ export function createCodexUiHost(options = {}) {
     }
     if (endpoint === 'codex/continuation') return { ok: true, value: { enabled: getConfig().autoContinue, maxRounds: getConfig().autoContinueMaxRounds } }
     if (endpoint === 'codex/export-methods') return root ? { ok: true, value: exportMethods(root, payload?.full === true) } : failure('workspace', '请在项目聊天中打开 ConvFusion 工作台')
+    if (['mentor/downloadStart', 'mentor/downloadStatus', 'mentor/downloadCancel'].includes(endpoint)) {
+      const config = getConfig()
+      const apiKey = resolveConvFusionApiKey(config, env)
+      if (!apiKey) return failure('not-configured', '尚未登录 ConvFusion.com。')
+      const target = workspaceRows().find((row) => row.id === payload?.workspaceId)
+      if (!target || typeof payload?.projectId !== 'string' || !payload.projectId.trim()) return failure('bad-request', '请选择研究项目和目标工作区。')
+      payload = { ...payload, projectId: payload.projectId.trim() }
+      const directory = realpathSync(target.path)
+      const source = payload.source === 'mentor' ? 'mentor' : 'owner'
+      const intent = typeof payload.intent === 'string' && /^[a-zA-Z0-9-]{1,128}$/.test(payload.intent) ? payload.intent : undefined
+      const scope = JSON.stringify([resolveServerUrl(config, env).url, createHash('sha256').update(apiKey).digest('hex'), payload.projectId, source, directory])
+      if (endpoint === 'mentor/downloadCancel') {
+        if (typeof payload.jobId !== 'string' && !intent) return failure('bad-request', '缺少下载任务标识。')
+        return { ok: true, value: { job: downloads.cancel(scope, payload.jobId, intent) } }
+      }
+      if (endpoint === 'mentor/downloadStatus') return { ok: true, value: { job: downloads.get(scope, payload.revision, payload.jobId, intent) } }
+      const preflight = await handler('mentor/downloadState', { ...payload, source })
+      if (!preflight.ok) return preflight
+      const revision = preflight.value.downloadRevision
+      const job = downloads.start(scope, revision, directory,
+        (control) => handler('mentor/download', { ...payload, source }, { ...control, config }),
+        async () => {
+          const after = await handler('mentor/downloadState', { ...payload, source })
+          return after.ok ? after.value.downloadRevision : null
+        }, intent)
+      return { ok: true, value: { job } }
+    }
     // Never accept host transport/directory callbacks from UI input: only the shared RPC dispatcher.
     const result = await handler(String(endpoint), payload ?? {})
     if (endpoint === 'progress/workspace' && root && result.ok && result.value?.research) {
@@ -194,7 +224,7 @@ export function createCodexUiHost(options = {}) {
     home, store, getConfig, registerWorkspace, bootstrap, dispatch, dispatchSession, open, uiHtml, prepareSync, exportMethods,
     context(root, input = '') { return codexResearchContext(root, input, store) },
     methods(id) { return id ? { id, content: effectiveSkillContentById(id, store) ?? null } : listSystemSkills().map(({ id, name, category, kind, code, label }) => ({ id, name, category, kind, code, label })) },
-    async close() { if (server) await new Promise((resolve) => server.close(resolve)); server = undefined; launch = undefined },
+    async close() { await downloads.close(); if (server) await new Promise((resolve) => server.close(resolve)); server = undefined; launch = undefined },
     ref() { server?.ref() },
   }
 }
