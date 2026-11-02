@@ -53,6 +53,7 @@ let holdStatus, resolveStatus, holdStart, resolveStart
 const cancelledIntents = new Set()
 const cancelledJob = (intent) => ({ id: `cancelled-${intent}`, state: 'cancelled', phase: 'preparing', received: 0, totalBytes: null })
 const send = async (endpoint, payload) => {
+  if (endpoint.startsWith('mentor/download')) assert.equal(payload.source, 'counterpart', 'preflight and task operations download the counterpart side')
   if (endpoint === 'account/state' || endpoint === 'account/verify') return { ok: true, value: account }
   if (endpoint === 'work/mine') return { ok: true, value: { items: [], registry: { available: true } } }
   if (endpoint === 'work/list') return { ok: true, value: { items: [] } }

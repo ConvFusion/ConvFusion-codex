@@ -51,6 +51,15 @@ import {
 } from './i18n/index.js'
 import { syncCommandLine } from './sync-command.js'
 import {
+  defaultPriceOf,
+  formatTokenYuan,
+  normalizePrice,
+  priceOptionsOf,
+  validatePrice,
+  type PriceGuideLike,
+  type PriceOption,
+} from './price-guide.js'
+import {
   buildUploadTree,
   flattenSingleRoot,
   folderState,
@@ -1782,6 +1791,15 @@ interface HostWork {
    */
   direction: HostProjectDirection
   /**
+   * **发布方的挂牌价**（服务器 `asking_fee`，单位 Token）—— 发现列表的卡片上显示。
+   *
+   * 含义由**这张卡片自己的方向**决定：`SEEK_STUDENT` = 导师的**开价**；
+   * `SEEK_MENTOR` = 学生的**预算**。两者都只是挂牌信息（成交价写在提案的 `total_fee` 上）。
+   *
+   * 三态：数字 = 有价；`null` = 没挂牌价（不是 0，免费不支持）；`undefined` = 旧服务器 → 不显示。
+   */
+  askingFee?: number | null
+  /**
    * 作者（服务器 `owner: { id, display_name }` 的投影；宿主 `WorkItem.owner`）。
    *
    * 2026-10 服务器为 `/discovery/random` 加了该字段：【可指导】列表按它显示作者名。
@@ -1887,6 +1905,27 @@ function workLabelOf(source: { workName?: string | null; title: string }): strin
   return source.workName?.trim() || source.title
 }
 
+/**
+ * **挂牌价**要显示的那句话（三态；`null` = 不显示）。
+ *
+ * 服务器同一个 `asking_fee` 两种含义，措辞按**卡片自己的方向**选：
+ *   · `SEEK_STUDENT`（导师出题）→「导师开价 800」；
+ *   · `SEEK_MENTOR`（学生发题）→「预算 800」。
+ *
+ * 三态纪律：`null`（没挂牌价，不是 0）/ `undefined`（旧服务器）→ 不显示，也不写"未知"。
+ */
+export function askingFeeText(
+  t: Translate,
+  direction: HostProjectDirection,
+  askingFee: number | null | undefined,
+): string | null {
+  // 0 / 负数 / 小数都不是价格（服务器的 CHECK 是 `>= 1` 的整数）→ 当作"没有"，不画
+  if (typeof askingFee !== 'number' || !Number.isInteger(askingFee) || askingFee < 1) return null
+  return t(direction === 'SEEK_STUDENT' ? 'community.work.askingPrice' : 'community.work.budget', {
+    tokens: askingFee,
+  })
+}
+
 /** 提案行上的研究工作名（`projectTitle` 只作旧服务器兜底；两者都没有 → `null`）。 */
 function proposalWorkLabel(p: HostProposal): string | null {
   return p.workName?.trim() || p.projectTitle
@@ -1948,6 +1987,20 @@ interface HostUploadPlan {
     nextPublishCost: number
     storage: { usedBytes: number; capacityBytes: number; availableBytes: number }
   } | null
+  /**
+   * 上次发布用的**挂牌价**（Token）；`null` = 还没挂过价。
+   *
+   * 导师开价或学生预算，用于预填发布对话框。
+   */
+  askingFee: number | null
+  /**
+   * **价目参考**（服务器 `GET /mentorship/price-guide`）；`null` = 旧服务器 / 取不到。
+   *
+   * ⚠️ 界面**不自带价目表**：写死 500/600/800/1000 的界面在平台调价那天会撒谎，
+   * 而且是没人会立刻发现的那种（服务器文档 `payment-system.md` §3.2.6）。
+   * `null` 时退化成"直接填价格"，不挡发布。
+   */
+  priceGuide: PriceGuideLike | null
 }
 
 /**
@@ -2026,10 +2079,22 @@ interface HostDownloadTarget {
 }
 
 /**
- * 项目文件空间的**两侧**（宿主 `FileSource` 的镜像）：`owner` = 学生自己那份，
- * `mentor` = 导师回传的那份。同一路径两侧并存、互不覆盖。
+ * 项目文件空间的**两侧**（宿主 `FileSource` 的具体侧）：`owner` = 项目所有者那份，
+ * `mentor` = 另一方回传的那份。同一路径两侧并存、互不覆盖。
+ *
+ * 水位键（`syncBySide[owner|mentor]`）与文案都用这两个值 —— **不随请求口径变**。
  */
 type HostFileSide = 'owner' | 'mentor'
+
+/**
+ * **发给宿主的** `source`（服务器 `?source=`）：在具体两侧之外多一个 `counterpart`
+ * —— **相对调用者**的"对方那一侧"（服务器 `API.md` §13.7），由服务器解析成具体侧，
+ * 并用响应头 `X-Source` 报回实际交付的是哪一侧。
+ *
+ * 为什么下载用它可以少一类 bug：`owner`/`mentor` 是按**位置**命名的，客户端很容易按
+ * **角色**理解，方向 B（导师出题、owner 就是导师）里两者正好相反 —— 结果"下载到老文件"。
+ */
+type HostFileSource = HostFileSide | 'counterpart'
 
 /**
  * 发布按钮的**固定宽度**（px）。
@@ -2298,6 +2363,13 @@ interface HostProposal {
   projectTitle: string | null
   /** **这项研究工作的名字**（服务器的 `work_name`）：列表该显示的就是它。 */
   workName?: string | null
+  /**
+   * **发布方的挂牌价**（服务器 `asking_fee`）：与这份提案的 `totalFee` **并排显示** ——
+   * "开价 800 / 出价 100" 的差距就是议价信息。
+   *
+   * 三态：数字 = 有价；`null` = 没挂牌价（不是 0）；`undefined` = 旧服务器 → 不显示。
+   */
+  askingFee?: number | null
   mentor: HostProposalParty | null
   researcher: HostProposalParty | null
   guidanceScope: string
@@ -2480,6 +2552,7 @@ function WorkRow({
   progress,
   updatedAt,
   author,
+  price,
   disabled,
   busy,
   expanded,
@@ -2492,6 +2565,13 @@ function WorkRow({
   title: string
   /** 作者显示名（【可指导】传；【我的】是自己的研究，不传）。 */
   author?: string | null
+  /**
+   * **发布方的挂牌价**那句话（`askingFeeText()` 的结果；`null` = 该卡片没有挂牌价）。
+   *
+   * 传字符串而不是数字：措辞由**卡片自己的方向**决定（导师开价 / 学生预算），
+   * 那个判断留在 `CommunityTab`，`WorkRow` 只管把这句话画出来。
+   */
+  price?: string | null
   fields: string[]
   stage: string | null
   progress: number
@@ -2520,6 +2600,8 @@ function WorkRow({
           {fields.length ? <span>{fields.join(' · ')}</span> : null}
           {stage ? <span>{enumText(t, STAGE_LABEL_KEYS, stage)}</span> : null}
           <ProgressBar value={progress} />
+          {/* 挂牌价（三态：没挂牌价 / 旧服务器 → 这个槽位是 null，什么都不画） */}
+          {price ? <span style={{ color: 'var(--dsw-alias-brand-primary)' }}>{price}</span> : null}
           {updatedAt ? <span>{updatedAt.slice(0, 10)}</span> : null}
         </div>
       </div>
@@ -3053,7 +3135,113 @@ export function CategoryFileTreeView({
   )
 }
 
-function PublishDialog({
+/**
+ * 导师「出题」时的**挂牌价**这一行（发布 / 更新对话框里）。
+ *
+ * ```text
+ * 挂牌价  [500 Token · JCR 4区 / CCF-C ▾]   ≈ ¥5,000
+ *         挂牌价只是标价：成交价仍按提案金额结算
+ * ```
+ *
+ * ## 三个决定
+ *
+ * 1. **档位来自服务器**（`GET /mentorship/price-guide`），客户端不自带价目表 ——
+ *    写死的价目在平台调价那天会撒谎（服务器文档明确要求）。取不到参考时退化成
+ *    "直接填价格"，不挡发布。
+ * 2. **按价格升序**（入门档 500 在最上面）：用户的直觉是"从便宜看到贵"，
+ *    而服务器的 `tiers` 是等级降序（1区首）。
+ * 3. **允许自定义**：下拉最后一项是「自定义…」→ 出现数字输入框（整数、≥ 服务器下限）。
+ *    导师有自己的议价，界面不该只给四档。
+ *
+ * 纯视图（无 hook）：状态在 `CommunityTab` 的对话框状态里，便于离线自检直接渲染。
+ */
+export function PriceGuideRow({
+  t,
+  direction,
+  guide,
+  options,
+  mode,
+  tokens,
+  text,
+  onSelectPreset,
+  onSelectCustom,
+  onText,
+}: {
+  t: Translate
+  /** 哪个方向：导师出题 = 开价；学生发题 = 预算 / 出价。 */
+  direction: HostProjectDirection
+  guide: PriceGuideLike | null
+  options: PriceOption[]
+  mode: 'preset' | 'custom'
+  /** 当前生效的价格（`null` = 用户填的还不合法）。 */
+  tokens: number | null
+  /** 自定义输入框里的原文（切回档位时保留，用户改主意不用重打）。 */
+  text: string
+  onSelectPreset: (tokens: number) => void
+  onSelectCustom: () => void
+  onText: (next: string) => void
+}): JSX.Element {
+  const error = !guide && tokens === null && text.trim() === '' ? null : validatePrice(tokens, guide)
+  const yuan = formatTokenYuan(tokens, guide?.tokenValueFen ?? null)
+  const minAllowed = Math.max(1, Math.trunc(guide?.minAllowed ?? 1))
+  /*
+   * 措辞按方向分开 —— 服务器同一个 `asking_fee` 字段在两边含义不同：
+   * 导师端着是**开价**，学生端着是**预算 / 出价**。混用一个"价格"会让人以为
+   * 这就是成交价（用户 2026-10 明确提醒："显示成『导师开价 800』而不是『价格 800』"）。
+   */
+  const isMentorSide = direction === 'SEEK_STUDENT'
+  const label = t(isMentorSide ? 'community.publish.priceMentor' : 'community.publish.priceResearcher')
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ ...S.listTitle, fontSize: 12.5 }}>{label}</span>
+        <select
+          style={{ ...S.input, minWidth: 190, padding: '4px 6px' }}
+          value={mode === 'custom' ? 'custom' : String(tokens ?? '')}
+          onChange={(e) => {
+            if (e.target.value === 'custom') onSelectCustom()
+            else onSelectPreset(Number(e.target.value))
+          }}
+        >
+          {options.map((o) => (
+            <option key={o.tokens} value={String(o.tokens)}>
+              {o.label ? `${o.tokens} Token · ${o.label}` : `${o.tokens} Token`}
+            </option>
+          ))}
+          <option value="custom">{t('community.publish.priceCustom')}</option>
+        </select>
+        {mode === 'custom' ? (
+          <input
+            type="number"
+            min={minAllowed}
+            step={1}
+            inputMode="numeric"
+            style={{ ...S.input, width: 110, padding: '4px 6px' }}
+            value={text}
+            onChange={(e) => onText(e.target.value)}
+            placeholder={String(minAllowed)}
+            aria-label={label}
+          />
+        ) : null}
+        {yuan ? <span style={S.hint}>≈ {yuan}</span> : null}
+      </div>
+      <div style={S.hint}>
+        {error === 'tooHigh'
+          ? t('community.publish.priceTooHigh')
+          : error === 'empty'
+            ? t('community.publish.priceInvalid', { min: minAllowed })
+            : guide
+              ? t(isMentorSide ? 'community.publish.priceHintMentor' : 'community.publish.priceHintResearcher', {
+                  min: guide.recommendedMin,
+                  max: guide.recommendedMax,
+                })
+              : t('community.publish.priceUnknown')}
+      </div>
+    </div>
+  )
+}
+
+export function PublishDialog({
   t,
   data,
   selection,
@@ -3064,6 +3252,12 @@ function PublishDialog({
   onToggleFiles,
   onToggleExpand,
   onRemember,
+  priceMode,
+  priceTokens,
+  priceText,
+  onSelectPricePreset,
+  onSelectPriceCustom,
+  onPriceText,
   onCancel,
   onConfirm,
 }: {
@@ -3078,6 +3272,13 @@ function PublishDialog({
   onToggleFiles: (relPaths: string[], next: boolean) => void
   onToggleExpand: (categoryId: string) => void
   onRemember: (next: boolean) => void
+  /** 导师开价或学生预算。 */
+  priceMode: 'preset' | 'custom'
+  priceTokens: number | null
+  priceText: string
+  onSelectPricePreset: (tokens: number) => void
+  onSelectPriceCustom: () => void
+  onPriceText: (next: string) => void
   onCancel: () => void
   onConfirm: () => void
 }): JSX.Element {
@@ -3094,6 +3295,18 @@ function PublishDialog({
     .reduce((n, f) => n + f.size, 0)
   const batches = Math.max(1, Math.ceil(selectedFiles.length / data.plan.limits.maxFilesPerRequest))
   const storage = data.usage?.storage
+  /**
+   * 两个发布方向都校验用户输入的价格。
+   * 不合法就**禁用发布**，而不是让用户点下去才被宿主拒绝 —— 价格是这一版的主输入。
+   */
+  /*
+   * ⚠️ 只有**拿到了服务器的价目参考**才把价格当必填：
+   *   · 有参考 → 默认就选中入门档，清空自定义输入属于明显误操作 → 拦住并说清原因；
+   *   · 没参考（旧服务器 / 取不到）→ 留空 = **不标价**（服务器的 `asking_fee` 本来就可空），
+   *     不该因为"价格参考挂了"就把导师的发布整个堵死。
+   */
+  const priceInvalid =
+    (data.priceGuide != null || priceText.trim() !== '') && validatePrice(priceTokens, data.priceGuide) !== null
   const oversizeSelected = selectable.filter(
     (f) => selection.has(f.relPath) && f.size > data.plan.limits.maxFileBytes,
   )
@@ -3157,6 +3370,26 @@ function PublishDialog({
                 : ''}
           </div>
 
+          {/*
+            **挂牌价**（`asking_fee`）—— **两个方向都有**，措辞不同（服务器同一个字段两种含义）：
+            · 导师出题（`SEEK_STUDENT`）→ 导师的**开价**；
+            · 学生发题（`SEEK_MENTOR`）→ 学生的**预算 / 出价**。
+            两者都只是**挂牌信息**，不是成交价：成交价写在提案的 `total_fee` 上，
+            所以"导师开 800、学生出 500、导师接受 500"依然成立（双方在提案里议价）。
+          */}
+          <PriceGuideRow
+            t={t}
+            direction={data.direction}
+            guide={data.priceGuide}
+            options={priceOptionsOf(data.priceGuide)}
+            mode={priceMode}
+            tokens={priceTokens}
+            text={priceText}
+            onSelectPreset={onSelectPricePreset}
+            onSelectCustom={onSelectPriceCustom}
+            onText={onPriceText}
+          />
+
           <UploadCategoryList
             t={t}
             categories={data.plan.categories}
@@ -3190,8 +3423,8 @@ function PublishDialog({
             </button>
             <button
               type="button"
-              style={{ ...S.primaryBtn, opacity: busy ? 0.55 : 1 }}
-              disabled={busy}
+              style={{ ...S.primaryBtn, opacity: busy || priceInvalid ? 0.55 : 1 }}
+              disabled={busy || priceInvalid}
               onClick={onConfirm}
             >
               {busy ? t('community.action.publishing') : t('community.publish.confirm')}
@@ -5088,6 +5321,13 @@ export function CommunityTab({
     selection: Set<string>
     remember: boolean
     expanded: Set<string>
+    /**
+     * **挂牌价或预算**：`preset` = 选自价目档位；`custom` = 自己填。
+     * `priceText` 留着自定义输入的原文（切回档位再切回来不用重打）。
+     */
+    priceMode: 'preset' | 'custom'
+    priceTokens: number | null
+    priceText: string
   } | null>(null)
   /** 正在取上传计划的那一项（同样带方向：只有被点的那一个按钮该显示「读取中…」）。 */
   const [dialogLoading, setDialogLoading] = React.useState<
@@ -5204,9 +5444,9 @@ export function CommunityTab({
     proposal: HostProposal
     /**
      * 读**哪一侧**的快照（服务器 `?source=`）：预检与真正的下载必须同一侧，
-     * 所以在这里记下来（侧由 {@link mySide} / {@link otherSide} 按角色定）。
+     * 预检和下载统一请求 counterpart，由服务器解析具体侧。
      */
-    source: HostFileSide
+    source: HostFileSource
     revision?: string
     jobId?: string
     intent?: string
@@ -5898,7 +6138,7 @@ export function CommunityTab({
     const prefix = downloadPrefix(p)
     // 下载的是**对方那一侧**：方向 A 导师下学生的工作区（owner 侧）、学生取导师的交付
     // （mentor 侧）；方向 B 反过来（学生下导师的选题、导师取学生的进展）。
-    const source = viewOf(p).otherSide
+    const source = 'counterpart'
     const res = await post('mentor/downloadState', {
       projectId: p.projectId,
       prefix,
@@ -6237,12 +6477,13 @@ export function CommunityTab({
       return
     }
     const data = res.value as HostUploadPlan
-    // 该方向已发布 + 记住过选择 + 内容没有变化 → 不打扰用户，直接更新
-    const publishedHere = publishedIn(w, direction)
-    if (publishedHere && data.remembered && data.changed.length === 0 && data.selection.length > 0) {
-      await doPublish(w, direction, data.selection, true)
-      return
-    }
+    // 更新也显示确认框，允许内容未变时单独调整挂牌价或预算。
+    /*
+     * 挂牌价的初始值：**上次挂的价**优先（网络上正显示的那个），其次价目参考的入门档，
+     * 都没有 → 空（用户自己填）。档位里找不到这个价（以前填过自定义价）→ 直接进"自定义"态。
+     */
+    const initialPrice = data.askingFee ?? defaultPriceOf(data.priceGuide) ?? null
+    const presetHitsTier = initialPrice !== null && priceOptionsOf(data.priceGuide).some((o) => o.tokens === initialPrice)
     setDialog({
       work: w,
       direction,
@@ -6250,6 +6491,9 @@ export function CommunityTab({
       selection: new Set(data.selection),
       remember: true,
       expanded: new Set(),
+      priceMode: presetHitsTier ? 'preset' : 'custom',
+      priceTokens: initialPrice,
+      priceText: initialPrice === null ? '' : String(initialPrice),
     })
   }
 
@@ -6259,6 +6503,14 @@ export function CommunityTab({
     direction: HostProjectDirection,
     selection: string[],
     remember: boolean,
+    /**
+     * **挂牌价或预算**（对话框里选的）。
+     *
+     * `undefined` = 这次不改价（价格参考不可用且留空时）——
+     * 不传这个字段，宿主就不会去 `PUT` 改价（服务器 `null` 也不会清空，所以"什么都不发"
+     * 是唯一安全的"不动它"）。
+     */
+    askingFee?: number,
   ): Promise<void> => {
     setPublishing({ id: w.id, direction })
     setPublishNotice(null)
@@ -6284,7 +6536,13 @@ export function CommunityTab({
     }, 1000)
     let res: Awaited<ReturnType<typeof post>>
     try {
-      res = await post('work/publish', { id: w.id, direction, selection, remember })
+      res = await post('work/publish', {
+        id: w.id,
+        direction,
+        selection,
+        remember,
+        ...(askingFee !== undefined ? { askingFee } : {}),
+      })
     } finally {
       stopPublishPoll()
     }
@@ -7304,10 +7562,27 @@ export function CommunityTab({
             })
           }
           onRemember={(next) => setDialog((d) => (d ? { ...d, remember: next } : d))}
+          priceMode={dialog.priceMode}
+          priceTokens={dialog.priceTokens}
+          priceText={dialog.priceText}
+          onSelectPricePreset={(tokens) =>
+            setDialog((d) => (d ? { ...d, priceMode: 'preset', priceTokens: tokens } : d))
+          }
+          onSelectPriceCustom={() => setDialog((d) => (d ? { ...d, priceMode: 'custom', priceTokens: normalizePrice(d.priceText) } : d))}
+          onPriceText={(next) =>
+            setDialog((d) => (d ? { ...d, priceText: next, priceTokens: normalizePrice(next) } : d))
+          }
           onCancel={() => setDialog(null)}
           onConfirm={() => {
             if (!dialog) return
-            void doPublish(dialog.work, dialog.direction, [...dialog.selection], dialog.remember)
+            void doPublish(
+              dialog.work,
+              dialog.direction,
+              [...dialog.selection],
+              dialog.remember,
+              // 挂牌价（两个方向都送：导师=开价，学生=预算）；价格不合法时不传（按钮已禁用）
+              dialog.priceTokens !== null ? dialog.priceTokens : undefined,
+            )
           }}
         />
       ) : null}
@@ -7778,7 +8053,20 @@ export function CommunityTab({
                         <div style={S.hint}>
                           {view.counterparty?.displayName ?? t('community.mentor.unknownParty')}
                         </div>
-                        {/* 费用数字（不做解释性描述）—— 名称之下一行 */}
+                        {/*
+                          费用——名称之下一行。
+                          **有挂牌价时先并排一行"开价 / 出价"**：两个数之间的差距就是议价信息
+                          （服务器允许"导师开 800、学生出 100 也成交"，所以必须同时看见）。
+                          没有挂牌价（`null` / 旧服务器）→ 这一行不出现，只留提案金额。
+                        */}
+                        {typeof p.askingFee === 'number' ? (
+                          <div style={S.hint}>
+                            {t('community.mentor.askingVsOffer', {
+                              asking: p.askingFee,
+                              offer: p.totalFee,
+                            })}
+                          </div>
+                        ) : null}
                         <div style={S.hint}>{feeText(p)}</div>
                         {/*
                           **下载提示**（原"导师侧"提示，v0.6.0 起两侧通用）—— 三态各有说法：
@@ -8154,6 +8442,7 @@ export function CommunityTab({
                         t={t}
                         title={workLabelOf(w)}
                         author={w.owner?.displayName ?? null}
+                        price={askingFeeText(t, w.direction, w.askingFee)}
                         fields={w.researchFields}
                         stage={w.stage}
                         progress={w.progress}
@@ -8226,6 +8515,7 @@ export function CommunityTab({
                       t={t}
                       title={workLabelOf(w)}
                       author={w.owner?.displayName ?? null}
+                      price={askingFeeText(t, w.direction, w.askingFee)}
                       fields={w.researchFields}
                       stage={w.stage}
                       progress={w.progress}

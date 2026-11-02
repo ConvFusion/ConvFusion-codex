@@ -1196,7 +1196,7 @@ function describeOpenAlexKey(config, env = process.env) {
 }
 
 // lib/protocol.js
-var HOST_PROTOCOL = 29;
+var HOST_PROTOCOL = 31;
 var HOST_PROTOCOL_FIELD = "protocol";
 
 // lib/research/sync-watermarks.js
@@ -2598,7 +2598,7 @@ function normalizeApiKey(raw) {
   return (raw ?? "").trim().replace(/^Bearer\s+/i, "").trim();
 }
 function sourceQuery(source) {
-  return source === "mentor" ? "?source=mentor" : "";
+  return source === void 0 || source === "owner" ? "" : `?source=${source}`;
 }
 var STALL_TIMEOUT_MS = 3e4;
 function errorBodyMessage(body) {
@@ -2911,6 +2911,38 @@ async function fetchUsage(base, apiKey, options = {}) {
     return null;
   }
 }
+async function fetchPriceGuide(base, apiKey, options = {}) {
+  try {
+    const key = requireKey(apiKey);
+    const body = await requestJson(base, "/mentorship/price-guide", { method: "GET", apiKey: key }, options, "\u4EF7\u76EE\u53C2\u8003");
+    const root = asObject(body, "\u4EF7\u76EE\u53C2\u8003");
+    const tiers = [];
+    const rawTiers = Array.isArray(root.tiers) ? root.tiers : [];
+    for (const raw of rawTiers) {
+      const t = asObject(raw, "\u4EF7\u76EE\u6863\u4F4D");
+      const tokens = asNumber(t.tokens, 0);
+      const label = asString2(t.label);
+      if (!Number.isInteger(tokens) || tokens < 1 || !label)
+        continue;
+      tiers.push({
+        jcrLevel: Math.trunc(asNumber(t.jcr_level, 0)),
+        ccfLevel: asString2(t.ccf_level) || null,
+        label,
+        tokens
+      });
+    }
+    return {
+      // 硬下限由服务器给（当前 1），这里不写死：平台若调整，界面跟着走
+      minAllowed: Math.max(1, Math.trunc(asNumber(root.min_allowed, 1))),
+      recommendedMin: Math.trunc(asNumber(root.recommended_min, 0)),
+      recommendedMax: Math.trunc(asNumber(root.recommended_max, 0)),
+      tokenValueFen: Math.trunc(asNumber(root.token_value_fen, 0)),
+      tiers
+    };
+  } catch {
+    return null;
+  }
+}
 async function postProjectFiles(base, apiKey, projectId, files, options, timeoutMessage) {
   const { stateVersion, fetchImpl: fetchOption, timeoutMs, workspaceId } = options;
   const key = requireKey(apiKey);
@@ -3095,6 +3127,8 @@ async function fetchBinary(base, path, apiKey, options, label) {
     const fileCount = asNumberOrNull(res.headers?.get("x-file-count"));
     const sourceUpdatedAt = res.headers?.get("x-source-updated-at") ?? null;
     const workspaceId = normalizeWorkspaceId(res.headers?.get("x-workspace-id"));
+    const sourceSideRaw = (res.headers?.get("x-source") ?? "").trim().toLowerCase();
+    const sourceSide = sourceSideRaw === "owner" || sourceSideRaw === "mentor" ? sourceSideRaw : null;
     const received = await readBody(res, options, label, controller);
     return {
       bytes: received.bytes,
@@ -3102,6 +3136,7 @@ async function fetchBinary(base, path, apiKey, options, label) {
       fileCount,
       sourceUpdatedAt,
       workspaceId,
+      sourceSide,
       received: received.total
     };
   } finally {
@@ -3206,13 +3241,14 @@ async function fetchProjectArchive(base, apiKey, projectId, sink, options = {}) 
   const id = (projectId ?? "").trim();
   if (!id)
     throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
-  const { contentDisposition, fileCount, sourceUpdatedAt, workspaceId, received } = await fetchBinary(base, `/projects/${encodeURIComponent(id)}/files/archive${sourceQuery(options.source)}`, key, { ...options, timeoutMs: options.timeoutMs ?? 12e4, onChunk: (chunk) => sink.write(chunk) }, "\u4E0B\u8F7D\u5DE5\u4F5C\u533A\u5FEB\u7167");
+  const { contentDisposition, fileCount, sourceUpdatedAt, workspaceId, sourceSide, received } = await fetchBinary(base, `/projects/${encodeURIComponent(id)}/files/archive${sourceQuery(options.source)}`, key, { ...options, timeoutMs: options.timeoutMs ?? 12e4, onChunk: (chunk) => sink.write(chunk) }, "\u4E0B\u8F7D\u5DE5\u4F5C\u533A\u5FEB\u7167");
   return {
     received,
     filename: filenameFromDisposition(contentDisposition),
     fileCount,
     sourceUpdatedAt,
-    workspaceId
+    workspaceId,
+    sourceSide
   };
 }
 function parseProject(raw) {
@@ -3229,6 +3265,8 @@ function parseProject(raw) {
     direction: parseDirection(b.direction),
     workName: parseTriText(b.work_name),
     ...b.workspace_id === void 0 ? {} : { workspaceId: normalizeWorkspaceId(b.workspace_id) },
+    // 挂牌价三态：缺字段（旧服务器）→ undefined；显式 null → null（没挂牌价）
+    ...b.asking_fee === void 0 ? {} : { askingFee: parseTriFee(b.asking_fee) },
     updatedAt: asString2(b.updated_at)
   };
 }
@@ -3251,7 +3289,9 @@ async function createProject(base, apiKey, input, options = {}) {
        * 否则同一项研究重新发布会被服务器当成**另一项研究**（新 id），
        * 而"另一项研究"在下一次下载判定里意味着"禁止写进这个工作区"。
        */
-      ...input.workspaceId ? { workspace_id: input.workspaceId } : {}
+      ...input.workspaceId ? { workspace_id: input.workspaceId } : {},
+      // 与方向同理：没标价就不发这个字段（服务器侧 `NULL` = 没挂牌价）
+      ...typeof input.askingFee === "number" ? { asking_fee: input.askingFee } : {}
     }
   }, options, "\u5EFA\u9879\u76EE");
   return parseProject(body);
@@ -3264,7 +3304,21 @@ async function updateProject(base, apiKey, projectId, input, options = {}) {
   const title = (input.title ?? "").trim();
   if (!title)
     throw new ServerError("bad-request", "\u6807\u9898\u4E0D\u80FD\u4E3A\u7A7A\u3002");
-  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}`, { method: "PUT", apiKey: key, body: { title } }, options, "\u6539\u9879\u76EE");
+  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    apiKey: key,
+    body: {
+      title,
+      /*
+       * 挂牌价：只在明确给了数字时才发。
+       *
+       * ⚠️ 传 `null` **不会清空**（服务层跳过 `None`，与 title/description/status 的既有语义
+       * 一致，见 `payment-system.md` §3.2.5 的"改价的限制"）——所以这里根本不发 null，
+       * 免得界面上出现"以为能撤掉挂牌价"的假象。
+       */
+      ...typeof input.askingFee === "number" ? { asking_fee: input.askingFee } : {}
+    }
+  }, options, "\u6539\u9879\u76EE");
   return parseProject(body);
 }
 async function fetchProjects(base, apiKey, options = {}) {
@@ -3373,7 +3427,9 @@ function parseWorkItem(raw) {
     // `brief_paid`：打开这项简报还会不会再扣 Token（服务器按支付记录 / owner 判定）。
     // 只有真的是布尔才采信；字段缺失或类型不对 → null（= 不知道，界面会照常提醒）。
     briefPaid: typeof b.brief_paid === "boolean" ? b.brief_paid : null,
-    owner: parseWorkOwner(b.owner)
+    owner: parseWorkOwner(b.owner),
+    // 挂牌价三态：缺字段（旧服务器）→ 不带这个键；显式 null → null（没挂牌价）
+    ...b.asking_fee === void 0 ? {} : { askingFee: parseTriFee(b.asking_fee) }
   };
 }
 function parseWorkOwner(raw) {
@@ -3502,6 +3558,12 @@ function parseTriText(raw) {
   const text = asString2(raw);
   return text ? text : void 0;
 }
+function parseTriFee(raw) {
+  if (raw === null)
+    return null;
+  const n = asNumber(raw, 0);
+  return Number.isInteger(n) && n >= 1 ? n : null;
+}
 function parseTriIso(raw) {
   if (raw === null)
     return null;
@@ -3524,6 +3586,7 @@ function parseProposal(raw) {
     proposedById: asString2(b.proposed_by_id) || null,
     projectTitle: asString2(b.project_title) || null,
     workName: parseTriText(b.work_name),
+    ...b.asking_fee === void 0 ? {} : { askingFee: parseTriFee(b.asking_fee) },
     // 后端 enrich 之后 `mentor` / `researcher` 是内嵌对象；没 enrich 时退回顶层
     // `mentor_id` / `researcher_id`（UUID），界面用短 id 显示 —— 至少能分出"哪边是我"。
     mentor: parseParty(b.mentor, b.mentor_id),
@@ -12603,6 +12666,8 @@ function parseRecord2(raw) {
     // 缺方向 = 旧记录（那时只有 SEEK_MENTOR 一个方向），不猜成导师出题
     direction: raw.direction === "SEEK_STUDENT" ? "SEEK_STUDENT" : "SEEK_MENTOR",
     ...typeof raw.title === "string" && raw.title.trim() ? { title: raw.title.trim() } : {},
+    // 挂牌价：只认 >=1 的整数（与服务器 CHECK 一致）；旧记录没有这个字段 → 不读
+    ...typeof raw.askingFee === "number" && Number.isInteger(raw.askingFee) && raw.askingFee >= 1 ? { askingFee: raw.askingFee } : {},
     projectId,
     serverUrl,
     accountId,
@@ -13411,7 +13476,8 @@ function asString3(v) {
   return typeof v === "string" ? v.trim() : "";
 }
 function asSource(v) {
-  return asString3(v) === "mentor" ? "mentor" : "owner";
+  const s = asString3(v);
+  return s === "mentor" || s === "counterpart" ? s : "owner";
 }
 function asDirection(v) {
   return asString3(v) === "SEEK_STUDENT" ? "SEEK_STUDENT" : "SEEK_MENTOR";
@@ -14355,7 +14421,24 @@ function createSettingsRpcHandler(deps) {
               /** 与"上次已上传"相比的变化（新增 + 内容变化）；空数组 = 无变化。 */
               changed: changedAll,
               unchangedCount: diff.unchanged.filter((r) => effective.includes(r)).length,
-              usage
+              usage,
+              /*
+               * **挂牌价或预算**：数值取自本机发布记录
+               * （上次发布时用的价格），用于把对话框预填成"现在网络上挂的那个价"。
+               * `null` = 还没挂过价。旧记录没有这个字段 → 也是 `null`，界面用价目参考的默认档。
+               */
+              askingFee: typeof record?.askingFee === "number" ? record.askingFee : null,
+              /**
+               * **价目参考**（服务器 `/mentorship/price-guide`）：下拉列表的档位来源。
+               *
+               * ⚠️ 客户端**不自带价目表**（服务器文档明确要求）：平台调价那天，写死价目的
+               * 界面会撒谎且没人立刻发现。取不到（旧服务器 / 网络抖动）→ `null`，
+               * 界面退化成"直接填价格"，不挡发布。
+               *
+               * **两个方向都取**：导师出题看的是"开价"，学生发题看的是"预算 / 出价" ——
+               * 服务器同一份价目参考对两者都适用（同一个 `asking_fee` 字段、同一套档位）。
+               */
+              priceGuide: apiKey ? await fetchPriceGuide(resolveServerUrl(config, env()).url, apiKey, netOptions()) : null
             }
           };
         }
@@ -14368,6 +14451,17 @@ function createSettingsRpcHandler(deps) {
           if (!id)
             return fail("bad-request", "\u7F3A\u5C11\u7814\u7A76\u5DE5\u4F5C id\u3002");
           const direction = asDirection(p.direction);
+          const askingFeeRaw = p.askingFee;
+          let askingFee;
+          if (askingFeeRaw !== void 0 && askingFeeRaw !== null) {
+            const n = typeof askingFeeRaw === "number" ? askingFeeRaw : typeof askingFeeRaw === "string" && /^\d+$/.test(askingFeeRaw.trim()) ? Number(askingFeeRaw) : NaN;
+            if (!Number.isInteger(n) || n < 1) {
+              return fail("bad-request", "\u6302\u724C\u4EF7\u5FC5\u987B\u662F \u2265 1 \u7684\u6574\u6570 Token\uFF08\u4E0D\u652F\u6301\u514D\u8D39\uFF09\u3002");
+            }
+            if (n > 1e6)
+              return fail("bad-request", "\u6302\u724C\u4EF7\u8D85\u51FA\u4E86\u670D\u52A1\u5668\u5141\u8BB8\u7684\u4E0A\u9650\u3002");
+            askingFee = n;
+          }
           const listed = await collectLocalWorks();
           const source = listed.sources.get(id);
           if (!source)
@@ -14425,7 +14519,9 @@ function createSettingsRpcHandler(deps) {
                 // 只在非默认方向时显式发：默认方向归服务器所有（见 createProject 注释）
                 ...direction === "SEEK_STUDENT" ? { direction } : {},
                 // 已有身份 → 沿用（服务器保证同一 id 跨项目生命周期不变）
-                ...localIdentity.workspaceId ? { workspaceId: localIdentity.workspaceId } : {}
+                ...localIdentity.workspaceId ? { workspaceId: localIdentity.workspaceId } : {},
+                // 界面给了值才写入挂牌价或预算
+                ...askingFee !== void 0 ? { askingFee } : {}
               }, netOptions());
               created = true;
               rememberIdentity(project.workspaceId);
@@ -14522,9 +14618,13 @@ function createSettingsRpcHandler(deps) {
               intentKey: `convfusion-dsh-publish-${projectId}-v${uploaded.version}`,
               ...netOptions(workIdForWrite)
             });
-            if (reusable && previous?.title !== workName) {
+            const priceChanged = reusable && askingFee !== void 0 && previous?.askingFee !== askingFee;
+            if (reusable && (previous?.title !== workName || priceChanged)) {
               try {
-                await updateProject(base, apiKey, projectId, { title: workName }, netOptions());
+                await updateProject(base, apiKey, projectId, {
+                  title: workName,
+                  ...priceChanged && askingFee !== void 0 ? { askingFee } : {}
+                }, netOptions());
               } catch (e) {
                 if (!(e instanceof ServerError && e.code === "not-found")) {
                   renameFailed = e instanceof ServerError ? e.message : String(e);
@@ -14536,7 +14636,7 @@ function createSettingsRpcHandler(deps) {
               direction,
               projectId,
               // 这次用的名字（下次用它判断"要不要改名"）
-              title: workName,
+              title: renameFailed ? previous?.title : workName,
               serverUrl: base,
               accountId: me.id,
               version: uploaded.version,
@@ -14545,6 +14645,7 @@ function createSettingsRpcHandler(deps) {
               updatedAt: now,
               // 已上传附件的指纹（增量上传的依据）
               files: digests,
+              ...askingFee !== void 0 && !renameFailed ? { askingFee } : reusable && !created && previous?.askingFee !== void 0 ? { askingFee: previous.askingFee } : {},
               // 「记住这次选择」：下次不弹窗时沿用它（新文件仍会按规则并入）
               ...remember ? { selection: selected } : {}
             };
@@ -15061,7 +15162,7 @@ function createSettingsRpcHandler(deps) {
             downloadControl?.onPart(part.path);
             downloadControl?.check();
             const base = resolveServerUrl(config, env()).url;
-            const { received, filename, fileCount, sourceUpdatedAt, workspaceId: archivedId } = await fetchProjectArchive(base, apiKey, projectId, part, {
+            const { received, filename, fileCount, sourceUpdatedAt, workspaceId: archivedId, sourceSide } = await fetchProjectArchive(base, apiKey, projectId, part, {
               source,
               ...netOptions(),
               signal: downloadControl?.signal,
@@ -15085,9 +15186,10 @@ function createSettingsRpcHandler(deps) {
               workspaceLayout: settled.layout,
               workspaceId: authoritative
             });
-            if (sourceUpdatedAt) {
+            const servedSide = sourceSide ?? (source === "counterpart" ? null : source);
+            if (sourceUpdatedAt && servedSide !== null) {
               try {
-                deps.syncStore?.set(base, projectId, source, {
+                deps.syncStore?.set(base, projectId, servedSide, {
                   updatedAt: sourceUpdatedAt,
                   fileCount,
                   downloadedAt: (/* @__PURE__ */ new Date()).toISOString()
@@ -15097,14 +15199,14 @@ function createSettingsRpcHandler(deps) {
             }
             const identityId = authoritative;
             try {
-              if (identityId && settled.status === "same" && settled.layout !== null && settled.researchRoot) {
+              if (identityId && servedSide !== null && settled.status === "same" && settled.layout !== null && settled.researchRoot) {
                 const identity = makeWorkIdentity({
                   workspaceId: identityId,
                   projectId,
                   serverUrl: base,
                   accountId: await resolveAccountId(base, apiKey) ?? "",
                   // 下 `owner` 侧 = 我在别人的研究里当导师（拿的是学生的工作区）；反之亦然
-                  role: source === "owner" ? "mentor" : "owner",
+                  role: servedSide === "owner" ? "mentor" : "owner",
                   // 注册表按路径存 → 记下"这条身份属于当时住在这里的那项研究"
                   ...researchRootFingerprint(settled.researchRoot) ? { rootFingerprint: researchRootFingerprint(settled.researchRoot) } : {}
                 });
@@ -15123,7 +15225,8 @@ function createSettingsRpcHandler(deps) {
                 projectId,
                 projectTitle: asString3(p.projectTitle) || null,
                 serverUrl: base,
-                source,
+                // 同上：便签存**具体侧**（`counterpart` 是相对的，留着重读时无从解释）
+                source: servedSide,
                 savedAt: (/* @__PURE__ */ new Date()).toISOString()
               });
             } catch {
@@ -16710,7 +16813,7 @@ function createCodexUiHost(options = {}) {
       if (!target || typeof payload?.projectId !== "string" || !payload.projectId.trim()) return failure("bad-request", "\u8BF7\u9009\u62E9\u7814\u7A76\u9879\u76EE\u548C\u76EE\u6807\u5DE5\u4F5C\u533A\u3002");
       payload = { ...payload, projectId: payload.projectId.trim() };
       const directory = realpathSync5(target.path);
-      const source = payload.source === "mentor" ? "mentor" : "owner";
+      const source = payload.source === "mentor" || payload.source === "counterpart" ? payload.source : "owner";
       const intent = typeof payload.intent === "string" && /^[a-zA-Z0-9-]{1,128}$/.test(payload.intent) ? payload.intent : void 0;
       const scope = JSON.stringify([resolveServerUrl(config, env).url, createHash4("sha256").update(apiKey).digest("hex"), payload.projectId, source, directory]);
       if (endpoint === "mentor/downloadCancel") {

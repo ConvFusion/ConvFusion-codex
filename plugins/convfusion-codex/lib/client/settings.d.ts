@@ -39,6 +39,7 @@
  * 路由带 Harness 的信任/鉴权栅栏，等价于 RPC 渠道的安全级别。
  */
 import { type Translate } from './i18n/index.js';
+import { type PriceGuideLike, type PriceOption } from './price-guide.js';
 import { type UploadTreeNode } from './upload-tree.js';
 import { type MentorshipView } from './mentorship-view.js';
 /**
@@ -330,6 +331,92 @@ export declare function canDownloadProposal(p: HostProposal, view: HostProposalV
  */
 type HostProjectDirection = 'SEEK_MENTOR' | 'SEEK_STUDENT';
 /**
+ * **挂牌价**要显示的那句话（三态；`null` = 不显示）。
+ *
+ * 服务器同一个 `asking_fee` 两种含义，措辞按**卡片自己的方向**选：
+ *   · `SEEK_STUDENT`（导师出题）→「导师开价 800」；
+ *   · `SEEK_MENTOR`（学生发题）→「预算 800」。
+ *
+ * 三态纪律：`null`（没挂牌价，不是 0）/ `undefined`（旧服务器）→ 不显示，也不写"未知"。
+ */
+export declare function askingFeeText(t: Translate, direction: HostProjectDirection, askingFee: number | null | undefined): string | null;
+/**
+ * 发布对话框的数据（宿主 `work/uploadPlan` 的镜像）。
+ *
+ * ⚠️ `plan.categories` 里含 `excluded`（机器产物），但界面**不显示**它们
+ * （2026-09 用户拍板：排除项直接不出现，不影响选择）。保留在数据里是为了对账。
+ */
+interface HostUploadPlan {
+    projectId: string;
+    root: string;
+    /** **要发布到网络的名字** = 这项研究工作自己的名字（有论文用论文标题）。 */
+    title: string;
+    /** 本机工作区名（注册表标题）—— 与 `title` 不同时对话框用一行提示指认是哪个工作区。 */
+    workspaceTitle: string;
+    /** 名字从哪来的（`paper` / `topic` / `fallback`）。 */
+    workNameSource: 'paper' | 'topic' | 'fallback';
+    /** 这次要发布到哪个方向（宿主回显；对话框标题据此显示「寻找指导 / 寻找学生」）。 */
+    direction: HostProjectDirection;
+    plan: {
+        categories: Array<{
+            id: string;
+            decision: 'recommended' | 'optional' | 'excluded';
+            files: Array<{
+                relPath: string;
+                size: number;
+            }>;
+            bytes: number;
+        }>;
+        totals: {
+            allBytes: number;
+            allFiles: number;
+            recommendedBytes: number;
+            recommendedFiles: number;
+            optionalBytes: number;
+            optionalFiles: number;
+            excludedBytes: number;
+            excludedFiles: number;
+        };
+        limits: {
+            maxFileBytes: number;
+            maxFilesPerRequest: number;
+            maxRequestBytes: number;
+        };
+        defaultSelection: string[];
+        oversize: Array<{
+            relPath: string;
+            size: number;
+        }>;
+        requestCount: number;
+    };
+    selection: string[];
+    remembered: boolean;
+    changed: string[];
+    unchangedCount: number;
+    usage: {
+        nextPublishCost: number;
+        storage: {
+            usedBytes: number;
+            capacityBytes: number;
+            availableBytes: number;
+        };
+    } | null;
+    /**
+     * 上次发布用的**挂牌价**（Token）；`null` = 还没挂过价。
+     *
+     * 导师开价或学生预算，用于预填发布对话框。
+     */
+    askingFee: number | null;
+    /**
+     * **价目参考**（服务器 `GET /mentorship/price-guide`）；`null` = 旧服务器 / 取不到。
+     *
+     * ⚠️ 界面**不自带价目表**：写死 500/600/800/1000 的界面在平台调价那天会撒谎，
+     * 而且是没人会立刻发现的那种（服务器文档 `payment-system.md` §3.2.6）。
+     * `null` 时退化成"直接填价格"，不挡发布。
+     */
+    priceGuide: PriceGuideLike | null;
+}
+/**
  * 一个**候选下载目标工作区**的校验结果（宿主 `mentor/downloadState` 的 `items[]` 镜像）。
  *
  * 判据是服务器给的研究工作标识 `workspace_id`（全局唯一、跨项目生命周期不变）：
@@ -361,10 +448,20 @@ interface HostDownloadTarget {
     identityConflict: boolean;
 }
 /**
- * 项目文件空间的**两侧**（宿主 `FileSource` 的镜像）：`owner` = 学生自己那份，
- * `mentor` = 导师回传的那份。同一路径两侧并存、互不覆盖。
+ * 项目文件空间的**两侧**（宿主 `FileSource` 的具体侧）：`owner` = 项目所有者那份，
+ * `mentor` = 另一方回传的那份。同一路径两侧并存、互不覆盖。
+ *
+ * 水位键（`syncBySide[owner|mentor]`）与文案都用这两个值 —— **不随请求口径变**。
  */
 type HostFileSide = 'owner' | 'mentor';
+/** 回传进度（宿主 `mentor/uploadProgress` 的镜像）。 */
+interface HostUploadProgress {
+    doneFiles: number;
+    totalFiles: number;
+    sentBytes: number;
+    totalBytes: number;
+    running: boolean;
+}
 /** 导师简介（`research_profiles` 投影；后端 enrich 后才有）。 */
 interface HostMentorProfile {
     institution: string | null;
@@ -403,6 +500,13 @@ interface HostProposal {
     projectTitle: string | null;
     /** **这项研究工作的名字**（服务器的 `work_name`）：列表该显示的就是它。 */
     workName?: string | null;
+    /**
+     * **发布方的挂牌价**（服务器 `asking_fee`）：与这份提案的 `totalFee` **并排显示** ——
+     * "开价 800 / 出价 100" 的差距就是议价信息。
+     *
+     * 三态：数字 = 有价；`null` = 没挂牌价（不是 0）；`undefined` = 旧服务器 → 不显示。
+     */
+    askingFee?: number | null;
     mentor: HostProposalParty | null;
     researcher: HostProposalParty | null;
     guidanceScope: string;
@@ -501,6 +605,63 @@ export declare function CategoryFileTreeView({ t, nodes, prefix, open, categoryI
     maxFileBytes: number;
     onToggleFiles: (relPaths: string[], next: boolean) => void;
     onToggleOpen: (path: string) => void;
+}): JSX.Element;
+/**
+ * 导师「出题」时的**挂牌价**这一行（发布 / 更新对话框里）。
+ *
+ * ```text
+ * 挂牌价  [500 Token · JCR 4区 / CCF-C ▾]   ≈ ¥5,000
+ *         挂牌价只是标价：成交价仍按提案金额结算
+ * ```
+ *
+ * ## 三个决定
+ *
+ * 1. **档位来自服务器**（`GET /mentorship/price-guide`），客户端不自带价目表 ——
+ *    写死的价目在平台调价那天会撒谎（服务器文档明确要求）。取不到参考时退化成
+ *    "直接填价格"，不挡发布。
+ * 2. **按价格升序**（入门档 500 在最上面）：用户的直觉是"从便宜看到贵"，
+ *    而服务器的 `tiers` 是等级降序（1区首）。
+ * 3. **允许自定义**：下拉最后一项是「自定义…」→ 出现数字输入框（整数、≥ 服务器下限）。
+ *    导师有自己的议价，界面不该只给四档。
+ *
+ * 纯视图（无 hook）：状态在 `CommunityTab` 的对话框状态里，便于离线自检直接渲染。
+ */
+export declare function PriceGuideRow({ t, direction, guide, options, mode, tokens, text, onSelectPreset, onSelectCustom, onText, }: {
+    t: Translate;
+    /** 哪个方向：导师出题 = 开价；学生发题 = 预算 / 出价。 */
+    direction: HostProjectDirection;
+    guide: PriceGuideLike | null;
+    options: PriceOption[];
+    mode: 'preset' | 'custom';
+    /** 当前生效的价格（`null` = 用户填的还不合法）。 */
+    tokens: number | null;
+    /** 自定义输入框里的原文（切回档位时保留，用户改主意不用重打）。 */
+    text: string;
+    onSelectPreset: (tokens: number) => void;
+    onSelectCustom: () => void;
+    onText: (next: string) => void;
+}): JSX.Element;
+export declare function PublishDialog({ t, data, selection, remember, expanded, busy, progress, onToggleFiles, onToggleExpand, onRemember, priceMode, priceTokens, priceText, onSelectPricePreset, onSelectPriceCustom, onPriceText, onCancel, onConfirm, }: {
+    t: Translate;
+    data: HostUploadPlan;
+    selection: ReadonlySet<string>;
+    remember: boolean;
+    expanded: ReadonlySet<string>;
+    busy: boolean;
+    /** 上传进度（宿主按批上报）——附件大时这一行就是"慢 ≠ 死"的唯一判据。 */
+    progress: HostUploadProgress | null;
+    onToggleFiles: (relPaths: string[], next: boolean) => void;
+    onToggleExpand: (categoryId: string) => void;
+    onRemember: (next: boolean) => void;
+    /** 导师开价或学生预算。 */
+    priceMode: 'preset' | 'custom';
+    priceTokens: number | null;
+    priceText: string;
+    onSelectPricePreset: (tokens: number) => void;
+    onSelectPriceCustom: () => void;
+    onPriceText: (next: string) => void;
+    onCancel: () => void;
+    onConfirm: () => void;
 }): JSX.Element;
 /**
  * 接受指导的**确认对话框**。

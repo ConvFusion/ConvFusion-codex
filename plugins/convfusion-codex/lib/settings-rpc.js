@@ -83,7 +83,7 @@ import { CUSTOMIZABLE_SECTIONS, clearAllCustomizations, listCustomizationPoints,
 import { effectiveSkillContentById } from './research/library.js';
 import { openDownloadPart, readResearchFile, safeDirName, } from './research/workspace-sync.js';
 import { describeConvFusionKey, describeOpenAlexKey, redactConfig, resolveConvFusionApiKey, resolveCustomizationPath, resolveServerUrl, } from './config.js';
-import { acceptInvitation, createProject, fetchAcceptProposal, fetchAccount, fetchProjectArchive, fetchProjectFiles, fetchProjectFilesWithIdentity, fetchFeeSuggestion, fetchProposals, fetchPropose, fetchRejectProposal, fetchTokenBalance, asCcfLevel, asJcrLevel, fetchWorkBrief, fetchWorkList, fetchWorkSummary, normalizeApiKey, normalizeBaseUrl, fetchUsage, fetchProject, fetchProjects, probeServerHealth, publishProject, readStateVersion, updateProject, submitRechargeRequest, fetchRechargeRequests, PROJECT_DIRECTIONS, SERVER_TIMEOUT_MS, ServerError, uploadProjectFiles, uploadWorkspaceFiles, uploadResearchState, } from './server-client.js';
+import { acceptInvitation, createProject, fetchAcceptProposal, fetchAccount, fetchProjectArchive, fetchProjectFiles, fetchProjectFilesWithIdentity, fetchFeeSuggestion, fetchProposals, fetchPropose, fetchRejectProposal, fetchTokenBalance, asCcfLevel, asJcrLevel, fetchWorkBrief, fetchWorkList, fetchWorkSummary, normalizeApiKey, normalizeBaseUrl, fetchUsage, fetchProject, fetchProjects, probeServerHealth, publishProject, readStateVersion, fetchPriceGuide, updateProject, submitRechargeRequest, fetchRechargeRequests, PROJECT_DIRECTIONS, SERVER_TIMEOUT_MS, ServerError, uploadProjectFiles, uploadWorkspaceFiles, uploadResearchState, } from './server-client.js';
 import { isResearchWorkspace, researchWorkspaceOf } from './research/workspace.js';
 import { latestTurnReport } from './research/progress-bridge.js';
 import { buildWorkspaceProgress, captureProgress } from './research/progress.js';
@@ -369,14 +369,19 @@ function asString(v) {
     return typeof v === 'string' ? v.trim() : '';
 }
 /**
- * 归一 `source`（服务器 `?source=owner|mentor`，见 `server-client.ts` 的 {@link FileSource}）。
+ * 归一 `source`（服务器 `?source=owner|mentor|counterpart`，见 `server-client.ts` 的
+ * {@link FileSource} 与服务器 `API.md` §13.7）。
  *
  * 缺省 = `owner`：这与服务器的默认一致，也是旧客户端（不带这个字段）的行为 ——
  * 新宿主配旧界面时只会"读到学生那一侧"，不会因为参数缺失而报错。
- * 其他取值一律当缺省处理（服务器那边会 422，轮不到我们递奇怪的值过去）。
+ *
+ * ⚠️ **`counterpart` 必须原样透传**（v0.6.8 的 bug 就在这一层把非 `mentor` 一律归成
+ * `owner`，于是界面明明要"对方那一侧"，请求却静默变成"owner 那一侧"，方向 B 下
+ * 正好是**自己写的那份** —— 表现就是"下载到老文件"）。其他取值仍当缺省（不递怪值给服务器）。
  */
 function asSource(v) {
-    return asString(v) === 'mentor' ? 'mentor' : 'owner';
+    const s = asString(v);
+    return s === 'mentor' || s === 'counterpart' ? s : 'owner';
 }
 /**
  * 归一研究方向（`SEEK_MENTOR` / `SEEK_STUDENT`）。
@@ -1804,6 +1809,25 @@ export function createSettingsRpcHandler(deps) {
                             changed: changedAll,
                             unchangedCount: diff.unchanged.filter((r) => effective.includes(r)).length,
                             usage,
+                            /*
+                             * **挂牌价或预算**：数值取自本机发布记录
+                             * （上次发布时用的价格），用于把对话框预填成"现在网络上挂的那个价"。
+                             * `null` = 还没挂过价。旧记录没有这个字段 → 也是 `null`，界面用价目参考的默认档。
+                             */
+                            askingFee: typeof record?.askingFee === 'number' ? record.askingFee : null,
+                            /**
+                             * **价目参考**（服务器 `/mentorship/price-guide`）：下拉列表的档位来源。
+                             *
+                             * ⚠️ 客户端**不自带价目表**（服务器文档明确要求）：平台调价那天，写死价目的
+                             * 界面会撒谎且没人立刻发现。取不到（旧服务器 / 网络抖动）→ `null`，
+                             * 界面退化成"直接填价格"，不挡发布。
+                             *
+                             * **两个方向都取**：导师出题看的是"开价"，学生发题看的是"预算 / 出价" ——
+                             * 服务器同一份价目参考对两者都适用（同一个 `asking_fee` 字段、同一套档位）。
+                             */
+                            priceGuide: apiKey
+                                ? await fetchPriceGuide(resolveServerUrl(config, env()).url, apiKey, netOptions())
+                                : null,
                         },
                     };
                 }
@@ -1822,6 +1846,20 @@ export function createSettingsRpcHandler(deps) {
                      * 指纹），所以 `direction` 从查记录、建项目到回写记录**全程都要带上**。
                      */
                     const direction = asDirection(p.direction);
+                    // asking_fee 在两个方向分别表示导师开价和学生预算；null/缺省表示不改价。
+                    // 写请求前拒绝非法输入；可选价目参考不可用时仍允许发布。
+                    const askingFeeRaw = p.askingFee;
+                    let askingFee;
+                    if (askingFeeRaw !== undefined && askingFeeRaw !== null) {
+                        const n = typeof askingFeeRaw === 'number' ? askingFeeRaw :
+                            typeof askingFeeRaw === 'string' && /^\d+$/.test(askingFeeRaw.trim()) ? Number(askingFeeRaw) : NaN;
+                        if (!Number.isInteger(n) || n < 1) {
+                            return fail('bad-request', '挂牌价必须是 ≥ 1 的整数 Token（不支持免费）。');
+                        }
+                        if (n > 1_000_000)
+                            return fail('bad-request', '挂牌价超出了服务器允许的上限。');
+                        askingFee = n;
+                    }
                     const listed = await collectLocalWorks();
                     const source = listed.sources.get(id);
                     if (!source)
@@ -1924,6 +1962,8 @@ export function createSettingsRpcHandler(deps) {
                                 ...(direction === 'SEEK_STUDENT' ? { direction } : {}),
                                 // 已有身份 → 沿用（服务器保证同一 id 跨项目生命周期不变）
                                 ...(localIdentity.workspaceId ? { workspaceId: localIdentity.workspaceId } : {}),
+                                // 界面给了值才写入挂牌价或预算
+                                ...(askingFee !== undefined ? { askingFee } : {}),
                             }, netOptions());
                             created = true;
                             // 服务器给的才是权威：本机没有就记下，本机有但不同则**以服务器为准**（同一次发布）
@@ -2060,17 +2100,24 @@ export function createSettingsRpcHandler(deps) {
                             ...netOptions(workIdForWrite),
                         });
                         /*
-                         * 名字会在**论文起名 / 主题演进**之后变化，而项目标题只在建项目时写过一次。
-                         * 复用时按需改名：不改的话网络里那个名字永远停在第一次发布的样子。
+                         * 复用时按需 `PUT`：**改名**（名字会随论文 / 主题演进变化）或**改价**（导师调整挂牌价）。
                          *
-                         * ⚠️ 判据用**上次存下的标题**（`previous.title`），不是先 GET 一次项目：
-                         * 一次额外往返换一个几乎总是"没变"的结论不划算；代价是"别的客户端改了名字"
-                         * 时我们会把它改回来（这本来也是我们要的语义 —— 本机是这项工作的发布方）。
-                         * 老记录没有 `title`（v0.6.0 之前）→ 无从比较，改一次并记下来。
+                         * ⚠️ 判据用**上次存下的记录**（`previous.title` / `previous.askingFee`），不是先 GET
+                         * 一次项目：一次额外往返换一个几乎总是"没变"的结论不划算；代价是"别的客户端改了名
+                         * 或改了价"时我们会把它改回来（这本来也是我们要的语义 —— 本机是这项工作的发布方）。
+                         * 老记录没有对应字段（`title` 是 v0.6.0 之前、`askingFee` 是这次之前）→ 无从比较，
+                         * 发一次并记下来。
+                         *
+                         * 两者合并成一次请求：服务器同一个端点收 `title` + `asking_fee`，分两次发只是
+                         * 多一次往返，而且中间那一瞬会出现"新名字 + 旧价格"的中间态。
                          */
-                        if (reusable && previous?.title !== workName) {
+                        const priceChanged = reusable && askingFee !== undefined && previous?.askingFee !== askingFee;
+                        if (reusable && (previous?.title !== workName || priceChanged)) {
                             try {
-                                await updateProject(base, apiKey, projectId, { title: workName }, netOptions());
+                                await updateProject(base, apiKey, projectId, {
+                                    title: workName,
+                                    ...(priceChanged && askingFee !== undefined ? { askingFee } : {}),
+                                }, netOptions());
                             }
                             catch (e) {
                                 /*
@@ -2093,7 +2140,7 @@ export function createSettingsRpcHandler(deps) {
                             direction,
                             projectId,
                             // 这次用的名字（下次用它判断"要不要改名"）
-                            title: workName,
+                            title: renameFailed ? previous?.title : workName,
                             serverUrl: base,
                             accountId: me.id,
                             version: uploaded.version,
@@ -2102,6 +2149,9 @@ export function createSettingsRpcHandler(deps) {
                             updatedAt: now,
                             // 已上传附件的指纹（增量上传的依据）
                             files: digests,
+                            ...(askingFee !== undefined && !renameFailed
+                                ? { askingFee }
+                                : reusable && !created && previous?.askingFee !== undefined ? { askingFee: previous.askingFee } : {}),
                             // 「记住这次选择」：下次不弹窗时沿用它（新文件仍会按规则并入）
                             ...(remember ? { selection: selected } : {}),
                         };
@@ -2839,7 +2889,7 @@ export function createSettingsRpcHandler(deps) {
                         downloadControl?.onPart(part.path);
                         downloadControl?.check();
                         const base = resolveServerUrl(config, env()).url;
-                        const { received, filename, fileCount, sourceUpdatedAt, workspaceId: archivedId, } = await fetchProjectArchive(base, apiKey, projectId, part, {
+                        const { received, filename, fileCount, sourceUpdatedAt, workspaceId: archivedId, sourceSide, } = await fetchProjectArchive(base, apiKey, projectId, part, {
                             source,
                             ...netOptions(),
                             signal: downloadControl?.signal,
@@ -2878,9 +2928,10 @@ export function createSettingsRpcHandler(deps) {
                          * 两个方向的水位不能互相顶掉（顶掉的结果是该提示时不提示、或误提示）。
                          * 老服务器没有 `X-Source-Updated-At` → 不写：保持"未知"比写一个错的水位强。
                          */
-                        if (sourceUpdatedAt) {
+                        const servedSide = sourceSide ?? (source === 'counterpart' ? null : source);
+                        if (sourceUpdatedAt && servedSide !== null) {
                             try {
-                                deps.syncStore?.set(base, projectId, source, {
+                                deps.syncStore?.set(base, projectId, servedSide, {
                                     updatedAt: sourceUpdatedAt,
                                     fileCount,
                                     downloadedAt: new Date().toISOString(),
@@ -2911,14 +2962,14 @@ export function createSettingsRpcHandler(deps) {
                          * 同理：还没确认，就不写（由提示词里的 agent 在整合完成后写）。
                          */
                         try {
-                            if (identityId && settled.status === 'same' && settled.layout !== null && settled.researchRoot) {
+                            if (identityId && servedSide !== null && settled.status === 'same' && settled.layout !== null && settled.researchRoot) {
                                 const identity = makeWorkIdentity({
                                     workspaceId: identityId,
                                     projectId,
                                     serverUrl: base,
                                     accountId: (await resolveAccountId(base, apiKey)) ?? '',
                                     // 下 `owner` 侧 = 我在别人的研究里当导师（拿的是学生的工作区）；反之亦然
-                                    role: source === 'owner' ? 'mentor' : 'owner',
+                                    role: servedSide === 'owner' ? 'mentor' : 'owner',
                                     // 注册表按路径存 → 记下"这条身份属于当时住在这里的那项研究"
                                     ...(researchRootFingerprint(settled.researchRoot)
                                         ? { rootFingerprint: researchRootFingerprint(settled.researchRoot) }
@@ -2949,7 +3000,8 @@ export function createSettingsRpcHandler(deps) {
                                 projectId,
                                 projectTitle: asString(p.projectTitle) || null,
                                 serverUrl: base,
-                                source,
+                                // 同上：便签存**具体侧**（`counterpart` 是相对的，留着重读时无从解释）
+                                source: servedSide,
                                 savedAt: new Date().toISOString(),
                             });
                         }

@@ -134,7 +134,7 @@ export function createCodexUiHost(options = {}) {
       if (!target || typeof payload?.projectId !== 'string' || !payload.projectId.trim()) return failure('bad-request', '请选择研究项目和目标工作区。')
       payload = { ...payload, projectId: payload.projectId.trim() }
       const directory = realpathSync(target.path)
-      const source = payload.source === 'mentor' ? 'mentor' : 'owner'
+      const source = payload.source === 'mentor' || payload.source === 'counterpart' ? payload.source : 'owner'
       const intent = typeof payload.intent === 'string' && /^[a-zA-Z0-9-]{1,128}$/.test(payload.intent) ? payload.intent : undefined
       const scope = JSON.stringify([resolveServerUrl(config, env).url, createHash('sha256').update(apiKey).digest('hex'), payload.projectId, source, directory])
       if (endpoint === 'mentor/downloadCancel') {

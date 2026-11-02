@@ -203,6 +203,16 @@ export interface WorkItem {
      * 服务器给了权威值时以 `briefPaid` 为准。
      */
     briefOpened?: boolean;
+    /**
+     * **发布方挂牌价**（服务器的 `asking_fee`，单位 Token）—— 发现列表的卡片上显示它。
+     *
+     * 含义由**这张卡片自己的方向**决定：`SEEK_STUDENT` 是导师的**开价**，
+     * `SEEK_MENTOR` 是学生的**预算**。
+     *
+     * 三态（与服务端一致）：`number` = 有价；`null` = **没挂牌价**（不是 0，免费不支持）；
+     * 字段缺失（旧服务器）= `undefined` → 界面**不显示**。
+     */
+    askingFee?: number | null;
 }
 /**
  * 第二层：**简报**（`GET /projects/{id}/brief`）。
@@ -369,7 +379,7 @@ export interface ServerRequestOptions {
  * ⚠️ 省略 `source` = 服务器默认读 `owner`（"同步我的 workspace"口径）——
  * 这正是旧客户端（v0.5.3）在新服务器上不会出错、但也**看不到**导师那份的原因。
  */
-export type FileSource = 'owner' | 'mentor';
+export type FileSource = 'owner' | 'mentor' | 'counterpart';
 /**
  * 正文"卡死"判据：连续这么久**一个字节都没有**才算断，而不是给整段设总时长。
  *
@@ -511,6 +521,17 @@ export interface ServerUsage {
 /** 读用量与配额。**失败时返回 null**（调用方按"未知"展示，不阻塞发布）。 */
 export declare function fetchUsage(base: string, apiKey: string, options?: ServerRequestOptions): Promise<ServerUsage | null>;
 /**
+ * **挂牌价参考**（`GET /mentorship/price-guide`）。
+ *
+ * 出题（`SEEK_STUDENT`）的导师用它决定自己开多少；数字**全部由服务器定价配置算出**
+ * （`PaperPriceCalculator`），客户端不自带价目表 —— 写死价目的界面在平台调价那天会
+ * **撒谎**，而且是没人会立刻发现的那种（服务器文档 `payment-system.md` §3.2.6）。
+ *
+ * 失败（旧服务器 404 / 网络抖动 / 后端降级）→ **返回 `null`**：界面退化成"直接填价格"，
+ * 而不是让整个发布对话框打不开 —— 标价是**可选**信息，不该挡住发布。
+ */
+export declare function fetchPriceGuide(base: string, apiKey: string, options?: ServerRequestOptions): Promise<PriceGuide | null>;
+/**
  * 上传附件（`POST /projects/{id}/files`，multipart）。
  *
  * ⚠️ 三条服务器事实决定了这里的写法：
@@ -628,7 +649,8 @@ export declare function fetchProjectFilesWithIdentity(base: string, apiKey: stri
  *
  * @param sink 写盘目标（宿主侧是 {@link openDownloadPart} 的 `.part` 文件）
  * @returns `received` 实际字节数、`filename` 服务器给的文件名、`fileCount` 服务器声明的条目数、
- *   `sourceUpdatedAt` 这一版的**水位**（`X-Source-Updated-At`，老服务器为 `null`）
+ *   `sourceUpdatedAt` 这一版的**水位**（`X-Source-Updated-At`，老服务器为 `null`）、
+ *   `sourceSide` **实际交付的那一侧**（`X-Source`；请求 `counterpart` 时由服务器解析）
  */
 export declare function fetchProjectArchive(base: string, apiKey: string, projectId: string, sink: {
     write(chunk: Uint8Array): void;
@@ -640,6 +662,8 @@ export declare function fetchProjectArchive(base: string, apiKey: string, projec
     fileCount: number | null;
     sourceUpdatedAt: string | null;
     workspaceId: string | null;
+    /** 实际交付的那一侧（`X-Source`）——水位按它落盘，**不是**按请求里的 `counterpart`。 */
+    sourceSide: 'owner' | 'mentor' | null;
 }>;
 /**
  * 下载一个文件的**原始字节**（不是 JSON，所以不能走 `requestJson`）。
@@ -677,7 +701,39 @@ export interface ServerProject {
      * - `undefined` → **旧服务器还没有这个字段** → 按"无法判定"处理（不阻塞，也不编造）。
      */
     workspaceId?: string | null;
+    /**
+     * **挂牌价**（服务器 `asking_fee`，单位 Token）。
+     *
+     * 导师出题（`SEEK_STUDENT`）= 导师的挂牌价；学生发题（`SEEK_MENTOR`）= 学生的预算。
+     * 它**不是成交价**：成交价仍写在提案的 `total_fee` 上（服务器文档
+     * `payment-system.md` §3.2.5）。
+     *
+     * - `number` → 服务器上的挂牌价；
+     * - `null` → **没挂牌价**（与 0 是两回事：免费不支持，最低 1）；
+     * - `undefined` → **旧服务器没有这个字段**（不编造）。
+     */
+    askingFee?: number | null;
     updatedAt: string;
+}
+/**
+ * **价目参考**（服务器 `GET /mentorship/price-guide` 的镜像）。
+ *
+ * 只有"该报多少"这一件事，不含任何计费逻辑 —— 计费与阶梯价都在服务器。
+ */
+export interface PriceGuide {
+    /** 硬下限（当前 1：**免费不支持**）。 */
+    minAllowed: number;
+    recommendedMin: number;
+    recommendedMax: number;
+    /** 1 Token 合多少分（当前 1000 = ¥10），界面用来显示"≈ ¥x,xxx"。 */
+    tokenValueFen: number;
+    /** 全档价目（服务器的 `tiers`，按等级**降序**给）。 */
+    tiers: Array<{
+        jcrLevel: number;
+        ccfLevel: string | null;
+        label: string;
+        tokens: number;
+    }>;
 }
 /** 上传研究状态的入参（`content` 是服务器的内容 Envelope，见 API.md §9.1）。 */
 export interface UploadStateInput {
@@ -699,6 +755,11 @@ export declare function createProject(base: string, apiKey: string, input: {
     description?: string;
     direction?: ProjectDirection;
     workspaceId?: string;
+    /**
+     * **挂牌价**（Token）。只在明确给了数字时才发 —— 服务器把它做成"信息"而非成交价，
+     * 且 `null` 在服务层会被跳过（改价时传 null **不会**清空，见 `payment-system.md` §3.2.5）。
+     */
+    askingFee?: number | null;
 }, options?: ServerRequestOptions): Promise<ServerProject>;
 /**
  * 改项目（`PUT /projects/{id}`，owner-only）。
@@ -711,6 +772,7 @@ export declare function createProject(base: string, apiKey: string, input: {
  */
 export declare function updateProject(base: string, apiKey: string, projectId: string, input: {
     title?: string;
+    askingFee?: number | null;
 }, options?: ServerRequestOptions): Promise<ServerProject>;
 /** 读一台自己的项目（owner-only；非 owner 或已删除 → 404 `not-found`）。 */
 /**
@@ -857,6 +919,19 @@ export interface MentorshipProposal {
      * 是它，`project_title` 只作旧服务器的兜底。
      */
     workName?: string | null;
+    /**
+     * **发布方的挂牌价**（服务器的 `asking_fee`，单位 Token）—— 与这份提案的 `totalFee`
+     * **并排显示**："开价 800 / 出价 100" 的差距正是议价信息。
+     *
+     * 含义由 `direction` 决定：`SEEK_STUDENT` = 导师开价；`SEEK_MENTOR` = 学生预算。
+     *
+     * 三态：`number` 有价；`null` 没挂牌价（不是 0）；字段缺失（旧服务器）= `undefined` → 不显示。
+     *
+     * ⚠️ **合同 / 关系视图不带它**（服务器刻意的决定）：那里 `total_fee` 是**历史事实**
+     * （签约时写死），而 `asking_fee` 是**可变的当前标价**——"合同 500、挂牌 950"只会让人
+     * 分不清该付哪个数。提案是活的谈判，所以显示；合同是已签的事实，所以不显示。
+     */
+    askingFee?: number | null;
     mentor: ProposalParty | null;
     researcher: ProposalParty | null;
     guidanceScope: string;

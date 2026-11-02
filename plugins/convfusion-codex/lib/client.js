@@ -48,31 +48,39 @@ window.__ModuleLoader__.load({
 		  DownloadDialog: () => DownloadDialog,
 		  PROGRESS_VIEW_ID: () => PROGRESS_VIEW_ID,
 		  PROGRESS_VIEW_ORDER: () => PROGRESS_VIEW_ORDER,
+		  PriceGuideRow: () => PriceGuideRow,
+		  PublishDialogView: () => PublishDialog,
 		  ResearchProgressPanel: () => ResearchProgressPanel,
 		  ResearchProgressView: () => ResearchProgressView,
 		  TokenDialog: () => TokenDialog,
 		  apply: () => apply,
 		  applyNavIcon: () => applyNavIcon,
+		  askingFeeText: () => askingFeeText,
 		  buildUploadTree: () => buildUploadTree,
 		  canDownloadProposal: () => canDownloadProposal,
 		  convfusionTabSpecs: () => convfusionTabSpecs,
 		  currentMainSessionId: () => currentMainSessionId,
+		  defaultPriceOf: () => defaultPriceOf,
 		  downloadSideCount: () => downloadSideCount,
 		  folderState: () => folderState,
+		  formatTokenYuan: () => formatTokenYuan,
 		  inject: () => inject,
 		  installConvFusionTabs: () => installConvFusionTabs,
 		  installNavIcon: () => installNavIcon,
 		  loadSettingsState: () => loadSettingsState,
 		  logoUrl: () => favicon_default,
 		  nodeFilePaths: () => nodeFilePaths,
+		  normalizePrice: () => normalizePrice,
 		  percentText: () => percentText,
 		  preferredCategory: () => preferredCategory,
 		  preferredSection: () => preferredSection,
 		  preferredSkill: () => preferredSkill,
+		  priceOptionsOf: () => priceOptionsOf,
 		  readProgressValue: () => readProgressValue,
 		  shortenPath: () => shortenPath,
 		  syncCommandLine: () => syncCommandLine,
-		  treeFilePaths: () => treeFilePaths
+		  treeFilePaths: () => treeFilePaths,
+		  validatePrice: () => validatePrice
 		});
 		module.exports = __toCommonJS(index_exports);
 
@@ -165,7 +173,7 @@ window.__ModuleLoader__.load({
 		  "community.notice.tokens": "{tokens} Token",
 		  "community.notice.files": "{count} attachment(s)",
 		  "community.notice.oversize": "{count} too large to upload",
-		  "community.notice.renameFailed": "⚠️ Name not updated: {reason}",
+		  "community.notice.renameFailed": "⚠️ Name or price not updated: {reason}",
 		  "community.publish.title": "Publish {title}",
 		  // The dialog head carries the **name being published** (the work's own name); when it
 		  // differs from the local workspace name, say which workspace this is.
@@ -180,6 +188,16 @@ window.__ModuleLoader__.load({
 		  "community.publish.collapse": "Collapse",
 		  "community.publish.moreItems": "{count} more item(s) — tick the folder to select them all",
 		  "community.publish.skippedDir": "skipped",
+		  "community.publish.price": "Listing price",
+		  "community.publish.priceMentor": "Asking price (mentor)",
+		  "community.publish.priceResearcher": "Budget (your offer)",
+		  "community.publish.priceHintMentor": "A listed price, not the deal price: students may still offer any amount and the two sides negotiate in the proposal; the platform suggests {min}–{max} Tokens",
+		  "community.publish.priceHintResearcher": "Your budget, not the deal price: the mentor may counter in the proposal; the platform suggests {min}–{max} Tokens",
+		  "community.publish.priceCustom": "Custom…",
+		  "community.publish.priceHint": "A listing price only (the deal still uses the proposal amount); the platform suggests {min}–{max} Tokens",
+		  "community.publish.priceUnknown": "No price guide from the server — enter a price (whole Tokens ≥ 1, leave empty to list none)",
+		  "community.publish.priceInvalid": "Enter a whole number of Tokens ≥ {min} (free is not supported)",
+		  "community.publish.priceTooHigh": "Price exceeds the server limit",
 		  "community.publish.tooLarge": "over the per-file limit",
 		  "community.publish.oversizeWarning": "{count} file(s) exceed the server per-file limit (100 MB) and will not be uploaded.",
 		  "community.publish.summary": "{files} file(s) selected · {size} · {batches} batch(es)",
@@ -361,6 +379,9 @@ window.__ModuleLoader__.load({
 		  "community.mentor.mentorIs": "Mentor: {name}",
 		  "community.mentor.researcherIs": "Student: {name}",
 		  // The Mentorship tab keeps only status + fee numbers
+		  "community.work.askingPrice": "Asking {tokens}",
+		  "community.work.budget": "Budget {tokens}",
+		  "community.mentor.askingVsOffer": "Asking {asking} / offer {offer} Tokens",
 		  "community.mentor.feeText": "{total} Token (deposit {deposit} · success {success})",
 		  // Progress after the relationship exists. `review_files` counts the **non-owner**
 		  // side: in direction A that is the mentor's guidance, in direction B the student's
@@ -914,7 +935,7 @@ window.__ModuleLoader__.load({
 		  "community.notice.tokens": "{tokens} Token",
 		  "community.notice.files": "{count} 附件",
 		  "community.notice.oversize": "{count} 个超大未传",
-		  "community.notice.renameFailed": "⚠️ 名字未更新：{reason}",
+		  "community.notice.renameFailed": "⚠️ 名称或价格未更新：{reason}",
 		  "community.publish.title": "发布 {title}",
 		  // 对话框标题里是**要发布的名字**（这项工作自己的名字）；与本机工作区名不同时指认一下
 		  "community.publish.workspaceHint": "本机工作区：{workspace}",
@@ -928,6 +949,16 @@ window.__ModuleLoader__.load({
 		  "community.publish.collapse": "收起",
 		  "community.publish.moreItems": "还有 {count} 项（勾选本目录即可整枝选择）",
 		  "community.publish.skippedDir": "整枝已跳过",
+		  "community.publish.price": "挂牌价",
+		  "community.publish.priceMentor": "导师开价",
+		  "community.publish.priceResearcher": "预算（你的出价）",
+		  "community.publish.priceHintMentor": "这是挂牌价，不是成交价：学生仍可按任意金额出价，双方在提案里议价；平台建议 {min}–{max} Token",
+		  "community.publish.priceHintResearcher": "这是你的预算，不是成交价：导师可按你的提案议价；平台建议 {min}–{max} Token",
+		  "community.publish.priceCustom": "自定义…",
+		  "community.publish.priceHint": "挂牌价只是标价（不是成交价，成交仍按提案金额）；平台建议 {min}–{max} Token",
+		  "community.publish.priceUnknown": "服务器未提供价目参考；可填价格（≥1 的整数 Token，留空 = 不标价）",
+		  "community.publish.priceInvalid": "请填 ≥ {min} 的整数 Token（不支持免费）",
+		  "community.publish.priceTooHigh": "价格超出服务器允许的上限",
 		  "community.publish.tooLarge": "超过单文件上限",
 		  "community.publish.oversizeWarning": "有 {count} 个文件超过服务器单文件上限（100 MB），不会上传。",
 		  "community.publish.summary": "已选 {files} 个文件 · {size} · {batches} 批上传",
@@ -1117,6 +1148,9 @@ window.__ModuleLoader__.load({
 		  // 方向 B 里要判断/确认的对象是出价的学生
 		  "community.mentor.researcherIs": "学生：{name}",
 		  // 「指导中」只留状态 + 费用数字：描述性文字（指导范围 / 成功条件 / 简介 / 机构）全部去掉
+		  "community.work.askingPrice": "导师开价 {tokens}",
+		  "community.work.budget": "预算 {tokens}",
+		  "community.mentor.askingVsOffer": "开价 {asking} / 出价 {offer} Token",
 		  "community.mentor.feeText": "{total} Token（押金 {deposit} · 成功 {success}）",
 		  // 关系建立之后的**进展**（提案状态接受后就不再变了，光看它永远是"已接受"）。
 		  //
@@ -1898,6 +1932,49 @@ window.__ModuleLoader__.load({
 		  const path = zipPath.trim();
 		  const ref = /\s/.test(path) ? `@"${path}"` : `@${path}`;
 		  return `/research sync ${ref}`;
+		}
+
+		// src/client/price-guide.ts
+		var MAX_ASKING_FEE = 1e6;
+		function priceOptionsOf(guide) {
+		  if (!guide || !Array.isArray(guide.tiers)) return [];
+		  const seen = /* @__PURE__ */ new Set();
+		  const out = [];
+		  for (const tier of [...guide.tiers].sort((a, b) => a.tokens - b.tokens)) {
+		    const tokens = Number(tier.tokens);
+		    if (!Number.isSafeInteger(tokens) || tokens < 1 || tokens > MAX_ASKING_FEE || seen.has(tokens)) continue;
+		    seen.add(tokens);
+		    out.push({ tokens, label: String(tier.label ?? "") });
+		  }
+		  return out;
+		}
+		function defaultPriceOf(guide) {
+		  return priceOptionsOf(guide)[0]?.tokens;
+		}
+		function normalizePrice(input) {
+		  if (typeof input === "number") {
+		    return Number.isInteger(input) && input > 0 ? input : null;
+		  }
+		  const text = String(input ?? "").trim();
+		  if (!text) return null;
+		  if (!/^\d+$/.test(text)) return null;
+		  const n = Number(text);
+		  return Number.isSafeInteger(n) && n > 0 ? n : null;
+		}
+		function validatePrice(tokens, guide) {
+		  if (tokens === null || !Number.isSafeInteger(tokens) || tokens < 1) return "empty";
+		  if (tokens > MAX_ASKING_FEE) return "tooHigh";
+		  const min = guide && Number.isFinite(guide.minAllowed) ? Math.trunc(guide.minAllowed) : 1;
+		  if (tokens < Math.max(1, min)) return "empty";
+		  return null;
+		}
+		function formatTokenYuan(tokens, tokenValueFen) {
+		  if (tokens === null || typeof tokenValueFen !== "number" || !Number.isFinite(tokenValueFen)) return null;
+		  const fen = tokens * tokenValueFen;
+		  const yuan = fen / 100;
+		  const text = Number.isInteger(yuan) ? String(yuan) : yuan.toFixed(2);
+		  const grouped = text.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		  return `¥${grouped}`;
 		}
 
 		// src/client/upload-tree.ts
@@ -2730,7 +2807,7 @@ window.__ModuleLoader__.load({
 		          }
 		          setError(null);
 		          setState(outcome.state);
-		          setStaleHost(outcome.state.protocol !== 29);
+		          setStaleHost(outcome.state.protocol !== 31);
 		          return outcome.state;
 		        }
 		        const res = await send(endpoint, payload);
@@ -3203,11 +3280,14 @@ window.__ModuleLoader__.load({
 		function workLabelOf(source) {
 		  return source.workName?.trim() || source.title;
 		}
+		function askingFeeText(t, direction, askingFee) {
+		  if (typeof askingFee !== "number" || !Number.isInteger(askingFee) || askingFee < 1) return null;
+		  return t(direction === "SEEK_STUDENT" ? "community.work.askingPrice" : "community.work.budget", {
+		    tokens: askingFee
+		  });
+		}
 		function proposalWorkLabel(p) {
 		  return p.workName?.trim() || p.projectTitle;
-		}
-		function publishedIn(w, direction) {
-		  return w.published.find((r) => r.direction === direction) ?? null;
 		}
 		var HOST_PROTOCOL_MIN_FOR_CHECK = 23;
 		var PUBLISH_BUTTON_WIDTH = 128;
@@ -3410,6 +3490,7 @@ window.__ModuleLoader__.load({
 		  progress,
 		  updatedAt,
 		  author,
+		  price,
 		  disabled,
 		  busy,
 		  expanded,
@@ -3426,6 +3507,7 @@ window.__ModuleLoader__.load({
 		        fields.length ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: fields.join(" · ") }) : null,
 		        stage ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: enumText(t, STAGE_LABEL_KEYS, stage) }) : null,
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(ProgressBar, { value: progress }),
+		        price ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { color: "var(--dsw-alias-brand-primary)" }, children: price }) : null,
 		        updatedAt ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: updatedAt.slice(0, 10) }) : null
 		      ] })
 		    ] }),
@@ -3789,6 +3871,66 @@ window.__ModuleLoader__.load({
 		    renderNodes(nodes, 0)
 		  ] });
 		}
+		function PriceGuideRow({
+		  t,
+		  direction,
+		  guide,
+		  options,
+		  mode,
+		  tokens,
+		  text,
+		  onSelectPreset,
+		  onSelectCustom,
+		  onText
+		}) {
+		  const error = !guide && tokens === null && text.trim() === "" ? null : validatePrice(tokens, guide);
+		  const yuan = formatTokenYuan(tokens, guide?.tokenValueFen ?? null);
+		  const minAllowed = Math.max(1, Math.trunc(guide?.minAllowed ?? 1));
+		  const isMentorSide = direction === "SEEK_STUDENT";
+		  const label = t(isMentorSide ? "community.publish.priceMentor" : "community.publish.priceResearcher");
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.listTitle, fontSize: 12.5 }, children: label }),
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+		        "select",
+		        {
+		          style: { ...S.input, minWidth: 190, padding: "4px 6px" },
+		          value: mode === "custom" ? "custom" : String(tokens ?? ""),
+		          onChange: (e) => {
+		            if (e.target.value === "custom") onSelectCustom();
+		            else onSelectPreset(Number(e.target.value));
+		          },
+		          children: [
+		            options.map((o) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: String(o.tokens), children: o.label ? `${o.tokens} Token · ${o.label}` : `${o.tokens} Token` }, o.tokens)),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "custom", children: t("community.publish.priceCustom") })
+		          ]
+		        }
+		      ),
+		      mode === "custom" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		        "input",
+		        {
+		          type: "number",
+		          min: minAllowed,
+		          step: 1,
+		          inputMode: "numeric",
+		          style: { ...S.input, width: 110, padding: "4px 6px" },
+		          value: text,
+		          onChange: (e) => onText(e.target.value),
+		          placeholder: String(minAllowed),
+		          "aria-label": label
+		        }
+		      ) : null,
+		      yuan ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: S.hint, children: [
+		        "≈ ",
+		        yuan
+		      ] }) : null
+		    ] }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: error === "tooHigh" ? t("community.publish.priceTooHigh") : error === "empty" ? t("community.publish.priceInvalid", { min: minAllowed }) : guide ? t(isMentorSide ? "community.publish.priceHintMentor" : "community.publish.priceHintResearcher", {
+		      min: guide.recommendedMin,
+		      max: guide.recommendedMax
+		    }) : t("community.publish.priceUnknown") })
+		  ] });
+		}
 		function PublishDialog({
 		  t,
 		  data,
@@ -3800,6 +3942,12 @@ window.__ModuleLoader__.load({
 		  onToggleFiles,
 		  onToggleExpand,
 		  onRemember,
+		  priceMode,
+		  priceTokens,
+		  priceText,
+		  onSelectPricePreset,
+		  onSelectPriceCustom,
+		  onPriceText,
 		  onCancel,
 		  onConfirm
 		}) {
@@ -3808,6 +3956,7 @@ window.__ModuleLoader__.load({
 		  const selectedBytes = selectable.filter((f) => selection.has(f.relPath)).reduce((n, f) => n + f.size, 0);
 		  const batches = Math.max(1, Math.ceil(selectedFiles.length / data.plan.limits.maxFilesPerRequest));
 		  const storage = data.usage?.storage;
+		  const priceInvalid = (data.priceGuide != null || priceText.trim() !== "") && validatePrice(priceTokens, data.priceGuide) !== null;
 		  const oversizeSelected = selectable.filter(
 		    (f) => selection.has(f.relPath) && f.size > data.plan.limits.maxFileBytes
 		  );
@@ -3844,6 +3993,21 @@ window.__ModuleLoader__.load({
 		                data.changed.length > 0 ? ` · ${t("community.publish.changed", { count: data.changed.length })}` : data.remembered ? ` · ${t("community.publish.unchanged")}` : ""
 		              ] }),
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		                PriceGuideRow,
+		                {
+		                  t,
+		                  direction: data.direction,
+		                  guide: data.priceGuide,
+		                  options: priceOptionsOf(data.priceGuide),
+		                  mode: priceMode,
+		                  tokens: priceTokens,
+		                  text: priceText,
+		                  onSelectPreset: onSelectPricePreset,
+		                  onSelectCustom: onSelectPriceCustom,
+		                  onText: onPriceText
+		                }
+		              ),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                UploadCategoryList,
 		                {
 		                  t,
@@ -3871,8 +4035,8 @@ window.__ModuleLoader__.load({
 		                  "button",
 		                  {
 		                    type: "button",
-		                    style: { ...S.primaryBtn, opacity: busy ? 0.55 : 1 },
-		                    disabled: busy,
+		                    style: { ...S.primaryBtn, opacity: busy || priceInvalid ? 0.55 : 1 },
+		                    disabled: busy || priceInvalid,
 		                    onClick: onConfirm,
 		                    children: busy ? t("community.action.publishing") : t("community.publish.confirm")
 		                  }
@@ -5282,7 +5446,7 @@ window.__ModuleLoader__.load({
 		    const request = ++downloadRequest.current;
 		    const scope = listScope;
 		    const prefix = downloadPrefix(p);
-		    const source = viewOf(p).otherSide;
+		    const source = "counterpart";
 		    const res = await post("mentor/downloadState", {
 		      projectId: p.projectId,
 		      prefix,
@@ -5536,21 +5700,21 @@ window.__ModuleLoader__.load({
 		      return;
 		    }
 		    const data = res.value;
-		    const publishedHere = publishedIn(w, direction);
-		    if (publishedHere && data.remembered && data.changed.length === 0 && data.selection.length > 0) {
-		      await doPublish(w, direction, data.selection, true);
-		      return;
-		    }
+		    const initialPrice = data.askingFee ?? defaultPriceOf(data.priceGuide) ?? null;
+		    const presetHitsTier = initialPrice !== null && priceOptionsOf(data.priceGuide).some((o) => o.tokens === initialPrice);
 		    setDialog({
 		      work: w,
 		      direction,
 		      data,
 		      selection: new Set(data.selection),
 		      remember: true,
-		      expanded: /* @__PURE__ */ new Set()
+		      expanded: /* @__PURE__ */ new Set(),
+		      priceMode: presetHitsTier ? "preset" : "custom",
+		      priceTokens: initialPrice,
+		      priceText: initialPrice === null ? "" : String(initialPrice)
 		    });
 		  };
-		  const doPublish = async (w, direction, selection, remember) => {
+		  const doPublish = async (w, direction, selection, remember, askingFee) => {
 		    setPublishing({ id: w.id, direction });
 		    setPublishNotice(null);
 		    setPublishProgress(null);
@@ -5568,7 +5732,13 @@ window.__ModuleLoader__.load({
 		    }, 1e3);
 		    let res;
 		    try {
-		      res = await post("work/publish", { id: w.id, direction, selection, remember });
+		      res = await post("work/publish", {
+		        id: w.id,
+		        direction,
+		        selection,
+		        remember,
+		        ...askingFee !== void 0 ? { askingFee } : {}
+		      });
 		    } finally {
 		      stopPublishPoll();
 		    }
@@ -6303,10 +6473,23 @@ window.__ModuleLoader__.load({
 		          return { ...d, expanded: ex };
 		        }),
 		        onRemember: (next) => setDialog((d) => d ? { ...d, remember: next } : d),
+		        priceMode: dialog.priceMode,
+		        priceTokens: dialog.priceTokens,
+		        priceText: dialog.priceText,
+		        onSelectPricePreset: (tokens2) => setDialog((d) => d ? { ...d, priceMode: "preset", priceTokens: tokens2 } : d),
+		        onSelectPriceCustom: () => setDialog((d) => d ? { ...d, priceMode: "custom", priceTokens: normalizePrice(d.priceText) } : d),
+		        onPriceText: (next) => setDialog((d) => d ? { ...d, priceText: next, priceTokens: normalizePrice(next) } : d),
 		        onCancel: () => setDialog(null),
 		        onConfirm: () => {
 		          if (!dialog) return;
-		          void doPublish(dialog.work, dialog.direction, [...dialog.selection], dialog.remember);
+		          void doPublish(
+		            dialog.work,
+		            dialog.direction,
+		            [...dialog.selection],
+		            dialog.remember,
+		            // 挂牌价（两个方向都送：导师=开价，学生=预算）；价格不合法时不传（按钮已禁用）
+		            dialog.priceTokens !== null ? dialog.priceTokens : void 0
+		          );
 		        }
 		      }
 		    ) : null,
@@ -6642,6 +6825,10 @@ window.__ModuleLoader__.load({
 		                    children: [
 		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: proposalWorkLabel(p) ?? t("community.mentor.untitledProject") }),
 		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: view.counterparty?.displayName ?? t("community.mentor.unknownParty") }),
+		                      typeof p.askingFee === "number" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.mentor.askingVsOffer", {
+		                        asking: p.askingFee,
+		                        offer: p.totalFee
+		                      }) }) : null,
 		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: feeText(p) }),
 		                      sideSyncHint(t, p, view) ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-warn-primary)" }, children: sideSyncHint(t, p, view) }) : null
 		                    ]
@@ -6908,6 +7095,7 @@ window.__ModuleLoader__.load({
 		                      t,
 		                      title: workLabelOf(w),
 		                      author: w.owner?.displayName ?? null,
+		                      price: askingFeeText(t, w.direction, w.askingFee),
 		                      fields: w.researchFields,
 		                      stage: w.stage,
 		                      progress: w.progress,
@@ -6959,6 +7147,7 @@ window.__ModuleLoader__.load({
 		                    t,
 		                    title: workLabelOf(w),
 		                    author: w.owner?.displayName ?? null,
+		                    price: askingFeeText(t, w.direction, w.askingFee),
 		                    fields: w.researchFields,
 		                    stage: w.stage,
 		                    progress: w.progress,
@@ -7478,7 +7667,7 @@ window.__ModuleLoader__.load({
 		  const envelope = res;
 		  if (envelope?.ok !== true) return { kind: "hidden" };
 		  const value = envelope.value ?? {};
-		  if (value.protocol !== 29) return { kind: "hidden" };
+		  if (value.protocol !== 31) return { kind: "hidden" };
 		  if (value.research !== true) return { kind: "hidden" };
 		  return {
 		    kind: "shown",

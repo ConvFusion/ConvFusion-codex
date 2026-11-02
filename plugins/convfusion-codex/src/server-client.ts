@@ -213,6 +213,16 @@ export interface WorkItem {
    * 服务器给了权威值时以 `briefPaid` 为准。
    */
   briefOpened?: boolean
+  /**
+   * **发布方挂牌价**（服务器的 `asking_fee`，单位 Token）—— 发现列表的卡片上显示它。
+   *
+   * 含义由**这张卡片自己的方向**决定：`SEEK_STUDENT` 是导师的**开价**，
+   * `SEEK_MENTOR` 是学生的**预算**。
+   *
+   * 三态（与服务端一致）：`number` = 有价；`null` = **没挂牌价**（不是 0，免费不支持）；
+   * 字段缺失（旧服务器）= `undefined` → 界面**不显示**。
+   */
+  askingFee?: number | null
 }
 
 /**
@@ -454,18 +464,29 @@ export interface ServerRequestOptions {
  * ⚠️ 省略 `source` = 服务器默认读 `owner`（"同步我的 workspace"口径）——
  * 这正是旧客户端（v0.5.3）在新服务器上不会出错、但也**看不到**导师那份的原因。
  */
-export type FileSource = 'owner' | 'mentor'
+export type FileSource = 'owner' | 'mentor' | 'counterpart'
 
 /**
- * `?source=` 查询串：**只在读导师那一侧时显式加**（`owner` 是服务器默认，省略即可）。
+ * `?source=` 查询串：**只有 `owner` 省略**（那是服务器的默认），其余显式发。
  *
- * 为什么不写 `?source=owner`：旧服务器（v0.5.3 时代）还没有这个参数。多带一个它不认识的
+ * ⚠️ **`counterpart` 必须真的发出去**（v0.6.8 的 bug 就是它被这里静默吞掉）：
+ * 省略等于回落到 `owner`，而 `owner` 是**按位置**命名（项目所有者那一侧），
+ * 不是"对方那一侧" —— 方向 B（导师出题、导师是 owner）里两者正好相反，
+ * 于是学生/导师点【下载】拿回来的是**自己写的那一侧**（一个完全正常的 200，
+ * 看起来像"下载到了老文件"）。
+ *
+ * 服务器文档 `API.md` §13.7：`counterpart` = **相对调用者**的对方那一侧
+ * （owner 问 → `mentor` 侧；非 owner 问 → `owner` 侧），响应头 `X-Source`
+ * 报出**实际交付**的那一侧（已解析成 `owner` / `mentor`）。
+ *
+ * 为什么不写 `?source=owner`：旧服务器（v0.5.3 时代）还没有这个参数，多带一个它不认识的
  * 查询参数会被忽略 —— 而**导师那一侧**在旧服务器上恰好就是"唯一的那个文件空间"，
  * 所以显式 `?source=mentor` 被忽略后读到的正是导师上传的文件，增量比对照旧正确。
- * 反过来，`?source=owner` 被忽略也对，只是多余。
+ * 不认 `counterpart` 的服务器会直接 422（`API.md` §13.7 明确："下载直接失败，不会静默下错侧"）。
  */
 function sourceQuery(source?: FileSource): string {
-  return source === 'mentor' ? '?source=mentor' : ''
+  // 省略 = 服务器默认（owner）。⚠️ `counterpart` 绝不能被吞掉（见上）
+  return source === undefined || source === 'owner' ? '' : `?source=${source}`
 }
 
 /**
@@ -1057,6 +1078,52 @@ export async function fetchUsage(
 }
 
 /**
+ * **挂牌价参考**（`GET /mentorship/price-guide`）。
+ *
+ * 出题（`SEEK_STUDENT`）的导师用它决定自己开多少；数字**全部由服务器定价配置算出**
+ * （`PaperPriceCalculator`），客户端不自带价目表 —— 写死价目的界面在平台调价那天会
+ * **撒谎**，而且是没人会立刻发现的那种（服务器文档 `payment-system.md` §3.2.6）。
+ *
+ * 失败（旧服务器 404 / 网络抖动 / 后端降级）→ **返回 `null`**：界面退化成"直接填价格"，
+ * 而不是让整个发布对话框打不开 —— 标价是**可选**信息，不该挡住发布。
+ */
+export async function fetchPriceGuide(
+  base: string,
+  apiKey: string,
+  options: ServerRequestOptions = {},
+): Promise<PriceGuide | null> {
+  try {
+    const key = requireKey(apiKey)
+    const body = await requestJson(base, '/mentorship/price-guide', { method: 'GET', apiKey: key }, options, '价目参考')
+    const root = asObject(body, '价目参考')
+    const tiers: PriceGuide['tiers'] = []
+    const rawTiers = Array.isArray(root.tiers) ? root.tiers : []
+    for (const raw of rawTiers) {
+      const t = asObject(raw, '价目档位')
+      const tokens = asNumber(t.tokens, 0)
+      const label = asString(t.label)
+      if (!Number.isInteger(tokens) || tokens < 1 || !label) continue
+      tiers.push({
+        jcrLevel: Math.trunc(asNumber(t.jcr_level, 0)),
+        ccfLevel: asString(t.ccf_level) || null,
+        label,
+        tokens,
+      })
+    }
+    return {
+      // 硬下限由服务器给（当前 1），这里不写死：平台若调整，界面跟着走
+      minAllowed: Math.max(1, Math.trunc(asNumber(root.min_allowed, 1))),
+      recommendedMin: Math.trunc(asNumber(root.recommended_min, 0)),
+      recommendedMax: Math.trunc(asNumber(root.recommended_max, 0)),
+      tokenValueFen: Math.trunc(asNumber(root.token_value_fen, 0)),
+      tiers,
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
  * 上传附件（`POST /projects/{id}/files`，multipart）。
  *
  * ⚠️ 三条服务器事实决定了这里的写法：
@@ -1343,6 +1410,14 @@ async function fetchBinary(
   sourceUpdatedAt: string | null
   /** 研究工作标识（`X-Workspace-Id`；老服务器 / 非归档请求为 `null`）。 */
   workspaceId: string | null
+  /**
+   * **实际交付的那一侧**（服务器 `X-Source`，`counterpart` 已被服务器解析成具体侧）。
+   *
+   * 为什么必须读它：请求里的 `counterpart` 是"相对调用者"的，**具体是哪一侧由服务器决定**
+   * ——水位要按具体侧（`owner` / `mentor`）落盘，否则已存的水位全部作废、所有人都被提示
+   * 重新下载一次。老服务器没这个头 → `null`。
+   */
+  sourceSide: 'owner' | 'mentor' | null
   received: number
 }> {
   const fetchImpl = options.fetchImpl ?? (globalThis.fetch as unknown as FetchLike | undefined)
@@ -1406,6 +1481,8 @@ async function fetchBinary(
      * → 不写身份（保持"未知"比写一个错的强）。
      */
     const workspaceId = normalizeWorkspaceId(res.headers?.get('x-workspace-id'))
+    const sourceSideRaw = (res.headers?.get('x-source') ?? '').trim().toLowerCase()
+    const sourceSide = sourceSideRaw === 'owner' || sourceSideRaw === 'mentor' ? sourceSideRaw : null
     const received = await readBody(res, options, label, controller)
     return {
       bytes: received.bytes,
@@ -1413,6 +1490,7 @@ async function fetchBinary(
       fileCount,
       sourceUpdatedAt,
       workspaceId,
+      sourceSide,
       received: received.total,
     }
   } finally { options.signal?.removeEventListener('abort', abort) }
@@ -1564,7 +1642,8 @@ function filenameFromDisposition(value: string | null): string | null {
  *
  * @param sink 写盘目标（宿主侧是 {@link openDownloadPart} 的 `.part` 文件）
  * @returns `received` 实际字节数、`filename` 服务器给的文件名、`fileCount` 服务器声明的条目数、
- *   `sourceUpdatedAt` 这一版的**水位**（`X-Source-Updated-At`，老服务器为 `null`）
+ *   `sourceUpdatedAt` 这一版的**水位**（`X-Source-Updated-At`，老服务器为 `null`）、
+ *   `sourceSide` **实际交付的那一侧**（`X-Source`；请求 `counterpart` 时由服务器解析）
  */
 export async function fetchProjectArchive(
   base: string,
@@ -1578,11 +1657,13 @@ export async function fetchProjectArchive(
   fileCount: number | null
   sourceUpdatedAt: string | null
   workspaceId: string | null
+  /** 实际交付的那一侧（`X-Source`）——水位按它落盘，**不是**按请求里的 `counterpart`。 */
+  sourceSide: 'owner' | 'mentor' | null
 }> {
   const key = requireKey(apiKey)
   const id = (projectId ?? '').trim()
   if (!id) throw new ServerError('bad-request', '缺少 projectId。')
-  const { contentDisposition, fileCount, sourceUpdatedAt, workspaceId, received } = await fetchBinary(
+  const { contentDisposition, fileCount, sourceUpdatedAt, workspaceId, sourceSide, received } = await fetchBinary(
     base,
     `/projects/${encodeURIComponent(id)}/files/archive${sourceQuery(options.source)}`,
     key,
@@ -1595,6 +1676,7 @@ export async function fetchProjectArchive(
     fileCount,
     sourceUpdatedAt,
     workspaceId,
+    sourceSide,
   }
 }
 
@@ -1670,7 +1752,35 @@ export interface ServerProject {
    * - `undefined` → **旧服务器还没有这个字段** → 按"无法判定"处理（不阻塞，也不编造）。
    */
   workspaceId?: string | null
+  /**
+   * **挂牌价**（服务器 `asking_fee`，单位 Token）。
+   *
+   * 导师出题（`SEEK_STUDENT`）= 导师的挂牌价；学生发题（`SEEK_MENTOR`）= 学生的预算。
+   * 它**不是成交价**：成交价仍写在提案的 `total_fee` 上（服务器文档
+   * `payment-system.md` §3.2.5）。
+   *
+   * - `number` → 服务器上的挂牌价；
+   * - `null` → **没挂牌价**（与 0 是两回事：免费不支持，最低 1）；
+   * - `undefined` → **旧服务器没有这个字段**（不编造）。
+   */
+  askingFee?: number | null
   updatedAt: string
+}
+
+/**
+ * **价目参考**（服务器 `GET /mentorship/price-guide` 的镜像）。
+ *
+ * 只有"该报多少"这一件事，不含任何计费逻辑 —— 计费与阶梯价都在服务器。
+ */
+export interface PriceGuide {
+  /** 硬下限（当前 1：**免费不支持**）。 */
+  minAllowed: number
+  recommendedMin: number
+  recommendedMax: number
+  /** 1 Token 合多少分（当前 1000 = ¥10），界面用来显示"≈ ¥x,xxx"。 */
+  tokenValueFen: number
+  /** 全档价目（服务器的 `tiers`，按等级**降序**给）。 */
+  tiers: Array<{ jcrLevel: number; ccfLevel: string | null; label: string; tokens: number }>
 }
 
 /** 上传研究状态的入参（`content` 是服务器的内容 Envelope，见 API.md §9.1）。 */
@@ -1697,6 +1807,10 @@ function parseProject(raw: unknown): ServerProject {
     ...(b.workspace_id === undefined
       ? {}
       : { workspaceId: normalizeWorkspaceId(b.workspace_id) }),
+    // 挂牌价三态：缺字段（旧服务器）→ undefined；显式 null → null（没挂牌价）
+    ...(b.asking_fee === undefined
+      ? {}
+      : { askingFee: parseTriFee(b.asking_fee) }),
     updatedAt: asString(b.updated_at),
   }
 }
@@ -1711,7 +1825,17 @@ function parseProject(raw: unknown): ServerProject {
 export async function createProject(
   base: string,
   apiKey: string,
-  input: { title: string; description?: string; direction?: ProjectDirection; workspaceId?: string },
+  input: {
+    title: string
+    description?: string
+    direction?: ProjectDirection
+    workspaceId?: string
+    /**
+     * **挂牌价**（Token）。只在明确给了数字时才发 —— 服务器把它做成"信息"而非成交价，
+     * 且 `null` 在服务层会被跳过（改价时传 null **不会**清空，见 `payment-system.md` §3.2.5）。
+     */
+    askingFee?: number | null
+  },
   options: ServerRequestOptions = {},
 ): Promise<ServerProject> {
   const key = requireKey(apiKey)
@@ -1735,6 +1859,8 @@ export async function createProject(
          * 而"另一项研究"在下一次下载判定里意味着"禁止写进这个工作区"。
          */
         ...(input.workspaceId ? { workspace_id: input.workspaceId } : {}),
+        // 与方向同理：没标价就不发这个字段（服务器侧 `NULL` = 没挂牌价）
+        ...(typeof input.askingFee === 'number' ? { asking_fee: input.askingFee } : {}),
       },
     },
     options,
@@ -1756,7 +1882,7 @@ export async function updateProject(
   base: string,
   apiKey: string,
   projectId: string,
-  input: { title?: string },
+  input: { title?: string; askingFee?: number | null },
   options: ServerRequestOptions = {},
 ): Promise<ServerProject> {
   const key = requireKey(apiKey)
@@ -1767,7 +1893,21 @@ export async function updateProject(
   const body = await requestJson(
     base,
     `/projects/${encodeURIComponent(id)}`,
-    { method: 'PUT', apiKey: key, body: { title } },
+    {
+      method: 'PUT',
+      apiKey: key,
+      body: {
+        title,
+        /*
+         * 挂牌价：只在明确给了数字时才发。
+         *
+         * ⚠️ 传 `null` **不会清空**（服务层跳过 `None`，与 title/description/status 的既有语义
+         * 一致，见 `payment-system.md` §3.2.5 的"改价的限制"）——所以这里根本不发 null，
+         * 免得界面上出现"以为能撤掉挂牌价"的假象。
+         */
+        ...(typeof input.askingFee === 'number' ? { asking_fee: input.askingFee } : {}),
+      },
+    },
     options,
     '改项目',
   )
@@ -1988,6 +2128,8 @@ function parseWorkItem(raw: unknown): WorkItem {
     // 只有真的是布尔才采信；字段缺失或类型不对 → null（= 不知道，界面会照常提醒）。
     briefPaid: typeof b.brief_paid === 'boolean' ? b.brief_paid : null,
     owner: parseWorkOwner(b.owner),
+    // 挂牌价三态：缺字段（旧服务器）→ 不带这个键；显式 null → null（没挂牌价）
+    ...(b.asking_fee === undefined ? {} : { askingFee: parseTriFee(b.asking_fee) }),
   }
 }
 
@@ -2195,6 +2337,19 @@ export interface MentorshipProposal {
    * 是它，`project_title` 只作旧服务器的兜底。
    */
   workName?: string | null
+  /**
+   * **发布方的挂牌价**（服务器的 `asking_fee`，单位 Token）—— 与这份提案的 `totalFee`
+   * **并排显示**："开价 800 / 出价 100" 的差距正是议价信息。
+   *
+   * 含义由 `direction` 决定：`SEEK_STUDENT` = 导师开价；`SEEK_MENTOR` = 学生预算。
+   *
+   * 三态：`number` 有价；`null` 没挂牌价（不是 0）；字段缺失（旧服务器）= `undefined` → 不显示。
+   *
+   * ⚠️ **合同 / 关系视图不带它**（服务器刻意的决定）：那里 `total_fee` 是**历史事实**
+   * （签约时写死），而 `asking_fee` 是**可变的当前标价**——"合同 500、挂牌 950"只会让人
+   * 分不清该付哪个数。提案是活的谈判，所以显示；合同是已签的事实，所以不显示。
+   */
+  askingFee?: number | null
   mentor: ProposalParty | null
   researcher: ProposalParty | null
   guidanceScope: string
@@ -2495,6 +2650,18 @@ function parseTriText(raw: unknown): string | null | undefined {
   return text ? text : undefined
 }
 
+/**
+ * **挂牌价三态**解析（`asking_fee`）。
+ *
+ * `null`（服务器说"没挂牌价"）→ `null`；正整数 → 数字；其它（缺失/0/负数/非数字）→ `null`。
+ * 0 一定是脏数据（服务器的 CHECK 是 `>= 1`），按"没有"处理比渲染成"免费"安全。
+ */
+function parseTriFee(raw: unknown): number | null {
+  if (raw === null) return null
+  const n = asNumber(raw, 0)
+  return Number.isInteger(n) && n >= 1 ? n : null
+}
+
 /** **时间戳类三态**解析（`workspace_updated_at`）：显式 null → 未知；ISO 字符串 → 原样。 */
 function parseTriIso(raw: unknown): string | null | undefined {
   if (raw === null) return null
@@ -2515,6 +2682,7 @@ function parseProposal(raw: unknown): MentorshipProposal {
     proposedById: asString(b.proposed_by_id) || null,
     projectTitle: asString(b.project_title) || null,
     workName: parseTriText(b.work_name),
+    ...(b.asking_fee === undefined ? {} : { askingFee: parseTriFee(b.asking_fee) }),
     // 后端 enrich 之后 `mentor` / `researcher` 是内嵌对象；没 enrich 时退回顶层
     // `mentor_id` / `researcher_id`（UUID），界面用短 id 显示 —— 至少能分出"哪边是我"。
     mentor: parseParty(b.mentor, b.mentor_id),

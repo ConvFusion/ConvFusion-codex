@@ -67,7 +67,7 @@ if (['--worker', '--saved-worker'].includes(process.argv[2])) {
   const host = createCodexUiHost({ home, env, fetchImpl: server.fetchImpl })
   if (process.argv[2] === '--saved-worker') server.blockPostflight()
   const workspaceId = host.registerWorkspace(root).id
-  const result = await host.dispatch(root, 'mentor/downloadStart', { projectId: 'crash', workspaceId, source: 'mentor' })
+  const result = await host.dispatch(root, 'mentor/downloadStart', { projectId: 'crash', workspaceId, source: 'counterpart' })
   if (process.argv[2] === '--saved-worker') {
     await until(() => server.transfers.length, Boolean)
     server.transfers[0].finish()
@@ -83,7 +83,7 @@ if (['--worker', '--saved-worker'].includes(process.argv[2])) {
   let child
   try {
     assert.equal((await host.dispatch(root, 'account/login', { apiKey: key, serverUrl: 'https://fixture.example' })).ok, true)
-    const payload = { projectId: 'project', workspaceId: host.registerWorkspace(root).id, source: 'mentor', prefix: 'guessed-name', intent: 'first-intent' }
+    const payload = { projectId: 'project', workspaceId: host.registerWorkspace(root).id, source: 'counterpart', prefix: 'guessed-name', intent: 'first-intent' }
     const call = async (endpoint, args = payload, caller = host) => {
       const res = await caller.dispatch(root, `mentor/download${endpoint}`, args)
       assert.equal(res.ok, true, JSON.stringify(res))
@@ -103,6 +103,7 @@ if (['--worker', '--saved-worker'].includes(process.argv[2])) {
     assert.equal(a.id, b.id, 'simultaneous starts join one transfer')
     await until(() => status(), (j) => j?.received === 12)
     assert.equal(server.transfers.length, 1)
+    assert.equal(new URL(server.transfers[0].url).searchParams.get('source'), 'counterpart', 'Codex task adapter preserves counterpart')
     assert.equal((await status({ ...payload, revision: 'stale-ui-revision' })).id, a.id, 'lost start acknowledgement is recovered by intent even when preflight became stale')
     assert.equal(await status({ ...payload, intent: 'unstarted-intent' }), null)
     assert.equal((await status()).totalBytes, zip.length, 'progress uses compressed response size')

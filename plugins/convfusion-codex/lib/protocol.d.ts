@@ -193,8 +193,25 @@
  *   'host' : 'memory'`），而旧界面忽略它的布尔返回值、照样说「已保存」——
  *   表现为"明明设置了 OpenAlex API Key，却总是显示未配置"。旧宿主没有这两个端点
  *   → `unknown-endpoint`，界面提示"宿主需重启"（不升号的话，用户只会看到又一次失败）。
+ *
+ * - `30`：**导师出题的挂牌价**（服务器 `research_projects.asking_fee` + `GET /mentorship/price-guide`）。
+ *   · `work/uploadPlan` 多出 **`askingFee`**（上次发布用的挂牌价，用于预填对话框）与
+ *     **`priceGuide`**（服务器给的价目参考：推荐区间 + 四档全价目 + 硬下限）；
+ *   · `work/publish` 增加入参 **`askingFee`**（导师出题时界面选的挂牌价；`>=1` 的整数）。
+ *   旧宿主的两种错法都是**安静的**：不认识 `askingFee` → 用户选了 800，网络里却没有挂牌价
+ *   （卡片上什么都不显示）；不返回 `priceGuide` → 界面只能退化成手填价格（没有 500/600/800/1000
+ *   的下拉）。所以照旧升号，让设置页把"宿主需重启"说出来。
+ *
+ * - `31`：**下载读"对方那一侧"改用服务器的 `counterpart`**（服务器 `API.md` §13.7）。
+ *   `mentor/downloadState` / `mentor/download` 的入参 `source` 多一个取值 **`counterpart`**
+ *   （= 相对调用者的对方那一侧；服务器解析成 `owner` / `mentor`，响应头 `X-Source` 报回实际侧）。
+ *   起因是一个实测报障：**下载到的总是老文件** —— `owner`/`mentor` 是按**位置**命名的，
+ *   界面却按**角色**换算；方向 B（导师出题、owner 就是导师）里两者正好相反，于是下到了
+ *   **自己写的那一侧**（一个完全正常的 200，看起来就像"老文件"）。
+ *   旧宿主会把 `counterpart` 归一成 `owner`（`asSource` 只认 `mentor`）—— 那正是要修的错，
+ *   且**没有任何报错**，所以必须升号让设置页把"宿主需重启"说出来。
  */
-export declare const HOST_PROTOCOL = 29;
+export declare const HOST_PROTOCOL = 31;
 /** 状态响应里的协议字段名（两边共用，避免拼错）。 */
 export declare const HOST_PROTOCOL_FIELD = "protocol";
 //# sourceMappingURL=protocol.d.ts.map
