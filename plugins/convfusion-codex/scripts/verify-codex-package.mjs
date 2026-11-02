@@ -63,5 +63,15 @@ try {
   const hook = spawnSync(process.execPath, ['lib/codex-hooks.mjs'], { cwd: installed, input: JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'installed', cwd: workspace }), encoding: 'utf8', env: { ...process.env, CONVFUSION_CODEX_HOME: join(temp, 'home') }, timeout: 20000 })
   assert.equal(hook.status, 0, hook.stderr)
   assert.match(JSON.parse(hook.stdout).hookSpecificOutput.additionalContext, /Standalone install verification/)
-  console.log('Clean package passed: actual STDIO entrypoint, page sessions across three independent processes, directory isolation, 22 tools, 58 methods/operations, initialization, context and UI resource without node_modules.')
+  const clicked = run([
+    { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'research_ui', arguments: {}, _meta: { thread_id: 'installed', threadId: 'installed' } } },
+    { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'research_ui', arguments: {}, _meta: { thread_id: 'unresolved' } } },
+  ])
+  assert.equal(clicked.status, 0, clicked.stderr)
+  const pages = new Map(clicked.stdout.trim().split('\n').map((line) => { const msg = JSON.parse(line); return [msg.id, msg.result.structuredContent] }))
+  assert.equal(pages.get(1).workspaceRoot, workspace, 'the installed bundle resolves the exact hook session from host metadata')
+  assert.equal(pages.get(1).initialTab, 'progress')
+  assert.equal(pages.get(2).workspaceRoot, null)
+  assert.equal(pages.get(2).initialTab, 'community', 'unknown threads must not reuse the last installed page directory')
+  console.log('Clean package passed: actual STDIO entrypoint, click-to-progress routing and fallback, page sessions across independent processes, directory isolation, 22 tools, 58 methods/operations, initialization, context and UI resource without node_modules.')
 } finally { rmSync(temp, { recursive: true, force: true }) }

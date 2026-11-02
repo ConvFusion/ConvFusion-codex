@@ -11,4 +11,6 @@ export interface CodexWorkspace {
 }
 export declare function readCodexWorkspaces(home: string): CodexWorkspace[];
 export declare function registerCodexWorkspace(home: string, root: string): CodexWorkspace;
+/** Resolve only the exact thread supplied by the host, never the most recent project. */
+export declare function resolveCodexThreadWorkspace(home: string, metadata: unknown): string | undefined;
 //# sourceMappingURL=storage.d.ts.map

@@ -7,7 +7,7 @@ import { ResearchProgressPanel } from './progress-panel.js'
 import { dictionaries, type Translate } from './i18n/index.js'
 import logo from '../../assets/favicon.svg'
 
-type Session = { workspaceRoot: string | null; sessionId: string | null; title: string; version: string; uiScope: 'global' | 'workspace'; uiSession: string; downloadTasks?: boolean; url?: string }
+type Session = { workspaceRoot: string | null; sessionId: string | null; title: string; version: string; uiScope: 'global' | 'workspace'; uiSession: string; downloadTasks?: boolean; url?: string; initialTab?: 'community' | 'progress' }
 let session: Session | undefined
 let app: App | undefined
 const inHost = window.parent !== window
@@ -32,7 +32,7 @@ const transport: SettingsSend = async (endpoint, payload, signal) => {
 }
 function Workbench({ initial }: { initial: Session }): JSX.Element {
   const current = initial
-  const [tab, setTab] = React.useState<'community' | 'progress' | 'methods'>('community')
+  const [tab, setTab] = React.useState<'community' | 'progress' | 'methods'>(current.initialTab ?? 'community')
   const [language, setLanguage] = React.useState<'zh' | 'en'>('zh')
   const [syncDraft, setSyncDraft] = React.useState<string | null>(null)
   const [sending, setSending] = React.useState(false)

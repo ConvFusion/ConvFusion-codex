@@ -13,9 +13,9 @@ import { createFileSyncNoteStore } from '../lib/research/sync-note.js'
 import { createFileWorkIdentityStore, readLocalIdentity, researchRootFingerprint } from '../lib/research/work-identity.js'
 import { effectiveSkillContentById } from '../lib/research/library.js'
 import { listSystemSkills } from '../lib/research/skills.js'
-import { researchWorkspaceOf } from '../lib/research/workspace.js'
+import { isResearchWorkspace, researchWorkspaceOf } from '../lib/research/workspace.js'
 import { codexResearchContext } from '../lib/codex/context.js'
-import { codexHome, stateKey, readPrivateJson as readJson, writePrivateJson, readCodexWorkspaces, registerCodexWorkspace } from '../lib/codex/storage.js'
+import { codexHome, stateKey, readPrivateJson as readJson, writePrivateJson, readCodexWorkspaces, registerCodexWorkspace, resolveCodexThreadWorkspace } from '../lib/codex/storage.js'
 import { latestCodexTurn } from '../lib/codex/lifecycle.js'
 import { DEFAULT_AUTO_CONTINUE } from '../lib/research/advance.js'
 import { writeMethodsExport } from '../lib/research/methods-export.js'
@@ -113,7 +113,9 @@ export function createCodexUiHost(options = {}) {
   }
   const bootstrap = (root) => {
     const row = root ? registerWorkspace(root) : null
-    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? '研究工作台', version: pkg.version, downloadTasks: true }
+    let research = false
+    try { research = Boolean(row && isResearchWorkspace(researchWorkspaceOf(row.path))) } catch { /* Keep the default view available. */ }
+    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? '研究工作台', version: pkg.version, downloadTasks: true, initialTab: research ? 'progress' : 'community' }
   }
   const dispatch = async (root, endpoint, payload) => {
     if (root) registerWorkspace(root)
@@ -179,8 +181,14 @@ export function createCodexUiHost(options = {}) {
     if (endpoint === 'progress/workspace') payload = { ...payload, sessionId: bootstrap(state.root).sessionId ?? '' }
     return dispatch(state.root, endpoint, payload)
   }
-  const open = async (root) => {
-    const selected = root === undefined ? null : registerWorkspace(root, true).path
+  const open = async (root, requestMeta) => {
+    let selected = root === undefined ? null : registerWorkspace(root, true).path
+    if (root === undefined) {
+      const inferred = resolveCodexThreadWorkspace(home, requestMeta)
+      try {
+        if (inferred && isResearchWorkspace(researchWorkspaceOf(inferred))) selected = registerWorkspace(inferred).path
+      } catch { /* An invalid automatic binding falls back to the global workbench. */ }
+    }
     if (!launch) launch = (async () => {
       server = createServer(async (req, res) => {
         res.setHeader('Cache-Control', 'no-store')
@@ -216,7 +224,7 @@ export function createCodexUiHost(options = {}) {
     })().catch((error) => { launch = undefined; throw error })
     await launch
     const token = randomBytes(32).toString('hex')
-    const state = { root: selected, selectable: root === undefined }
+    const state = { root: selected, selectable: selected === null }
     saveSession(token, state)
     return { ...sessionInfo(token, state), url: `${origin}/#${token}` }
   }

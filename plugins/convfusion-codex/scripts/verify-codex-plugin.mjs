@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, writeFile, rm, realpath } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, writeFile, rm, realpath, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const temp = await mkdtemp(join(tmpdir(), 'convfusion-codex-'))
+const temp = await realpath(await mkdtemp(join(tmpdir(), 'convfusion-codex-')))
 process.env.CONVFUSION_CODEX_HOME = join(temp, 'plugin-home')
 const { handleRequest, closeUiHost } = await import('./convfusion-mcp.mjs')
+const { handleLifecycle } = await import('../lib/codex/lifecycle.js')
+const { stateKey } = await import('../lib/codex/storage.js')
 const packageInfo = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
 
 try {
@@ -70,6 +72,7 @@ try {
   const global = (await handleRequest({ jsonrpc: '2.0', id: 24, method: 'tools/call', params: { name: 'research_ui', arguments: {} } })).result
   assert.equal(global.isError, false)
   assert.equal(global.structuredContent.uiScope, 'global')
+  assert.equal(global.structuredContent.initialTab, 'community')
   assert.equal(global.structuredContent.workspaceRoot, null, 'global launch must not use process cwd')
   const uiCall = async (payload) => (await handleRequest({ jsonrpc: '2.0', id: 25, method: 'tools/call', params: { name: 'research_ui_action', arguments: { ui_session: global.structuredContent.uiSession, ...payload } } })).result
   const selected = await uiCall({ endpoint: 'codex/select-workspace', payload: { path: temp } })
@@ -95,6 +98,49 @@ try {
   assert.equal(init.result.isError, false)
   assert.equal(init.result.structuredContent.workspace, join(temp, 'workspace'))
   assert.match(await readFile(join(temp, 'workspace', 'project.md'), 'utf8'), /Verify the Codex adapter/)
+
+  // Static entrypoints call with {}, while the desktop host puts the thread in _meta.
+  const click = async (meta, args = {}) => (await handleRequest({ jsonrpc: '2.0', id: 30, method: 'tools/call', params: { name: 'research_ui', arguments: args, _meta: meta } })).result
+  handleLifecycle({ hook_event_name: 'SessionStart', cwd: temp, session_id: 'click-first' })
+  const firstPage = (await click({ thread_id: 'click-first', threadId: 'click-first' })).structuredContent
+  assert.equal(firstPage.workspaceRoot, await realpath(temp))
+  assert.equal(firstPage.uiScope, 'workspace')
+  assert.equal(firstPage.initialTab, 'progress')
+  const secondRoot = join(temp, 'second-project')
+  await mkdir(secondRoot)
+  await call('research_workspace', { workspace_root: secondRoot, action: 'init', topic: 'Second click project' })
+  handleLifecycle({ hook_event_name: 'SessionStart', cwd: secondRoot, session_id: 'click-second' })
+  const secondPage = (await click({ threadId: 'click-second' })).structuredContent
+  assert.equal(secondPage.workspaceRoot, secondRoot)
+  assert.equal(secondPage.initialTab, 'progress')
+  const firstProgress = await handleRequest({ jsonrpc: '2.0', id: 31, method: 'tools/call', params: { name: 'research_ui_action', arguments: { ui_session: firstPage.uiSession, endpoint: 'progress/workspace', payload: { sessionId: secondPage.sessionId } }, _meta: { thread_id: 'click-second' } } })
+  assert.equal(firstProgress.result.structuredContent.value.workspace, join(await realpath(temp), 'workspace'), 'later calls and UI payloads cannot switch the original page to another project')
+  const secondBootstrap = await handleRequest({ jsonrpc: '2.0', id: 32, method: 'tools/call', params: { name: 'research_ui_action', arguments: { ui_session: secondPage.uiSession, endpoint: 'codex/bootstrap' } } })
+  assert.equal(secondBootstrap.result.structuredContent.value.workspaceRoot, secondRoot)
+  const ordinary = join(temp, 'ordinary-folder')
+  await mkdir(ordinary)
+  handleLifecycle({ hook_event_name: 'SessionStart', cwd: ordinary, session_id: 'click-ordinary' })
+  for (const meta of [undefined, {}, [], { thread_id: 'unknown-thread' }, { thread_id: '../click-first' }, { threadId: 1 }, { thread_id: 'click-first', threadId: 'click-second' }, { thread_id: 'click-ordinary' }]) {
+    const fallback = await click(meta)
+    assert.equal(fallback.isError, false)
+    assert.equal(fallback.structuredContent.workspaceRoot, null)
+    assert.equal(fallback.structuredContent.initialTab, 'community', 'unresolved clicks keep the default workbench')
+  }
+  assert.deepEqual(await readdir(ordinary), [], 'opening an ordinary thread never initializes research')
+  assert.equal((await click({ thread_id: 'click-second' }, { workspace_root: temp })).structuredContent.workspaceRoot, await realpath(temp), 'explicit task routing takes precedence')
+  // Corrupt and ambiguous mappings must not silently borrow another research project.
+  const firstSession = join(process.env.CONVFUSION_CODEX_HOME, 'sessions', `${stateKey(`${await realpath(temp)}\nclick-first`)}.json`)
+  const originalSession = await readFile(firstSession, 'utf8')
+  await writeFile(firstSession, '{')
+  assert.equal((await click({ thread_id: 'click-first' })).structuredContent.workspaceRoot, null)
+  await writeFile(firstSession, originalSession)
+  handleLifecycle({ hook_event_name: 'SessionStart', cwd: secondRoot, session_id: 'click-first' })
+  assert.equal((await click({ thread_id: 'click-first' })).structuredContent.workspaceRoot, null, 'one thread mapped to two directories must fall back')
+  const registryPath = join(process.env.CONVFUSION_CODEX_HOME, 'workspaces.json')
+  const originalRegistry = await readFile(registryPath, 'utf8')
+  await writeFile(registryPath, '{')
+  assert.equal((await click({ thread_id: 'click-second' })).structuredContent.workspaceRoot, null)
+  await writeFile(registryPath, originalRegistry)
 
   const claim = await handleRequest({
     jsonrpc: '2.0',

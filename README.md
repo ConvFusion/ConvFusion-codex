@@ -7,7 +7,7 @@
 <p align="center"><strong>面向 Codex 的科研工作流插件</strong></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.6.8--codex.1-4a43ea" alt="Version 0.6.8-codex.1">
+  <img src="https://img.shields.io/badge/version-v0.6.8--codex.2-4a43ea" alt="Version 0.6.8-codex.2">
   <img src="https://img.shields.io/badge/Codex-plugin-4a43ea" alt="Codex Plugin">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-22c55e" alt="MIT License"></a>
 </p>
@@ -115,7 +115,7 @@ $convfusion-research 帮我建立一个关于无人机视觉-LiDAR 跨模态定�
 打开 ConvFusion 界面，我要寻找线上导师。
 ```
 
-界面包含研究网络、研究进展和研究方法，支持全局侧栏入口和聊天侧面板。从项目聊天中 @ 使用插件并打开工作台时，自动使用当前任务目录，可查看该项目的研究进展。也可以打开工具返回的本地链接使用界面。
+界面包含研究网络、研究进展和研究方法，支持全局侧栏入口和聊天侧面板。点击入口时，若 Codex 提供的会话标识能匹配到本地 Hooks 记录的研究项目，工作台会直接显示该项目的研究进展；无法识别时打开默认工作台。也可以在项目聊天中让 Codex 打开工作台，或打开工具返回的本地链接使用界面。
 
 使用研究网络时，在界面中配置服务器并登录 ConvFusion.com，再选择研究工作、上传文件和发布方向。涉及费用的操作会在界面中显示确认信息。
 

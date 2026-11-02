@@ -57,3 +57,26 @@ export function registerCodexWorkspace(home: string, root: string): CodexWorkspa
   })
   return row
 }
+
+/** Resolve only the exact thread supplied by the host, never the most recent project. */
+export function resolveCodexThreadWorkspace(home: string, metadata: unknown): string | undefined {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return
+  const meta = metadata as Record<string, unknown>
+  const ids = [meta.thread_id, meta.threadId].filter((id) => id !== undefined)
+  if (!ids.length || ids.some((id) => typeof id !== 'string' || !/^[\w:-]{1,256}$/.test(id))) return
+  if (new Set(ids).size !== 1) return
+  const sessionId = ids[0] as string
+  try {
+    const matches = new Set<string>()
+    for (const row of readCodexWorkspaces(home)) {
+      try {
+        const root = realpathSync(row.path)
+        const state = readPrivateJson<{ root?: string; sessionId?: string } | null>(
+          join(home, 'sessions', `${stateKey(`${root}\n${sessionId}`)}.json`), null,
+        )
+        if (state?.sessionId === sessionId && state.root === root) matches.add(root)
+      } catch { /* Missing, moved or unreadable sessions do not establish a binding. */ }
+    }
+    if (matches.size === 1) return matches.values().next().value
+  } catch { /* An unavailable registry must leave the global workbench usable. */ }
+}

@@ -270,7 +270,7 @@ const codexTools = [
     parameters: {},
     optionalWorkspace: true,
     _meta: { ui: { resourceUri: UI_URI }, 'openai/outputTemplate': UI_URI, 'openai/ui': { entrypoints: [{ type: 'global' }, { type: 'thread' }] } },
-    execute: async (args) => ({ ok: true, ...await uiHost.open(args.workspace_root) }),
+    execute: async (args, context) => ({ ok: true, ...await uiHost.open(args.workspace_root, context?.requestMeta) }),
   },
   {
     name: 'research_ui_action',
@@ -303,7 +303,7 @@ function jsonSafe(value) {
   return JSON.parse(JSON.stringify(value, (_key, item) => (typeof item === 'bigint' ? item.toString() : item)))
 }
 
-async function callTool(name, rawArgs) {
+async function callTool(name, rawArgs, requestMeta) {
   const tool = byName.get(name)
   if (!tool) throw new Error(`Unknown tool: ${name}`)
   const args = rawArgs && typeof rawArgs === 'object' && !Array.isArray(rawArgs) ? { ...rawArgs } : {}
@@ -312,7 +312,7 @@ async function callTool(name, rawArgs) {
   const taskRoot = args.workspace_root
   delete args.workspace_root
   const value = tool.optionalWorkspace
-    ? await tool.execute({ ...args, workspace_root: taskRoot })
+    ? await tool.execute({ ...args, workspace_root: taskRoot }, { requestMeta })
     : taskTools.has(tool)
     ? await tool.execute({ ...args, workspace_root: sessionRoot(rawArgs.workspace_root) })
     : await tool.execute(args, { agent: { id: root } })
@@ -349,7 +349,7 @@ export async function handleRequest(message) {
   }
   if (method === 'tools/call') {
     try {
-      return { jsonrpc: '2.0', id, result: await callTool(params.name, params.arguments) }
+      return { jsonrpc: '2.0', id, result: await callTool(params.name, params.arguments, params._meta) }
     } catch (error) {
       return {
         jsonrpc: '2.0',

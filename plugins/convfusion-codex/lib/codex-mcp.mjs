@@ -16154,6 +16154,33 @@ function registerCodexWorkspace(home, root) {
   });
   return row;
 }
+function resolveCodexThreadWorkspace(home, metadata) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata))
+    return;
+  const meta = metadata;
+  const ids = [meta.thread_id, meta.threadId].filter((id) => id !== void 0);
+  if (!ids.length || ids.some((id) => typeof id !== "string" || !/^[\w:-]{1,256}$/.test(id)))
+    return;
+  if (new Set(ids).size !== 1)
+    return;
+  const sessionId = ids[0];
+  try {
+    const matches = /* @__PURE__ */ new Set();
+    for (const row of readCodexWorkspaces(home)) {
+      try {
+        const root = realpathSync3(row.path);
+        const state = readPrivateJson(join25(home, "sessions", `${stateKey(`${root}
+${sessionId}`)}.json`), null);
+        if (state?.sessionId === sessionId && state.root === root)
+          matches.add(root);
+      } catch {
+      }
+    }
+    if (matches.size === 1)
+      return matches.values().next().value;
+  } catch {
+  }
+}
 
 // lib/codex/lifecycle.js
 import { isAbsolute as isAbsolute7, join as join26, resolve as resolve8, relative as relative6, sep as sep4 } from "node:path";
@@ -16792,7 +16819,12 @@ function createCodexUiHost(options = {}) {
   };
   const bootstrap = (root) => {
     const row = root ? registerWorkspace(root) : null;
-    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? "\u7814\u7A76\u5DE5\u4F5C\u53F0", version: pkg.version, downloadTasks: true };
+    let research = false;
+    try {
+      research = Boolean(row && isResearchWorkspace(researchWorkspaceOf(row.path)));
+    } catch {
+    }
+    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? "\u7814\u7A76\u5DE5\u4F5C\u53F0", version: pkg.version, downloadTasks: true, initialTab: research ? "progress" : "community" };
   };
   const dispatch = async (root, endpoint, payload) => {
     if (root) registerWorkspace(root);
@@ -16861,8 +16893,15 @@ function createCodexUiHost(options = {}) {
     if (endpoint === "progress/workspace") payload = { ...payload, sessionId: bootstrap(state.root).sessionId ?? "" };
     return dispatch(state.root, endpoint, payload);
   };
-  const open = async (root) => {
-    const selected = root === void 0 ? null : registerWorkspace(root, true).path;
+  const open = async (root, requestMeta) => {
+    let selected = root === void 0 ? null : registerWorkspace(root, true).path;
+    if (root === void 0) {
+      const inferred = resolveCodexThreadWorkspace(home, requestMeta);
+      try {
+        if (inferred && isResearchWorkspace(researchWorkspaceOf(inferred))) selected = registerWorkspace(inferred).path;
+      } catch {
+      }
+    }
     if (!launch) launch = (async () => {
       server = createServer(async (req, res) => {
         res.setHeader("Cache-Control", "no-store");
@@ -16908,7 +16947,7 @@ function createCodexUiHost(options = {}) {
     });
     await launch;
     const token = randomBytes4(32).toString("hex");
-    const state = { root: selected, selectable: root === void 0 };
+    const state = { root: selected, selectable: selected === null };
     saveSession(token, state);
     return { ...sessionInfo(token, state), url: `${origin}/#${token}` };
   };
@@ -28232,7 +28271,7 @@ var codexTools = [
     parameters: {},
     optionalWorkspace: true,
     _meta: { ui: { resourceUri: UI_URI }, "openai/outputTemplate": UI_URI, "openai/ui": { entrypoints: [{ type: "global" }, { type: "thread" }] } },
-    execute: async (args) => ({ ok: true, ...await uiHost.open(args.workspace_root) })
+    execute: async (args, context) => ({ ok: true, ...await uiHost.open(args.workspace_root, context?.requestMeta) })
   },
   {
     name: "research_ui_action",
@@ -28262,7 +28301,7 @@ function advertisedTool(tool) {
 function jsonSafe(value) {
   return JSON.parse(JSON.stringify(value, (_key, item) => typeof item === "bigint" ? item.toString() : item));
 }
-async function callTool(name, rawArgs) {
+async function callTool(name, rawArgs, requestMeta) {
   const tool = byName.get(name);
   if (!tool) throw new Error(`Unknown tool: ${name}`);
   const args = rawArgs && typeof rawArgs === "object" && !Array.isArray(rawArgs) ? { ...rawArgs } : {};
@@ -28270,7 +28309,7 @@ async function callTool(name, rawArgs) {
   if (tool.optionalWorkspace && args.workspace_root !== void 0) args.workspace_root = sessionRoot(args.workspace_root);
   const taskRoot = args.workspace_root;
   delete args.workspace_root;
-  const value = tool.optionalWorkspace ? await tool.execute({ ...args, workspace_root: taskRoot }) : taskTools.has(tool) ? await tool.execute({ ...args, workspace_root: sessionRoot(rawArgs.workspace_root) }) : await tool.execute(args, { agent: { id: root } });
+  const value = tool.optionalWorkspace ? await tool.execute({ ...args, workspace_root: taskRoot }, { requestMeta }) : taskTools.has(tool) ? await tool.execute({ ...args, workspace_root: sessionRoot(rawArgs.workspace_root) }) : await tool.execute(args, { agent: { id: root } });
   const structuredContent = jsonSafe(value);
   return {
     content: [{ type: "text", text: JSON.stringify(structuredContent, null, 2) }],
@@ -28302,7 +28341,7 @@ async function handleRequest(message) {
   }
   if (method === "tools/call") {
     try {
-      return { jsonrpc: "2.0", id, result: await callTool(params.name, params.arguments) };
+      return { jsonrpc: "2.0", id, result: await callTool(params.name, params.arguments, params._meta) };
     } catch (error2) {
       return {
         jsonrpc: "2.0",
