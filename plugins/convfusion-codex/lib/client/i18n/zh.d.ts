@@ -1,5 +1,7 @@
 /** Simplified Chinese dictionary; the type rejects missing and extra keys. */
 export declare const zh: {
+    'community.decisionAssist.title': string;
+    'community.decisionAssist.description': string;
     'community.download.unconfirmed': string;
     'community.download.finalizing': string;
     'community.download.checking': string;

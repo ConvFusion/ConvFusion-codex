@@ -89,6 +89,8 @@ window.__ModuleLoader__.load({
 
 		// src/client/i18n/en.ts
 		var en = {
+		  "community.decisionAssist.title": "Enable decision assistance",
+		  "community.decisionAssist.description": "Available by default after sign-in. Sends relevant research state to the ConvFusion decision service at research decision points. When disabled or unavailable, the existing workflow continues.",
 		  "community.download.unconfirmed": "Download start is unconfirmed. Retry to reconnect to the same task.",
 		  "community.download.finalizing": "Confirming download completion…",
 		  "community.download.checking": "Checking download status…",
@@ -851,6 +853,8 @@ window.__ModuleLoader__.load({
 
 		// src/client/i18n/zh.ts
 		var zh = {
+		  "community.decisionAssist.title": "启用决策辅助",
+		  "community.decisionAssist.description": "登录后默认可用。在研究决策节点，将所需研究状态发送到 ConvFusion 决策服务；关闭或服务不可用时沿用原有流程。",
 		  "community.download.unconfirmed": "尚未确认下载是否启动。可以重试；已启动的同一任务会被复用。",
 		  "community.download.finalizing": "正在确认下载完成…",
 		  "community.download.checking": "正在确认下载状态…",
@@ -6113,6 +6117,31 @@ window.__ModuleLoader__.load({
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.miniTabs, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MiniTab, { active: userTab === "account", onClick: () => setUserTab("account"), children: account ? t("community.tab.account") : t("community.tab.signIn") }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MiniTab, { active: userTab === "server", onClick: () => setUserTab("server"), children: t("community.tab.server") })
+		        ] }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { style: { ...S.inlineRow, alignItems: "flex-start" }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		            "input",
+		            {
+		              type: "checkbox",
+		              checked: state?.decisionAssistEnabled !== false,
+		              disabled: busy || phase === "loading",
+		              onChange: (event) => {
+		                const enabled = event.currentTarget.checked;
+		                setBusy(true);
+		                void post("account/decision-assist", { enabled }).then((res) => {
+		                  if (res.ok) {
+		                    const saved = res.value;
+		                    setState((current) => current ? { ...current, decisionAssistEnabled: saved.decisionAssistEnabled } : saved);
+		                    setFailure(null);
+		                  } else setFailure(res.error ?? { code: "unknown", message: t("community.error.unknown") });
+		                }).finally(() => setBusy(false));
+		              }
+		            }
+		          ),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.decisionAssist.title") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, display: "block" }, children: t("community.decisionAssist.description") })
+		          ] })
 		        ] }),
 		        userTab === "account" ? account ? (
 		          /* 已登录：一行账号 + 右侧操作，没有多余说明文字 */

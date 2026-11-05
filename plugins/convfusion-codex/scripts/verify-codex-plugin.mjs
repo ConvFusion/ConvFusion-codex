@@ -24,7 +24,7 @@ try {
 
   const listed = await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
   const names = listed.result.tools.map((tool) => tool.name)
-  assert.equal(names.length, 22)
+  assert.equal(names.length, 23)
   for (const expected of [
     'research_action_construction',
     'research_diagram',
@@ -41,6 +41,7 @@ try {
     'research_evidence',
     'research_claim',
     'research_decision',
+    'research_decision_assist',
     'research_state_read',
     'research_state_propose',
     'research_paper',
@@ -51,6 +52,9 @@ try {
   ]) assert.ok(names.includes(expected), `missing tool: ${expected}`)
 
   const call = async (name, arguments_ = {}) => (await handleRequest({ jsonrpc: '2.0', id: 20, method: 'tools/call', params: { name, arguments: { workspace_root: temp, ...arguments_ } } })).result
+  const advice = await call('research_decision_assist', { decision_type: 'C1_next_action_selection', decision_question: 'What next?', candidate_options: [{ label: 'A', text: 'Ablate' }, { label: 'B', text: 'Write' }] })
+  assert.equal(advice.isError, false)
+  assert.equal(advice.structuredContent.status, 'skipped', 'decision assistance falls back without a login')
   const missing = await handleRequest({ jsonrpc: '2.0', id: 21, method: 'tools/call', params: { name: 'research_context', arguments: {} } })
   assert.equal(missing.result.isError, true)
   const methods = await call('research_methods')

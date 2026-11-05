@@ -829,6 +829,26 @@ function parseAccount(body: unknown): ServerAccount {
   }
 }
 
+/** DCRM is proxied by ConvFusion; no upstream model URL or key reaches the plugin. */
+export async function fetchDecisionAssist(
+  base: string, apiKey: string, body: unknown, options: ServerRequestOptions = {},
+): Promise<unknown> {
+  const timeoutMs = options.timeoutMs ?? 15_000
+  const controller = new AbortController()
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch as unknown as FetchLike
+  let timer: ReturnType<typeof setTimeout> | undefined
+  // Bound the entire request, including a stalled JSON body after response headers.
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => { controller.abort(); reject(new ServerError('unreachable', '决策辅助超时。')) }, timeoutMs)
+  })
+  try {
+    return await Promise.race([requestJson(base, '/decision-model/assist', { method: 'POST', apiKey, body }, {
+      ...options, timeoutMs,
+      fetchImpl: (url, init) => fetchImpl(url, { ...init, signal: controller.signal }),
+    }, '决策辅助'), timeout])
+  } finally { if (timer !== undefined) clearTimeout(timer) }
+}
+
 /**
  * 用一份 API Key 做身份自检（连通性 + Key 有效性 + 账号状态 + 角色）。
  *

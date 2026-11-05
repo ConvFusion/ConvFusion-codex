@@ -86,6 +86,8 @@ export function dshHome() {
 // 硬写 `Schema<LiveConfig>` 会把 `Volatile<string>` 塞进输入位置而报 TS2322。
 // 因此让 TS 自行推断，输出形状就是 {@link LiveConfig}。
 export const Config = Schema.object({
+    decisionAssistEnabled: Schema.boolean().default(true).volatile()
+        .description('启用决策辅助：将当前决策所需的研究状态发送到 ConvFusion 决策服务；关闭后沿用原有流程。'),
     customizationFile: Schema.string()
         .default('skill-customizations.json')
         .volatile()

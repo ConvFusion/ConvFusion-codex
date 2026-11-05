@@ -2,6 +2,8 @@ import type { en } from './en.js'
 
 /** Simplified Chinese dictionary; the type rejects missing and extra keys. */
 export const zh = {
+  'community.decisionAssist.title': '启用决策辅助',
+  'community.decisionAssist.description': '登录后默认可用。在研究决策节点，将所需研究状态发送到 ConvFusion 决策服务；关闭或服务不可用时沿用原有流程。',
   'community.download.unconfirmed': '尚未确认下载是否启动。可以重试；已启动的同一任务会被复用。',
   'community.download.finalizing': '正在确认下载完成…',
   'community.download.checking': '正在确认下载状态…',

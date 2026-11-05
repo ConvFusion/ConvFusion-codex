@@ -136,6 +136,8 @@ export interface Config {
     autoContinue: boolean;
     /** 连续自动推进的轮数上限（防止无人值守跑飞）。 */
     autoContinueMaxRounds: number;
+    /** Decision service uses the existing ConvFusion account; no model credential on the client. */
+    decisionAssistEnabled?: boolean;
 }
 /**
  * `apply(ctx, config)` 运行期**实际拿到**的配置形状。
@@ -154,6 +156,7 @@ export type LiveConfig = {
     [K in keyof Config]: Volatile<Config[K]>;
 };
 export declare const Config: Schema<Schemastery.ObjectS<NoInfer<{
+    decisionAssistEnabled: Schema<boolean, boolean, "volatile-defined">;
     customizationFile: Schema<string, string, "volatile-defined">;
     customizationDir: Schema<string, string, "volatile-defined">;
     openalexApiKey: Schema<string, string, "volatile-defined">;
@@ -164,6 +167,7 @@ export declare const Config: Schema<Schemastery.ObjectS<NoInfer<{
     autoContinue: Schema<boolean, boolean, "volatile-defined">;
     autoContinueMaxRounds: Schema<number, number, "volatile-defined">;
 }>>, Schemastery.ObjectT<NoInfer<{
+    decisionAssistEnabled: Schema<boolean, boolean, "volatile-defined">;
     customizationFile: Schema<string, string, "volatile-defined">;
     customizationDir: Schema<string, string, "volatile-defined">;
     openalexApiKey: Schema<string, string, "volatile-defined">;

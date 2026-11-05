@@ -1,5 +1,7 @@
 /** English is the canonical key set for the ConvFusion browser UI. */
 export declare const en: {
+    readonly 'community.decisionAssist.title': "Enable decision assistance";
+    readonly 'community.decisionAssist.description': "Available by default after sign-in. Sends relevant research state to the ConvFusion decision service at research decision points. When disabled or unavailable, the existing workflow continues.";
     readonly 'community.download.unconfirmed': "Download start is unconfirmed. Retry to reconnect to the same task.";
     readonly 'community.download.finalizing': "Confirming download completion…";
     readonly 'community.download.checking': "Checking download status…";

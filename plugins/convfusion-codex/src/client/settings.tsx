@@ -209,6 +209,7 @@ interface HostAccount {
 
 /** 【ConvFusion.com】的登录状态（宿主 `AccountState` 的镜像）。 */
 export interface HostAccountState {
+  decisionAssistEnabled?: boolean
   serverUrl: string
   defaultServerUrl: string
   serverUrlSource: 'settings' | 'env' | 'config' | 'default'
@@ -7170,6 +7171,29 @@ export function CommunityTab({
 
                 {t('community.tab.server')}</MiniTab>
             </div>
+
+            <label style={{ ...S.inlineRow, alignItems: 'flex-start' }}>
+              <input
+                type="checkbox"
+                checked={state?.decisionAssistEnabled !== false}
+                disabled={busy || phase === 'loading'}
+                onChange={(event) => {
+                  const enabled = event.currentTarget.checked
+                  setBusy(true)
+                  void post('account/decision-assist', { enabled }).then((res) => {
+                    if (res.ok) {
+                      const saved = res.value as HostAccountState
+                      setState((current) => current ? { ...current, decisionAssistEnabled: saved.decisionAssistEnabled } : saved)
+                      setFailure(null)
+                    } else setFailure(res.error ?? { code: 'unknown', message: t('community.error.unknown') })
+                  }).finally(() => setBusy(false))
+                }}
+              />
+              <span>
+                <span style={S.label}>{t('community.decisionAssist.title')}</span>
+                <span style={{ ...S.hint, display: 'block' }}>{t('community.decisionAssist.description')}</span>
+              </span>
+            </label>
 
             {userTab === 'account' ? (
               account ? (

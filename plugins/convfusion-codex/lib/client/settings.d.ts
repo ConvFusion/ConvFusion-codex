@@ -151,6 +151,7 @@ interface HostAccount {
 }
 /** 【ConvFusion.com】的登录状态（宿主 `AccountState` 的镜像）。 */
 export interface HostAccountState {
+    decisionAssistEnabled?: boolean;
     serverUrl: string;
     defaultServerUrl: string;
     serverUrlSource: 'settings' | 'env' | 'config' | 'default';

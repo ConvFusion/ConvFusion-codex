@@ -55,6 +55,7 @@ The references describe shared research methods. Translate DSH-specific host ins
 
 ## Tool routing
 
+- `research_decision_assist`: consult before selecting the next consequential research action (`C1_next_action_selection`), judging evidence sufficiency (`B1_evidence_sufficiency`) or claim consistency (`B2_claim_evidence_consistency`), or changing research direction (`D1_direction_decision`). Supply a concrete question and 2–26 distinct labeled candidate options reflecting the actual choice; the tool reads the current local Research State. Do not call for ordinary reading, formatting or downloads. Call once per unchanged decision; the tool enforces the user switch and server authentication. If it returns `skipped`, proceed with the original workflow without retries or asking for a model key. If it reports truncated fields, inspect the original state before using the advice; an overlong request falls back without inference. Treat rankings as advisory candidate probabilities, not calibrated confidence or evidence. Preserve contradictions and human review; advice never grants permission. Successful consultations are saved under `research/decision-assists/`; record the final adopted/rejected choice and its evidence separately with `research_decision`.
 - `research_workspace`, `research_context`, `research_methods`: workspace inspection, current context and effective methods.
 - `research_project`, `research_plan`: research definition and plan lifecycle.
 - `research_evidence`, `research_claim`, `research_decision`: traceable research asset graph.

@@ -339,6 +339,7 @@ export interface AccountWire {
  * - `account/verify` / `login` / `register` 联网成功 → 填入账号。
  */
 export interface AccountState {
+    decisionAssistEnabled: boolean;
     /** 生效的服务器地址（不含 `/api/v1`）。 */
     serverUrl: string;
     /** 当前环境的**默认**地址（界面占位符 / 提示用）。 */

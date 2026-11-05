@@ -7,7 +7,7 @@
 <p align="center"><strong>面向 Codex 的科研工作流插件</strong></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.6.8--codex.2-4a43ea" alt="Version 0.6.8-codex.2">
+  <img src="https://img.shields.io/badge/version-v0.6.8--codex.3-4a43ea" alt="Version 0.6.8-codex.3">
   <img src="https://img.shields.io/badge/Codex-plugin-4a43ea" alt="Codex Plugin">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-22c55e" alt="MIT License"></a>
 </p>
@@ -21,6 +21,7 @@ ConvFusion 帮助研究者在 Codex 中完成文献整理、研究规划、实�
 - 文献检索、开放全文下载、筛选与综述
 - 研究问题、假设、技术路线和实验方案设计
 - 研究计划、证据、结论和决策记录管理
+- 研究决策辅助：下一步行动、证据充分性、主张一致性与研究方向建议
 - 论文写作、修订、科研配图及 LaTeX 处理
 - 专利、技术报告和演示文稿整理
 - 研究进展查看、研究方法定制
@@ -118,6 +119,8 @@ $convfusion-research 帮我建立一个关于无人机视觉-LiDAR 跨模态定�
 界面包含研究网络、研究进展和研究方法，支持全局侧栏入口和聊天侧面板。点击入口时，若 Codex 提供的会话标识能匹配到本地 Hooks 记录的研究项目，工作台会直接显示该项目的研究进展；无法识别时打开默认工作台。也可以在项目聊天中让 Codex 打开工作台，或打开工具返回的本地链接使用界面。
 
 使用研究网络时，在界面中配置服务器并登录 ConvFusion.com，再选择研究工作、上传文件和发布方向。涉及费用的操作会在界面中显示确认信息。
+
+所有登录用户默认具有决策辅助权限，无需填写模型密钥。在工作台的 ConvFusion.com 账号卡片中可关闭“启用决策辅助”。开启后，插件会在研究决策节点将所需研究状态发送到 ConvFusion 决策服务；关闭或服务不可用时沿用原有流程。
 
 下载研究资料后，将界面提供的同步请求复制到 Codex。插件会先检查压缩包与本地研究的差异，确认后再同步。
 

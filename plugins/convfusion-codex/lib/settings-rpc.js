@@ -227,6 +227,7 @@ export function buildAccountState(config, env = process.env, account = null, opt
     const server = resolveServerUrl(config, env, options);
     const key = describeConvFusionKey(config, env);
     return {
+        decisionAssistEnabled: config.decisionAssistEnabled !== false,
         serverUrl: server.url,
         defaultServerUrl: defaultServerUrl(env),
         serverUrlSource: server.source,
@@ -1321,6 +1322,11 @@ export function createSettingsRpcHandler(deps) {
                 case 'account/state':
                     // 不联网：服务器挂了也要能打开设置页（因此也没有余额）
                     return { ok: true, value: buildAccountState(deps.getConfig(), env(), null) };
+                case 'account/decision-assist': {
+                    if (typeof p.enabled !== 'boolean')
+                        return fail('bad-request', '启用状态必须为布尔值。');
+                    return await persist({ decisionAssistEnabled: p.enabled }, null);
+                }
                 case 'account/probe': {
                     /*
                      * **只测连通性**（设置页两个服务器快捷按钮上色用：通了=绿）。

@@ -542,6 +542,7 @@ export interface AccountWire {
  * - `account/verify` / `login` / `register` 联网成功 → 填入账号。
  */
 export interface AccountState {
+  decisionAssistEnabled: boolean
   /** 生效的服务器地址（不含 `/api/v1`）。 */
   serverUrl: string
   /** 当前环境的**默认**地址（界面占位符 / 提示用）。 */
@@ -598,6 +599,7 @@ export function buildAccountState(
   const server = resolveServerUrl(config, env, options)
   const key = describeConvFusionKey(config, env)
   return {
+    decisionAssistEnabled: config.decisionAssistEnabled !== false,
     serverUrl: server.url,
     defaultServerUrl: defaultServerUrl(env),
     serverUrlSource: server.source,
@@ -1944,6 +1946,11 @@ export function createSettingsRpcHandler(
         case 'account/state':
           // 不联网：服务器挂了也要能打开设置页（因此也没有余额）
           return { ok: true, value: buildAccountState(deps.getConfig(), env(), null) }
+
+        case 'account/decision-assist': {
+          if (typeof p.enabled !== 'boolean') return fail('bad-request', '启用状态必须为布尔值。')
+          return await persist({ decisionAssistEnabled: p.enabled }, null)
+        }
 
         case 'account/probe': {
           /*

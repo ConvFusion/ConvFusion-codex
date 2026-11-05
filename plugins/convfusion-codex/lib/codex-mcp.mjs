@@ -1127,6 +1127,7 @@ function dshHome2() {
   return env ? env : join2(homedir2(), ".dsh");
 }
 var Config = Schema.object({
+  decisionAssistEnabled: Schema.boolean().default(true).volatile().description("\u542F\u7528\u51B3\u7B56\u8F85\u52A9\uFF1A\u5C06\u5F53\u524D\u51B3\u7B56\u6240\u9700\u7684\u7814\u7A76\u72B6\u6001\u53D1\u9001\u5230 ConvFusion \u51B3\u7B56\u670D\u52A1\uFF1B\u5173\u95ED\u540E\u6CBF\u7528\u539F\u6709\u6D41\u7A0B\u3002"),
   customizationFile: Schema.string().default("skill-customizations.json").volatile().description("\u7528\u6237\u5B9A\u5236 Skill \u7684\u6587\u4EF6\u540D\uFF08\u5185\u5BB9\u5B58\u8BE5\u6587\u4EF6\uFF0C\u8BBE\u7F6E\u6587\u4EF6\u4E0D\u4F1A\u56E0\u6B64\u53D8\u5927\uFF09\u3002"),
   customizationDir: Schema.string().default("").volatile().description("\u5B9A\u5236\u6587\u4EF6\u6240\u5728\u76EE\u5F55\uFF1B\u7559\u7A7A = $DSH_HOME/convfusion\u3002"),
   openalexApiKey: Schema.string().role("secret").default("").volatile().description("OpenAlex API Key\uFF08\u514D\u8D39\u7533\u8BF7\uFF1Ahttps://openalex.org/\uFF09\u3002\u7528\u4E8E\u6587\u732E\u68C0\u7D22\u3002"),
@@ -2800,6 +2801,28 @@ function parseAccount(body) {
     status: asString2(b.status) || "ACTIVE",
     roles: Array.isArray(b.roles) ? b.roles.filter((r) => typeof r === "string") : []
   };
+}
+async function fetchDecisionAssist(base, apiKey, body, options = {}) {
+  const timeoutMs = options.timeoutMs ?? 15e3;
+  const controller = new AbortController();
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+  let timer;
+  const timeout = new Promise((_resolve, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new ServerError("unreachable", "\u51B3\u7B56\u8F85\u52A9\u8D85\u65F6\u3002"));
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([requestJson(base, "/decision-model/assist", { method: "POST", apiKey, body }, {
+      ...options,
+      timeoutMs,
+      fetchImpl: (url, init) => fetchImpl(url, { ...init, signal: controller.signal })
+    }, "\u51B3\u7B56\u8F85\u52A9"), timeout]);
+  } finally {
+    if (timer !== void 0)
+      clearTimeout(timer);
+  }
 }
 async function fetchAccount(base, apiKey, options = {}) {
   const key = normalizeApiKey(apiKey);
@@ -4573,13 +4596,13 @@ var Logger = class {
     return `\x1B[3${code < 8 ? code : "8;5;" + code}${exporter.colors >= 2 ? decoration : ""}m${value}\x1B[0m`;
   }
   static code(name, level) {
-    let hash = 0;
+    let hash2 = 0;
     for (let i = 0; i < name.length; i++) {
-      hash = (hash << 3) - hash + name.charCodeAt(i) + 13;
-      hash |= 0;
+      hash2 = (hash2 << 3) - hash2 + name.charCodeAt(i) + 13;
+      hash2 |= 0;
     }
     const colors = !level ? [] : level >= 2 ? c256 : c16;
-    return colors[Math.abs(hash) % colors.length];
+    return colors[Math.abs(hash2) % colors.length];
   }
   static format(exporter, message) {
     const args = message.args.slice();
@@ -12478,7 +12501,7 @@ function measureDir(dir, budget = 2e4) {
 var SCAN_MAX_FILES = 2e4;
 function buildUploadPlan(root, purpose = "publish") {
   const files = [];
-  const skipped = /* @__PURE__ */ new Map();
+  const skipped2 = /* @__PURE__ */ new Map();
   const walk = (dir) => {
     let entries;
     try {
@@ -12498,9 +12521,9 @@ function buildUploadPlan(root, purpose = "publish") {
           const stat = measureDir(abs);
           const { categoryId: categoryId2, decision: decision2 } = classify(relPath, 0, purpose);
           files.push({ relPath: `${relPath}/`, size: 0, categoryId: categoryId2, decision: decision2 });
-          skipped.set(categoryId2, {
-            bytes: (skipped.get(categoryId2)?.bytes ?? 0) + stat.bytes,
-            files: (skipped.get(categoryId2)?.files ?? 0) + stat.files
+          skipped2.set(categoryId2, {
+            bytes: (skipped2.get(categoryId2)?.bytes ?? 0) + stat.bytes,
+            files: (skipped2.get(categoryId2)?.files ?? 0) + stat.files
           });
           continue;
         }
@@ -12534,7 +12557,7 @@ function buildUploadPlan(root, purpose = "publish") {
       cat.bytes += f.size;
     } else {
       cat.files.push({ relPath: f.relPath, size: 0 });
-      const extra2 = skipped.get(f.categoryId);
+      const extra2 = skipped2.get(f.categoryId);
       if (extra2)
         cat.bytes += extra2.bytes;
     }
@@ -12551,7 +12574,7 @@ function buildUploadPlan(root, purpose = "publish") {
         continue;
       bytes += c.bytes;
       files2 += c.files.filter((f) => !f.relPath.endsWith("/")).length;
-      files2 += skipped.get(c.id)?.files ?? 0;
+      files2 += skipped2.get(c.id)?.files ?? 0;
     }
     return { bytes, files: files2 };
   };
@@ -12595,7 +12618,7 @@ function buildUploadPlan(root, purpose = "publish") {
   };
 }
 function planUploadBatches(root, selection) {
-  const skipped = [];
+  const skipped2 = [];
   const batches = [];
   let current = [];
   let currentBytes = 0;
@@ -12610,7 +12633,7 @@ function planUploadBatches(root, selection) {
     }
     total += size;
     if (size > UPLOAD_LIMITS.maxFileBytes) {
-      skipped.push({ relPath, size });
+      skipped2.push({ relPath, size });
       continue;
     }
     if (current.length >= UPLOAD_LIMITS.maxFilesPerRequest || currentBytes + size > UPLOAD_LIMITS.maxRequestBytes) {
@@ -12624,7 +12647,7 @@ function planUploadBatches(root, selection) {
   }
   if (current.length)
     batches.push(current);
-  return { batches, skipped, bytes: total };
+  return { batches, skipped: skipped2, bytes: total };
 }
 
 // lib/research/published-store.js
@@ -13367,6 +13390,7 @@ function buildAccountState(config, env = process.env, account = null, options = 
   const server = resolveServerUrl(config, env, options);
   const key = describeConvFusionKey(config, env);
   return {
+    decisionAssistEnabled: config.decisionAssistEnabled !== false,
     serverUrl: server.url,
     defaultServerUrl: defaultServerUrl(env),
     serverUrlSource: server.source,
@@ -13461,10 +13485,10 @@ function buildSettingsState(config, store, resolvePath = resolveCustomizationPat
   };
 }
 async function fileDigest(absPath) {
-  const { createHash: createHash5 } = await import("node:crypto");
+  const { createHash: createHash6 } = await import("node:crypto");
   const { readFile } = await import("node:fs/promises");
   const buf = await readFile(absPath);
-  return `sha256:${createHash5("sha256").update(buf).digest("hex")}`;
+  return `sha256:${createHash6("sha256").update(buf).digest("hex")}`;
 }
 var MIN_UPLOAD_BYTES_PER_SEC = 50 * 1024;
 var UPLOAD_TIMEOUT_MAX_MS = 30 * 60 * 1e3;
@@ -14033,6 +14057,11 @@ function createSettingsRpcHandler(deps) {
          */
         case "account/state":
           return { ok: true, value: buildAccountState(deps.getConfig(), env(), null) };
+        case "account/decision-assist": {
+          if (typeof p.enabled !== "boolean")
+            return fail("bad-request", "\u542F\u7528\u72B6\u6001\u5FC5\u987B\u4E3A\u5E03\u5C14\u503C\u3002");
+          return await persist({ decisionAssistEnabled: p.enabled }, null);
+        }
         case "account/probe": {
           let base;
           try {
@@ -14583,12 +14612,12 @@ function createSettingsRpcHandler(deps) {
               if (previousFiles[relPath] !== digest)
                 toUpload.push(relPath);
             }
-            const { batches, skipped } = planUploadBatches(source.root, toUpload);
+            const { batches, skipped: skipped2 } = planUploadBatches(source.root, toUpload);
             const sizes = /* @__PURE__ */ new Map();
             for (const c of plan.categories)
               for (const f of c.files)
                 sizes.set(f.relPath, f.size);
-            const skippedSet = new Set(skipped.map((x) => x.relPath));
+            const skippedSet = new Set(skipped2.map((x) => x.relPath));
             const sending = toUpload.filter((rel) => !skippedSet.has(rel));
             const progress = beginUploadProgress([projectId, id], sending.length, sending.reduce((n, rel) => n + (sizes.get(rel) ?? 0), 0));
             let uploadedFiles = 0;
@@ -14679,7 +14708,7 @@ function createSettingsRpcHandler(deps) {
                   uploadedBytes,
                   skippedExisting: selected.length - toUpload.length,
                   /** 超过服务器单文件上限（100 MB）而没能上传的。 */
-                  oversize: skipped
+                  oversize: skipped2
                 },
                 /** 本机没有的字段（界面据此如实说明"网络上只看得到哪几项"）。 */
                 missing
@@ -15012,9 +15041,9 @@ function createSettingsRpcHandler(deps) {
               else
                 changed.push(rel);
             }
-            const { batches, skipped } = planUploadBatches(root, changed);
+            const { batches, skipped: skipped2 } = planUploadBatches(root, changed);
             const totalBytes = changed.reduce((n, rel) => n + (sizes.get(rel) ?? 0), 0);
-            const progress = beginUploadProgress([projectId], changed.length - skipped.length, totalBytes);
+            const progress = beginUploadProgress([projectId], changed.length - skipped2.length, totalBytes);
             let uploadedFiles = 0;
             let uploadedBytes = 0;
             try {
@@ -15053,7 +15082,7 @@ function createSettingsRpcHandler(deps) {
                 /** 内容与服务器一致、没有重复上传的。 */
                 skippedExisting: unchanged,
                 /** 超过服务器单文件上限（100 MB）而传不上去的。 */
-                oversize: skipped
+                oversize: skipped2
               }
             };
           } catch (e) {
@@ -16761,6 +16790,7 @@ function createCodexUiHost(options = {}) {
     convfusionDevApiKey: "",
     convfusionProdApiKey: "",
     convfusionApiKey: "",
+    decisionAssistEnabled: true,
     autoContinue: DEFAULT_AUTO_CONTINUE.enabled,
     autoContinueMaxRounds: DEFAULT_AUTO_CONTINUE.maxRounds,
     ...readPrivateJson(path("config.json"), {}),
@@ -21413,10 +21443,10 @@ function selfEvolve(workspace, options = {}) {
 }
 function syncProjectDefinition(workspace) {
   const filled = [];
-  const skipped = [];
+  const skipped2 = [];
   const project = loadProjectFile(workspace);
   if (!project)
-    return { filled, skipped };
+    return { filled, skipped: skipped2 };
   const state = ensureResearchState(workspace);
   const dimension2 = (d) => isStateWriteError(state) ? "" : state.dimensions[d] ?? "";
   const attempt = (field, value, reason) => {
@@ -21425,14 +21455,14 @@ function syncProjectDefinition(workspace) {
     if (!String(flat).trim())
       return;
     if (field !== "statement" && !isPlaceholderSection(workspace, section)) {
-      skipped.push({ field, reason: `${section} \u5DF2\u6709\u4EBA\u624B\u5199\u5185\u5BB9\uFF0C\u4E0D\u8986\u76D6` });
+      skipped2.push({ field, reason: `${section} \u5DF2\u6709\u4EBA\u624B\u5199\u5185\u5BB9\uFF0C\u4E0D\u8986\u76D6` });
       return;
     }
     const res = updateProjectDefinition(workspace, { field, value, reason });
     if (res.changed)
       filled.push({ field, reason });
     else if ("error" in res && res.error)
-      skipped.push({ field, reason: res.error });
+      skipped2.push({ field, reason: res.error });
   };
   if (project.topic) {
     attempt("statement", project.topic, "\u7814\u7A76\u9648\u8FF0\u8DDF\u968F\u5F53\u524D\u4E3B\u9898\uFF08\u81EA\u52A8\u540C\u6B65\uFF09");
@@ -21445,7 +21475,7 @@ function syncProjectDefinition(workspace) {
   if (problem) {
     attempt("motivation", problem, "\u52A8\u673A\u6765\u81EA Research State \u7684 Problem \u7EF4\u5EA6\uFF08\u81EA\u52A8\u540C\u6B65\uFF09");
   }
-  return { filled, skipped };
+  return { filled, skipped: skipped2 };
 }
 function selfEvolveFull(workspace, options = {}) {
   const state = syncStateFromArtifacts(workspace, options);
@@ -27388,15 +27418,15 @@ ${v.next ?? ""}`
         if (v.action === "extract") {
           const lines = [];
           const items = v.items ?? [];
-          const skipped = v.skipped ?? [];
+          const skipped2 = v.skipped ?? [];
           const recorded2 = v.recorded ?? [];
-          lines.push(`Action objects: ${items.length} measurable \xB7 ${skipped.length} not covered by this metric` + (recorded2.length > 0 ? ` \xB7 recorded: ${recorded2.join(", ")}` : ""));
+          lines.push(`Action objects: ${items.length} measurable \xB7 ${skipped2.length} not covered by this metric` + (recorded2.length > 0 ? ` \xB7 recorded: ${recorded2.join(", ")}` : ""));
           for (const item of items) {
             const e2 = item.constructed;
             const cost2 = e2.cost === null ? "n/a" : e2.cost.toFixed(2);
             lines.push(`  ${item.id}  ${item.actionType ?? "?"} \u2192 target ${item.design.target}, arms [${(item.design.arms ?? []).join(",")}], seeds ${item.design.n}  \xB7  ${(100 * e2.bound_share).toFixed(1)}% of the bound \xB7 cost ${cost2}/${e2.budget.toFixed(1)} \xB7 ${e2.feasible ? "in budget" : "OVER BUDGET"}  \xB7  as written ${item.as_written.ig_per_cost.toFixed(4)} (executor invents ${(100 * item.as_written.guess_rate).toFixed(0)}%)`);
           }
-          for (const item of skipped.slice(0, 5)) {
+          for (const item of skipped2.slice(0, 5)) {
             lines.push(`  ${item.id}  skipped \u2014 ${item.reason}`);
           }
           return [{ type: "text", text: lines.join("\n") }];
@@ -27987,6 +28017,150 @@ function buildComposeInput(source, template, meta = {}) {
   };
 }
 
+// lib/research/decision-assist.js
+import { createHash as createHash5, randomUUID as randomUUID2 } from "node:crypto";
+import { existsSync as existsSync37, mkdirSync as mkdirSync25, writeFileSync as writeFileSync24 } from "node:fs";
+import { join as join38 } from "node:path";
+var DECISION_TYPES2 = [
+  "C1_next_action_selection",
+  "B1_evidence_sufficiency",
+  "B2_claim_evidence_consistency",
+  "D1_direction_decision"
+];
+var hash = (value) => createHash5("sha256").update(value).digest("hex");
+var skipped = (reason) => ({ ok: true, status: "skipped", reason, instruction: "Continue the existing workflow without decision assistance." });
+function decisionState(workspace) {
+  const state = loadResearchState(workspace);
+  const d = state?.dimensions ?? {};
+  const project = loadProjectFile(workspace);
+  const truncated = [];
+  const text = (key, value) => {
+    const raw = value ?? "";
+    const limited = Array.from(raw).slice(0, 500).join("");
+    if (raw !== limited)
+      truncated.push(key);
+    return limited;
+  };
+  const list = (key, value) => {
+    const item = text(key, value);
+    return item ? [item] : [];
+  };
+  return {
+    research_state: {
+      research_question: text("research_question", d["Research Questions"] || d.Problem || project?.questions?.join("\n") || project?.topic),
+      hypothesis: text("hypothesis", d.Hypotheses),
+      method: text("method", d.Method),
+      experiments: list("experiments", d.Experiments),
+      evidence: list("evidence", d.Evidence),
+      claims: list("claims", d.Claims),
+      history: list("history", d.Decisions)
+    },
+    truncated_fields: truncated,
+    sources: ["project.md", "research-state.md"].filter((file) => existsSync37(join38(workspace, file))),
+    state_version: state?.version ?? null
+  };
+}
+function parsePrediction(raw, type, options) {
+  const p = raw;
+  if (!p || p.status !== "used" || p.decision_type !== type || !Array.isArray(p.probabilities) || p.probabilities.length !== options.length || typeof p.model !== "string" || !p.model || !/^[a-f0-9]{64}$/.test(p.input_hash) || !Number.isInteger(p.input_tokens) || p.input_tokens < 1 || p.input_tokens > 2048 || p.probability_kind !== "candidate_normalized_uncalibrated")
+    throw new Error("Invalid decision response");
+  let sum = 0;
+  for (const [i, row] of p.probabilities.entries()) {
+    if (row.label !== options[i].label || row.text !== options[i].text || !Number.isFinite(row.probability) || row.probability < 0 || row.probability > 1)
+      throw new Error("Invalid probabilities");
+    sum += row.probability;
+  }
+  const order = p.probabilities.map((row, i) => ({ ...row, i })).sort((a, b) => b.probability - a.probability || a.i - b.i);
+  if (Math.abs(sum - 1) > 1e-6 || p.predicted_label !== order[0].label || p.predicted_text !== order[0].text || JSON.stringify(p.top3_labels) !== JSON.stringify(order.slice(0, 3).map((row) => row.label)))
+    throw new Error("Inconsistent ranking");
+  return {
+    status: "used",
+    decision_type: type,
+    predicted_label: p.predicted_label,
+    predicted_text: p.predicted_text,
+    probabilities: p.probabilities.map((row) => ({ label: row.label, text: row.text, probability: row.probability })),
+    top3_labels: p.top3_labels,
+    model: p.model,
+    input_tokens: p.input_tokens,
+    input_hash: p.input_hash,
+    probability_kind: p.probability_kind
+  };
+}
+function createDecisionAssistant(getConfig, env = process.env, net = {}) {
+  const cache2 = /* @__PURE__ */ new Map();
+  const pending = /* @__PURE__ */ new Map();
+  return async (workspace, args) => {
+    const config = getConfig();
+    if (config.decisionAssistEnabled === false) {
+      cache2.clear();
+      return skipped("disabled");
+    }
+    const apiKey = resolveConvFusionApiKey(config, env);
+    if (!apiKey) {
+      cache2.clear();
+      return skipped("not_logged_in");
+    }
+    if (!isResearchWorkspace(workspace))
+      return skipped("no_research_workspace");
+    const type = args.decision_type;
+    const question = args.decision_question;
+    const options = args.candidate_options;
+    if (!DECISION_TYPES2.includes(type) || typeof question !== "string" || !question.trim() || Array.from(question).length > 1e3 || !Array.isArray(options) || options.length < 2 || options.length > 26 || options.some((o) => !o || typeof o.label !== "string" || !o.label.trim() || o.label.length > 64 || typeof o.text !== "string" || !o.text.trim() || Array.from(o.text).length > 500) || new Set(options.map((o) => o.label)).size !== options.length)
+      return skipped("invalid_input");
+    const projection = decisionState(workspace);
+    const body = {
+      decision_type: type,
+      decision_question: question,
+      candidate_options: options.map((o) => ({ label: o.label, text: o.text })),
+      research_state: projection.research_state
+    };
+    const base = resolveServerUrl(config, env).url;
+    const key = hash(JSON.stringify([workspace, base, hash(apiKey), body, projection.state_version]));
+    const hit = cache2.get(key);
+    if (hit && Date.now() - hit.at < 6e4)
+      return { ...hit.value, cached: true };
+    const active2 = pending.get(key);
+    if (active2)
+      return active2;
+    const run = (async () => {
+      try {
+        const prediction = parsePrediction(await fetchDecisionAssist(base, apiKey, body, net), String(type), body.candidate_options);
+        const current = getConfig();
+        if (current.decisionAssistEnabled === false || resolveConvFusionApiKey(current, env) !== apiKey || resolveServerUrl(current, env).url !== base)
+          return skipped("settings_changed");
+        const value = {
+          ok: true,
+          ...prediction,
+          cached: false,
+          ...projection,
+          instruction: "Advisory only. Weigh source evidence and record the final decision separately. Candidate probabilities are not calibrated confidence and cannot grant permission or bypass review."
+        };
+        const id = randomUUID2();
+        const relative8 = `research/decision-assists/${id}.json`;
+        try {
+          mkdirSync25(join38(workspace, "research", "decision-assists"), { recursive: true });
+          writeFileSync24(join38(workspace, relative8), JSON.stringify({ created_at: (/* @__PURE__ */ new Date()).toISOString(), request: body, ...value }, null, 2) + "\n", { flag: "wx", mode: 384 });
+          value.record = relative8;
+        } catch {
+          value.record_warning = "The consultation could not be saved locally.";
+        }
+        if (cache2.size >= 64)
+          cache2.delete(cache2.keys().next().value);
+        cache2.set(key, { at: Date.now(), value });
+        return value;
+      } catch {
+        return skipped("service_unavailable");
+      }
+    })();
+    pending.set(key, run);
+    try {
+      return await run;
+    } finally {
+      pending.delete(key);
+    }
+  };
+}
+
 // lib/research/plan.js
 var HANDOFF_STATUSES = ["ready", "refined"];
 function loadPlanHandoff(workspace, planId, options = {}) {
@@ -28058,6 +28232,7 @@ if (typeof packageInfo.name !== "string" || typeof packageInfo.version !== "stri
 }
 var SERVER_INFO = Object.freeze({ name: packageInfo.name, version: packageInfo.version });
 var uiHost = createCodexUiHost();
+var decisionAssist = createDecisionAssistant(() => uiHost.getConfig());
 function objectSchema(properties, required = []) {
   return { type: "object", properties, required, additionalProperties: false };
 }
@@ -28245,6 +28420,19 @@ var nativeTools = defineResearchTools(
   { fetchImpl: globalThis.fetch }
 );
 var codexTools = [
+  {
+    name: "research_decision_assist",
+    description: "Consult DCRM before choosing the next research action, judging evidence sufficiency/claim consistency, or changing direction. Uses current local Research State and the existing ConvFusion login. Disabled, unauthenticated or unavailable service returns skipped: continue the original workflow. Advice cannot authorize actions or replace evidence; record final choices with research_decision.",
+    parameters: objectSchema({
+      decision_type: { type: "string", enum: [...DECISION_TYPES2] },
+      decision_question: { type: "string", minLength: 1, maxLength: 1e3 },
+      candidate_options: { type: "array", minItems: 2, maxItems: 26, items: objectSchema({
+        label: { type: "string", minLength: 1, maxLength: 64 },
+        text: { type: "string", minLength: 1, maxLength: 500 }
+      }, ["label", "text"]) }
+    }, ["decision_type", "decision_question", "candidate_options"]),
+    execute: (args) => decisionAssist(researchRoot(args.workspace_root), args)
+  },
   {
     name: "research_context",
     description: "Read the current research context, process guidance, stage, gaps and recommended methods before research work. Does not initialize a workspace.",

@@ -5,6 +5,7 @@ import { isAbsolute, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createCodexUiHost, UI_URI, UI_MIME } from './codex-ui-server.mjs'
 import { defineResearchTools } from '../lib/research/research-tools.js'
+import { createDecisionAssistant, DECISION_TYPES } from '../lib/research/decision-assist.js'
 import { researchWorkspaceOf } from '../lib/research/workspace.js'
 import { ensureWorkspaceLayout, inspectWorkspace } from '../lib/research/workspace-layout.js'
 import { loadProjectFile, saveProjectFile } from '../lib/research/project.js'
@@ -40,6 +41,7 @@ if (typeof packageInfo.name !== 'string' || typeof packageInfo.version !== 'stri
 const SERVER_INFO = Object.freeze({ name: packageInfo.name, version: packageInfo.version })
 
 const uiHost = createCodexUiHost()
+const decisionAssist = createDecisionAssistant(() => uiHost.getConfig())
 
 function objectSchema(properties, required = []) {
   return { type: 'object', properties, required, additionalProperties: false }
@@ -242,6 +244,19 @@ const nativeTools = defineResearchTools(
 )
 
 const codexTools = [
+  {
+    name: 'research_decision_assist',
+    description: 'Consult DCRM before choosing the next research action, judging evidence sufficiency/claim consistency, or changing direction. Uses current local Research State and the existing ConvFusion login. Disabled, unauthenticated or unavailable service returns skipped: continue the original workflow. Advice cannot authorize actions or replace evidence; record final choices with research_decision.',
+    parameters: objectSchema({
+      decision_type: { type: 'string', enum: [...DECISION_TYPES] },
+      decision_question: { type: 'string', minLength: 1, maxLength: 1000 },
+      candidate_options: { type: 'array', minItems: 2, maxItems: 26, items: objectSchema({
+        label: { type: 'string', minLength: 1, maxLength: 64 },
+        text: { type: 'string', minLength: 1, maxLength: 500 },
+      }, ['label', 'text']) },
+    }, ['decision_type', 'decision_question', 'candidate_options']),
+    execute: (args) => decisionAssist(researchRoot(args.workspace_root), args),
+  },
   {
     name: 'research_context',
     description: 'Read the current research context, process guidance, stage, gaps and recommended methods before research work. Does not initialize a workspace.',

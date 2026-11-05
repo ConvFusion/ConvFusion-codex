@@ -68,7 +68,7 @@ export function createCodexUiHost(options = {}) {
   const getConfig = () => ({
     customizationFile: 'skill-customizations.json',
     openalexApiKey: '', serverUrl: '', convfusionDevApiKey: '', convfusionProdApiKey: '',
-    convfusionApiKey: '', autoContinue: DEFAULT_AUTO_CONTINUE.enabled, autoContinueMaxRounds: DEFAULT_AUTO_CONTINUE.maxRounds,
+    convfusionApiKey: '', decisionAssistEnabled: true, autoContinue: DEFAULT_AUTO_CONTINUE.enabled, autoContinueMaxRounds: DEFAULT_AUTO_CONTINUE.maxRounds,
     ...readJson(path('config.json'), {}),
     customizationDir: home,
   })

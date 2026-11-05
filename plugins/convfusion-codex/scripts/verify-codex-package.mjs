@@ -27,7 +27,7 @@ try {
   assert.equal(result.status, 0, result.stderr)
   const responses = new Map(result.stdout.trim().split('\n').map((line) => { const msg = JSON.parse(line); return [msg.id, msg] }))
   assert.equal(responses.size, requests.length)
-  assert.equal(responses.get(2).result.tools.length, 22)
+  assert.equal(responses.get(2).result.tools.length, 23)
   assert.equal(responses.get(3).result.structuredContent.methods.length, 58)
   assert.equal(responses.get(4).result.isError, false)
   assert.equal(responses.get(5).result.isError, false)
@@ -73,5 +73,5 @@ try {
   assert.equal(pages.get(1).initialTab, 'progress')
   assert.equal(pages.get(2).workspaceRoot, null)
   assert.equal(pages.get(2).initialTab, 'community', 'unknown threads must not reuse the last installed page directory')
-  console.log('Clean package passed: actual STDIO entrypoint, click-to-progress routing and fallback, page sessions across independent processes, directory isolation, 22 tools, 58 methods/operations, initialization, context and UI resource without node_modules.')
+  console.log('Clean package passed: actual STDIO entrypoint, click-to-progress routing and fallback, page sessions across independent processes, directory isolation, 23 tools, 58 methods/operations, initialization, context and UI resource without node_modules.')
 } finally { rmSync(temp, { recursive: true, force: true }) }

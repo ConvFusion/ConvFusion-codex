@@ -416,6 +416,8 @@ export interface BinaryStreamOptions extends ServerRequestOptions {
  * 失败一律抛 {@link ServerError}，理由（超时 / 拒绝 / 4xx）由调用方决定怎么显示。
  */
 export declare function probeServerHealth(base: string, options?: ServerRequestOptions): Promise<void>;
+/** DCRM is proxied by ConvFusion; no upstream model URL or key reaches the plugin. */
+export declare function fetchDecisionAssist(base: string, apiKey: string, body: unknown, options?: ServerRequestOptions): Promise<unknown>;
 /**
  * 用一份 API Key 做身份自检（连通性 + Key 有效性 + 账号状态 + 角色）。
  *
