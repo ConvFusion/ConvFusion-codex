@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url'
 import { createCodexUiHost, UI_URI, UI_MIME } from './codex-ui-server.mjs'
 import { defineResearchTools } from '../lib/research/research-tools.js'
 import { createDecisionAssistant, DECISION_TYPES } from '../lib/research/decision-assist.js'
+import { decisionAssistSummary } from '../lib/codex/decision-assist-display.js'
 import { researchWorkspaceOf } from '../lib/research/workspace.js'
 import { ensureWorkspaceLayout, inspectWorkspace } from '../lib/research/workspace-layout.js'
 import { loadProjectFile, saveProjectFile } from '../lib/research/project.js'
@@ -246,7 +247,8 @@ const nativeTools = defineResearchTools(
 const codexTools = [
   {
     name: 'research_decision_assist',
-    description: 'Consult DCRM before choosing the next research action, judging evidence sufficiency/claim consistency, or changing direction. Uses current local Research State and the existing ConvFusion login. Disabled, unauthenticated or unavailable service returns skipped: continue the original workflow. Advice cannot authorize actions or replace evidence; record final choices with research_decision.',
+    title: 'DCRM 决策辅助',
+    description: 'Consult DCRM before choosing the next research action, judging evidence sufficiency/claim consistency, or changing direction. Briefly announce the consultation in visible commentary; after a used result, tell the user its recommendation and whether/why you adopt, partially adopt or reject it before continuing. Uses current local Research State and the existing ConvFusion login. Distinguish fresh, cached and shared results; skipped means no advice was used. Advice cannot authorize actions or replace evidence; record final choices with research_decision.',
     parameters: objectSchema({
       decision_type: { type: 'string', enum: [...DECISION_TYPES] },
       decision_question: { type: 'string', minLength: 1, maxLength: 1000 },
@@ -255,7 +257,7 @@ const codexTools = [
         text: { type: 'string', minLength: 1, maxLength: 500 },
       }, ['label', 'text']) },
     }, ['decision_type', 'decision_question', 'candidate_options']),
-    execute: (args) => decisionAssist(researchRoot(args.workspace_root), args),
+    execute: (args, context) => decisionAssist(researchRoot(args.workspace_root), args, context?.onRequest),
   },
   {
     name: 'research_context',
@@ -318,7 +320,7 @@ function jsonSafe(value) {
   return JSON.parse(JSON.stringify(value, (_key, item) => (typeof item === 'bigint' ? item.toString() : item)))
 }
 
-async function callTool(name, rawArgs, requestMeta) {
+async function callTool(name, rawArgs, requestMeta, sendNotification) {
   const tool = byName.get(name)
   if (!tool) throw new Error(`Unknown tool: ${name}`)
   const args = rawArgs && typeof rawArgs === 'object' && !Array.isArray(rawArgs) ? { ...rawArgs } : {}
@@ -326,20 +328,34 @@ async function callTool(name, rawArgs, requestMeta) {
   if (tool.optionalWorkspace && args.workspace_root !== undefined) args.workspace_root = sessionRoot(args.workspace_root)
   const taskRoot = args.workspace_root
   delete args.workspace_root
+  const isDecisionAssist = name === 'research_decision_assist'
+  const token = requestMeta?.progressToken
+  let progress = 0
+  const report = (message, done = false) => {
+    if (!isDecisionAssist || !(typeof token === 'string' || Number.isSafeInteger(token))) return
+    try {
+      sendNotification?.({ jsonrpc: '2.0', method: 'notifications/progress', params: {
+        progressToken: token, progress: ++progress, ...(done ? { total: progress } : {}), message,
+      } })
+    } catch { /* Hosts may not render optional progress; the result still carries the notice. */ }
+  }
+  const context = { requestMeta, onRequest: () => report('【正在调用 DCRM】正在通过 ConvFusion 决策服务评估当前候选项。') }
   const value = tool.optionalWorkspace
-    ? await tool.execute({ ...args, workspace_root: taskRoot }, { requestMeta })
+    ? await tool.execute({ ...args, workspace_root: taskRoot }, context)
     : taskTools.has(tool)
-    ? await tool.execute({ ...args, workspace_root: sessionRoot(rawArgs.workspace_root) })
+    ? await tool.execute({ ...args, workspace_root: sessionRoot(rawArgs.workspace_root) }, context)
     : await tool.execute(args, { agent: { id: root } })
   const structuredContent = jsonSafe(value)
+  const notice = isDecisionAssist ? decisionAssistSummary(structuredContent) : undefined
+  if (notice) report(notice, true)
   return {
-    content: [{ type: 'text', text: JSON.stringify(structuredContent, null, 2) }],
+    content: [...(notice ? [{ type: 'text', text: notice }] : []), { type: 'text', text: JSON.stringify(structuredContent, null, 2) }],
     structuredContent,
     isError: structuredContent?.ok === false,
   }
 }
 
-export async function handleRequest(message) {
+export async function handleRequest(message, sendNotification) {
   const { id, method, params = {} } = message
   if (method === 'initialize') {
     return {
@@ -364,7 +380,7 @@ export async function handleRequest(message) {
   }
   if (method === 'tools/call') {
     try {
-      return { jsonrpc: '2.0', id, result: await callTool(params.name, params.arguments, params._meta) }
+      return { jsonrpc: '2.0', id, result: await callTool(params.name, params.arguments, params._meta, sendNotification) }
     } catch (error) {
       return {
         jsonrpc: '2.0',
@@ -401,7 +417,7 @@ export function serveStdio() {
         process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32700, message: String(error) } })}\n`)
         continue
       }
-      Promise.resolve(handleRequest(message))
+      Promise.resolve(handleRequest(message, (notification) => process.stdout.write(`${JSON.stringify(notification)}\n`)))
         .then((response) => {
           if (response) process.stdout.write(`${JSON.stringify(response)}\n`)
         })

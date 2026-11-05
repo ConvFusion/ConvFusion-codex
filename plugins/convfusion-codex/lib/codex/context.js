@@ -1,8 +1,9 @@
 import { collectResearchContext, renderResearchContext, RESEARCH_GUIDE_TEXT } from '../research/context.js';
 import { effectiveSkillContentById } from '../research/library.js';
 import { researchWorkspaceOf } from '../research/workspace.js';
+import { decisionAssistGuidance } from './decision-assist-display.js';
 /** One context path for native hooks and explicit MCP refreshes, including effective methods. */
-export function codexResearchContext(root, input, store) {
+export function codexResearchContext(root, input, store, config = {}) {
     const context = renderResearchContext(collectResearchContext({
         workspace: researchWorkspaceOf(root), sessionWorkspace: root, userInput: input,
         skillContent: (id) => effectiveSkillContentById(id, store),
@@ -10,6 +11,6 @@ export function codexResearchContext(root, input, store) {
     if (!context)
         return '';
     const guide = RESEARCH_GUIDE_TEXT.replace('read that skill file', 'load its effective content with `research_methods`');
-    return `${guide}\n\n${context.replace('the native skill list', '`research_methods` (list or read an id; user customizations are included)')}`;
+    return `${guide}\n\n${context.replace('the native skill list', '`research_methods` (list or read an id; user customizations are included)')}\n\n${decisionAssistGuidance(config.decisionAssistEnabled !== false)}`;
 }
 //# sourceMappingURL=context.js.map

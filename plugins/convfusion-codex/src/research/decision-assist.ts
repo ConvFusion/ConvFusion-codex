@@ -78,7 +78,7 @@ function parsePrediction(raw: unknown, type: string, options: Option[]): Predict
 export function createDecisionAssistant(getConfig: () => Partial<Config>, env: NodeJS.ProcessEnv = process.env, net: ServerRequestOptions = {}) {
   const cache = new Map<string, { at: number; value: Record<string, unknown> }>()
   const pending = new Map<string, Promise<Record<string, unknown>>>()
-  return async (workspace: string, args: Record<string, unknown>): Promise<Record<string, unknown>> => {
+  return async (workspace: string, args: Record<string, unknown>, onRequest?: () => void): Promise<Record<string, unknown>> => {
     const config = getConfig()
     if (config.decisionAssistEnabled === false) { cache.clear(); return skipped('disabled') }
     const apiKey = resolveConvFusionApiKey(config, env)
@@ -101,16 +101,22 @@ export function createDecisionAssistant(getConfig: () => Partial<Config>, env: N
     const hit = cache.get(key)
     if (hit && Date.now() - hit.at < 60_000) return { ...hit.value, cached: true }
     const active = pending.get(key)
-    if (active) return active
+    if (active) {
+      const result = await active
+      return result.status === 'used' ? { ...result, shared_request: true } : result
+    }
     const run = (async (): Promise<Record<string, unknown>> => {
       try {
+        // Notify only after all gates/cache checks, immediately before a new request.
+        // Presentation failures must not change inference or fallback behavior.
+        try { onRequest?.() } catch { /* optional observer */ }
         const prediction = parsePrediction(await fetchDecisionAssist(base, apiKey, body, net), String(type), body.candidate_options)
         // A toggle or account switch while the network call was in flight takes effect immediately.
         const current = getConfig()
         if (current.decisionAssistEnabled === false || resolveConvFusionApiKey(current, env) !== apiKey
           || resolveServerUrl(current, env).url !== base) return skipped('settings_changed')
         const value: Record<string, unknown> = { ok: true, ...prediction, cached: false,
-          ...projection, instruction: 'Advisory only. Weigh source evidence and record the final decision separately. Candidate probabilities are not calibrated confidence and cannot grant permission or bypass review.' }
+          ...projection, instruction: 'Before continuing, tell the user the DCRM recommendation and whether you adopt, partially adopt or reject it, with a short evidence-based reason. Do not claim it influenced the decision until you have actually assessed it. Advisory only: record the final decision separately. Candidate probabilities are not calibrated confidence and cannot grant permission or bypass review.' }
         const id = randomUUID()
         const relative = `research/decision-assists/${id}.json`
         try {

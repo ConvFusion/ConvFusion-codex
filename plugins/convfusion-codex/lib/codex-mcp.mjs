@@ -16089,8 +16089,35 @@ function renderResearchContext(ctx, userInput = "") {
   return lines.join("\n").trim();
 }
 
+// lib/codex/decision-assist-display.js
+function decisionAssistSummary(value) {
+  if (value.status === "used") {
+    const title = value.cached === true ? "\u3010DCRM \u7F13\u5B58\u5EFA\u8BAE\u3011\u672C\u6B21\u590D\u7528\u5DF2\u6709\u7ED3\u679C\uFF0C\u672A\u53D1\u8D77\u65B0\u7684\u6A21\u578B\u63A8\u7406\u3002" : value.shared_request === true ? "\u3010DCRM \u5171\u4EAB\u8BF7\u6C42\u3011\u672C\u6B21\u53D6\u5F97\u540C\u4E00\u8FDB\u884C\u4E2D\u8BF7\u6C42\u7684\u7ED3\u679C\uFF0C\u672A\u91CD\u590D\u53D1\u8D77\u6A21\u578B\u63A8\u7406\u3002" : "\u3010\u5DF2\u8C03\u7528 DCRM\u3011\u5DF2\u53D6\u5F97\u672C\u6B21\u51B3\u7B56\u6A21\u578B\u7684\u5EFA\u8BAE\u3002";
+    return `${title}
+\u63A8\u8350\uFF1A${String(value.predicted_label ?? "")} \xB7 ${String(value.predicted_text ?? "")}
+\u91C7\u7EB3\u60C5\u51B5\uFF1A\u5F85\u4E3B Agent \u5224\u65AD\u3002\u7EE7\u7EED\u5904\u7406\u524D\uFF0C\u8BF7\u5411\u7528\u6237\u8BF4\u660E\u91C7\u7EB3\u3001\u90E8\u5206\u91C7\u7EB3\u6216\u4E0D\u91C7\u7EB3\uFF0C\u4EE5\u53CA\u4F9D\u636E\u3002`;
+  }
+  const skipped2 = {
+    disabled: "\u3010DCRM \u5DF2\u5173\u95ED\u3011\u672C\u6B21\u672A\u8BF7\u6C42\u51B3\u7B56\u670D\u52A1\uFF0C\u6309\u5E38\u89C4\u6D41\u7A0B\u7EE7\u7EED\u3002",
+    not_logged_in: "\u3010DCRM \u672A\u8C03\u7528\u3011\u5C1A\u672A\u767B\u5F55 ConvFusion\uFF0C\u672C\u6B21\u6309\u5E38\u89C4\u6D41\u7A0B\u7EE7\u7EED\u3002",
+    no_research_workspace: "\u3010DCRM \u672A\u8C03\u7528\u3011\u5F53\u524D\u6CA1\u6709\u7814\u7A76\u5DE5\u4F5C\u533A\uFF0C\u672C\u6B21\u6309\u5E38\u89C4\u6D41\u7A0B\u7EE7\u7EED\u3002",
+    invalid_input: "\u3010DCRM \u672A\u8C03\u7528\u3011\u51B3\u7B56\u95EE\u9898\u6216\u5019\u9009\u9879\u65E0\u6548\uFF0C\u672C\u6B21\u6309\u5E38\u89C4\u6D41\u7A0B\u7EE7\u7EED\u3002",
+    settings_changed: "\u3010DCRM \u5EFA\u8BAE\u672A\u4F7F\u7528\u3011\u7B49\u5F85\u671F\u95F4\u5F00\u5173\u3001\u8D26\u53F7\u6216\u670D\u52A1\u5668\u8BBE\u7F6E\u53D1\u751F\u53D8\u5316\uFF0C\u5DF2\u4E22\u5F03\u8FD4\u56DE\u7ED3\u679C\u3002",
+    service_unavailable: "\u3010DCRM \u6682\u4E0D\u53EF\u7528\u3011\u672C\u6B21\u672A\u53D6\u5F97\u53EF\u7528\u5EFA\u8BAE\uFF0C\u5DF2\u56DE\u9000\u5230\u5E38\u89C4\u6D41\u7A0B\u3002"
+  };
+  return skipped2[String(value.reason)] ?? "\u3010DCRM \u672A\u4F7F\u7528\u3011\u672C\u6B21\u6CA1\u6709\u53EF\u7528\u7684\u51B3\u7B56\u5EFA\u8BAE\uFF0C\u6309\u5E38\u89C4\u6D41\u7A0B\u7EE7\u7EED\u3002";
+}
+function decisionAssistGuidance(enabled) {
+  const preference = enabled ? "DCRM decision assistance is enabled at this refresh. At a relevant decision point, briefly tell the user you will check/get DCRM advice before calling research_decision_assist." : "DCRM decision assistance is disabled at this refresh. Continue the normal workflow without consulting it, unless the user explicitly asks to test the disabled behavior.";
+  return `## Decision assistance visibility
+
+${preference}
+
+Use visible progress commentary in the user's language, not only a tool card or final answer. After a used result, state the recommendation, then say whether you adopt, partially adopt or reject it and give a short evidence-based reason before continuing. Distinguish a new request from cached or shared results. A skipped result never supports a claim that DCRM was used. Do not claim the suggestion changed the decision without actually assessing it. Settings can change after this context refresh; the tool result is authoritative. These are concise decision summaries, not private reasoning transcripts.`;
+}
+
 // lib/codex/context.js
-function codexResearchContext(root, input, store) {
+function codexResearchContext(root, input, store, config = {}) {
   const context = renderResearchContext(collectResearchContext({
     workspace: researchWorkspaceOf(root),
     sessionWorkspace: root,
@@ -16102,7 +16129,9 @@ function codexResearchContext(root, input, store) {
   const guide = RESEARCH_GUIDE_TEXT.replace("read that skill file", "load its effective content with `research_methods`");
   return `${guide}
 
-${context.replace("the native skill list", "`research_methods` (list or read an id; user customizations are included)")}`;
+${context.replace("the native skill list", "`research_methods` (list or read an id; user customizations are included)")}
+
+${decisionAssistGuidance(config.decisionAssistEnabled !== false)}`;
 }
 
 // lib/codex/storage.js
@@ -16994,7 +17023,7 @@ function createCodexUiHost(options = {}) {
     prepareSync,
     exportMethods,
     context(root, input = "") {
-      return codexResearchContext(root, input, store);
+      return codexResearchContext(root, input, store, getConfig());
     },
     methods(id) {
       return id ? { id, content: effectiveSkillContentById(id, store) ?? null } : listSystemSkills().map(({ id: id2, name, category, kind, code, label }) => ({ id: id2, name, category, kind, code, label }));
@@ -28089,7 +28118,7 @@ function parsePrediction(raw, type, options) {
 function createDecisionAssistant(getConfig, env = process.env, net = {}) {
   const cache2 = /* @__PURE__ */ new Map();
   const pending = /* @__PURE__ */ new Map();
-  return async (workspace, args) => {
+  return async (workspace, args, onRequest) => {
     const config = getConfig();
     if (config.decisionAssistEnabled === false) {
       cache2.clear();
@@ -28120,10 +28149,16 @@ function createDecisionAssistant(getConfig, env = process.env, net = {}) {
     if (hit && Date.now() - hit.at < 6e4)
       return { ...hit.value, cached: true };
     const active2 = pending.get(key);
-    if (active2)
-      return active2;
+    if (active2) {
+      const result = await active2;
+      return result.status === "used" ? { ...result, shared_request: true } : result;
+    }
     const run = (async () => {
       try {
+        try {
+          onRequest?.();
+        } catch {
+        }
         const prediction = parsePrediction(await fetchDecisionAssist(base, apiKey, body, net), String(type), body.candidate_options);
         const current = getConfig();
         if (current.decisionAssistEnabled === false || resolveConvFusionApiKey(current, env) !== apiKey || resolveServerUrl(current, env).url !== base)
@@ -28133,7 +28168,7 @@ function createDecisionAssistant(getConfig, env = process.env, net = {}) {
           ...prediction,
           cached: false,
           ...projection,
-          instruction: "Advisory only. Weigh source evidence and record the final decision separately. Candidate probabilities are not calibrated confidence and cannot grant permission or bypass review."
+          instruction: "Before continuing, tell the user the DCRM recommendation and whether you adopt, partially adopt or reject it, with a short evidence-based reason. Do not claim it influenced the decision until you have actually assessed it. Advisory only: record the final decision separately. Candidate probabilities are not calibrated confidence and cannot grant permission or bypass review."
         };
         const id = randomUUID2();
         const relative8 = `research/decision-assists/${id}.json`;
@@ -28422,7 +28457,8 @@ var nativeTools = defineResearchTools(
 var codexTools = [
   {
     name: "research_decision_assist",
-    description: "Consult DCRM before choosing the next research action, judging evidence sufficiency/claim consistency, or changing direction. Uses current local Research State and the existing ConvFusion login. Disabled, unauthenticated or unavailable service returns skipped: continue the original workflow. Advice cannot authorize actions or replace evidence; record final choices with research_decision.",
+    title: "DCRM \u51B3\u7B56\u8F85\u52A9",
+    description: "Consult DCRM before choosing the next research action, judging evidence sufficiency/claim consistency, or changing direction. Briefly announce the consultation in visible commentary; after a used result, tell the user its recommendation and whether/why you adopt, partially adopt or reject it before continuing. Uses current local Research State and the existing ConvFusion login. Distinguish fresh, cached and shared results; skipped means no advice was used. Advice cannot authorize actions or replace evidence; record final choices with research_decision.",
     parameters: objectSchema({
       decision_type: { type: "string", enum: [...DECISION_TYPES2] },
       decision_question: { type: "string", minLength: 1, maxLength: 1e3 },
@@ -28431,7 +28467,7 @@ var codexTools = [
         text: { type: "string", minLength: 1, maxLength: 500 }
       }, ["label", "text"]) }
     }, ["decision_type", "decision_question", "candidate_options"]),
-    execute: (args) => decisionAssist(researchRoot(args.workspace_root), args)
+    execute: (args, context) => decisionAssist(researchRoot(args.workspace_root), args, context?.onRequest)
   },
   {
     name: "research_context",
@@ -28489,7 +28525,7 @@ function advertisedTool(tool) {
 function jsonSafe(value) {
   return JSON.parse(JSON.stringify(value, (_key, item) => typeof item === "bigint" ? item.toString() : item));
 }
-async function callTool(name, rawArgs, requestMeta) {
+async function callTool(name, rawArgs, requestMeta, sendNotification) {
   const tool = byName.get(name);
   if (!tool) throw new Error(`Unknown tool: ${name}`);
   const args = rawArgs && typeof rawArgs === "object" && !Array.isArray(rawArgs) ? { ...rawArgs } : {};
@@ -28497,15 +28533,33 @@ async function callTool(name, rawArgs, requestMeta) {
   if (tool.optionalWorkspace && args.workspace_root !== void 0) args.workspace_root = sessionRoot(args.workspace_root);
   const taskRoot = args.workspace_root;
   delete args.workspace_root;
-  const value = tool.optionalWorkspace ? await tool.execute({ ...args, workspace_root: taskRoot }, { requestMeta }) : taskTools.has(tool) ? await tool.execute({ ...args, workspace_root: sessionRoot(rawArgs.workspace_root) }) : await tool.execute(args, { agent: { id: root } });
+  const isDecisionAssist = name === "research_decision_assist";
+  const token = requestMeta?.progressToken;
+  let progress = 0;
+  const report = (message, done = false) => {
+    if (!isDecisionAssist || !(typeof token === "string" || Number.isSafeInteger(token))) return;
+    try {
+      sendNotification?.({ jsonrpc: "2.0", method: "notifications/progress", params: {
+        progressToken: token,
+        progress: ++progress,
+        ...done ? { total: progress } : {},
+        message
+      } });
+    } catch {
+    }
+  };
+  const context = { requestMeta, onRequest: () => report("\u3010\u6B63\u5728\u8C03\u7528 DCRM\u3011\u6B63\u5728\u901A\u8FC7 ConvFusion \u51B3\u7B56\u670D\u52A1\u8BC4\u4F30\u5F53\u524D\u5019\u9009\u9879\u3002") };
+  const value = tool.optionalWorkspace ? await tool.execute({ ...args, workspace_root: taskRoot }, context) : taskTools.has(tool) ? await tool.execute({ ...args, workspace_root: sessionRoot(rawArgs.workspace_root) }, context) : await tool.execute(args, { agent: { id: root } });
   const structuredContent = jsonSafe(value);
+  const notice = isDecisionAssist ? decisionAssistSummary(structuredContent) : void 0;
+  if (notice) report(notice, true);
   return {
-    content: [{ type: "text", text: JSON.stringify(structuredContent, null, 2) }],
+    content: [...notice ? [{ type: "text", text: notice }] : [], { type: "text", text: JSON.stringify(structuredContent, null, 2) }],
     structuredContent,
     isError: structuredContent?.ok === false
   };
 }
-async function handleRequest(message) {
+async function handleRequest(message, sendNotification) {
   const { id, method, params = {} } = message;
   if (method === "initialize") {
     return {
@@ -28529,7 +28583,7 @@ async function handleRequest(message) {
   }
   if (method === "tools/call") {
     try {
-      return { jsonrpc: "2.0", id, result: await callTool(params.name, params.arguments, params._meta) };
+      return { jsonrpc: "2.0", id, result: await callTool(params.name, params.arguments, params._meta, sendNotification) };
     } catch (error2) {
       return {
         jsonrpc: "2.0",
@@ -28564,7 +28618,8 @@ function serveStdio() {
 `);
         continue;
       }
-      Promise.resolve(handleRequest(message)).then((response) => {
+      Promise.resolve(handleRequest(message, (notification) => process.stdout.write(`${JSON.stringify(notification)}
+`))).then((response) => {
         if (response) process.stdout.write(`${JSON.stringify(response)}
 `);
       }).catch((error2) => {

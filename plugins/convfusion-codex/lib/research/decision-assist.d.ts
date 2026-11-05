@@ -17,5 +17,5 @@ export declare function decisionState(workspace: string): {
     state_version: string | null;
 };
 /** Each MCP host owns a small cache. Consultations never create Decisions, Claims or Evidence. */
-export declare function createDecisionAssistant(getConfig: () => Partial<Config>, env?: NodeJS.ProcessEnv, net?: ServerRequestOptions): (workspace: string, args: Record<string, unknown>) => Promise<Record<string, unknown>>;
+export declare function createDecisionAssistant(getConfig: () => Partial<Config>, env?: NodeJS.ProcessEnv, net?: ServerRequestOptions): (workspace: string, args: Record<string, unknown>, onRequest?: () => void) => Promise<Record<string, unknown>>;
 //# sourceMappingURL=decision-assist.d.ts.map

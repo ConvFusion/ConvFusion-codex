@@ -48,6 +48,8 @@ export function handleLifecycle(input: LifecycleInput, env: NodeJS.ProcessEnv = 
   registerCodexWorkspace(home, root)
   const store = createFileCustomizationStore(() => join(home, 'skill-customizations.json'))
   const skillContent = (id: string) => effectiveSkillContentById(id, store)
+  const decisionConfig = readPrivateJson<{ decisionAssistEnabled?: boolean }>(join(home, 'config.json'), {})
+  const researchContext = (prompt = '') => codexResearchContext(root, prompt, store, decisionConfig)
   const path = join(home, 'sessions', `${stateKey(`${root}\n${input.session_id}`)}.json`)
   return withPrivateLock(path, () => {
     const state = readPrivateJson<SessionState>(path, {
@@ -69,11 +71,11 @@ export function handleLifecycle(input: LifecycleInput, env: NodeJS.ProcessEnv = 
       state.lastStop = undefined; state.lastOutput = undefined
       state.baseline = research ? captureProgress(ws, skillContent) : undefined
       if (research && !state.readOnly && !planning) syncPlanHistoryDetailed(ws)
-      output = contextOutput(event, codexResearchContext(root, input.prompt ?? '', store))
+      output = contextOutput(event, researchContext(input.prompt ?? ''))
     } else if (event === 'SessionStart' || event === 'PreToolUse') {
       if (research && !state.baseline && event === 'PreToolUse') state.baseline = captureProgress(ws, skillContent)
       if (research && event === 'PreToolUse' && !state.readOnly && !planning && !state.interrupted) syncPlanHistoryDetailed(ws)
-      output = contextOutput(event, codexResearchContext(root, '', store))
+      output = contextOutput(event, researchContext())
     } else if (event === 'Interrupt') {
       state.interrupted = true; state.pendingContinuation = undefined
     } else if (event === 'Stop' && research) {
@@ -97,7 +99,7 @@ export function handleLifecycle(input: LifecycleInput, env: NodeJS.ProcessEnv = 
       const gate = shouldAutoContinue(assessed.advance, policy, state.rounds)
       if (gate.go && state.canContinue && !state.readOnly && !planning && !state.interrupted) {
         state.rounds++
-        const reason = `ConvFusion research continuation ${state.rounds}/${policy.maxRounds}.\n\n${codexResearchContext(root, '', store)}\n\nContinue the user's authorized research: ${assessed.advance.nextStep ?? assessed.advance.basis}. Use native tools, preserve plan review policies, and stop for a blocking choice. Do not expand the user's scope or publish, purchase, or accept paid guidance without their authorization.`
+        const reason = `ConvFusion research continuation ${state.rounds}/${policy.maxRounds}.\n\n${researchContext()}\n\nContinue the user's authorized research: ${assessed.advance.nextStep ?? assessed.advance.basis}. Use native tools, preserve plan review policies, and stop for a blocking choice. Do not expand the user's scope or publish, purchase, or accept paid guidance without their authorization.`
         state.pendingContinuation = reason
         output = { decision: 'block', reason }
       }

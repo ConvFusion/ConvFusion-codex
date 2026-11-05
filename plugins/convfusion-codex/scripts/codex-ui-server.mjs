@@ -230,7 +230,7 @@ export function createCodexUiHost(options = {}) {
   }
   return {
     home, store, getConfig, registerWorkspace, bootstrap, dispatch, dispatchSession, open, uiHtml, prepareSync, exportMethods,
-    context(root, input = '') { return codexResearchContext(root, input, store) },
+    context(root, input = '') { return codexResearchContext(root, input, store, getConfig()) },
     methods(id) { return id ? { id, content: effectiveSkillContentById(id, store) ?? null } : listSystemSkills().map(({ id, name, category, kind, code, label }) => ({ id, name, category, kind, code, label })) },
     async close() { await downloads.close(); if (server) await new Promise((resolve) => server.close(resolve)); server = undefined; launch = undefined },
     ref() { server?.ref() },

@@ -3117,8 +3117,18 @@ function renderResearchContext(ctx, userInput = "") {
   return lines.join("\n").trim();
 }
 
+// lib/codex/decision-assist-display.js
+function decisionAssistGuidance(enabled) {
+  const preference = enabled ? "DCRM decision assistance is enabled at this refresh. At a relevant decision point, briefly tell the user you will check/get DCRM advice before calling research_decision_assist." : "DCRM decision assistance is disabled at this refresh. Continue the normal workflow without consulting it, unless the user explicitly asks to test the disabled behavior.";
+  return `## Decision assistance visibility
+
+${preference}
+
+Use visible progress commentary in the user's language, not only a tool card or final answer. After a used result, state the recommendation, then say whether you adopt, partially adopt or reject it and give a short evidence-based reason before continuing. Distinguish a new request from cached or shared results. A skipped result never supports a claim that DCRM was used. Do not claim the suggestion changed the decision without actually assessing it. Settings can change after this context refresh; the tool result is authoritative. These are concise decision summaries, not private reasoning transcripts.`;
+}
+
 // lib/codex/context.js
-function codexResearchContext(root, input, store) {
+function codexResearchContext(root, input, store, config = {}) {
   const context = renderResearchContext(collectResearchContext({
     workspace: researchWorkspaceOf(root),
     sessionWorkspace: root,
@@ -3130,7 +3140,9 @@ function codexResearchContext(root, input, store) {
   const guide = RESEARCH_GUIDE_TEXT.replace("read that skill file", "load its effective content with `research_methods`");
   return `${guide}
 
-${context.replace("the native skill list", "`research_methods` (list or read an id; user customizations are included)")}`;
+${context.replace("the native skill list", "`research_methods` (list or read an id; user customizations are included)")}
+
+${decisionAssistGuidance(config.decisionAssistEnabled !== false)}`;
 }
 
 // lib/codex/storage.js
@@ -3506,6 +3518,8 @@ function handleLifecycle(input, env = process.env) {
   registerCodexWorkspace(home, root);
   const store = createFileCustomizationStore(() => join16(home, "skill-customizations.json"));
   const skillContent = (id) => effectiveSkillContentById(id, store);
+  const decisionConfig = readPrivateJson(join16(home, "config.json"), {});
+  const researchContext = (prompt = "") => codexResearchContext(root, prompt, store, decisionConfig);
   const path = join16(home, "sessions", `${stateKey(`${root}
 ${input.session_id}`)}.json`);
   return withPrivateLock(path, () => {
@@ -3539,13 +3553,13 @@ ${input.session_id}`)}.json`);
       state.baseline = research ? captureProgress(ws, skillContent) : void 0;
       if (research && !state.readOnly && !planning)
         syncPlanHistoryDetailed(ws);
-      output = contextOutput(event, codexResearchContext(root, input.prompt ?? "", store));
+      output = contextOutput(event, researchContext(input.prompt ?? ""));
     } else if (event === "SessionStart" || event === "PreToolUse") {
       if (research && !state.baseline && event === "PreToolUse")
         state.baseline = captureProgress(ws, skillContent);
       if (research && event === "PreToolUse" && !state.readOnly && !planning && !state.interrupted)
         syncPlanHistoryDetailed(ws);
-      output = contextOutput(event, codexResearchContext(root, "", store));
+      output = contextOutput(event, researchContext());
     } else if (event === "Interrupt") {
       state.interrupted = true;
       state.pendingContinuation = void 0;
@@ -3573,7 +3587,7 @@ ${input.session_id}`)}.json`);
         state.rounds++;
         const reason = `ConvFusion research continuation ${state.rounds}/${policy.maxRounds}.
 
-${codexResearchContext(root, "", store)}
+${researchContext()}
 
 Continue the user's authorized research: ${assessed.advance.nextStep ?? assessed.advance.basis}. Use native tools, preserve plan review policies, and stop for a blocking choice. Do not expand the user's scope or publish, purchase, or accept paid guidance without their authorization.`;
         state.pendingContinuation = reason;

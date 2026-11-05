@@ -1,7 +1,7 @@
 {
   "entry": "codex-hooks.mjs",
   "source": "scripts/convfusion-hooks.mjs",
-  "inputCount": 47,
+  "inputCount": 48,
   "dependencies": [
     {
       "id": "@deepseek-ai/cordis@4.0.4",

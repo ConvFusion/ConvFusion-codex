@@ -68,6 +68,18 @@ The references describe shared research methods. Translate DSH-specific host ins
 - `research_ui`: open the interactive workbench for methods, progress and ConvFusion.com accounts, publishing, finding mentors/students, proposals and file exchange. Pass the task workspace when opening it from a research conversation; the workbench binds to that directory automatically. The same tool accepts `{}` for global/sidebar and side-panel entrypoints, opening without a task directory for account access, research-network browsing and research methods. For project progress, open the workbench from the project conversation with its task workspace. This never initializes research. Show the returned local URL when the host does not render the MCP Apps resource.
 - `research_sync`: prepare synchronization of a downloaded research ZIP. This is read-only and does not extract or overwrite files.
 
+## Make decision assistance visible
+
+At a relevant decision point, use brief user-visible progress commentary in the user's language. Do not leave the user to infer DCRM usage from a tool card, raw JSON or the final answer alone.
+
+1. Read the current preference from the refreshed research context. If assistance is disabled, continue normally without consulting DCRM, unless the user explicitly asks to test the disabled behavior. A later tool result takes precedence over an earlier preference snapshot.
+2. Before consultation, say you will check/get DCRM's advice for the current choice. This states an intention, not a completed model call; the tool may still skip or reuse a result.
+3. After `status: used`, report the recommended option in progress commentary before continuing. Say **adopt**, **partially adopt**, or **do not adopt**, with a short reason grounded in the actual state/evidence. State the concrete implication for the next action. Do not invent a rationale from DCRM: it returns candidate scores, not a written explanation.
+4. For `cached: true`, explicitly say the earlier suggestion was reused and no new inference was requested. For `shared_request: true`, say the result came from the same in-flight request without a duplicate inference. For `status: skipped`, state the actual reason when reporting the consultation and continue the original workflow; never announce that the model influenced the choice.
+5. Do not claim that a suggestion changed or validated a decision merely because the call succeeded. A rejected suggestion has no adopted effect; an unchanged decision can be described as consistent with the recommendation, without claiming independent verification. Preserve the user's authorization and existing review requirements.
+
+Example wording, only when supported by the actual return and your assessment: “已取得 DCRM 建议：补做消融实验。我采纳其中对模块贡献验证的建议，因为现有证据缺少这组对照；接下来先准备实验方案，待你批准后执行。” If the recommendation conflicts with the evidence, say you do not adopt it and explain the specific conflict. Summarize the decision and its evidence briefly; do not provide private reasoning transcripts.
+
 ## Finding guidance and other network actions
 
 When the user wants a mentor/student or a network account, open `research_ui`. The user enters credentials, selects the research/files, sees fee information and confirms publish/proposal/accept/recharge actions in the interface. Do not request an API key in chat, bypass the UI via `research_ui_action`, purchase a brief, accept a paid proposal, or publish private work on the user's behalf without explicit instructions.

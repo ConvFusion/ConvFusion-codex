@@ -44,10 +44,15 @@ try {
   assert.equal((await assist(temp, args)).reason, 'no_research_workspace')
   assert.equal((await assist(root, { ...args, candidate_options: [args.candidate_options[0], args.candidate_options[0]] })).reason, 'invalid_input')
   assert.equal(calls.length, 0, 'disabled, unauthenticated and invalid calls never leave the client')
-  const [used, concurrent] = await Promise.all([assist(root, args), assist(root, args)])
+  let requesting = 0
+  const onRequest = () => { requesting++ }
+  const [used, concurrent] = await Promise.all([assist(root, args, onRequest), assist(root, args, onRequest)])
   assert.equal(used.status, 'used'); assert.equal(concurrent.predicted_label, 'test')
+  assert.equal(concurrent.shared_request, true)
+  assert.equal(requesting, 1, 'only a fresh network request emits a requesting event')
   assert.equal(calls.length, 1, 'coalesce identical in-flight consultations')
-  assert.equal((await assist(root, args)).cached, true)
+  assert.equal((await assist(root, args, onRequest)).cached, true)
+  assert.equal(requesting, 1, 'cached advice never emits a fresh requesting event')
   assert.equal(calls.length, 1)
   const records = await readdir(join(root, 'research/decision-assists'))
   assert.equal(records.length, 1)
