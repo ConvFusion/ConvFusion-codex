@@ -50,6 +50,8 @@ try {
     'research_paper_download',
     'research_paper_latex',
   ]) assert.ok(names.includes(expected), `missing tool: ${expected}`)
+  assert.deepEqual(listed.result.tools.find(tool => tool.name === 'research_decision_assist').annotations,
+    { readOnlyHint: true, destructiveHint: false, openWorldHint: true }, 'consultation is advertised as read-only, with external service access')
 
   const call = async (name, arguments_ = {}) => (await handleRequest({ jsonrpc: '2.0', id: 20, method: 'tools/call', params: { name, arguments: { workspace_root: temp, ...arguments_ } } })).result
   const advice = await call('research_decision_assist', { decision_type: 'C1_next_action_selection', decision_question: 'What next?', candidate_options: [{ label: 'A', text: 'Ablate' }, { label: 'B', text: 'Write' }] })

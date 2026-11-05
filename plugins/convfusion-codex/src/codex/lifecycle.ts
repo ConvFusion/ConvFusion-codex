@@ -26,6 +26,7 @@ export function latestCodexTurn(home: string, root: string): StoredTurnReport | 
   return readPrivateJson<StoredTurnReport | null>(join(home, 'reports', `${stateKey(realpathSync(root))}.json`), null)
 }
 export function isReadOnlyRequest(prompt: string): boolean {
+  if (/不(?:要|再)?(?:往|向|在|对)?(?:当前|这个|该|任何)?(?:研究)?工作区(?:中|内|里)?(?:写入|写|改写|修改|保存|创建|新增|落盘)|不(?:要|再)?(?:写入|改写|修改|保存|创建|新增|生成|删除)(?:任何|新的|相关)?文件|只(?:在|向)(?:聊天区|聊天界面|聊天中)(?:里|中)?输出/i.test(prompt)) return true
   return /只(?:做)?(?:排查|核查|检查|总结|审查|读)|只(?:给|做)(?:方案|计划|建议)|不(?:要|做|进行)(?:任何)?(?:修改|改动|改|写入|修复)|先(?:别|不要)(?:改|修)|read[- ]only|(?:do not|don't) (?:modify|edit|write|change|fix|delete)|(?:audit|review|inspect) only|only (?:audit|review|inspect)|no changes|(?:^|\s)(?:stop|pause)(?:\s|$)|停止|暂停/i.test(prompt)
 }
 export function requestsResearchContinuation(prompt: string): boolean {

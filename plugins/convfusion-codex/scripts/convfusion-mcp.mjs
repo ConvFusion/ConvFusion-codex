@@ -248,7 +248,8 @@ const codexTools = [
   {
     name: 'research_decision_assist',
     title: 'DCRM 决策辅助',
-    description: 'Consult DCRM before choosing the next research action, judging evidence sufficiency/claim consistency, or changing direction. Briefly announce the consultation in visible commentary; after a used result, tell the user its recommendation and whether/why you adopt, partially adopt or reject it before continuing. Uses current local Research State and the existing ConvFusion login. Distinguish fresh, cached and shared results; skipped means no advice was used. Advice cannot authorize actions or replace evidence; record final choices with research_decision.',
+    description: 'When DCRM is enabled, consult it before choosing the next research action, judging evidence sufficiency/claim consistency, or changing direction, including read-only/chat-only analysis. Reads existing local Research State and uses the ConvFusion login; never writes workspace files. Use a prominent DCRM label in visible commentary; after a used result, explain its recommendation and whether/why you adopt, partially adopt or reject it. Include its actual role in the final task summary. Distinguish fresh, cached and shared results; skipped means no advice was used. Advice cannot authorize actions or replace evidence. Save research outcomes separately only when the current task permits workspace changes.',
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     parameters: objectSchema({
       decision_type: { type: 'string', enum: [...DECISION_TYPES] },
       decision_question: { type: 'string', minLength: 1, maxLength: 1000 },
@@ -308,6 +309,7 @@ function advertisedTool(tool) {
     ...(tool.title ? { title: tool.title } : {}),
     ...(tool.icons ? { icons: tool.icons } : {}),
     description: tool.description,
+    ...(tool.annotations ? { annotations: tool.annotations } : {}),
     ...(tool._meta ? { _meta: tool._meta } : {}),
     inputSchema: objectSchema(
       { workspace_root: workspaceProperty(), ...(tool.parameters.type === 'object' ? tool.parameters.properties : tool.parameters) },

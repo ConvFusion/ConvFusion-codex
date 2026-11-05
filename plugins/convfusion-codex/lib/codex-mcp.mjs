@@ -16095,7 +16095,7 @@ function decisionAssistSummary(value) {
     const title = value.cached === true ? "\u3010DCRM \u7F13\u5B58\u5EFA\u8BAE\u3011\u672C\u6B21\u590D\u7528\u5DF2\u6709\u7ED3\u679C\uFF0C\u672A\u53D1\u8D77\u65B0\u7684\u6A21\u578B\u63A8\u7406\u3002" : value.shared_request === true ? "\u3010DCRM \u5171\u4EAB\u8BF7\u6C42\u3011\u672C\u6B21\u53D6\u5F97\u540C\u4E00\u8FDB\u884C\u4E2D\u8BF7\u6C42\u7684\u7ED3\u679C\uFF0C\u672A\u91CD\u590D\u53D1\u8D77\u6A21\u578B\u63A8\u7406\u3002" : "\u3010\u5DF2\u8C03\u7528 DCRM\u3011\u5DF2\u53D6\u5F97\u672C\u6B21\u51B3\u7B56\u6A21\u578B\u7684\u5EFA\u8BAE\u3002";
     return `${title}
 \u63A8\u8350\uFF1A${String(value.predicted_label ?? "")} \xB7 ${String(value.predicted_text ?? "")}
-\u91C7\u7EB3\u60C5\u51B5\uFF1A\u5F85\u4E3B Agent \u5224\u65AD\u3002\u7EE7\u7EED\u5904\u7406\u524D\uFF0C\u8BF7\u5411\u7528\u6237\u8BF4\u660E\u91C7\u7EB3\u3001\u90E8\u5206\u91C7\u7EB3\u6216\u4E0D\u91C7\u7EB3\uFF0C\u4EE5\u53CA\u4F9D\u636E\u3002`;
+\u91C7\u7EB3\u60C5\u51B5\uFF1A\u5F85\u4E3B Agent \u5224\u65AD\u3002\u7EE7\u7EED\u5904\u7406\u524D\uFF0C\u8BF7\u5728\u804A\u5929\u533A\u7528\u9192\u76EE\u7684\u201CDCRM \u51B3\u7B56\u8F85\u52A9\u201D\u6807\u8BC6\u8BF4\u660E\u91C7\u7EB3\u3001\u90E8\u5206\u91C7\u7EB3\u6216\u4E0D\u91C7\u7EB3\u53CA\u4F9D\u636E\uFF0C\u5E76\u5728\u672C\u8F6E\u4EFB\u52A1\u603B\u7ED3\u4E2D\u56DE\u987E\u5176\u5B9E\u9645\u4F5C\u7528\u3002`;
   }
   const skipped2 = {
     disabled: "\u3010DCRM \u5DF2\u5173\u95ED\u3011\u672C\u6B21\u672A\u8BF7\u6C42\u51B3\u7B56\u670D\u52A1\uFF0C\u6309\u5E38\u89C4\u6D41\u7A0B\u7EE7\u7EED\u3002",
@@ -16108,12 +16108,14 @@ function decisionAssistSummary(value) {
   return skipped2[String(value.reason)] ?? "\u3010DCRM \u672A\u4F7F\u7528\u3011\u672C\u6B21\u6CA1\u6709\u53EF\u7528\u7684\u51B3\u7B56\u5EFA\u8BAE\uFF0C\u6309\u5E38\u89C4\u6D41\u7A0B\u7EE7\u7EED\u3002";
 }
 function decisionAssistGuidance(enabled) {
-  const preference = enabled ? "DCRM decision assistance is enabled at this refresh. At a relevant decision point, briefly tell the user you will check/get DCRM advice before calling research_decision_assist." : "DCRM decision assistance is disabled at this refresh. Continue the normal workflow without consulting it, unless the user explicitly asks to test the disabled behavior.";
+  const preference = enabled ? "DCRM decision assistance is enabled at this refresh. You must consult research_decision_assist when selecting the next research action, assessing evidence sufficiency or claim consistency, or deciding research direction, including read-only/chat-only analysis. Briefly announce the consultation in chat. Workspace write permission is not a prerequisite; respect an explicit network prohibition and the tool's auth/service gates." : "DCRM decision assistance is disabled at this refresh. Continue the normal workflow without consulting it, unless the user explicitly asks to test the disabled behavior.";
   return `## Decision assistance visibility
 
 ${preference}
 
-Use visible progress commentary in the user's language, not only a tool card or final answer. After a used result, state the recommendation, then say whether you adopt, partially adopt or reject it and give a short evidence-based reason before continuing. Distinguish a new request from cached or shared results. A skipped result never supports a claim that DCRM was used. Do not claim the suggestion changed the decision without actually assessing it. Settings can change after this context refresh; the tool result is authoritative. These are concise decision summaries, not private reasoning transcripts.`;
+The consultation reads existing state and returns advice without creating or changing workspace files. Report the call and adoption assessment in chat. When workspace changes are permitted, save useful research outcomes with the normal tools as appropriate; when they are prohibited, keep outputs in chat. Neither saving nor permission to save is a condition for the model consultation.
+
+Make the involvement prominent: use a standalone bold DCRM decision-assistance label in progress commentary, in the user's language (for Chinese: **DCRM \u51B3\u7B56\u8F85\u52A9**). After a used result, state the recommendation, then say whether you adopt, partially adopt or reject it and give a short evidence-based reason before continuing. In the final task summary, always include a clearly labeled DCRM participation summary: which decision it advised, its recommendation, how it was used and the concrete consequence. If it was disabled, skipped, unavailable or there was no relevant decision point, say so rather than claiming participation. If several consultations occurred, summarize the actual overall role. Distinguish a new request from cached or shared results. A skipped result never supports a claim that DCRM was used. Do not claim the suggestion changed the decision without actually assessing it. Settings can change after this context refresh; the tool result is authoritative. These are concise decision summaries, not private reasoning transcripts.`;
 }
 
 // lib/codex/context.js
@@ -28047,8 +28049,8 @@ function buildComposeInput(source, template, meta = {}) {
 }
 
 // lib/research/decision-assist.js
-import { createHash as createHash5, randomUUID as randomUUID2 } from "node:crypto";
-import { existsSync as existsSync37, mkdirSync as mkdirSync25, writeFileSync as writeFileSync24 } from "node:fs";
+import { createHash as createHash5 } from "node:crypto";
+import { existsSync as existsSync37 } from "node:fs";
 import { join as join38 } from "node:path";
 var DECISION_TYPES2 = [
   "C1_next_action_selection",
@@ -28168,17 +28170,8 @@ function createDecisionAssistant(getConfig, env = process.env, net = {}) {
           ...prediction,
           cached: false,
           ...projection,
-          instruction: "Before continuing, tell the user the DCRM recommendation and whether you adopt, partially adopt or reject it, with a short evidence-based reason. Do not claim it influenced the decision until you have actually assessed it. Advisory only: record the final decision separately. Candidate probabilities are not calibrated confidence and cannot grant permission or bypass review."
+          instruction: "Tell the user in chat the DCRM recommendation and whether you adopt, partially adopt or reject it, with a short evidence-based reason. Do not claim it influenced the decision until you have actually assessed it. This consultation never writes workspace files and is available during read-only/chat-only analysis. Save useful research outcomes with the normal tools when the current task permits workspace changes; saving is never a prerequisite for consulting DCRM. Candidate probabilities are not calibrated confidence and cannot grant permission or bypass review."
         };
-        const id = randomUUID2();
-        const relative8 = `research/decision-assists/${id}.json`;
-        try {
-          mkdirSync25(join38(workspace, "research", "decision-assists"), { recursive: true });
-          writeFileSync24(join38(workspace, relative8), JSON.stringify({ created_at: (/* @__PURE__ */ new Date()).toISOString(), request: body, ...value }, null, 2) + "\n", { flag: "wx", mode: 384 });
-          value.record = relative8;
-        } catch {
-          value.record_warning = "The consultation could not be saved locally.";
-        }
         if (cache2.size >= 64)
           cache2.delete(cache2.keys().next().value);
         cache2.set(key, { at: Date.now(), value });
@@ -28458,7 +28451,8 @@ var codexTools = [
   {
     name: "research_decision_assist",
     title: "DCRM \u51B3\u7B56\u8F85\u52A9",
-    description: "Consult DCRM before choosing the next research action, judging evidence sufficiency/claim consistency, or changing direction. Briefly announce the consultation in visible commentary; after a used result, tell the user its recommendation and whether/why you adopt, partially adopt or reject it before continuing. Uses current local Research State and the existing ConvFusion login. Distinguish fresh, cached and shared results; skipped means no advice was used. Advice cannot authorize actions or replace evidence; record final choices with research_decision.",
+    description: "When DCRM is enabled, consult it before choosing the next research action, judging evidence sufficiency/claim consistency, or changing direction, including read-only/chat-only analysis. Reads existing local Research State and uses the ConvFusion login; never writes workspace files. Use a prominent DCRM label in visible commentary; after a used result, explain its recommendation and whether/why you adopt, partially adopt or reject it. Include its actual role in the final task summary. Distinguish fresh, cached and shared results; skipped means no advice was used. Advice cannot authorize actions or replace evidence. Save research outcomes separately only when the current task permits workspace changes.",
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     parameters: objectSchema({
       decision_type: { type: "string", enum: [...DECISION_TYPES2] },
       decision_question: { type: "string", minLength: 1, maxLength: 1e3 },
@@ -28515,6 +28509,7 @@ function advertisedTool(tool) {
     ...tool.title ? { title: tool.title } : {},
     ...tool.icons ? { icons: tool.icons } : {},
     description: tool.description,
+    ...tool.annotations ? { annotations: tool.annotations } : {},
     ...tool._meta ? { _meta: tool._meta } : {},
     inputSchema: objectSchema(
       { workspace_root: workspaceProperty(), ...tool.parameters.type === "object" ? tool.parameters.properties : tool.parameters },

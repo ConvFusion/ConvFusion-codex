@@ -1,5 +1,5 @@
-import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { resolveConvFusionApiKey, resolveServerUrl } from '../config.js';
 import { fetchDecisionAssist } from '../server-client.js';
@@ -66,7 +66,7 @@ function parsePrediction(raw, type, options) {
         top3_labels: p.top3_labels, model: p.model, input_tokens: p.input_tokens, input_hash: p.input_hash,
         probability_kind: p.probability_kind };
 }
-/** Each MCP host owns a small cache. Consultations never create Decisions, Claims or Evidence. */
+/** Read-only consultation: each MCP host caches in memory, never writes workspace files. */
 export function createDecisionAssistant(getConfig, env = process.env, net = {}) {
     const cache = new Map();
     const pending = new Map();
@@ -121,17 +121,7 @@ export function createDecisionAssistant(getConfig, env = process.env, net = {}) 
                     || resolveServerUrl(current, env).url !== base)
                     return skipped('settings_changed');
                 const value = { ok: true, ...prediction, cached: false,
-                    ...projection, instruction: 'Before continuing, tell the user the DCRM recommendation and whether you adopt, partially adopt or reject it, with a short evidence-based reason. Do not claim it influenced the decision until you have actually assessed it. Advisory only: record the final decision separately. Candidate probabilities are not calibrated confidence and cannot grant permission or bypass review.' };
-                const id = randomUUID();
-                const relative = `research/decision-assists/${id}.json`;
-                try {
-                    mkdirSync(join(workspace, 'research', 'decision-assists'), { recursive: true });
-                    writeFileSync(join(workspace, relative), JSON.stringify({ created_at: new Date().toISOString(), request: body, ...value }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
-                    value.record = relative;
-                }
-                catch {
-                    value.record_warning = 'The consultation could not be saved locally.';
-                }
+                    ...projection, instruction: 'Tell the user in chat the DCRM recommendation and whether you adopt, partially adopt or reject it, with a short evidence-based reason. Do not claim it influenced the decision until you have actually assessed it. This consultation never writes workspace files and is available during read-only/chat-only analysis. Save useful research outcomes with the normal tools when the current task permits workspace changes; saving is never a prerequisite for consulting DCRM. Candidate probabilities are not calibrated confidence and cannot grant permission or bypass review.' };
                 if (cache.size >= 64)
                     cache.delete(cache.keys().next().value);
                 cache.set(key, { at: Date.now(), value });

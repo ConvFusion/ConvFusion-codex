@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
@@ -12,6 +12,15 @@ process.env.CONVFUSION_CODEX_HOME = home
 const originalFetch = globalThis.fetch
 let networkCalls = 0
 let unavailable = false
+const snapshot = async directory => {
+  const rows = await readdir(directory, { withFileTypes: true })
+  const result = []
+  for (const row of rows.sort((a, b) => a.name.localeCompare(b.name))) {
+    const path = join(directory, row.name)
+    result.push(row.isDirectory() ? [row.name, await snapshot(path)] : [row.name, await readFile(path, 'utf8')])
+  }
+  return result
+}
 globalThis.fetch = async (_url, init) => {
   networkCalls++
   if (unavailable) return new Response('{}', { status: 503 })
@@ -41,6 +50,9 @@ try {
     name: 'research_decision_assist', arguments: { ...args, ...overrides },
     ...(token === undefined ? {} : { _meta: { progressToken: token } }),
   } }, sink)
+  const initialWorkspace = await snapshot(workspace)
+  const listed = await mcp.handleRequest({ id: 3, method: 'tools/list' })
+  assert.equal(listed.result.tools.find(tool => tool.name === 'research_decision_assist').annotations.readOnlyHint, true)
 
   const result = (await call('fresh-token')).result
   assert.equal(networkCalls, 1)
@@ -49,6 +61,9 @@ try {
   assert.match(result.content[0].text, /采纳情况：待主 Agent 判断/)
   assert.equal(result.content.length, 2, 'readable notice accompanies the unchanged structured result')
   assert.equal(JSON.parse(result.content[1].text).predicted_label, 'A')
+  assert.equal(result.structuredContent.record, undefined)
+  assert.equal(result.structuredContent.record_warning, undefined)
+  assert.deepEqual(await snapshot(workspace), initialWorkspace)
   assert.equal(notifications.length, 2)
   assert.equal(notifications[0].method, 'notifications/progress')
   assert.equal(notifications[0].params.progressToken, 'fresh-token')
@@ -91,13 +106,45 @@ try {
   assert.equal(notifications.length, 2)
   assert.doesNotMatch(notifications[1].params.message, /已调用 DCRM|未请求决策服务/)
   assert.ok(notifications.every(n => !JSON.stringify(n).includes('cf_live_offline_display_only')), 'notices never include credentials')
-  const { handleLifecycle } = await import('../lib/codex/lifecycle.js')
+  const { handleLifecycle, isReadOnlyRequest } = await import('../lib/codex/lifecycle.js')
   const started = handleLifecycle({ hook_event_name: 'SessionStart', cwd: root, session_id: 'display-check' })
   assert.match(started.hookSpecificOutput.additionalContext, /DCRM decision assistance is enabled at this refresh/)
   config.decisionAssistEnabled = false
   await save()
   const refreshed = handleLifecycle({ hook_event_name: 'PreToolUse', cwd: root, session_id: 'display-check' })
   assert.match(refreshed.hookSpecificOutput.additionalContext, /DCRM decision assistance is disabled at this refresh/)
+  assert.deepEqual(await snapshot(workspace), initialWorkspace, 'all consultation branches leave workspace contents untouched')
+
+  // The user's exact chat-only wording must prevent incidental hook writes,
+  // while the decision tool remains available to make a fresh request.
+  const readonlyPrompt = '先做分析，不执行实验，也不往工作区写入任何内容，直接把建议输出到聊天界面'
+  assert.equal(isReadOnlyRequest(readonlyPrompt), true)
+  assert.equal(isReadOnlyRequest('不要向研究工作区保存内容'), true)
+  assert.equal(isReadOnlyRequest('只在聊天区输出建议'), true)
+  assert.equal(isReadOnlyRequest('允许改写工作区并保存研究成果'), false)
+  const { createPlan, listPlanVersions, syncPlanHistoryDetailed } = await import('../lib/research/plan-library.js')
+  createPlan(workspace, { id: 'readonly-plan', name: 'Readonly comparison', objective: 'Original objective' })
+  syncPlanHistoryDetailed(workspace)
+  const planPath = join(workspace, 'plans/readonly-plan.md')
+  await writeFile(planPath, (await readFile(planPath, 'utf8')) + '\nAdditional plan detail.\n')
+  const beforeReadonly = await snapshot(workspace)
+  config.decisionAssistEnabled = true
+  unavailable = false
+  await save()
+  const input = { cwd: root, session_id: 'readonly-consultation' }
+  const promptResult = handleLifecycle({ ...input, hook_event_name: 'UserPromptSubmit', prompt: readonlyPrompt })
+  assert.match(promptResult.hookSpecificOutput.additionalContext, /must consult.*read-only\/chat-only analysis/)
+  handleLifecycle({ ...input, hook_event_name: 'PreToolUse', tool_name: 'research_decision_assist' })
+  const readonlyResult = (await call('readonly-token', { decision_question: 'Readonly next action' })).result
+  assert.equal(readonlyResult.structuredContent.status, 'used')
+  assert.equal(readonlyResult.structuredContent.cached, false)
+  assert.equal(readonlyResult.structuredContent.record, undefined)
+  assert.deepEqual(handleLifecycle({ ...input, hook_event_name: 'Stop', turn_id: 'readonly-end' }), {})
+  assert.deepEqual(await snapshot(workspace), beforeReadonly, 'chat-only consultation and all surrounding hooks make zero workspace changes')
+  assert.equal(listPlanVersions(workspace, 'readonly-plan').length, 1, 'chat-only analysis does not archive pending plan edits')
+  handleLifecycle({ ...input, hook_event_name: 'UserPromptSubmit', prompt: '允许改写工作区并保存研究成果' })
+  handleLifecycle({ ...input, hook_event_name: 'PreToolUse', tool_name: 'research_context' })
+  assert.equal(listPlanVersions(workspace, 'readonly-plan').length, 2, 'ordinary authorized research still preserves plan history')
   // Exercise the distributed STDIO entrypoint, not just a callback in this process.
   config.decisionAssistEnabled = true
   await save()
@@ -127,7 +174,7 @@ try {
   assert.equal(lines[2].result.structuredContent.status, 'used')
   assert.match(lines[2].result.content[0].text, /待主 Agent 判断/)
   assert.ok(!child.stdout.includes(config.convfusionProdApiKey))
-  console.log('Decision notices passed: fresh/cached/disabled/failure text, token-scoped and packaged STDIO progress, structured results, live context preference and pending adoption.')
+  console.log('Decision notices passed: fresh/cached/disabled/failure text, token-scoped and packaged STDIO progress, read-only consultation with zero workspace/hook changes, authorized plan history and live preference.')
 } finally {
   globalThis.fetch = originalFetch
   await closeUiHost?.()

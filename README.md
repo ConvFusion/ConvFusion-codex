@@ -7,7 +7,7 @@
 <p align="center"><strong>面向 Codex 的科研工作流插件</strong></p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.6.8--codex.4-4a43ea" alt="Version 0.6.8-codex.4">
+  <img src="https://img.shields.io/badge/version-v0.6.8--codex.5-4a43ea" alt="Version 0.6.8-codex.5">
   <img src="https://img.shields.io/badge/Codex-plugin-4a43ea" alt="Codex Plugin">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-22c55e" alt="MIT License"></a>
 </p>
@@ -121,6 +121,8 @@ $convfusion-research 帮我建立一个关于无人机视觉-LiDAR 跨模态定�
 使用研究网络时，在界面中配置服务器并登录 ConvFusion.com，再选择研究工作、上传文件和发布方向。涉及费用的操作会在界面中显示确认信息。
 
 所有登录用户默认具有决策辅助权限，无需填写模型密钥。在工作台的 ConvFusion.com 账号卡片中可关闭“启用决策辅助”。开启后，插件会在研究决策节点将所需研究状态发送到 ConvFusion 决策服务；关闭或服务不可用时沿用原有流程。
+
+决策咨询只读取研究状态，调用情况和建议采纳说明在聊天区输出。要求“只分析、不改写工作区”时仍可使用决策辅助；允许改写时，可按任务需要保存研究成果。
 
 下载研究资料后，将界面提供的同步请求复制到 Codex。插件会先检查压缩包与本地研究的差异，确认后再同步。
 

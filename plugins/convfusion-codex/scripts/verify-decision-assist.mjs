@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { mkdtemp, mkdir, readFile, writeFile, readdir, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, writeFile, readdir, chmod, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createDecisionAssistant, decisionState } from '../lib/research/decision-assist.js'
@@ -15,6 +15,15 @@ const config = { serverUrl: 'https://convfusion.invalid', convfusionProdApiKey: 
 const args = { decision_type: 'C1_next_action_selection', decision_question: 'What next?',
   candidate_options: [{ label: 'test', text: 'Run an ablation' }, { label: 'write', text: 'Write results' }] }
 const calls = []
+const snapshot = async (directory) => {
+  const rows = await readdir(directory, { withFileTypes: true })
+  const result = []
+  for (const row of rows.sort((a, b) => a.name.localeCompare(b.name))) {
+    const path = join(directory, row.name)
+    result.push(row.isDirectory() ? [row.name, await snapshot(path)] : [row.name, await readFile(path, 'utf8')])
+  }
+  return result
+}
 const fetchImpl = async (url, init) => {
   calls.push(url)
   assert.equal(init.headers.authorization, `Bearer ${config.convfusionProdApiKey}`)
@@ -34,6 +43,7 @@ try {
   await writeFile(join(root, 'project.md'), '---\ntopic: Offline research\n---\n# Offline research\n')
   await writeFile(join(root, 'research-state.md'), '# Research State\n\n## Research Questions\nDoes this work?\n\n## Evidence\nA baseline is missing.\n')
   const assist = createDecisionAssistant(() => config, env, { fetchImpl })
+  const originalWorkspace = await snapshot(root)
   config.decisionAssistEnabled = false
   assert.equal((await assist(root, args)).reason, 'disabled')
   config.decisionAssistEnabled = true
@@ -54,17 +64,27 @@ try {
   assert.equal((await assist(root, args, onRequest)).cached, true)
   assert.equal(requesting, 1, 'cached advice never emits a fresh requesting event')
   assert.equal(calls.length, 1)
-  const records = await readdir(join(root, 'research/decision-assists'))
-  assert.equal(records.length, 1)
-  const record = await readFile(join(root, used.record), 'utf8')
-  assert.ok(!record.includes(savedKey)); assert.match(record, /research-state.md/)
-  assert.deepEqual(await readdir(join(root, 'research')), ['decision-assists'], 'advice never creates evidence or final decisions')
+  assert.deepEqual(await snapshot(root), originalWorkspace, 'fresh, shared, cached and skipped consultations never change the workspace')
+  assert.equal(used.record, undefined)
+  assert.equal(used.record_warning, undefined)
+  const readOnlyRoot = join(temp, 'readonly-workspace')
+  await mkdir(readOnlyRoot)
+  for (const file of ['project.md', 'research-state.md']) await writeFile(join(readOnlyRoot, file), await readFile(join(root, file)))
+  const readOnlySnapshot = await snapshot(readOnlyRoot)
+  await chmod(readOnlyRoot, 0o555)
+  try {
+    const readonly = await assist(readOnlyRoot, args)
+    assert.equal(readonly.status, 'used', 'a non-writable research root still permits inference')
+    assert.equal(readonly.cached, false)
+    assert.equal(readonly.record_warning, undefined, 'no hidden attempt to save a consultation')
+    assert.deepEqual(await snapshot(readOnlyRoot), readOnlySnapshot)
+  } finally { await chmod(readOnlyRoot, 0o755) }
   await writeFile(join(root, 'research-state.md'), (await readFile(join(root, 'research-state.md'), 'utf8')) + '\n## Claims\nAn unverified claim.\n')
   await assist(root, args)
-  assert.equal(calls.length, 2, 'new state invalidates cache')
+  assert.equal(calls.length, 3, 'new state invalidates cache')
   config.convfusionProdApiKey = 'cf_live_other_offline_user'
   await assist(root, args)
-  assert.equal(calls.length, 3, 'account switch never shares cached advice')
+  assert.equal(calls.length, 4, 'account switch never shares cached advice')
   for (const status of [401, 403, 404, 429, 503]) {
     const failing = createDecisionAssistant(() => config, env, { fetchImpl: async () => new Response('{}', { status }) })
     assert.equal((await failing(root, args)).reason, 'service_unavailable')
@@ -94,7 +114,7 @@ try {
   await writeFile(join(root, 'research-state.md'), '# Research State\n\n## Evidence\n' + '证'.repeat(700))
   assert.deepEqual(decisionState(root).truncated_fields, ['evidence'])
   assert.equal(decisionState(root).research_state.evidence[0].length, 500)
-  console.log('Decision assistance passed: zero-call gates, projection, ranking, caching, account isolation, fallback/deadline, advisory records and persistent switch.')
+  console.log('Decision assistance passed: zero-call gates, projection, ranking, caching, account isolation, fallback/deadline, zero workspace writes including a non-writable root, and persistent switch.')
 } finally {
   await host.close()
   await rm(temp, { recursive: true, force: true })
