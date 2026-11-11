@@ -129,6 +129,7 @@ import {
   createProject,
   fetchAcceptProposal,
   fetchAccount,
+  fetchEmailNotificationPreferences,
   fetchProjectArchive,
   fetchProjectFileBytes,
   fetchProjectFiles,
@@ -1946,6 +1947,35 @@ export function createSettingsRpcHandler(
         case 'account/state':
           // 不联网：服务器挂了也要能打开设置页（因此也没有余额）
           return { ok: true, value: buildAccountState(deps.getConfig(), env(), null) }
+
+        case 'account/email-notifications':
+        case 'account/email-notifications/save': {
+          const config = deps.getConfig()
+          const apiKey = resolveConvFusionApiKey(config, env())
+          if (!apiKey) return fail('not-configured', '尚未登录 ConvFusion.com。')
+          const base = resolveServerUrl(config, env()).url
+          const accountId = asString(p.accountId)
+          const preference = p.preference
+          const enabled = p.enabled
+          try {
+            if (endpoint === 'account/email-notifications/save') {
+              if (!accountId || typeof enabled !== 'boolean'
+                || (preference !== 'email_research_updates' && preference !== 'email_new_work')) {
+                return fail('bad-request', '邮件通知设置参数有误。')
+              }
+              const value = await fetchEmailNotificationPreferences(base, apiKey, netOptions(), {
+                account_id: accountId, preference, enabled,
+              })
+              return { ok: true, value }
+            }
+            return { ok: true, value: await fetchEmailNotificationPreferences(base, apiKey, netOptions()) }
+          } catch (e) {
+            if (e instanceof ServerError && e.httpStatus === 404) {
+              return fail('email-notifications-unavailable', '当前服务器暂不支持邮件通知设置。')
+            }
+            return serverFail(e)
+          }
+        }
 
         case 'account/decision-assist': {
           if (typeof p.enabled !== 'boolean') return fail('bad-request', '启用状态必须为布尔值。')

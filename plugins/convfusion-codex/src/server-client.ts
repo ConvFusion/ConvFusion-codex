@@ -829,6 +829,36 @@ function parseAccount(body: unknown): ServerAccount {
   }
 }
 
+export interface EmailNotificationPreferences {
+  email_research_updates: boolean
+  email_new_work: boolean
+}
+
+export interface EmailNotificationPreferenceUpdate {
+  account_id: string
+  preference: keyof EmailNotificationPreferences
+  enabled: boolean
+}
+
+export async function fetchEmailNotificationPreferences(
+  base: string,
+  apiKey: string,
+  options: ServerRequestOptions = {},
+  update?: EmailNotificationPreferenceUpdate,
+): Promise<EmailNotificationPreferences> {
+  const body = await requestJson(
+    base,
+    '/notifications/preferences',
+    update ? { method: 'PATCH', apiKey, body: update } : { method: 'GET', apiKey },
+    options,
+    '邮件通知设置',
+  ) as Partial<EmailNotificationPreferences> | null
+  if (typeof body?.email_research_updates !== 'boolean' || typeof body?.email_new_work !== 'boolean') {
+    throw new ServerError('bad-response', '邮件通知设置格式不正确。')
+  }
+  return { email_research_updates: body.email_research_updates, email_new_work: body.email_new_work }
+}
+
 /** DCRM is proxied by ConvFusion; no upstream model URL or key reaches the plugin. */
 export async function fetchDecisionAssist(
   base: string, apiKey: string, body: unknown, options: ServerRequestOptions = {},

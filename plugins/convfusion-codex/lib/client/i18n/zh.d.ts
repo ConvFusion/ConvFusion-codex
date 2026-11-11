@@ -1,5 +1,10 @@
 /** Simplified Chinese dictionary; the type rejects missing and extra keys. */
 export declare const zh: {
+    'community.emailNotifications.title': string;
+    'community.emailNotifications.researchUpdates': string;
+    'community.emailNotifications.newWork': string;
+    'community.emailNotifications.loading': string;
+    'community.emailNotifications.unavailable': string;
     'community.decisionAssist.title': string;
     'community.decisionAssist.description': string;
     'community.download.unconfirmed': string;

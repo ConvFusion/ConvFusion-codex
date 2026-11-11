@@ -416,6 +416,16 @@ export interface BinaryStreamOptions extends ServerRequestOptions {
  * 失败一律抛 {@link ServerError}，理由（超时 / 拒绝 / 4xx）由调用方决定怎么显示。
  */
 export declare function probeServerHealth(base: string, options?: ServerRequestOptions): Promise<void>;
+export interface EmailNotificationPreferences {
+    email_research_updates: boolean;
+    email_new_work: boolean;
+}
+export interface EmailNotificationPreferenceUpdate {
+    account_id: string;
+    preference: keyof EmailNotificationPreferences;
+    enabled: boolean;
+}
+export declare function fetchEmailNotificationPreferences(base: string, apiKey: string, options?: ServerRequestOptions, update?: EmailNotificationPreferenceUpdate): Promise<EmailNotificationPreferences>;
 /** DCRM is proxied by ConvFusion; no upstream model URL or key reaches the plugin. */
 export declare function fetchDecisionAssist(base: string, apiKey: string, body: unknown, options?: ServerRequestOptions): Promise<unknown>;
 /**

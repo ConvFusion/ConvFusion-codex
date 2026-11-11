@@ -5,6 +5,11 @@ export type TranslateParams = Record<string, unknown>;
 export type Translate = (key: string, params?: TranslateParams) => string;
 export declare const dictionaries: {
     zh: {
+        'community.emailNotifications.title': string;
+        'community.emailNotifications.researchUpdates': string;
+        'community.emailNotifications.newWork': string;
+        'community.emailNotifications.loading': string;
+        'community.emailNotifications.unavailable': string;
         'community.decisionAssist.title': string;
         'community.decisionAssist.description': string;
         'community.download.unconfirmed': string;
@@ -702,6 +707,11 @@ export declare const dictionaries: {
         'taxonomy.skill.pre-submission-review': string;
     };
     en: {
+        readonly 'community.emailNotifications.title': "Email notifications";
+        readonly 'community.emailNotifications.researchUpdates': "Research updates from my mentorship partners";
+        readonly 'community.emailNotifications.newWork': "New work seeking mentorship";
+        readonly 'community.emailNotifications.loading': "Loading notification preferences…";
+        readonly 'community.emailNotifications.unavailable': "This server does not support email notification settings yet.";
         readonly 'community.decisionAssist.title': "Enable decision assistance";
         readonly 'community.decisionAssist.description': "Available by default after sign-in. Sends relevant research state to the ConvFusion decision service at research decision points. When disabled or unavailable, the existing workflow continues.";
         readonly 'community.download.unconfirmed': "Download start is unconfirmed. Retry to reconnect to the same task.";

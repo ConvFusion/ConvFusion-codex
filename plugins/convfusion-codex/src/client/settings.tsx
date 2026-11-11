@@ -5148,6 +5148,74 @@ function ServerPresetButton({
   )
 }
 
+interface HostEmailNotificationPreferences {
+  email_research_updates: boolean
+  email_new_work: boolean
+}
+
+function EmailNotificationSettings({ accountId, canMentor, post, t }: {
+  accountId: string
+  canMentor: boolean
+  post: (endpoint: string, payload: unknown) => Promise<RpcResult>
+  t: Translate
+}) {
+  const [preferences, setPreferences] = React.useState<HostEmailNotificationPreferences | null>(null)
+  const [error, setError] = React.useState<RpcResult['error']>()
+  const [busy, setBusy] = React.useState(true)
+  const [reload, setReload] = React.useState(0)
+
+  React.useEffect(() => {
+    let mounted = true
+    setBusy(true)
+    setError(undefined)
+    void post('account/email-notifications', {}).then((res) => {
+      if (!mounted) return
+      if (res.ok) setPreferences(res.value as HostEmailNotificationPreferences)
+      else setError(res.error)
+      setBusy(false)
+    })
+    return () => { mounted = false }
+  }, [post, reload])
+
+  async function save(preference: keyof HostEmailNotificationPreferences, enabled: boolean) {
+    setBusy(true)
+    setError(undefined)
+    const res = await post('account/email-notifications/save', { accountId, preference, enabled })
+    if (res.ok) setPreferences(res.value as HostEmailNotificationPreferences)
+    else setError(res.error)
+    setBusy(false)
+  }
+
+  const unavailable = error?.code === 'email-notifications-unavailable'
+  return (
+    <fieldset style={{ border: 0, margin: 0, padding: 0 }} disabled={busy || unavailable}>
+      <legend style={S.label}>{t('community.emailNotifications.title')}</legend>
+      {preferences ? (
+        <>
+          <label style={S.inlineRow}>
+            <input type="checkbox" checked={preferences.email_research_updates}
+              onChange={(event) => void save('email_research_updates', event.currentTarget.checked)} />
+            {t('community.emailNotifications.researchUpdates')}
+          </label>
+          {canMentor ? (
+            <label style={S.inlineRow}>
+              <input type="checkbox" checked={preferences.email_new_work}
+                onChange={(event) => void save('email_new_work', event.currentTarget.checked)} />
+              {t('community.emailNotifications.newWork')}
+            </label>
+          ) : null}
+        </>
+      ) : busy ? <div role="status" style={S.hint}>{t('community.emailNotifications.loading')}</div> : null}
+      {error ? (
+        <div role="alert" style={S.hint}>
+          {unavailable ? t('community.emailNotifications.unavailable') : rpcErrorDetail(t, error)}
+          {!preferences && !unavailable ? <RefreshIconButton t={t} busy={busy} onClick={() => setReload((n) => n + 1)} /> : null}
+        </div>
+      ) : null}
+    </fieldset>
+  )
+}
+
 /**
  * 【设置】-【ConvFusion】-【ConvFusion.com】这一页的**全部内容**。
  *
@@ -7275,6 +7343,14 @@ export function CommunityTab({
                     ⏏
                   </button>
                 </div>
+
+                <EmailNotificationSettings
+                  key={JSON.stringify([state?.serverUrl, account.id])}
+                  accountId={account.id}
+                  canMentor={canMentor}
+                  post={post}
+                  t={t}
+                />
 
                 {/*
                  * 仪表板：三块小图（Token / 存储 / 项目）—— 一屏回答"我还剩多少、

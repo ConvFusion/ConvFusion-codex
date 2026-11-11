@@ -416,6 +416,13 @@ function parseAccount(body) {
         roles: Array.isArray(b.roles) ? b.roles.filter((r) => typeof r === 'string') : [],
     };
 }
+export async function fetchEmailNotificationPreferences(base, apiKey, options = {}, update) {
+    const body = await requestJson(base, '/notifications/preferences', update ? { method: 'PATCH', apiKey, body: update } : { method: 'GET', apiKey }, options, '邮件通知设置');
+    if (typeof body?.email_research_updates !== 'boolean' || typeof body?.email_new_work !== 'boolean') {
+        throw new ServerError('bad-response', '邮件通知设置格式不正确。');
+    }
+    return { email_research_updates: body.email_research_updates, email_new_work: body.email_new_work };
+}
 /** DCRM is proxied by ConvFusion; no upstream model URL or key reaches the plugin. */
 export async function fetchDecisionAssist(base, apiKey, body, options = {}) {
     const timeoutMs = options.timeoutMs ?? 15_000;

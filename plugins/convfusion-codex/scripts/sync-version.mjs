@@ -25,7 +25,8 @@ function assertBaseline(version) {
   if (!existsSync(paths.baseline)) throw new Error('Missing assets/dsh-baseline.json; verify the DSH synchronization baseline first.')
   const base = version.split('-codex.')[0]
   const baseline = readJson(paths.baseline)
-  if (baseline.version !== base) throw new Error(`Version base ${base} does not match the synchronized DSH baseline ${baseline.version}. Change the base only as part of an explicitly requested DSH synchronization.`)
+  // An explicitly chosen Codex release number can differ from the recorded DSH sync.
+  if (baseline.version !== base && baseline.codexVersionOverride !== version) throw new Error(`Version base ${base} does not match the synchronized DSH baseline ${baseline.version}. Change the base only as part of an explicitly requested DSH synchronization.`)
 }
 function assertSynchronized(version) {
   if (readJson(paths.pluginManifest).version !== version) throw new Error(`Plugin manifest version does not match ${version}`)

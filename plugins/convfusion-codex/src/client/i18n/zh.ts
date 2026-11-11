@@ -2,6 +2,11 @@ import type { en } from './en.js'
 
 /** Simplified Chinese dictionary; the type rejects missing and extra keys. */
 export const zh = {
+  'community.emailNotifications.title': '邮件通知',
+  'community.emailNotifications.researchUpdates': '指导关系中的研究内容更新',
+  'community.emailNotifications.newWork': '广场新发布的待指导工作',
+  'community.emailNotifications.loading': '正在读取通知偏好…',
+  'community.emailNotifications.unavailable': '当前服务器暂不支持邮件通知设置。',
   'community.decisionAssist.title': '启用决策辅助',
   'community.decisionAssist.description': '登录后默认可用。在研究决策节点，将所需研究状态发送到 ConvFusion 决策服务；关闭或服务不可用时沿用原有流程。',
   'community.download.unconfirmed': '尚未确认下载是否启动。可以重试；已启动的同一任务会被复用。',

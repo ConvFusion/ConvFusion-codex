@@ -1,5 +1,10 @@
 /** English is the canonical key set for the ConvFusion browser UI. */
 export const en = {
+  'community.emailNotifications.title': 'Email notifications',
+  'community.emailNotifications.researchUpdates': 'Research updates from my mentorship partners',
+  'community.emailNotifications.newWork': 'New work seeking mentorship',
+  'community.emailNotifications.loading': 'Loading notification preferences…',
+  'community.emailNotifications.unavailable': 'This server does not support email notification settings yet.',
   'community.decisionAssist.title': 'Enable decision assistance',
   'community.decisionAssist.description': 'Available by default after sign-in. Sends relevant research state to the ConvFusion decision service at research decision points. When disabled or unavailable, the existing workflow continues.',
   'community.download.unconfirmed': 'Download start is unconfirmed. Retry to reconnect to the same task.',

@@ -89,6 +89,11 @@ window.__ModuleLoader__.load({
 
 		// src/client/i18n/en.ts
 		var en = {
+		  "community.emailNotifications.title": "Email notifications",
+		  "community.emailNotifications.researchUpdates": "Research updates from my mentorship partners",
+		  "community.emailNotifications.newWork": "New work seeking mentorship",
+		  "community.emailNotifications.loading": "Loading notification preferences…",
+		  "community.emailNotifications.unavailable": "This server does not support email notification settings yet.",
 		  "community.decisionAssist.title": "Enable decision assistance",
 		  "community.decisionAssist.description": "Available by default after sign-in. Sends relevant research state to the ConvFusion decision service at research decision points. When disabled or unavailable, the existing workflow continues.",
 		  "community.download.unconfirmed": "Download start is unconfirmed. Retry to reconnect to the same task.",
@@ -853,6 +858,11 @@ window.__ModuleLoader__.load({
 
 		// src/client/i18n/zh.ts
 		var zh = {
+		  "community.emailNotifications.title": "邮件通知",
+		  "community.emailNotifications.researchUpdates": "指导关系中的研究内容更新",
+		  "community.emailNotifications.newWork": "广场新发布的待指导工作",
+		  "community.emailNotifications.loading": "正在读取通知偏好…",
+		  "community.emailNotifications.unavailable": "当前服务器暂不支持邮件通知设置。",
 		  "community.decisionAssist.title": "启用决策辅助",
 		  "community.decisionAssist.description": "登录后默认可用。在研究决策节点，将所需研究状态发送到 ConvFusion 决策服务；关闭或服务不可用时沿用原有流程。",
 		  "community.download.unconfirmed": "尚未确认下载是否启动。可以重试；已启动的同一任务会被复用。",
@@ -5006,6 +5016,66 @@ window.__ModuleLoader__.load({
 		    }
 		  );
 		}
+		function EmailNotificationSettings({ accountId, canMentor, post, t }) {
+		  const [preferences, setPreferences] = import_react.default.useState(null);
+		  const [error, setError] = import_react.default.useState();
+		  const [busy, setBusy] = import_react.default.useState(true);
+		  const [reload, setReload] = import_react.default.useState(0);
+		  import_react.default.useEffect(() => {
+		    let mounted = true;
+		    setBusy(true);
+		    setError(void 0);
+		    void post("account/email-notifications", {}).then((res) => {
+		      if (!mounted) return;
+		      if (res.ok) setPreferences(res.value);
+		      else setError(res.error);
+		      setBusy(false);
+		    });
+		    return () => {
+		      mounted = false;
+		    };
+		  }, [post, reload]);
+		  async function save(preference, enabled) {
+		    setBusy(true);
+		    setError(void 0);
+		    const res = await post("account/email-notifications/save", { accountId, preference, enabled });
+		    if (res.ok) setPreferences(res.value);
+		    else setError(res.error);
+		    setBusy(false);
+		  }
+		  const unavailable = error?.code === "email-notifications-unavailable";
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("fieldset", { style: { border: 0, margin: 0, padding: 0 }, disabled: busy || unavailable, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("legend", { style: S.label, children: t("community.emailNotifications.title") }),
+		    preferences ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { style: S.inlineRow, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          "input",
+		          {
+		            type: "checkbox",
+		            checked: preferences.email_research_updates,
+		            onChange: (event) => void save("email_research_updates", event.currentTarget.checked)
+		          }
+		        ),
+		        t("community.emailNotifications.researchUpdates")
+		      ] }),
+		      canMentor ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { style: S.inlineRow, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          "input",
+		          {
+		            type: "checkbox",
+		            checked: preferences.email_new_work,
+		            onChange: (event) => void save("email_new_work", event.currentTarget.checked)
+		          }
+		        ),
+		        t("community.emailNotifications.newWork")
+		      ] }) : null
+		    ] }) : busy ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { role: "status", style: S.hint, children: t("community.emailNotifications.loading") }) : null,
+		    error ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { role: "alert", style: S.hint, children: [
+		      unavailable ? t("community.emailNotifications.unavailable") : rpcErrorDetail(t, error),
+		      !preferences && !unavailable ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(RefreshIconButton, { t, busy, onClick: () => setReload((n) => n + 1) }) : null
+		    ] }) : null
+		  ] });
+		}
 		var COMMUNITY_LIST_CACHE = /* @__PURE__ */ new Map();
 		var communityCacheKey = (server, accountId, kind, sessionId = "") => JSON.stringify([server, accountId, kind, sessionId]);
 		function CommunityTab({
@@ -6217,6 +6287,16 @@ window.__ModuleLoader__.load({
 		                }
 		              )
 		            ] }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		              EmailNotificationSettings,
+		              {
+		                accountId: account.id,
+		                canMentor,
+		                post,
+		                t
+		              },
+		              JSON.stringify([state?.serverUrl, account.id])
+		            ),
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.dash, children: [
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                DashTile,

@@ -13,11 +13,24 @@ const second = join(temp, 'task-two')
 await mkdir(first); await mkdir(second)
 const key = 'cf_live_codex_offline_fixture_secret'
 const calls = []
+let emailPreferences = { email_research_updates: true, email_new_work: false }
+let notificationsSupported = true
 const host = createCodexUiHost({ home, env: { CONVFUSION_ENV: 'production' }, fetchImpl: async (url, options) => {
   calls.push({ url, method: options.method })
   assert.equal(options.headers.authorization, `Bearer ${key}`)
   if (url.endsWith('/auth/me')) return new Response(JSON.stringify({ id: 'offline-account', email: 'fixture@example.com', display_name: 'Offline fixture', status: 'ACTIVE', roles: ['RESEARCHER'] }), { status: 200 })
   if (url.endsWith('/tokens')) return new Response(JSON.stringify({ available_balance: 100, frozen_balance: 0, total_balance: 100 }), { status: 200 })
+  if (url.endsWith('/notifications/preferences')) {
+    if (!notificationsSupported) return Response.json({ error: { code: 'NOT_FOUND' } }, { status: 404 })
+    if (options.method === 'PATCH') {
+      const { account_id, preference, enabled } = JSON.parse(options.body)
+      assert.equal(account_id, 'offline-account')
+      assert.equal(preference, 'email_research_updates')
+      assert.equal(enabled, false)
+      emailPreferences[preference] = enabled
+    } else assert.equal(options.method, 'GET')
+    return Response.json(emailPreferences)
+  }
   throw new Error(`Unexpected request: ${url}`)
 } })
 try {
@@ -85,6 +98,16 @@ try {
   assert.ok(!JSON.stringify(login).includes(key), 'account response must not disclose a credential')
   assert.ok((await readFile(join(home, 'config.json'), 'utf8')).includes(key))
   assert.equal((await stat(join(home, 'config.json'))).mode & 0o777, 0o600)
+  const preferences = await globalCall('account/email-notifications')
+  assert.deepEqual(preferences.value, { email_research_updates: true, email_new_work: false })
+  const patch = { accountId: 'offline-account', preference: 'email_research_updates', enabled: false }
+  assert.equal((await globalCall('account/email-notifications/save', { ...patch, enabled: 'false' })).ok, false)
+  const savedPreferences = await globalCall('account/email-notifications/save', patch)
+  assert.deepEqual(savedPreferences.value, { email_research_updates: false, email_new_work: false })
+  assert.deepEqual((await globalCall('account/email-notifications')).value, savedPreferences.value)
+  notificationsSupported = false
+  assert.equal((await globalCall('account/email-notifications')).error.code, 'email-notifications-unavailable')
+  notificationsSupported = true
   const retrieval = await host.dispatch(first, 'retrieval/saveKey', { apiKey: 'fixture-openalex-secret' })
   assert.equal(retrieval.ok, true)
   assert.ok(!JSON.stringify(retrieval).includes('fixture-openalex-secret'))

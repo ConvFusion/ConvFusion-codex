@@ -2802,6 +2802,13 @@ function parseAccount(body) {
     roles: Array.isArray(b.roles) ? b.roles.filter((r) => typeof r === "string") : []
   };
 }
+async function fetchEmailNotificationPreferences(base, apiKey, options = {}, update) {
+  const body = await requestJson(base, "/notifications/preferences", update ? { method: "PATCH", apiKey, body: update } : { method: "GET", apiKey }, options, "\u90AE\u4EF6\u901A\u77E5\u8BBE\u7F6E");
+  if (typeof body?.email_research_updates !== "boolean" || typeof body?.email_new_work !== "boolean") {
+    throw new ServerError("bad-response", "\u90AE\u4EF6\u901A\u77E5\u8BBE\u7F6E\u683C\u5F0F\u4E0D\u6B63\u786E\u3002");
+  }
+  return { email_research_updates: body.email_research_updates, email_new_work: body.email_new_work };
+}
 async function fetchDecisionAssist(base, apiKey, body, options = {}) {
   const timeoutMs = options.timeoutMs ?? 15e3;
   const controller = new AbortController();
@@ -14057,6 +14064,36 @@ function createSettingsRpcHandler(deps) {
          */
         case "account/state":
           return { ok: true, value: buildAccountState(deps.getConfig(), env(), null) };
+        case "account/email-notifications":
+        case "account/email-notifications/save": {
+          const config = deps.getConfig();
+          const apiKey = resolveConvFusionApiKey(config, env());
+          if (!apiKey)
+            return fail("not-configured", "\u5C1A\u672A\u767B\u5F55 ConvFusion.com\u3002");
+          const base = resolveServerUrl(config, env()).url;
+          const accountId = asString3(p.accountId);
+          const preference = p.preference;
+          const enabled = p.enabled;
+          try {
+            if (endpoint === "account/email-notifications/save") {
+              if (!accountId || typeof enabled !== "boolean" || preference !== "email_research_updates" && preference !== "email_new_work") {
+                return fail("bad-request", "\u90AE\u4EF6\u901A\u77E5\u8BBE\u7F6E\u53C2\u6570\u6709\u8BEF\u3002");
+              }
+              const value = await fetchEmailNotificationPreferences(base, apiKey, netOptions(), {
+                account_id: accountId,
+                preference,
+                enabled
+              });
+              return { ok: true, value };
+            }
+            return { ok: true, value: await fetchEmailNotificationPreferences(base, apiKey, netOptions()) };
+          } catch (e) {
+            if (e instanceof ServerError && e.httpStatus === 404) {
+              return fail("email-notifications-unavailable", "\u5F53\u524D\u670D\u52A1\u5668\u6682\u4E0D\u652F\u6301\u90AE\u4EF6\u901A\u77E5\u8BBE\u7F6E\u3002");
+            }
+            return serverFail(e);
+          }
+        }
         case "account/decision-assist": {
           if (typeof p.enabled !== "boolean")
             return fail("bad-request", "\u542F\u7528\u72B6\u6001\u5FC5\u987B\u4E3A\u5E03\u5C14\u503C\u3002");
