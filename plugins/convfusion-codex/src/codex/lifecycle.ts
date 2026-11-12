@@ -1,6 +1,6 @@
 /** Native Codex lifecycle adapter. It observes assets and requests native continuation; no agent loop. */
 import { isAbsolute, join, resolve, relative, sep } from 'node:path'
-import { realpathSync } from 'node:fs'
+import { existsSync, mkdirSync, realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { codexResearchContext } from './context.js'
 import { codexHome, stateKey, readPrivateJson, writePrivateJson, withPrivateLock, registerCodexWorkspace } from './storage.js'
@@ -62,17 +62,30 @@ export function handleLifecycle(input: LifecycleInput, env: NodeJS.ProcessEnv = 
     state.observations = [...state.observations, { event, ...(input.tool_name ? { tool: input.tool_name } : {}) }].slice(-64)
     let output: Record<string, unknown> = {}
     if (event === 'UserPromptSubmit') {
-      const continuation = Boolean(state.pendingContinuation && input.prompt === state.pendingContinuation)
+      const prompt = input.prompt ?? ''
+      const continuation = Boolean(state.pendingContinuation && prompt === state.pendingContinuation)
       if (!continuation) {
         state.rounds = 0; state.staleRounds = 0; state.interrupted = false
-        state.readOnly = isReadOnlyRequest(input.prompt ?? '') || planning
-        state.canContinue = requestsResearchContinuation(input.prompt ?? '')
+        state.readOnly = isReadOnlyRequest(prompt) || planning
+        state.canContinue = requestsResearchContinuation(prompt)
       }
       state.pendingContinuation = undefined
       state.lastStop = undefined; state.lastOutput = undefined
       state.baseline = research ? captureProgress(ws, skillContent) : undefined
       if (research && !state.readOnly && !planning) syncPlanHistoryDetailed(ws)
-      output = contextOutput(event, researchContext(input.prompt ?? ''))
+      output = contextOutput(event, researchContext(prompt))
+      // The desktop composer serializes plugin mentions as Markdown links in the submitted prompt.
+      const mentionsConvFusion = /(?<![\\`])\[@[^\[\]\r\n]+\]\(plugin:\/\/convfusion-codex@[a-z0-9][a-z0-9._-]*\)/i.test(prompt)
+      const skipsWorkspaceCreation = /不(?:要|必|用)?(?:创建|建立|新建)\s*(?:(?:研究)?工作区|workspace\b)|(?:do not|don't) (?:create|initialize) (?:a |the )?(?:research )?workspace/i.test(prompt)
+      if (mentionsConvFusion && !continuation && !state.readOnly && !research &&
+          !skipsWorkspaceCreation &&
+          !existsSync(join(root, 'plugins', 'convfusion-codex', '.codex-plugin', 'plugin.json'))) {
+        try {
+          mkdirSync(ws, { recursive: true })
+        } catch {
+          output.systemMessage = 'ConvFusion could not create workspace/. Check that the task directory is writable and workspace is a directory.'
+        }
+      }
     } else if (event === 'SessionStart' || event === 'PreToolUse') {
       if (research && !state.baseline && event === 'PreToolUse') state.baseline = captureProgress(ws, skillContent)
       if (research && event === 'PreToolUse' && !state.readOnly && !planning && !state.interrupted) syncPlanHistoryDetailed(ws)

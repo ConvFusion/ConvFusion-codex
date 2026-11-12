@@ -2,7 +2,7 @@ import { createRequire as __codexCreateRequire } from 'node:module'; const requi
 
 // lib/codex/lifecycle.js
 import { isAbsolute as isAbsolute4, join as join16, resolve as resolve3, relative as relative4, sep as sep2 } from "node:path";
-import { realpathSync as realpathSync2 } from "node:fs";
+import { existsSync as existsSync16, mkdirSync as mkdirSync13, realpathSync as realpathSync2 } from "node:fs";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // lib/research/context.js
@@ -3543,13 +3543,14 @@ ${input.session_id}`)}.json`);
     state.observations = [...state.observations, { event, ...input.tool_name ? { tool: input.tool_name } : {} }].slice(-64);
     let output = {};
     if (event === "UserPromptSubmit") {
-      const continuation = Boolean(state.pendingContinuation && input.prompt === state.pendingContinuation);
+      const prompt = input.prompt ?? "";
+      const continuation = Boolean(state.pendingContinuation && prompt === state.pendingContinuation);
       if (!continuation) {
         state.rounds = 0;
         state.staleRounds = 0;
         state.interrupted = false;
-        state.readOnly = isReadOnlyRequest(input.prompt ?? "") || planning;
-        state.canContinue = requestsResearchContinuation(input.prompt ?? "");
+        state.readOnly = isReadOnlyRequest(prompt) || planning;
+        state.canContinue = requestsResearchContinuation(prompt);
       }
       state.pendingContinuation = void 0;
       state.lastStop = void 0;
@@ -3557,7 +3558,16 @@ ${input.session_id}`)}.json`);
       state.baseline = research ? captureProgress(ws, skillContent) : void 0;
       if (research && !state.readOnly && !planning)
         syncPlanHistoryDetailed(ws);
-      output = contextOutput(event, researchContext(input.prompt ?? ""));
+      output = contextOutput(event, researchContext(prompt));
+      const mentionsConvFusion = /(?<![\\`])\[@[^\[\]\r\n]+\]\(plugin:\/\/convfusion-codex@[a-z0-9][a-z0-9._-]*\)/i.test(prompt);
+      const skipsWorkspaceCreation = /不(?:要|必|用)?(?:创建|建立|新建)\s*(?:(?:研究)?工作区|workspace\b)|(?:do not|don't) (?:create|initialize) (?:a |the )?(?:research )?workspace/i.test(prompt);
+      if (mentionsConvFusion && !continuation && !state.readOnly && !research && !skipsWorkspaceCreation && !existsSync16(join16(root, "plugins", "convfusion-codex", ".codex-plugin", "plugin.json"))) {
+        try {
+          mkdirSync13(ws, { recursive: true });
+        } catch {
+          output.systemMessage = "ConvFusion could not create workspace/. Check that the task directory is writable and workspace is a directory.";
+        }
+      }
     } else if (event === "SessionStart" || event === "PreToolUse") {
       if (research && !state.baseline && event === "PreToolUse")
         state.baseline = captureProgress(ws, skillContent);

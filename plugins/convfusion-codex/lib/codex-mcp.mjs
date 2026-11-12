@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 // scripts/codex-ui-server.mjs
 import { createServer } from "node:http";
 import { createHash as createHash4, randomBytes as randomBytes4 } from "node:crypto";
-import { existsSync as existsSync30, readFileSync as readFileSync27, realpathSync as realpathSync5, statSync as statSync11 } from "node:fs";
+import { existsSync as existsSync31, readFileSync as readFileSync27, realpathSync as realpathSync5, statSync as statSync11 } from "node:fs";
 import { basename as basename5, dirname as dirname15, isAbsolute as isAbsolute9, join as join30, resolve as resolve10, relative as relative7, sep as sep5 } from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 
@@ -16281,13 +16281,13 @@ ${sessionId}`)}.json`), null);
 
 // lib/codex/lifecycle.js
 import { isAbsolute as isAbsolute7, join as join26, resolve as resolve8, relative as relative6, sep as sep4 } from "node:path";
-import { realpathSync as realpathSync4 } from "node:fs";
+import { existsSync as existsSync27, mkdirSync as mkdirSync21, realpathSync as realpathSync4 } from "node:fs";
 function latestCodexTurn(home, root) {
   return readPrivateJson(join26(home, "reports", `${stateKey(realpathSync4(root))}.json`), null);
 }
 
 // lib/research/methods-export.js
-import { existsSync as existsSync27, mkdirSync as mkdirSync21, writeFileSync as writeFileSync19 } from "node:fs";
+import { existsSync as existsSync28, mkdirSync as mkdirSync22, writeFileSync as writeFileSync19 } from "node:fs";
 import { join as join27 } from "node:path";
 var METHODS_EXPORT_FILE = "research/methods-export.md";
 function groupByCategory(docs) {
@@ -16389,14 +16389,14 @@ function writeMethodsExport(workspace, opts = {}) {
   const rel = opts.path?.trim() || METHODS_EXPORT_FILE;
   const abs = join27(workspace, rel);
   const dir = abs.slice(0, abs.lastIndexOf("/"));
-  if (dir && !existsSync27(dir))
-    mkdirSync21(dir, { recursive: true });
+  if (dir && !existsSync28(dir))
+    mkdirSync22(dir, { recursive: true });
   writeFileSync19(abs, result.markdown, "utf8");
   return { ...result, path: rel };
 }
 
 // lib/research/sync-request.js
-import { closeSync as closeSync3, existsSync as existsSync28, openSync as openSync3, readdirSync as readdirSync16, readSync, statSync as statSync9 } from "node:fs";
+import { closeSync as closeSync3, existsSync as existsSync29, openSync as openSync3, readdirSync as readdirSync16, readSync, statSync as statSync9 } from "node:fs";
 import { basename as basename3, dirname as dirname13, isAbsolute as isAbsolute8, join as join28, resolve as resolve9 } from "node:path";
 function normalizeZipRef(ref, sessionWorkspace) {
   let s = ref.trim();
@@ -16414,7 +16414,7 @@ function resolveZipReference(ref, sessionWorkspace) {
   if (!ref.trim()) {
     return { ok: false, path, error: "\u6CA1\u6709\u7ED9\u51FA\u538B\u7F29\u5305", candidates: [] };
   }
-  if (existsSync28(path)) {
+  if (existsSync29(path)) {
     try {
       if (!statSync9(path).isFile()) {
         return { ok: false, path, error: `${path} \u4E0D\u662F\u6587\u4EF6`, candidates: [] };
@@ -16491,9 +16491,9 @@ function collectSyncFacts(input) {
   const root = input.researchRoot;
   const note = input.noteStore?.get(input.zip);
   const local = readLocalIdentity(root, input.identityStore);
-  const hasResearch = hasProjectDefinition(root) || existsSync28(join28(root, "research-state.md"));
+  const hasResearch = hasProjectDefinition(root) || existsSync29(join28(root, "research-state.md"));
   const status = syncStatusOf(judgeWorkspace({
-    exists: existsSync28(root),
+    exists: existsSync29(root),
     hasResearch,
     localWorkspaceId: local.workspaceId,
     remoteWorkspaceId: note?.remoteWorkspaceId ?? null
@@ -16575,7 +16575,7 @@ function buildSyncText(facts, rootPrefix) {
 
 // lib/codex/downloads.js
 import { createHash as createHash3, randomBytes as randomBytes3 } from "node:crypto";
-import { existsSync as existsSync29, statSync as statSync10, unlinkSync as unlinkSync3 } from "node:fs";
+import { existsSync as existsSync30, statSync as statSync10, unlinkSync as unlinkSync3 } from "node:fs";
 import { dirname as dirname14, join as join29, basename as basename4 } from "node:path";
 var active = (job) => ["running", "finalizing", "cancelling"].includes(job.state);
 var stamp = (file) => {
@@ -16594,7 +16594,7 @@ function createDownloadJobs(home) {
   const workers = /* @__PURE__ */ new Map();
   const fileOf = (scope) => join29(home, "download-jobs", `${createHash3("sha256").update(scope).digest("hex")}.json`);
   const cancellationFile = (scope, intent) => join29(home, "download-cancellations", `${createHash3("sha256").update(JSON.stringify([scope, intent])).digest("hex")}.json`);
-  const cancelledIntent = (scope, intent) => intent && existsSync29(cancellationFile(scope, intent)) ? {
+  const cancelledIntent = (scope, intent) => intent && existsSync30(cancellationFile(scope, intent)) ? {
     id: `cancelled-${createHash3("sha256").update(intent).digest("hex").slice(0, 32)}`,
     state: "cancelled",
     phase: "preparing",
@@ -16827,7 +16827,7 @@ function createCodexUiHost(options = {}) {
   const downloads = createDownloadJobs(home);
   const saved = readPrivateJson(path("workspaces.json"), []);
   if (Array.isArray(saved)) for (const row of saved) {
-    if (typeof row?.path === "string" && isAbsolute9(row.path) && existsSync30(row.path)) workspaces.set(row.id, row);
+    if (typeof row?.path === "string" && isAbsolute9(row.path) && existsSync31(row.path)) workspaces.set(row.id, row);
   }
   const store = createFileCustomizationStore(() => path("skill-customizations.json"));
   const syncNotes = createFileSyncNoteStore(() => path("sync-notes.json"));
@@ -21271,7 +21271,7 @@ function escapeSectionTitle(title) {
 }
 
 // lib/research/research-tools.js
-import { existsSync as existsSync36, mkdirSync as mkdirSync24, readFileSync as readFileSync30, readdirSync as readdirSync20, renameSync as renameSync7, statSync as statSync16, writeFileSync as writeFileSync23 } from "node:fs";
+import { existsSync as existsSync37, mkdirSync as mkdirSync25, readFileSync as readFileSync30, readdirSync as readdirSync20, renameSync as renameSync7, statSync as statSync16, writeFileSync as writeFileSync23 } from "node:fs";
 import { isAbsolute as isAbsolute11, join as join37 } from "node:path";
 
 // lib/research/state-sync.js
@@ -24189,7 +24189,7 @@ function renderEdgeLabel(text, pos, anchor) {
 }
 
 // lib/research/diagram/store.js
-import { existsSync as existsSync31, mkdirSync as mkdirSync22, readFileSync as readFileSync28, readdirSync as readdirSync18, statSync as statSync13, writeFileSync as writeFileSync21 } from "node:fs";
+import { existsSync as existsSync32, mkdirSync as mkdirSync23, readFileSync as readFileSync28, readdirSync as readdirSync18, statSync as statSync13, writeFileSync as writeFileSync21 } from "node:fs";
 import { join as join32 } from "node:path";
 var FIGURES_SUBDIR = "figures";
 var LAST_GOOD_SUBDIR = ".last-good";
@@ -24227,7 +24227,7 @@ function diagramPaths(ws, paperId, name) {
   };
 }
 function readDiagramIr(paths) {
-  if (!existsSync31(paths.irPath))
+  if (!existsSync32(paths.irPath))
     return { ok: false, error: `No diagram at ${paths.relIr}.` };
   try {
     const text = readFileSync28(paths.irPath, "utf8");
@@ -24237,27 +24237,27 @@ function readDiagramIr(paths) {
   }
 }
 function writeDiagramIr(paths, raw) {
-  if (!existsSync31(paths.dir))
-    mkdirSync22(paths.dir, { recursive: true });
+  if (!existsSync32(paths.dir))
+    mkdirSync23(paths.dir, { recursive: true });
   writeFileSync21(paths.irPath, `${JSON.stringify(raw, null, 2)}
 `, "utf8");
 }
 function writeDiagramSvg(paths, svg) {
-  if (!existsSync31(paths.dir))
-    mkdirSync22(paths.dir, { recursive: true });
+  if (!existsSync32(paths.dir))
+    mkdirSync23(paths.dir, { recursive: true });
   writeFileSync21(paths.svgPath, svg, "utf8");
 }
 function saveLastGood(paths, raw, svg) {
   const dir = join32(paths.dir, LAST_GOOD_SUBDIR);
-  if (!existsSync31(dir))
-    mkdirSync22(dir, { recursive: true });
+  if (!existsSync32(dir))
+    mkdirSync23(dir, { recursive: true });
   writeFileSync21(paths.lastGoodIrPath, `${JSON.stringify(raw, null, 2)}
 `, "utf8");
   writeFileSync21(paths.lastGoodSvgPath, svg, "utf8");
 }
 function listDiagramArtifacts(ws, paperId) {
   const dir = figuresDir(join32(ws, "papers", paperId));
-  if (!existsSync31(dir))
+  if (!existsSync32(dir))
     return [];
   const names = /* @__PURE__ */ new Set();
   for (const f of readdirSync18(dir)) {
@@ -24270,7 +24270,7 @@ function listDiagramArtifacts(ws, paperId) {
   const out = [];
   for (const name of [...names].sort()) {
     const stat = (p) => {
-      if (!existsSync31(p))
+      if (!existsSync32(p))
         return null;
       const s = statSync13(p);
       return { path: p.slice(p.indexOf(FIGURES_SUBDIR)), bytes: s.size, mtimeMs: s.mtimeMs };
@@ -24294,7 +24294,7 @@ function listDiagramArtifacts(ws, paperId) {
 
 // lib/research/diagram/export.js
 import { execFileSync } from "node:child_process";
-import { existsSync as existsSync32, statSync as statSync14 } from "node:fs";
+import { existsSync as existsSync33, statSync as statSync14 } from "node:fs";
 import { dirname as dirname16, join as join33 } from "node:path";
 import { fileURLToPath as fileURLToPath5 } from "node:url";
 var SVG2PDF_SCRIPT = join33("assets", "diagram", "svg2pdf.py");
@@ -24311,7 +24311,7 @@ function findSvg2PdfScript() {
     join33(process.cwd(), SVG2PDF_SCRIPT)
   ];
   for (const candidate of candidates) {
-    if (existsSync32(candidate))
+    if (existsSync33(candidate))
       return candidate;
   }
   return null;
@@ -24387,7 +24387,7 @@ function exportDiagramPdf(options) {
   if (script === null) {
     return { ok: false, error: `Bundled converter not found (expected ${SVG2PDF_SCRIPT}).`, ...base };
   }
-  if (!existsSync32(options.svgPath)) {
+  if (!existsSync33(options.svgPath)) {
     return { ok: false, error: `SVG not found: ${options.svgPath}. Render the diagram first.`, ...base };
   }
   const probe = findDiagramPython();
@@ -24411,7 +24411,7 @@ function exportDiagramPdf(options) {
   if (parsed.ok !== true) {
     return { ok: false, error: parsed.error ?? "converter reported failure", ...base };
   }
-  if (!existsSync32(options.pdfPath)) {
+  if (!existsSync33(options.pdfPath)) {
     return { ok: false, error: `converter reported success but ${options.pdfPath} does not exist.`, ...base };
   }
   const size = statSync14(options.pdfPath).size;
@@ -24547,7 +24547,7 @@ function formatDiagnostics(report, limit = 12) {
 
 // lib/research/schematic/index.js
 import { execFileSync as execFileSync2 } from "node:child_process";
-import { existsSync as existsSync33, statSync as statSync15 } from "node:fs";
+import { existsSync as existsSync34, statSync as statSync15 } from "node:fs";
 import { dirname as dirname17, join as join34 } from "node:path";
 import { fileURLToPath as fileURLToPath6 } from "node:url";
 var SCHEMATIC_SCRIPT = join34("assets", "figures_kit", "render_schematic.py");
@@ -24561,7 +24561,7 @@ function findSchematicScript() {
     join34(process.cwd(), SCHEMATIC_SCRIPT)
   ];
   for (const candidate of candidates) {
-    if (existsSync33(candidate))
+    if (existsSync34(candidate))
       return candidate;
   }
   return null;
@@ -25161,7 +25161,7 @@ function summarizeDelta(delta) {
 }
 
 // lib/research/ir/store.js
-import { existsSync as existsSync34, mkdirSync as mkdirSync23, readFileSync as readFileSync29, readdirSync as readdirSync19, writeFileSync as writeFileSync22 } from "node:fs";
+import { existsSync as existsSync35, mkdirSync as mkdirSync24, readFileSync as readFileSync29, readdirSync as readdirSync19, writeFileSync as writeFileSync22 } from "node:fs";
 import { join as join35 } from "node:path";
 var IR_DIR = `${RESEARCH_DIR}/ir`;
 var IR_HISTORY_DIR = `${IR_DIR}/.history`;
@@ -25244,8 +25244,8 @@ function listIRRevisions(workspace, id) {
 }
 function saveIR(workspace, ir) {
   const dir = join35(workspace, IR_DIR);
-  mkdirSync23(dir, { recursive: true });
-  mkdirSync23(join35(workspace, IR_HISTORY_DIR), { recursive: true });
+  mkdirSync24(dir, { recursive: true });
+  mkdirSync24(join35(workspace, IR_HISTORY_DIR), { recursive: true });
   const existing = ir.id ? readIR(workspace, ir.id) : void 0;
   const id = ir.id?.trim().toUpperCase() || nextIrId(workspace);
   if (!parseIrId(id))
@@ -25268,12 +25268,12 @@ function nextIrId(workspace) {
 }
 function writeState(workspace, state) {
   const dir = join35(workspace, IR_STATES_DIR);
-  mkdirSync23(dir, { recursive: true });
+  mkdirSync24(dir, { recursive: true });
   const norm2 = state.stateId.trim().toUpperCase();
   if (!parseStateId(norm2))
     return { error: `\u975E\u6CD5 State id\uFF1A${state.stateId}\uFF08\u5E94\u4E3A S001 \u5F62\u5F0F\uFF09` };
   const file = stateFile(workspace, norm2);
-  if (existsSync34(file))
+  if (existsSync35(file))
     return { error: `State \`${norm2}\` \u5DF2\u5B58\u5728\uFF08\u72B6\u6001\u4E0D\u53EF\u8986\u76D6\uFF09\u3002` };
   writeFileSync22(file, `${JSON.stringify({ ...state, stateId: norm2 }, null, 2)}
 `, "utf8");
@@ -25296,7 +25296,7 @@ function nextStateId(workspace) {
 }
 function appendTrace(workspace, entry) {
   const dir = join35(workspace, IR_DIR);
-  mkdirSync23(dir, { recursive: true });
+  mkdirSync24(dir, { recursive: true });
   writeFileSync22(join35(workspace, IR_TRACE_FILE), `${JSON.stringify(entry)}
 `, { encoding: "utf8", flag: "a" });
 }
@@ -25315,7 +25315,7 @@ function readTrace(workspace) {
 }
 
 // lib/research/ir/transition.js
-import { existsSync as existsSync35 } from "node:fs";
+import { existsSync as existsSync36 } from "node:fs";
 import { isAbsolute as isAbsolute10, join as join36 } from "node:path";
 function err2(code, field, message, repair) {
   return { code, layer: "transition", field, message, repair };
@@ -25357,7 +25357,7 @@ function validateTransition(workspace, input) {
     }
     if (artifact) {
       const abs = isAbsolute10(artifact) ? artifact : join36(workspace, artifact);
-      if (!existsSync35(abs)) {
+      if (!existsSync36(abs)) {
         errors.push(err2("R203", `plan.steps.${step.id}`, `Recorded artifact "${artifact}" does not exist on disk.`, "fix_artifact_path"));
       }
     }
@@ -26900,7 +26900,7 @@ ${e.path ?? ""}${e.downloadedFrom ? `
       const texPath = join37(latexDir, MAIN_TEX);
       try {
         if (action === "status") {
-          if (!existsSync36(latexDir)) {
+          if (!existsSync37(latexDir)) {
             return losslessJson({
               ok: true,
               action: "status",
@@ -26916,15 +26916,15 @@ ${e.path ?? ""}${e.downloadedFrom ? `
         }
         if (action === "compose") {
           const mdPath = join37(paperDir2, "paper.md");
-          if (!existsSync36(mdPath))
+          if (!existsSync37(mdPath))
             return fail2(`\u8BBA\u6587\u6B63\u6587\u4E0D\u5B58\u5728\uFF1Apapers/${paperId}/paper.md`);
           const source = readFileSync30(mdPath, "utf8");
           const template = normalizeTemplate(typeof a.template === "string" ? a.template : void 0);
           const input = buildComposeInput(source, template, readPaperMeta(paperDir2));
           const result = composeDocument(input);
-          if (!existsSync36(latexDir))
-            mkdirSync24(latexDir, { recursive: true });
-          if (existsSync36(texPath)) {
+          if (!existsSync37(latexDir))
+            mkdirSync25(latexDir, { recursive: true });
+          if (existsSync37(texPath)) {
             const force = a.force === true || process.env.CONVFUSION_LATEX_COMPOSE_FORCE === "1";
             if (!force) {
               const lost = detectComposeLoss(readFileSync30(texPath, "utf8"), result.latex);
@@ -26934,7 +26934,7 @@ ${e.path ?? ""}${e.downloadedFrom ? `
             }
           }
           let backup;
-          if (existsSync36(texPath)) {
+          if (existsSync37(texPath)) {
             const ts = (/* @__PURE__ */ new Date()).toISOString().replace(/[-:T]/g, "").slice(0, 15);
             const bak = join37(latexDir, `main_bak_${ts}.tex`);
             renameSync7(texPath, bak);
@@ -26954,11 +26954,11 @@ ${e.path ?? ""}${e.downloadedFrom ? `
           });
         }
         if (action === "compile") {
-          if (!existsSync36(texPath))
+          if (!existsSync37(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
           const cacheDir = join37(ws, "harness", ".tectonic-cache");
-          if (!existsSync36(cacheDir))
-            mkdirSync24(cacheDir, { recursive: true });
+          if (!existsSync37(cacheDir))
+            mkdirSync25(cacheDir, { recursive: true });
           const res = compileLatex(texPath, { cacheDir });
           return losslessJson({
             ok: true,
@@ -26971,10 +26971,10 @@ ${e.path ?? ""}${e.downloadedFrom ? `
           });
         }
         if (action === "errors") {
-          if (!existsSync36(texPath))
+          if (!existsSync37(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
           const logPath = join37(latexDir, "main.log");
-          if (!existsSync36(logPath))
+          if (!existsSync37(logPath))
             return fail2("\u5C1A\u65E0 main.log \u2014\u2014 \u5148\u6267\u884C compile\u3002");
           const errors = parseCompileErrors(readFileSync30(logPath, "utf8"));
           const max = typeof a.maxErrors === "number" ? Math.max(1, Math.floor(a.maxErrors)) : 15;
@@ -26987,10 +26987,10 @@ ${e.path ?? ""}${e.downloadedFrom ? `
           return losslessJson({ ok: true, action: "errors", errors: enriched });
         }
         if (action === "repair") {
-          if (!existsSync36(texPath))
+          if (!existsSync37(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
           const logPath = join37(latexDir, "main.log");
-          if (!existsSync36(logPath))
+          if (!existsSync37(logPath))
             return fail2("\u5C1A\u65E0 main.log \u2014\u2014 \u5148\u6267\u884C compile\uFF0C\u518D repair\u3002");
           const errors = parseCompileErrors(readFileSync30(logPath, "utf8"));
           const tex = readFileSync30(texPath, "utf8");
@@ -27006,7 +27006,7 @@ ${e.path ?? ""}${e.downloadedFrom ? `
           });
         }
         if (action === "validate") {
-          if (!existsSync36(texPath))
+          if (!existsSync37(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
           const scan = scanUnsafeTokens(readFileSync30(texPath, "utf8"));
           return losslessJson({
@@ -27150,7 +27150,7 @@ ${JSON.stringify(v.ir ?? null, null, 2)}` }];
           return losslessJson({ ok: true, action, irPath: paths.relIr, ir: read.raw });
         }
         if (action === "export") {
-          if (!existsSync36(paths.svgPath)) {
+          if (!existsSync37(paths.svgPath)) {
             return fail2(`No rendered figure at ${paths.relSvg} \u2014 run \`render\` first (and fix any validation errors).`);
           }
           const columnWidthPt = typeof a.column_width_pt === "number" && a.column_width_pt > 0 ? a.column_width_pt : COLUMN_WIDTH_PT;
@@ -27226,7 +27226,7 @@ ${JSON.stringify(v.ir ?? null, null, 2)}` }];
           writeDiagramSvg(paths, build.svg);
           saveLastGood(paths, canonical, build.svg);
           svgWritten = true;
-        } else if (existsSync36(paths.svgPath)) {
+        } else if (existsSync37(paths.svgPath)) {
           const st = statSync16(paths.svgPath);
           keptPrevious = `${paths.relSvg} (from ${st.mtime.toISOString()})`;
         }
@@ -27622,7 +27622,7 @@ recorded \u2192 ${v.path ?? ""}` : "";
           if (a.plan !== void 0) {
             planPath = String(a.plan);
             const full = isAbsolute11(planPath) ? planPath : join37(workspace, planPath);
-            if (!existsSync36(full)) {
+            if (!existsSync37(full)) {
               return fail2(`Plan not found: ${planPath}`, { workspace });
             }
             fromPlan = readFileSync30(full, "utf8");
@@ -28049,7 +28049,7 @@ function parseBibEntries(text) {
 }
 function readPaperMeta(paperDir2) {
   const p = join37(paperDir2, PAPER_FILES.metadata);
-  if (!existsSync36(p))
+  if (!existsSync37(p))
     return {};
   const fm = parseFrontmatter(readFileSync30(p, "utf8"));
   const keywords = (fm.keywords ?? "").split(/[;,]/).map((s) => s.trim()).filter(Boolean);
@@ -28087,7 +28087,7 @@ function buildComposeInput(source, template, meta = {}) {
 
 // lib/research/decision-assist.js
 import { createHash as createHash5 } from "node:crypto";
-import { existsSync as existsSync37 } from "node:fs";
+import { existsSync as existsSync38 } from "node:fs";
 import { join as join38 } from "node:path";
 var DECISION_TYPES2 = [
   "C1_next_action_selection",
@@ -28124,7 +28124,7 @@ function decisionState(workspace) {
       history: list("history", d.Decisions)
     },
     truncated_fields: truncated,
-    sources: ["project.md", "research-state.md"].filter((file) => existsSync37(join38(workspace, file))),
+    sources: ["project.md", "research-state.md"].filter((file) => existsSync38(join38(workspace, file))),
     state_version: state?.version ?? null
   };
 }
