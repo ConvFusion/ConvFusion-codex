@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { App } from '@modelcontextprotocol/ext-apps'
 import { CommunityTab, ConvFusionProjectSettings, copyText, type SettingsSend } from './settings.js'
 import { ResearchProgressPanel } from './progress-panel.js'
+import { WorkbenchSettings, type WorkbenchLanguage } from './workbench-settings.js'
 import { dictionaries, type Translate } from './i18n/index.js'
 import logo from '../../assets/favicon.svg'
 
@@ -32,8 +33,8 @@ const transport: SettingsSend = async (endpoint, payload, signal) => {
 }
 function Workbench({ initial }: { initial: Session }): JSX.Element {
   const current = initial
-  const [tab, setTab] = React.useState<'community' | 'progress' | 'methods'>(current.initialTab ?? 'community')
-  const [language, setLanguage] = React.useState<'zh' | 'en'>('zh')
+  const [tab, setTab] = React.useState<'community' | 'progress' | 'methods' | 'settings'>(current.initialTab ?? 'community')
+  const [language, setLanguage] = React.useState<WorkbenchLanguage>('zh')
   const [syncDraft, setSyncDraft] = React.useState<string | null>(null)
   const [sending, setSending] = React.useState(false)
   const [sendError, setSendError] = React.useState('')
@@ -47,6 +48,7 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
     return template.replace(/\{(\w+)\}/g, (match, name: string) => params && name in params ? String(params[name]) : match)
   }, [language])
   const zh = language === 'zh'
+  React.useEffect(() => { document.documentElement.lang = zh ? 'zh-CN' : 'en' }, [zh])
   const bridge = {
     sessionId: current.sessionId ?? '', draftEmpty: false, downloadTasks: current.downloadTasks === true,
     syncCommand: (zip: string) => `$convfusion-research 同步研究资料 ${JSON.stringify(zip)}`,
@@ -64,17 +66,18 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
   }
   return <>
     <header className="header"><img src={logo} alt="" /><div><h1>ConvFusion</h1><small>{current.title} · {current.version}</small></div>
-      <select aria-label="Language" value={language} onChange={(e) => setLanguage(e.target.value as 'zh' | 'en')}><option value="zh">简体中文</option><option value="en">English</option></select>
     </header>
-    <nav aria-label={zh ? '功能' : 'Features'}>
+    <nav className="workbench-nav" aria-label={zh ? '功能' : 'Features'}>
       <button aria-current={tab === 'community' ? 'page' : undefined} onClick={() => setTab('community')}>{zh ? '研究网络' : 'Research network'}</button>
       <button aria-current={tab === 'progress' ? 'page' : undefined} onClick={() => setTab('progress')}>{zh ? '研究进展' : 'Research progress'}</button>
       <button aria-current={tab === 'methods' ? 'page' : undefined} onClick={() => setTab('methods')}>{zh ? '研究方法' : 'Research methods'}</button>
+      <button aria-current={tab === 'settings' ? 'page' : undefined} onClick={() => setTab('settings')}>{t('workbench.settings.title')}</button>
     </nav>
     <main key={current.workspaceRoot ?? 'global'}>
-      {tab === 'community' && <CommunityTab send={transport} initial={null} t={t} session={bridge} />}
-      {tab === 'progress' && <><ContinuationSettings zh={zh} />{current.sessionId ? <ResearchProgressPanel sessionId={current.sessionId} t={t} send={transport} /> : <p role="status">{zh ? '在项目聊天中 @ 使用 ConvFusion 并打开工作台，即可查看该项目的研究进展。' : 'Use @ to invoke ConvFusion in a project chat and open the workbench to view its research progress.'}</p>}</>}
-      {tab === 'methods' && <><MethodsExport zh={zh} enabled={Boolean(current.workspaceRoot)} /><ConvFusionProjectSettings send={transport} t={t} session={bridge} showCommunityTab={false} /></>}
+      {tab === 'community' && <CommunityTab send={transport} initial={null} t={t} session={bridge} view="network" />}
+      {tab === 'progress' && (current.sessionId ? <ResearchProgressPanel sessionId={current.sessionId} t={t} send={transport} /> : <p role="status">{zh ? '在项目聊天中 @ 使用 ConvFusion 并打开工作台，即可查看该项目的研究进展。' : 'Use @ to invoke ConvFusion in a project chat and open the workbench to view its research progress.'}</p>)}
+      {tab === 'methods' && <><MethodsExport zh={zh} enabled={Boolean(current.workspaceRoot)} /><ConvFusionProjectSettings send={transport} t={t} session={bridge} view="methods" /></>}
+      {tab === 'settings' && <WorkbenchSettings send={transport} t={t} language={language} onLanguageChange={setLanguage} />}
     </main>
     {syncDraft !== null && <dialog ref={(node) => { if (node && !node.open) node.showModal() }} onCancel={() => setSyncDraft(null)} aria-label={zh ? '同步请求' : 'Sync request'} className="sync-request">
       <h2>{zh ? '同步请求' : 'Sync request'}</h2>
@@ -86,26 +89,6 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
       {sendError && <p role="alert">{sendError}</p>}
     </dialog>}
   </>
-}
-
-function ContinuationSettings({ zh }: { zh: boolean }): JSX.Element {
-  const [policy, setPolicy] = React.useState<{ enabled: boolean; maxRounds: number } | null>(null)
-  const [error, setError] = React.useState('')
-  React.useEffect(() => { void transport('codex/continuation', {}).then((res) => {
-    if (res.ok) setPolicy(res.value as typeof policy)
-  }).catch((err) => setError(String(err.message))) }, [])
-  const save = async (field: string, value: boolean | number) => {
-    try {
-      const result = await transport('codex/settings', { field, value })
-      if (!result.ok) throw new Error(result.error?.message ?? 'Save failed')
-      setPolicy((old) => old && { ...old, [field === 'autoContinue' ? 'enabled' : 'maxRounds']: value }); setError('')
-    } catch (err) { setError(err instanceof Error ? err.message : String(err)) }
-  }
-  return <section className="runtime-settings">
-    <label><input type="checkbox" disabled={!policy} checked={policy?.enabled ?? false} onChange={(e) => { void save('autoContinue', e.target.checked) }} />{zh ? '方向明确时自动推进' : 'Continue automatically when the next step is clear'}</label>
-    <label>{zh ? '连续推进上限' : 'Continuation limit'} <input aria-label={zh ? '连续推进上限' : 'Continuation limit'} type="number" min={0} max={100} value={policy?.maxRounds ?? 3} disabled={!policy} onChange={(e) => { const value = Number(e.target.value); if (Number.isInteger(value) && value >= 0 && value <= 100) void save('autoContinueMaxRounds', value) }} /></label>
-    {error && <p role="alert">{error}</p>}
-  </section>
 }
 
 function MethodsExport({ zh, enabled }: { zh: boolean; enabled: boolean }): JSX.Element {
@@ -120,7 +103,7 @@ function MethodsExport({ zh, enabled }: { zh: boolean; enabled: boolean }): JSX.
     } catch (error) { setMessage(error instanceof Error ? error.message : String(error)) }
     finally { setBusy(false) }
   }
-  return <section className="runtime-settings">
+  return <section className="method-actions">
     <button disabled={!enabled || busy} onClick={() => { void run(false) }}>{zh ? '导出研究方法' : 'Export methods'}</button>
     <button disabled={!enabled || busy} onClick={() => { void run(true) }}>{zh ? '导出完整正文' : 'Export full text'}</button>
     {message && <p role="status">{message}</p>}

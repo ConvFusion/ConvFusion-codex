@@ -2,6 +2,20 @@ import type { en } from './en.js'
 
 /** Simplified Chinese dictionary; the type rejects missing and extra keys. */
 export const zh = {
+  'workbench.settings.title': '设置',
+  'workbench.settings.categories': '设置分类',
+  'workbench.settings.category.user': '用户设置',
+  'workbench.settings.category.server': '服务器设置',
+  'workbench.settings.category.research': '研究行为',
+  'workbench.settings.category.system': '系统设置',
+  'workbench.settings.language': '界面语言',
+  'workbench.settings.notificationsSignIn': '登录 ConvFusion.com 后即可管理邮件通知。',
+  'workbench.settings.decision': '决策辅助',
+  'workbench.settings.continuation': '自动推进',
+  'workbench.settings.autoContinue': '方向明确时自动推进',
+  'workbench.settings.continuationLimit': '连续推进上限',
+  'workbench.account.expand': '展开账号信息',
+  'workbench.account.collapse': '收起账号信息',
   'community.emailNotifications.title': '邮件通知',
   'community.emailNotifications.researchUpdates': '指导关系中的研究内容更新',
   'community.emailNotifications.newWork': '广场新发布的待指导工作',

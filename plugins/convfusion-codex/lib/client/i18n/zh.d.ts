@@ -1,5 +1,19 @@
 /** Simplified Chinese dictionary; the type rejects missing and extra keys. */
 export declare const zh: {
+    'workbench.settings.title': string;
+    'workbench.settings.categories': string;
+    'workbench.settings.category.user': string;
+    'workbench.settings.category.server': string;
+    'workbench.settings.category.research': string;
+    'workbench.settings.category.system': string;
+    'workbench.settings.language': string;
+    'workbench.settings.notificationsSignIn': string;
+    'workbench.settings.decision': string;
+    'workbench.settings.continuation': string;
+    'workbench.settings.autoContinue': string;
+    'workbench.settings.continuationLimit': string;
+    'workbench.account.expand': string;
+    'workbench.account.collapse': string;
     'community.emailNotifications.title': string;
     'community.emailNotifications.researchUpdates': string;
     'community.emailNotifications.newWork': string;

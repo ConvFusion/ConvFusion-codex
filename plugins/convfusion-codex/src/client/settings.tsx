@@ -136,6 +136,8 @@ export interface ConvFusionSettingsProps {
   send?: SettingsSend | undefined
   /** 宿主已有独立研究网络入口时，省略设置页内的同一入口。 */
   showCommunityTab?: boolean | undefined
+  /** 由工作台导航分别承载研究方法和系统设置。 */
+  view?: 'methods' | 'system' | undefined
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -946,11 +948,13 @@ export function ConvFusionProjectSettings({
   t,
   send = fetchSettingsSend,
   showCommunityTab = true,
+  view,
 }: ConvFusionSettingsProps): JSX.Element {
   const [state, setState] = React.useState<HostState | null>(null)
   const [error, setError] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [tab, setTab] = React.useState<SettingsTab>('local')
+  const activeTab = view === 'system' ? 'retrieval' : view === 'methods' ? 'local' : tab
   const [staleHost, setStaleHost] = React.useState(false)
   /** GitHub 最新版本（`version/check` 的结果；null = 无更新 / 检查不可用）。 */
   const [update, setUpdate] = React.useState<{ latest: string; url: string } | null>(null)
@@ -1095,6 +1099,7 @@ export function ConvFusionProjectSettings({
    * 绝不打扰：这条请求失败不会让设置页有任何报错。
    */
   React.useEffect(() => {
+    if (view === 'system') return
     let alive = true
     void (async () => {
       try {
@@ -1111,7 +1116,7 @@ export function ConvFusionProjectSettings({
     return () => {
       alive = false
     }
-  }, [send])
+  }, [send, view])
 
   /**
    * 重新探测本地外部依赖（【系统设置】的"重新检查"）。
@@ -1212,7 +1217,7 @@ export function ConvFusionProjectSettings({
   return (
     <div style={S.page}>
       {/* ── Hero ─────────────────────────────────────────────────── */}
-      <div style={S.hero}>
+      {view !== 'system' ? <div style={S.hero}>
         <div style={{ flex: '1 1 auto', minWidth: 0 }}>
           <div style={S.heroSub}>{t('settings.hero.subtitle')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -1241,10 +1246,10 @@ export function ConvFusionProjectSettings({
             <Badge tone="neutral">{t('settings.badge.systemDefaults')}</Badge>
           )}
         </div>
-      </div>
+      </div> : null}
 
       {/* ── Tabs ─────────────────────────────────────────────────── */}
-      <div style={S.tabs}>
+      {!view && <div style={S.tabs}>
         <TabButton active={tab === 'local'} onClick={() => setTab('local')}>
           ⚙ {t('settings.tab.local')}
         </TabButton>
@@ -1257,7 +1262,7 @@ export function ConvFusionProjectSettings({
             <span style={{ ...S.hint, marginLeft: 6 }}>{t('settings.status.needsConfiguration')}</span>
           ) : null}
         </TabButton>
-      </div>
+      </div>}
 
       {staleHost ? (
         <div style={S.card}>
@@ -1312,12 +1317,12 @@ export function ConvFusionProjectSettings({
       ) : null}
 
       {/* ── Tab 2：ConvFusion.com（账号 + 服务器 + 研究工作）──────── */}
-      {showCommunityTab && tab === 'community' ? (
+      {showCommunityTab && activeTab === 'community' ? (
         <CommunityTab session={session} send={send} initial={state?.account ?? null} t={t} />
       ) : null}
 
       {/* ── Tab 3：系统设置（OpenAlex 凭据 + 本地依赖检查）──────────── */}
-      {tab === 'retrieval' ? (
+      {activeTab === 'retrieval' && (!view || state) ? (
         <SystemTab
           retrieval={state?.retrieval ?? { configured: false, source: 'none', envVar: 'OPENALEX_API_KEY' }}
           tectonic={state?.dependencies?.tectonic ?? null}
@@ -1328,7 +1333,7 @@ export function ConvFusionProjectSettings({
         />
       ) : null}
 
-      {state && tab === 'local' ? (
+      {state && activeTab === 'local' ? (
         <>
           {/* ── 选择区（能力类别 → 能力 → 章节）──────────────────── */}
           <div style={S.card}>
@@ -5355,6 +5360,23 @@ interface HostEmailNotificationPreferences {
   email_new_work: boolean
 }
 
+export function DecisionAssistControl({ checked, disabled, onChange, t }: {
+  checked: boolean
+  disabled: boolean
+  onChange: (enabled: boolean) => void
+  t: Translate
+}): JSX.Element {
+  return (
+    <label style={{ ...S.inlineRow, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange(event.currentTarget.checked)} />
+      <span>
+        <span style={S.label}>{t('community.decisionAssist.title')}</span>
+        <span style={{ ...S.hint, display: 'block' }}>{t('community.decisionAssist.description')}</span>
+      </span>
+    </label>
+  )
+}
+
 function EmailNotificationSettings({ accountId, canMentor, post, t }: {
   accountId: string
   canMentor: boolean
@@ -5474,10 +5496,12 @@ export function CommunityTab({
   initial,
   t,
   session,
+  view,
 }: {
   send: SettingsSend
   initial: HostAccountState | null
   t: Translate
+  view?: 'network' | 'user-settings' | 'server-settings'
   /**
    * 会话桥（会话内才有）。
    *
@@ -5486,6 +5510,7 @@ export function CommunityTab({
    */
   session?: SessionBridge | undefined
 }): JSX.Element {
+  const showResearch = !view || view === 'network'
   const [state, setState] = React.useState<HostAccountState | null>(initial)
   const [phase, setPhase] = React.useState<'loading' | 'ready'>('loading')
   const [busy, setBusy] = React.useState(false)
@@ -5899,7 +5924,7 @@ export function CommunityTab({
         const current = res.value as HostAccountState
         setState(current)
         // 有凭据就实打实验一次 —— 界面上的"已登录"必须是服务器此刻承认的
-        if (current.keyConfigured) await call('account/verify', {})
+        if (current.keyConfigured && view !== 'server-settings') await call('account/verify', {})
       } catch (e) {
         if (!alive) return
         setFailure({
@@ -5915,7 +5940,7 @@ export function CommunityTab({
     return () => {
       alive = false
     }
-  }, [send, call])
+  }, [send, call, view])
 
   const account = state?.account ?? null
   const configured = state?.keyConfigured ?? false
@@ -6680,6 +6705,7 @@ export function CommunityTab({
    * 依赖里放**生效地址**：宿主一旦把归一后的新地址写回来，这里就重读。
    */
   React.useEffect(() => {
+    if (!showResearch) return
     if (!activeServer) {
       setMine(null)
       setMineRegistry(null)
@@ -6703,7 +6729,7 @@ export function CommunityTab({
     }
     // 【我的】不依赖登录（本机项目 + 服务器给的"已在网络中"），所以不按 configured 拦
     void loadMine()
-  }, [activeServer, account?.id, loadMine])
+  }, [showResearch, activeServer, account?.id, loadMine])
 
   /**
    * 【指导中】：服务器上的指导提案。
@@ -6712,6 +6738,7 @@ export function CommunityTab({
    * 数据"。也不调 `loadProposals`（它会因为 not-configured 报错，把"没登录"渲染成故障）。
    */
   React.useEffect(() => {
+    if (!showResearch) return
     if (!activeServer || !configured) {
       setProposals(null)
       setProposalsError(null)
@@ -6727,7 +6754,7 @@ export function CommunityTab({
       return
     }
     void loadProposals()
-  }, [activeServer, account?.id, configured, loadProposals])
+  }, [showResearch, activeServer, account?.id, configured, loadProposals])
 
   /**
    * 点【寻找指导】/【寻找学生】/【更新…】：**先取上传计划**，再决定是直接更新还是弹对话框。
@@ -6893,6 +6920,7 @@ export function CommunityTab({
   }
 
   React.useEffect(() => {
+    if (!showResearch) return
     /*
      * ⚠️ 依赖里有**生效地址**：换服务器后两个列表都必须重读，否则显示的是上一台的。
      * 未登录 / 没换到新地址时清空（不能把上一台的条目当成本机的）。
@@ -6928,7 +6956,7 @@ export function CommunityTab({
     }
     if (hitMentor === undefined) void loadWorks('SEEK_MENTOR')
     if (hitJoin === undefined) void loadWorks('SEEK_STUDENT')
-  }, [account?.id, activeServer, loadWorks])
+  }, [showResearch, account?.id, activeServer, loadWorks])
 
   /** 展开 / 收起一项研究工作的摘要（免费）。 */
   const toggleSummary = async (w: HostWork): Promise<void> => {
@@ -7201,9 +7229,9 @@ export function CommunityTab({
 
   /** 展开且已登录才去读用量（折叠着不联网）。 */
   React.useEffect(() => {
-    if (!userOpen || !account) return
+    if (!showResearch || !userOpen || !account) return
     void loadUsage()
-  }, [userOpen, account?.id, activeServer, loadUsage])
+  }, [showResearch, userOpen, account?.id, activeServer, loadUsage])
 
   /**
    * 单独刷新 Token 余额。
@@ -7364,6 +7392,151 @@ export function CommunityTab({
   /** "还在读"与"读不到"要分开：前者给 `…`（马上就有），后者给 `—`（真的没有）。 */
   const pendingMark = usagePhase === 'loading' ? '…' : '—'
 
+  const serverSettings = (
+    <>
+      <div style={S.inlineRow}>
+        <span style={S.label}>{t('community.server.address')}</span>
+        <input
+          style={S.compactInput}
+          type="text"
+          spellCheck={false}
+          autoComplete="off"
+          value={serverDraft}
+          aria-label={t('community.server.address')}
+          placeholder={state?.defaultServerUrl ?? ''}
+          // 输入约定与归一规则收进悬浮提示：需要时能看到，平时不占版面
+          title={t('community.server.title', { url: state?.defaultServerUrl ?? '' })}
+          onChange={(e) => setServerDraft(e.target.value)}
+        />
+        {/*
+         * 快捷切换：本机（开发）↔ 线上（互联网）。**图标式**——地址框要占掉大半行，
+         * 两个文字按钮会把这一行挤成两行；`title` 里带完整地址，悬停即知会填什么。
+         * 旧宿主不返回 `serverPresets` → 整组不显示（不做假的）。
+         */}
+        {state?.serverPresets ? (
+          <>
+            <ServerPresetButton
+              t={t}
+              icon={<DevServerGlyph />}
+              label={t('community.server.presetDev')}
+              url={state.serverPresets.development}
+              result={serverProbes.development ?? { state: 'idle', reason: null }}
+              active={activeServerUrl === stripSlash(state.serverPresets.development)}
+              onPick={(url) => void pickServerPreset('development', url)}
+            />
+            <ServerPresetButton
+              t={t}
+              icon={<InternetGlyph />}
+              label={t('community.server.presetProd')}
+              url={state.serverPresets.production}
+              result={serverProbes.production ?? { state: 'idle', reason: null }}
+              active={activeServerUrl === stripSlash(state.serverPresets.production)}
+              onPick={(url) => void pickServerPreset('production', url)}
+            />
+          </>
+        ) : null}
+        {/*
+         * 邀请码：在浏览器打开服务器首页（申请邀请码）。图标式，与两个快捷按钮
+         * 同一规格；`title` 带上完整地址，悬停即知会打开什么。旧宿主没有
+         * `serverPresets` 时它**照常显示** —— 打开首页不依赖那两份预设地址。
+         */}
+        <button
+          type="button"
+          style={{ ...S.iconBtn, flex: '0 0 auto' }}
+          title={`${t('community.server.inviteCode')} · ${t('community.action.applyInviteTip')} · ${serverUrl}`}
+          aria-label={t('community.server.inviteCode')}
+          onClick={openServerHome}
+        >
+          <InviteCodeGlyph />
+        </button>
+      </div>
+      {/* 地址**还没保存**时才出现这一行：说清后果 + 一个明确的保存动作 */}
+      {serverChanged ? (
+        <div style={S.inlineRow}>
+          <Badge tone="warn">{t('community.badge.addressChanged')}</Badge>
+          <span style={{ ...S.hint, flex: '1 1 auto' }}>{t('community.hint.addressChanged')}</span>
+          <button
+            type="button"
+            style={{ ...S.primaryBtn, flex: '0 0 auto', opacity: busy ? 0.55 : 1 }}
+            disabled={busy}
+            onClick={() => void saveServerAddress()}
+          >
+            {busy ? t('community.action.saving') : t('community.action.saveAddress')}
+          </button>
+        </div>
+      ) : null}
+      {state?.serverUrlMismatch ? (
+        <div style={{ fontSize: 11.5, lineHeight: 1.6, color: 'var(--dsw-alias-state-warn-primary)' }}>
+          {state.environment === 'production'
+            ? t('community.hint.mismatchProduction')
+            : t('community.hint.mismatchDevelopment')}
+        </div>
+      ) : null}
+    </>
+  )
+  const accountFailure = failure ? (
+    <div style={S.inlineRow}>
+      <Badge tone="error">{failure.code}</Badge>
+      <span
+        style={{
+          color: 'var(--dsw-alias-state-error-primary)',
+          fontSize: 12,
+          lineHeight: 1.6,
+          flex: '1 1 320px',
+          minWidth: 0,
+        }}
+      >
+        {failure.message}
+      </span>
+      {configured ? (
+        <button
+          type="button"
+          style={{ ...S.ghostBtn, opacity: busy ? 0.55 : 1 }}
+          disabled={busy}
+          onClick={() => void verify()}
+        >
+          {t('community.action.retryVerify')}
+        </button>
+      ) : null}
+    </div>
+  ) : null
+  const emailNotifications = account ? (
+    <EmailNotificationSettings
+      key={accountScope}
+      accountId={account.id}
+      canMentor={canMentor}
+      post={post}
+      t={t}
+    />
+  ) : null
+
+  if (view === 'server-settings') {
+    return (
+      <div style={S.card}>
+        <div style={S.cardBody}>
+          {phase === 'loading' ? <div role="status" style={S.hint}>{t('community.badge.checking')}</div> : serverSettings}
+          {accountFailure}
+        </div>
+      </div>
+    )
+  }
+
+  if (view === 'user-settings') {
+    return (
+      <div style={S.card}>
+        <div style={S.cardBody}>
+          {phase === 'loading' ? <div role="status" style={S.hint}>{t('community.badge.checking')}</div> : emailNotifications ?? (
+            <>
+              <div style={S.label}>{t('community.emailNotifications.title')}</div>
+              <div style={S.hint}>{t('workbench.settings.notificationsSignIn')}</div>
+            </>
+          )}
+          {accountFailure}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       {/* ══ 用户信息区（内部 Tabs：账号 / 服务器设置）══════════════════════ */}
@@ -7381,7 +7554,9 @@ export function CommunityTab({
           tabIndex={0}
           aria-expanded={userOpen}
           style={{ ...S.cardHead, cursor: 'pointer' }}
-          title={userOpen ? t('community.tip.collapse') : t('community.tip.expand')}
+          title={view === 'network'
+            ? t(userOpen ? 'workbench.account.collapse' : 'workbench.account.expand')
+            : t(userOpen ? 'community.tip.collapse' : 'community.tip.expand')}
           onClick={() => setUserOpen((v) => !v)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -7446,22 +7621,21 @@ export function CommunityTab({
              */}
 
             {/* 内部 Tab：两个小标签，切换"账号"与"服务器设置" */}
-            <div style={S.miniTabs}>
+            {!view && <div style={S.miniTabs}>
               <MiniTab active={userTab === 'account'} onClick={() => setUserTab('account')}>
                 {account ? t('community.tab.account') : t('community.tab.signIn')}
               </MiniTab>
               <MiniTab active={userTab === 'server'} onClick={() => setUserTab('server')}>
 
                 {t('community.tab.server')}</MiniTab>
-            </div>
+            </div>}
 
-            <label style={{ ...S.inlineRow, alignItems: 'flex-start' }}>
-              <input
-                type="checkbox"
+            {!view && (
+              <DecisionAssistControl
                 checked={state?.decisionAssistEnabled !== false}
                 disabled={busy || phase === 'loading'}
-                onChange={(event) => {
-                  const enabled = event.currentTarget.checked
+                t={t}
+                onChange={(enabled) => {
                   setBusy(true)
                   void post('account/decision-assist', { enabled }).then((res) => {
                     if (res.ok) {
@@ -7472,13 +7646,9 @@ export function CommunityTab({
                   }).finally(() => setBusy(false))
                 }}
               />
-              <span>
-                <span style={S.label}>{t('community.decisionAssist.title')}</span>
-                <span style={{ ...S.hint, display: 'block' }}>{t('community.decisionAssist.description')}</span>
-              </span>
-            </label>
+            )}
 
-            {userTab === 'account' ? (
+            {view === 'network' || userTab === 'account' ? (
               account ? (
                 /* 已登录：一行账号 + 右侧操作，没有多余说明文字 */
                 /*
@@ -7559,13 +7729,7 @@ export function CommunityTab({
                   </button>
                 </div>
 
-                <EmailNotificationSettings
-                  key={JSON.stringify([state?.serverUrl, account.id])}
-                  accountId={account.id}
-                  canMentor={canMentor}
-                  post={post}
-                  t={t}
-                />
+                {!view && emailNotifications}
 
                 {/*
                  * 仪表板：三块小图（Token / 存储 / 项目）—— 一屏回答"我还剩多少、
@@ -7746,116 +7910,9 @@ export function CommunityTab({
                   ) : null}
                 </>
               )
-            ) : (
-              /* 服务器设置：地址来自环境配置（开发 = 本机服务器，生产 = 线上） */
-              <>
-                <div style={S.inlineRow}>
-                  <span style={S.label}>{t('community.server.address')}</span>
-                  <input
-                    style={S.compactInput}
-                    type="text"
-                    spellCheck={false}
-                    autoComplete="off"
-                    value={serverDraft}
-                    placeholder={state?.defaultServerUrl ?? ''}
-                    // 输入约定与归一规则收进悬浮提示：需要时能看到，平时不占版面
-                    title={t('community.server.title', { url: state?.defaultServerUrl ?? '' })}
-                    onChange={(e) => setServerDraft(e.target.value)}
-                  />
-                  {/*
-                   * 快捷切换：本机（开发）↔ 线上（互联网）。**图标式**——地址框要占掉大半行，
-                   * 两个文字按钮会把这一行挤成两行；`title` 里带完整地址，悬停即知会填什么。
-                   * 旧宿主不返回 `serverPresets` → 整组不显示（不做假的）。
-                   */}
-                  {state?.serverPresets ? (
-                    <>
-                      <ServerPresetButton
-                        t={t}
-                        icon={<DevServerGlyph />}
-                        label={t('community.server.presetDev')}
-                        url={state.serverPresets.development}
-                        result={serverProbes.development ?? { state: 'idle', reason: null }}
-                        active={activeServerUrl === stripSlash(state.serverPresets.development)}
-                        onPick={(url) => void pickServerPreset('development', url)}
-                      />
-                      <ServerPresetButton
-                        t={t}
-                        icon={<InternetGlyph />}
-                        label={t('community.server.presetProd')}
-                        url={state.serverPresets.production}
-                        result={serverProbes.production ?? { state: 'idle', reason: null }}
-                        active={activeServerUrl === stripSlash(state.serverPresets.production)}
-                        onPick={(url) => void pickServerPreset('production', url)}
-                      />
-                    </>
-                  ) : null}
-                  {/*
-                   * 邀请码：在浏览器打开服务器首页（申请邀请码）。图标式，与两个快捷按钮
-                   * 同一规格；`title` 带上完整地址，悬停即知会打开什么。旧宿主没有
-                   * `serverPresets` 时它**照常显示** —— 打开首页不依赖那两份预设地址。
-                   */}
-                  <button
-                    type="button"
-                    style={{ ...S.iconBtn, flex: '0 0 auto' }}
-                    title={`${t('community.server.inviteCode')} · ${t('community.action.applyInviteTip')} · ${serverUrl}`}
-                    aria-label={t('community.server.inviteCode')}
-                    onClick={openServerHome}
-                  >
-                    <InviteCodeGlyph />
-                  </button>
-                </div>
-                {/* 地址**还没保存**时才出现这一行：说清后果 + 一个明确的保存动作 */}
-                {serverChanged ? (
-                  <div style={S.inlineRow}>
-                    <Badge tone="warn">{t('community.badge.addressChanged')}</Badge>
-                    <span style={{ ...S.hint, flex: '1 1 auto' }}>{t('community.hint.addressChanged')}</span>
-                    <button
-                      type="button"
-                      style={{ ...S.primaryBtn, flex: '0 0 auto', opacity: busy ? 0.55 : 1 }}
-                      disabled={busy}
-                      onClick={() => void saveServerAddress()}
-                    >
-                      {busy ? t('community.action.saving') : t('community.action.saveAddress')}
-                    </button>
-                  </div>
-                ) : null}
-                {state?.serverUrlMismatch ? (
-                  <div style={{ fontSize: 11.5, lineHeight: 1.6, color: 'var(--dsw-alias-state-warn-primary)' }}>
-                    {state.environment === 'production'
-                      ? t('community.hint.mismatchProduction')
-                      : t('community.hint.mismatchDevelopment')}
-                  </div>
-                ) : null}
-              </>
-            )}
+            ) : serverSettings}
 
-            {/* 失败原因必须具体：401 换 Key、403 找管理员、超时查服务器 —— 各是不同的动作 */}
-            {failure ? (
-              <div style={S.inlineRow}>
-                <Badge tone="error">{failure.code}</Badge>
-                <span
-                  style={{
-                    color: 'var(--dsw-alias-state-error-primary)',
-                    fontSize: 12,
-                    lineHeight: 1.6,
-                    flex: '1 1 320px',
-                    minWidth: 0,
-                  }}
-                >
-                  {failure.message}
-                </span>
-                {configured ? (
-                  <button
-                    type="button"
-                    style={{ ...S.ghostBtn, opacity: busy ? 0.55 : 1 }}
-                    disabled={busy}
-                    onClick={() => void verify()}
-                  >
-
-                    {t('community.action.retryVerify')}</button>
-                ) : null}
-              </div>
-            ) : null}
+            {accountFailure}
           </div>
         ) : null}
       </div>
@@ -9116,6 +9173,7 @@ function SystemTab({
               autoComplete="off"
               spellCheck={false}
               value={draft}
+              aria-label="OpenAlex API Key"
               disabled={busy !== null}
               placeholder={configured ? t('system.retrieval.placeholderReplace') : t('system.retrieval.placeholderPaste')}
               // 凭据纪律与"留空 = 不修改"收进悬浮提示，不占版面

@@ -89,6 +89,20 @@ window.__ModuleLoader__.load({
 
 		// src/client/i18n/en.ts
 		var en = {
+		  "workbench.settings.title": "Settings",
+		  "workbench.settings.categories": "Settings categories",
+		  "workbench.settings.category.user": "User preferences",
+		  "workbench.settings.category.server": "Server settings",
+		  "workbench.settings.category.research": "Research behavior",
+		  "workbench.settings.category.system": "System settings",
+		  "workbench.settings.language": "Display language",
+		  "workbench.settings.notificationsSignIn": "Sign in to ConvFusion.com to manage email notifications.",
+		  "workbench.settings.decision": "Decision assistance",
+		  "workbench.settings.continuation": "Automatic continuation",
+		  "workbench.settings.autoContinue": "Continue automatically when the next step is clear",
+		  "workbench.settings.continuationLimit": "Continuation limit",
+		  "workbench.account.expand": "Show account details",
+		  "workbench.account.collapse": "Hide account details",
 		  "community.emailNotifications.title": "Email notifications",
 		  "community.emailNotifications.researchUpdates": "Research updates from my mentorship partners",
 		  "community.emailNotifications.newWork": "New work seeking mentorship",
@@ -876,6 +890,20 @@ window.__ModuleLoader__.load({
 
 		// src/client/i18n/zh.ts
 		var zh = {
+		  "workbench.settings.title": "设置",
+		  "workbench.settings.categories": "设置分类",
+		  "workbench.settings.category.user": "用户设置",
+		  "workbench.settings.category.server": "服务器设置",
+		  "workbench.settings.category.research": "研究行为",
+		  "workbench.settings.category.system": "系统设置",
+		  "workbench.settings.language": "界面语言",
+		  "workbench.settings.notificationsSignIn": "登录 ConvFusion.com 后即可管理邮件通知。",
+		  "workbench.settings.decision": "决策辅助",
+		  "workbench.settings.continuation": "自动推进",
+		  "workbench.settings.autoContinue": "方向明确时自动推进",
+		  "workbench.settings.continuationLimit": "连续推进上限",
+		  "workbench.account.expand": "展开账号信息",
+		  "workbench.account.collapse": "收起账号信息",
 		  "community.emailNotifications.title": "邮件通知",
 		  "community.emailNotifications.researchUpdates": "指导关系中的研究内容更新",
 		  "community.emailNotifications.newWork": "广场新发布的待指导工作",
@@ -2832,12 +2860,14 @@ window.__ModuleLoader__.load({
 		  session,
 		  t,
 		  send = fetchSettingsSend,
-		  showCommunityTab = true
+		  showCommunityTab = true,
+		  view
 		}) {
 		  const [state, setState] = import_react.default.useState(null);
 		  const [error, setError] = import_react.default.useState(null);
 		  const [loading, setLoading] = import_react.default.useState(true);
 		  const [tab, setTab] = import_react.default.useState("local");
+		  const activeTab = view === "system" ? "retrieval" : view === "methods" ? "local" : tab;
 		  const [staleHost, setStaleHost] = import_react.default.useState(false);
 		  const [update, setUpdate] = import_react.default.useState(null);
 		  const [categoryId, setCategoryId] = import_react.default.useState("");
@@ -2929,6 +2959,7 @@ window.__ModuleLoader__.load({
 		    [send, t]
 		  );
 		  import_react.default.useEffect(() => {
+		    if (view === "system") return;
 		    let alive = true;
 		    void (async () => {
 		      try {
@@ -2944,7 +2975,7 @@ window.__ModuleLoader__.load({
 		    return () => {
 		      alive = false;
 		    };
-		  }, [send]);
+		  }, [send, view]);
 		  const recheckDependencies = import_react.default.useCallback(async () => {
 		    try {
 		      const res = await send("dependencies/check", {});
@@ -3025,7 +3056,7 @@ window.__ModuleLoader__.load({
 		  const totalOverridden = state ? state.categories.reduce((n, c) => n + c.overriddenCount, 0) : 0;
 		  const totalPoints = state ? state.categories.reduce((n, c) => n + c.pointCount, 0) : 0;
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.page, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hero, children: [
+		    view !== "system" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hero, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { flex: "1 1 auto", minWidth: 0 }, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.heroSub, children: t("settings.hero.subtitle") }),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: update ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
@@ -3046,8 +3077,8 @@ window.__ModuleLoader__.load({
 		        ) : null })
 		      ] }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }, children: totalOverridden > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "brand", children: t("settings.badge.customized", { count: totalOverridden }) }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("settings.badge.systemDefaults") }) })
-		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.tabs, children: [
+		    ] }) : null,
+		    !view && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.tabs, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(TabButton, { active: tab === "local", onClick: () => setTab("local"), children: [
 		        "⚙ ",
 		        t("settings.tab.local")
@@ -3097,8 +3128,8 @@ window.__ModuleLoader__.load({
 		      ] })
 		    ] }) : null,
 		    loading && !state ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("settings.status.loading") }) }) }) : null,
-		    showCommunityTab && tab === "community" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(CommunityTab, { session, send, initial: state?.account ?? null, t }) : null,
-		    tab === "retrieval" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		    showCommunityTab && activeTab === "community" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(CommunityTab, { session, send, initial: state?.account ?? null, t }) : null,
+		    activeTab === "retrieval" && (!view || state) ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      SystemTab,
 		      {
 		        retrieval: state?.retrieval ?? { configured: false, source: "none", envVar: "OPENALEX_API_KEY" },
@@ -3109,7 +3140,7 @@ window.__ModuleLoader__.load({
 		        t
 		      }
 		    ) : null,
-		    state && tab === "local" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		    state && activeTab === "local" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
 		          t("settings.library.title"),
@@ -5227,6 +5258,15 @@ window.__ModuleLoader__.load({
 		    }
 		  );
 		}
+		function DecisionAssistControl({ checked, disabled, onChange, t }) {
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { style: { ...S.inlineRow, alignItems: "flex-start", flexWrap: "nowrap" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("input", { type: "checkbox", checked, disabled, onChange: (event) => onChange(event.currentTarget.checked) }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.decisionAssist.title") }),
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, display: "block" }, children: t("community.decisionAssist.description") })
+		    ] })
+		  ] });
+		}
 		function EmailNotificationSettings({ accountId, canMentor, post, t }) {
 		  const [preferences, setPreferences] = import_react.default.useState(null);
 		  const [error, setError] = import_react.default.useState();
@@ -5293,8 +5333,10 @@ window.__ModuleLoader__.load({
 		  send,
 		  initial,
 		  t,
-		  session
+		  session,
+		  view
 		}) {
+		  const showResearch = !view || view === "network";
 		  const [state, setState] = import_react.default.useState(initial);
 		  const [phase, setPhase] = import_react.default.useState("loading");
 		  const [busy, setBusy] = import_react.default.useState(false);
@@ -5440,7 +5482,7 @@ window.__ModuleLoader__.load({
 		        }
 		        const current = res.value;
 		        setState(current);
-		        if (current.keyConfigured) await call("account/verify", {});
+		        if (current.keyConfigured && view !== "server-settings") await call("account/verify", {});
 		      } catch (e) {
 		        if (!alive) return;
 		        setFailure({
@@ -5456,7 +5498,7 @@ window.__ModuleLoader__.load({
 		    return () => {
 		      alive = false;
 		    };
-		  }, [send, call]);
+		  }, [send, call, view]);
 		  const account = state?.account ?? null;
 		  const configured = state?.keyConfigured ?? false;
 		  const activeServer = state?.serverUrl ?? "";
@@ -5940,6 +5982,7 @@ window.__ModuleLoader__.load({
 		    COMMUNITY_LIST_CACHE.set(communityCacheKey(activeServer, account?.id ?? null, "mine", session?.sessionId), value);
 		  }, [post, activeServer, account?.id, listScope, session?.sessionId]);
 		  import_react.default.useEffect(() => {
+		    if (!showResearch) return;
 		    if (!activeServer) {
 		      setMine(null);
 		      setMineRegistry(null);
@@ -5958,8 +6001,9 @@ window.__ModuleLoader__.load({
 		      return;
 		    }
 		    void loadMine();
-		  }, [activeServer, account?.id, loadMine]);
+		  }, [showResearch, activeServer, account?.id, loadMine]);
 		  import_react.default.useEffect(() => {
+		    if (!showResearch) return;
 		    if (!activeServer || !configured) {
 		      setProposals(null);
 		      setProposalsError(null);
@@ -5975,7 +6019,7 @@ window.__ModuleLoader__.load({
 		      return;
 		    }
 		    void loadProposals();
-		  }, [activeServer, account?.id, configured, loadProposals]);
+		  }, [showResearch, activeServer, account?.id, configured, loadProposals]);
 		  const openPublish = async (w, direction) => {
 		    setDialogLoading({ id: w.id, direction });
 		    setPublishNotice(null);
@@ -6074,6 +6118,7 @@ window.__ModuleLoader__.load({
 		    await loadMine();
 		  };
 		  import_react.default.useEffect(() => {
+		    if (!showResearch) return;
 		    if (!activeServer || !account) {
 		      setWorks(null);
 		      setWorksError(null);
@@ -6101,7 +6146,7 @@ window.__ModuleLoader__.load({
 		    }
 		    if (hitMentor === void 0) void loadWorks("SEEK_MENTOR");
 		    if (hitJoin === void 0) void loadWorks("SEEK_STUDENT");
-		  }, [account?.id, activeServer, loadWorks]);
+		  }, [showResearch, account?.id, activeServer, loadWorks]);
 		  const toggleSummary = async (w) => {
 		    if (open?.projectId === w.projectId && open.kind === "summary") {
 		      setOpen(null);
@@ -6263,9 +6308,9 @@ window.__ModuleLoader__.load({
 		    setUsageStaleHost(false);
 		  }, [account?.id, activeServer]);
 		  import_react.default.useEffect(() => {
-		    if (!userOpen || !account) return;
+		    if (!showResearch || !userOpen || !account) return;
 		    void loadUsage();
-		  }, [userOpen, account?.id, activeServer, loadUsage]);
+		  }, [showResearch, userOpen, account?.id, activeServer, loadUsage]);
 		  const refreshBalance = async () => {
 		    const scope = currentAccountScope.current;
 		    const request = ++balanceRequest.current;
@@ -6332,8 +6377,8 @@ window.__ModuleLoader__.load({
 		    const rank = { PROPOSED: 0, ACCEPTED: 1 };
 		    const out = /* @__PURE__ */ new Map();
 		    for (const p of proposals ?? []) {
-		      const view = proposalView(p, myAccountId);
-		      if (view.myRole !== from || !view.iProposed) continue;
+		      const view2 = proposalView(p, myAccountId);
+		      if (view2.myRole !== from || !view2.iProposed) continue;
 		      const current = out.get(p.projectId);
 		      if (!current || (rank[p.status] ?? 9) < (rank[current.status] ?? 9)) out.set(p.projectId, p);
 		    }
@@ -6356,6 +6401,128 @@ window.__ModuleLoader__.load({
 		  const tokenFraction = tokens && tokens.total > 0 ? tokens.available / tokens.total : 0;
 		  const storageFraction = storage && storage.capacityBytes > 0 ? storage.usedBytes / storage.capacityBytes : 0;
 		  const pendingMark = usagePhase === "loading" ? "…" : "—";
+		  const serverSettings = /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.server.address") }),
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		        "input",
+		        {
+		          style: S.compactInput,
+		          type: "text",
+		          spellCheck: false,
+		          autoComplete: "off",
+		          value: serverDraft,
+		          "aria-label": t("community.server.address"),
+		          placeholder: state?.defaultServerUrl ?? "",
+		          title: t("community.server.title", { url: state?.defaultServerUrl ?? "" }),
+		          onChange: (e) => setServerDraft(e.target.value)
+		        }
+		      ),
+		      state?.serverPresets ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          ServerPresetButton,
+		          {
+		            t,
+		            icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(DevServerGlyph, {}),
+		            label: t("community.server.presetDev"),
+		            url: state.serverPresets.development,
+		            result: serverProbes.development ?? { state: "idle", reason: null },
+		            active: activeServerUrl === stripSlash(state.serverPresets.development),
+		            onPick: (url) => void pickServerPreset("development", url)
+		          }
+		        ),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          ServerPresetButton,
+		          {
+		            t,
+		            icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(InternetGlyph, {}),
+		            label: t("community.server.presetProd"),
+		            url: state.serverPresets.production,
+		            result: serverProbes.production ?? { state: "idle", reason: null },
+		            active: activeServerUrl === stripSlash(state.serverPresets.production),
+		            onPick: (url) => void pickServerPreset("production", url)
+		          }
+		        )
+		      ] }) : null,
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		        "button",
+		        {
+		          type: "button",
+		          style: { ...S.iconBtn, flex: "0 0 auto" },
+		          title: `${t("community.server.inviteCode")} · ${t("community.action.applyInviteTip")} · ${serverUrl}`,
+		          "aria-label": t("community.server.inviteCode"),
+		          onClick: openServerHome,
+		          children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(InviteCodeGlyph, {})
+		        }
+		      )
+		    ] }),
+		    serverChanged ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("community.badge.addressChanged") }),
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, flex: "1 1 auto" }, children: t("community.hint.addressChanged") }),
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		        "button",
+		        {
+		          type: "button",
+		          style: { ...S.primaryBtn, flex: "0 0 auto", opacity: busy ? 0.55 : 1 },
+		          disabled: busy,
+		          onClick: () => void saveServerAddress(),
+		          children: busy ? t("community.action.saving") : t("community.action.saveAddress")
+		        }
+		      )
+		    ] }) : null,
+		    state?.serverUrlMismatch ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 11.5, lineHeight: 1.6, color: "var(--dsw-alias-state-warn-primary)" }, children: state.environment === "production" ? t("community.hint.mismatchProduction") : t("community.hint.mismatchDevelopment") }) : null
+		  ] });
+		  const accountFailure = failure ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: failure.code }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		      "span",
+		      {
+		        style: {
+		          color: "var(--dsw-alias-state-error-primary)",
+		          fontSize: 12,
+		          lineHeight: 1.6,
+		          flex: "1 1 320px",
+		          minWidth: 0
+		        },
+		        children: failure.message
+		      }
+		    ),
+		    configured ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		      "button",
+		      {
+		        type: "button",
+		        style: { ...S.ghostBtn, opacity: busy ? 0.55 : 1 },
+		        disabled: busy,
+		        onClick: () => void verify(),
+		        children: t("community.action.retryVerify")
+		      }
+		    ) : null
+		  ] }) : null;
+		  const emailNotifications = account ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		    EmailNotificationSettings,
+		    {
+		      accountId: account.id,
+		      canMentor,
+		      post,
+		      t
+		    },
+		    accountScope
+		  ) : null;
+		  if (view === "server-settings") {
+		    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
+		      phase === "loading" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { role: "status", style: S.hint, children: t("community.badge.checking") }) : serverSettings,
+		      accountFailure
+		    ] }) });
+		  }
+		  if (view === "user-settings") {
+		    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
+		      phase === "loading" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { role: "status", style: S.hint, children: t("community.badge.checking") }) : emailNotifications ?? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: t("community.emailNotifications.title") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("workbench.settings.notificationsSignIn") })
+		      ] }),
+		      accountFailure
+		    ] }) });
+		  }
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
@@ -6365,7 +6532,7 @@ window.__ModuleLoader__.load({
 		          tabIndex: 0,
 		          "aria-expanded": userOpen,
 		          style: { ...S.cardHead, cursor: "pointer" },
-		          title: userOpen ? t("community.tip.collapse") : t("community.tip.expand"),
+		          title: view === "network" ? t(userOpen ? "workbench.account.collapse" : "workbench.account.expand") : t(userOpen ? "community.tip.collapse" : "community.tip.expand"),
 		          onClick: () => setUserOpen((v) => !v),
 		          onKeyDown: (e) => {
 		            if (e.key === "Enter" || e.key === " ") {
@@ -6408,36 +6575,29 @@ window.__ModuleLoader__.load({
 		        }
 		      ),
 		      userOpen ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.miniTabs, children: [
+		        !view && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.miniTabs, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MiniTab, { active: userTab === "account", onClick: () => setUserTab("account"), children: account ? t("community.tab.account") : t("community.tab.signIn") }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MiniTab, { active: userTab === "server", onClick: () => setUserTab("server"), children: t("community.tab.server") })
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { style: { ...S.inlineRow, alignItems: "flex-start" }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		            "input",
-		            {
-		              type: "checkbox",
-		              checked: state?.decisionAssistEnabled !== false,
-		              disabled: busy || phase === "loading",
-		              onChange: (event) => {
-		                const enabled = event.currentTarget.checked;
-		                setBusy(true);
-		                void post("account/decision-assist", { enabled }).then((res) => {
-		                  if (res.ok) {
-		                    const saved = res.value;
-		                    setState((current) => current ? { ...current, decisionAssistEnabled: saved.decisionAssistEnabled } : saved);
-		                    setFailure(null);
-		                  } else setFailure(res.error ?? { code: "unknown", message: t("community.error.unknown") });
-		                }).finally(() => setBusy(false));
-		              }
+		        !view && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          DecisionAssistControl,
+		          {
+		            checked: state?.decisionAssistEnabled !== false,
+		            disabled: busy || phase === "loading",
+		            t,
+		            onChange: (enabled) => {
+		              setBusy(true);
+		              void post("account/decision-assist", { enabled }).then((res) => {
+		                if (res.ok) {
+		                  const saved = res.value;
+		                  setState((current) => current ? { ...current, decisionAssistEnabled: saved.decisionAssistEnabled } : saved);
+		                  setFailure(null);
+		                } else setFailure(res.error ?? { code: "unknown", message: t("community.error.unknown") });
+		              }).finally(() => setBusy(false));
 		            }
-		          ),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.decisionAssist.title") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, display: "block" }, children: t("community.decisionAssist.description") })
-		          ] })
-		        ] }),
-		        userTab === "account" ? account ? (
+		          }
+		        ),
+		        view === "network" || userTab === "account" ? account ? (
 		          /* 已登录：一行账号 + 右侧操作，没有多余说明文字 */
 		          /*
 		           * 一行放下：账号名 + 邮箱 + 角色·状态 + 余额 + 两个按钮。
@@ -6511,16 +6671,7 @@ window.__ModuleLoader__.load({
 		                }
 		              )
 		            ] }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		              EmailNotificationSettings,
-		              {
-		                accountId: account.id,
-		                canMentor,
-		                post,
-		                t
-		              },
-		              JSON.stringify([state?.serverUrl, account.id])
-		            ),
+		            !view && emailNotifications,
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.dash, children: [
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                DashTile,
@@ -6692,105 +6843,8 @@ window.__ModuleLoader__.load({
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.inviteRule") })
 		            ] }) : null
 		          ] })
-		        ) : (
-		          /* 服务器设置：地址来自环境配置（开发 = 本机服务器，生产 = 线上） */
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.server.address") }),
-		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		                "input",
-		                {
-		                  style: S.compactInput,
-		                  type: "text",
-		                  spellCheck: false,
-		                  autoComplete: "off",
-		                  value: serverDraft,
-		                  placeholder: state?.defaultServerUrl ?? "",
-		                  title: t("community.server.title", { url: state?.defaultServerUrl ?? "" }),
-		                  onChange: (e) => setServerDraft(e.target.value)
-		                }
-		              ),
-		              state?.serverPresets ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		                  ServerPresetButton,
-		                  {
-		                    t,
-		                    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(DevServerGlyph, {}),
-		                    label: t("community.server.presetDev"),
-		                    url: state.serverPresets.development,
-		                    result: serverProbes.development ?? { state: "idle", reason: null },
-		                    active: activeServerUrl === stripSlash(state.serverPresets.development),
-		                    onPick: (url) => void pickServerPreset("development", url)
-		                  }
-		                ),
-		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		                  ServerPresetButton,
-		                  {
-		                    t,
-		                    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(InternetGlyph, {}),
-		                    label: t("community.server.presetProd"),
-		                    url: state.serverPresets.production,
-		                    result: serverProbes.production ?? { state: "idle", reason: null },
-		                    active: activeServerUrl === stripSlash(state.serverPresets.production),
-		                    onPick: (url) => void pickServerPreset("production", url)
-		                  }
-		                )
-		              ] }) : null,
-		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		                "button",
-		                {
-		                  type: "button",
-		                  style: { ...S.iconBtn, flex: "0 0 auto" },
-		                  title: `${t("community.server.inviteCode")} · ${t("community.action.applyInviteTip")} · ${serverUrl}`,
-		                  "aria-label": t("community.server.inviteCode"),
-		                  onClick: openServerHome,
-		                  children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(InviteCodeGlyph, {})
-		                }
-		              )
-		            ] }),
-		            serverChanged ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
-		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("community.badge.addressChanged") }),
-		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, flex: "1 1 auto" }, children: t("community.hint.addressChanged") }),
-		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		                "button",
-		                {
-		                  type: "button",
-		                  style: { ...S.primaryBtn, flex: "0 0 auto", opacity: busy ? 0.55 : 1 },
-		                  disabled: busy,
-		                  onClick: () => void saveServerAddress(),
-		                  children: busy ? t("community.action.saving") : t("community.action.saveAddress")
-		                }
-		              )
-		            ] }) : null,
-		            state?.serverUrlMismatch ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 11.5, lineHeight: 1.6, color: "var(--dsw-alias-state-warn-primary)" }, children: state.environment === "production" ? t("community.hint.mismatchProduction") : t("community.hint.mismatchDevelopment") }) : null
-		          ] })
-		        ),
-		        failure ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: failure.code }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		            "span",
-		            {
-		              style: {
-		                color: "var(--dsw-alias-state-error-primary)",
-		                fontSize: 12,
-		                lineHeight: 1.6,
-		                flex: "1 1 320px",
-		                minWidth: 0
-		              },
-		              children: failure.message
-		            }
-		          ),
-		          configured ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		            "button",
-		            {
-		              type: "button",
-		              style: { ...S.ghostBtn, opacity: busy ? 0.55 : 1 },
-		              disabled: busy,
-		              onClick: () => void verify(),
-		              children: t("community.action.retryVerify")
-		            }
-		          ) : null
-		        ] }) : null
+		        ) : serverSettings,
+		        accountFailure
 		      ] }) : null
 		    ] }),
 		    dialog ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
@@ -7186,7 +7240,7 @@ window.__ModuleLoader__.load({
 		              }
 		            ),
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => void loadProposals(), children: t("community.action.retry") })
-		          ] }) : proposals === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: proposalsLoading ? t("community.hint.loading") : t("community.hint.noData") }) : trackItems.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.mentorEmpty") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: trackItems.map(({ p, view }, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          ] }) : proposals === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: proposalsLoading ? t("community.hint.loading") : t("community.hint.noData") }) : trackItems.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.mentorEmpty") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: trackItems.map(({ p, view: view2 }, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "div",
 		            {
 		              style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
@@ -7203,13 +7257,13 @@ window.__ModuleLoader__.load({
 		                    },
 		                    children: [
 		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: proposalWorkLabel(p) ?? t("community.mentor.untitledProject") }),
-		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: view.counterparty?.displayName ?? t("community.mentor.unknownParty") }),
+		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: view2.counterparty?.displayName ?? t("community.mentor.unknownParty") }),
 		                      typeof p.askingFee === "number" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.mentor.askingVsOffer", {
 		                        asking: p.askingFee,
 		                        offer: p.totalFee
 		                      }) }) : null,
 		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: feeText(p) }),
-		                      sideSyncHint(t, p, view) ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-warn-primary)" }, children: sideSyncHint(t, p, view) }) : null
+		                      sideSyncHint(t, p, view2) ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-warn-primary)" }, children: sideSyncHint(t, p, view2) }) : null
 		                    ]
 		                  }
 		                ),
@@ -7224,8 +7278,8 @@ window.__ModuleLoader__.load({
 		                      flexWrap: "nowrap"
 		                    },
 		                    children: [
-		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: proposalTone(p.status), children: translateOr(t, progressLabelKey(p, view), p.status) }),
-		                      canDownloadProposal(p, view) ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: proposalTone(p.status), children: translateOr(t, progressLabelKey(p, view2), p.status) }),
+		                      canDownloadProposal(p, view2) ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                        "button",
 		                        {
 		                          type: "button",
@@ -7235,7 +7289,7 @@ window.__ModuleLoader__.load({
 		                          children: t("community.action.download")
 		                        }
 		                      ) : null,
-		                      p.status === "ACCEPTED" && !view.iAmOwner ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		                      p.status === "ACCEPTED" && !view2.iAmOwner ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                        "button",
 		                        {
 		                          type: "button",
@@ -7245,19 +7299,19 @@ window.__ModuleLoader__.load({
 		                          children: t("community.action.upload")
 		                        }
 		                      ) : null,
-		                      view.counterparty?.profile !== void 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		                      view2.counterparty?.profile !== void 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                        "button",
 		                        {
 		                          type: "button",
 		                          style: S.ghostBtn,
 		                          title: t(
-		                            view.counterpartyIsMentor ? "community.mentor.profileTitle" : "community.mentor.profileTitleResearcher"
+		                            view2.counterpartyIsMentor ? "community.mentor.profileTitle" : "community.mentor.profileTitleResearcher"
 		                          ),
-		                          onClick: () => setProfileTarget({ proposal: p, view, party: view.counterparty }),
-		                          children: t(view.counterpartyIsMentor ? "community.action.viewMentor" : "community.action.viewStudent")
+		                          onClick: () => setProfileTarget({ proposal: p, view: view2, party: view2.counterparty }),
+		                          children: t(view2.counterpartyIsMentor ? "community.action.viewMentor" : "community.action.viewStudent")
 		                        }
 		                      ) : null,
-		                      view.iAmAcceptor && p.status === "PROPOSED" ? (
+		                      view2.iAmAcceptor && p.status === "PROPOSED" ? (
 		                        /*
 		                         * `alignItems: 'stretch'` 让右段**自动**跟左段等高。
 		                         *
@@ -7700,6 +7754,7 @@ window.__ModuleLoader__.load({
 		              autoComplete: "off",
 		              spellCheck: false,
 		              value: draft,
+		              "aria-label": "OpenAlex API Key",
 		              disabled: busy !== null,
 		              placeholder: configured ? t("system.retrieval.placeholderReplace") : t("system.retrieval.placeholderPaste"),
 		              title: t("system.retrieval.secretHint"),

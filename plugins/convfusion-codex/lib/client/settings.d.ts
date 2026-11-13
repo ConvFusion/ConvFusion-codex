@@ -78,6 +78,8 @@ export interface ConvFusionSettingsProps {
     send?: SettingsSend | undefined;
     /** 宿主已有独立研究网络入口时，省略设置页内的同一入口。 */
     showCommunityTab?: boolean | undefined;
+    /** 由工作台导航分别承载研究方法和系统设置。 */
+    view?: 'methods' | 'system' | undefined;
 }
 interface HostSection {
     section: string;
@@ -253,7 +255,7 @@ export declare const fetchSettingsSend: SettingsSend;
 export declare function loadSettingsState(send?: SettingsSend, options?: {
     timeoutMs?: number;
 }, t?: Translate): Promise<SettingsLoad>;
-export declare function ConvFusionProjectSettings({ session, t, send, showCommunityTab, }: ConvFusionSettingsProps): JSX.Element;
+export declare function ConvFusionProjectSettings({ session, t, send, showCommunityTab, view, }: ConvFusionSettingsProps): JSX.Element;
 /**
  * 「指导中」那一行的**进展文案**。
  *
@@ -808,6 +810,12 @@ received, totalBytes, phase, onCancel, notice, targets, currentWorkspaceId, done
     /** Prepare the verified sync request for the current task. */
     onRequest?: (() => void) | undefined;
 }): JSX.Element;
+export declare function DecisionAssistControl({ checked, disabled, onChange, t }: {
+    checked: boolean;
+    disabled: boolean;
+    onChange: (enabled: boolean) => void;
+    t: Translate;
+}): JSX.Element;
 /**
  * 【设置】-【ConvFusion】-【ConvFusion.com】这一页的**全部内容**。
  *
@@ -840,10 +848,11 @@ export interface SessionBridge {
     /** 输入框现在是空的吗（空 → 自动填；非空 → 先问一句再替换）。 */
     draftEmpty: boolean;
 }
-export declare function CommunityTab({ send, initial, t, session, }: {
+export declare function CommunityTab({ send, initial, t, session, view, }: {
     send: SettingsSend;
     initial: HostAccountState | null;
     t: Translate;
+    view?: 'network' | 'user-settings' | 'server-settings';
     /**
      * 会话桥（会话内才有）。
      *

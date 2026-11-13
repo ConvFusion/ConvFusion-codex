@@ -5,6 +5,20 @@ export type TranslateParams = Record<string, unknown>;
 export type Translate = (key: string, params?: TranslateParams) => string;
 export declare const dictionaries: {
     zh: {
+        'workbench.settings.title': string;
+        'workbench.settings.categories': string;
+        'workbench.settings.category.user': string;
+        'workbench.settings.category.server': string;
+        'workbench.settings.category.research': string;
+        'workbench.settings.category.system': string;
+        'workbench.settings.language': string;
+        'workbench.settings.notificationsSignIn': string;
+        'workbench.settings.decision': string;
+        'workbench.settings.continuation': string;
+        'workbench.settings.autoContinue': string;
+        'workbench.settings.continuationLimit': string;
+        'workbench.account.expand': string;
+        'workbench.account.collapse': string;
         'community.emailNotifications.title': string;
         'community.emailNotifications.researchUpdates': string;
         'community.emailNotifications.newWork': string;
@@ -725,6 +739,20 @@ export declare const dictionaries: {
         'taxonomy.skill.pre-submission-review': string;
     };
     en: {
+        readonly 'workbench.settings.title': "Settings";
+        readonly 'workbench.settings.categories': "Settings categories";
+        readonly 'workbench.settings.category.user': "User preferences";
+        readonly 'workbench.settings.category.server': "Server settings";
+        readonly 'workbench.settings.category.research': "Research behavior";
+        readonly 'workbench.settings.category.system': "System settings";
+        readonly 'workbench.settings.language': "Display language";
+        readonly 'workbench.settings.notificationsSignIn': "Sign in to ConvFusion.com to manage email notifications.";
+        readonly 'workbench.settings.decision': "Decision assistance";
+        readonly 'workbench.settings.continuation': "Automatic continuation";
+        readonly 'workbench.settings.autoContinue': "Continue automatically when the next step is clear";
+        readonly 'workbench.settings.continuationLimit': "Continuation limit";
+        readonly 'workbench.account.expand': "Show account details";
+        readonly 'workbench.account.collapse': "Hide account details";
         readonly 'community.emailNotifications.title': "Email notifications";
         readonly 'community.emailNotifications.researchUpdates': "Research updates from my mentorship partners";
         readonly 'community.emailNotifications.newWork': "New work seeking mentorship";
