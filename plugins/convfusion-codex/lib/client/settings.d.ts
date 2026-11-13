@@ -644,7 +644,7 @@ export declare function PriceGuideRow({ t, direction, guide, options, mode, toke
     onSelectCustom: () => void;
     onText: (next: string) => void;
 }): JSX.Element;
-export declare function PublishDialog({ t, data, selection, remember, expanded, busy, progress, onToggleFiles, onToggleExpand, onRemember, priceMode, priceTokens, priceText, onSelectPricePreset, onSelectPriceCustom, onPriceText, onCancel, onConfirm, }: {
+export declare function PublishDialog({ t, data, selection, remember, expanded, busy, progress, onToggleFiles, onToggleExpand, onRemember, priceMode, priceTokens, priceText, onSelectPricePreset, onSelectPriceCustom, onPriceText, onCancel, onConfirm, onCancelUpload, canCloseWhileUploading, notice, }: {
     t: Translate;
     data: HostUploadPlan;
     selection: ReadonlySet<string>;
@@ -665,6 +665,9 @@ export declare function PublishDialog({ t, data, selection, remember, expanded, 
     onPriceText: (next: string) => void;
     onCancel: () => void;
     onConfirm: () => void;
+    onCancelUpload?: (() => void) | undefined;
+    canCloseWhileUploading?: boolean;
+    notice?: string | undefined;
 }): JSX.Element;
 /**
  * 接受指导的**确认对话框**。
@@ -833,6 +836,7 @@ export declare function DecisionAssistControl({ checked, disabled, onChange, t }
 export interface SessionBridge {
     /** Host supports durable, idempotent background downloads. */
     downloadTasks?: boolean;
+    uploadTasks?: boolean;
     prepareSync?: ((text: string) => void) | undefined;
     /** Host-specific handoff text; Codex has no DSH slash command. */
     syncCommand?: ((zipPath: string) => string) | undefined;

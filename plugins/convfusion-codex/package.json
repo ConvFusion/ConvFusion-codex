@@ -1,6 +1,6 @@
 {
   "name": "convfusion-codex",
-  "version": "0.7.1-codex.4",
+  "version": "0.7.1-codex.5",
   "description": "ConvFusion research operating system as a Codex plugin with a native skill and bundled local MCP adapter.",
   "repository": {
     "type": "git",
@@ -42,7 +42,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
     "version:set": "node scripts/sync-version.mjs",
     "version:check": "node scripts/sync-version.mjs --check",
-    "verify:codex": "npm run version:check && node scripts/verify-codex-plugin.mjs && node scripts/verify-codex-lifecycle.mjs && node scripts/verify-community-lists.mjs && node scripts/verify-file-exchange.mjs && npm run verify:downloads && npm run verify:decision-assist",
+    "verify:codex": "npm run version:check && node scripts/verify-codex-plugin.mjs && node scripts/verify-codex-lifecycle.mjs && node scripts/verify-community-lists.mjs && node scripts/verify-file-exchange.mjs && npm run verify:downloads && node scripts/verify-upload-tasks.mjs && npm run verify:decision-assist",
     "verify:downloads": "node scripts/verify-download-tasks.mjs && node scripts/verify-download-ui.mjs",
     "verify:decision-assist": "node scripts/verify-decision-assist.mjs && node scripts/verify-decision-notices.mjs",
     "clean": "rm -rf lib",

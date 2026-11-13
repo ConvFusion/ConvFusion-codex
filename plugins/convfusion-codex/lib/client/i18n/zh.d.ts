@@ -28,6 +28,8 @@ export declare const zh: {
     'community.download.validating': string;
     'community.download.cancelling': string;
     'community.download.cancelled': string;
+    'community.upload.resume': string;
+    'community.upload.cancel': string;
     'community.download.cancel': string;
     'community.download.close': string;
     'community.download.reconnecting': string;

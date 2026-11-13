@@ -544,6 +544,8 @@ export interface SettingsRpcDeps {
      */
     syncStore?: SyncWatermarkStore;
     /** 服务器请求超时（测试用小值）。 */
+    /** Use verified background uploads in the Codex host. */
+    workspaceUploads?: boolean;
     serverTimeoutMs?: number;
     /**
      * 「本机研究工作 ↔ 服务器项目」的映射存储。

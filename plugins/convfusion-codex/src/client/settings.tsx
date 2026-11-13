@@ -3266,6 +3266,9 @@ export function PublishDialog({
   onPriceText,
   onCancel,
   onConfirm,
+  onCancelUpload,
+  canCloseWhileUploading,
+  notice,
 }: {
   t: Translate
   data: HostUploadPlan
@@ -3287,6 +3290,9 @@ export function PublishDialog({
   onPriceText: (next: string) => void
   onCancel: () => void
   onConfirm: () => void
+  onCancelUpload?: (() => void) | undefined
+  canCloseWhileUploading?: boolean
+  notice?: string | undefined
 }): JSX.Element {
   /*
    * 清单本体交给 {@link UploadCategoryList}（与导师回传对话框共用）；这里只算汇总。
@@ -3424,7 +3430,11 @@ export function PublishDialog({
               <input type="checkbox" checked={remember} onChange={(e) => onRemember(e.target.checked)} />
               {t('community.publish.remember')}
             </label>
-            <button type="button" style={S.ghostBtn} disabled={busy} onClick={onCancel}>
+            {onCancelUpload ? <button type="button" style={S.ghostBtn} onClick={onCancelUpload}>
+              {t('community.upload.cancel')}
+            </button> : null}
+            {notice ? <span role="alert" style={S.hint}>{notice}</span> : null}
+            <button type="button" style={S.ghostBtn} disabled={busy && !canCloseWhileUploading} onClick={onCancel}>
               {t('community.action.cancel')}
             </button>
             <button
@@ -5050,6 +5060,7 @@ function UploadDialog({
   onToggleFiles,
   onToggleExpand,
   onUpload,
+  onCancelUpload,
   onClose,
 }: {
   t: Translate
@@ -5071,6 +5082,7 @@ function UploadDialog({
   onToggleFiles: (relPaths: string[], next: boolean) => void
   onToggleExpand: (categoryId: string) => void
   onUpload: () => void
+  onCancelUpload?: (() => void) | undefined
   onClose: () => void
 }): JSX.Element {
   const chosen = workspaces?.find((w) => w.id === workspaceId) ?? null
@@ -5204,6 +5216,9 @@ function UploadDialog({
                   })
                 : ''}
             </span>
+            {onCancelUpload ? <button type="button" style={S.ghostBtn} onClick={onCancelUpload}>
+              {t('community.upload.cancel')}
+            </button> : null}
             <button type="button" style={S.ghostBtn} onClick={onClose}>
               {t('community.action.close')}
             </button>
@@ -5457,6 +5472,7 @@ function EmailNotificationSettings({ accountId, canMentor, post, t }: {
 export interface SessionBridge {
   /** Host supports durable, idempotent background downloads. */
   downloadTasks?: boolean
+  uploadTasks?: boolean
 
   prepareSync?: ((text: string) => void) | undefined
   /** Host-specific handoff text; Codex has no DSH slash command. */
@@ -6367,38 +6383,128 @@ export function CommunityTab({
    * 做完，几十 MB 在一分钟以上 —— 没有进度就只有一句「上传中…」，慢与死分不出来。
    * 轮询失败不打断上传（那只是好看，不能把主流程弄挂）。
    */
+  type UploadTask = {
+    progress: HostUploadProgress
+    result: Awaited<ReturnType<typeof post>> | null
+    cancelling: boolean
+    canCancel: boolean
+    canResume?: boolean
+  }
+  const [uploadTasks, setUploadTasks] = React.useState<Record<string, UploadTask | null>>({})
+  const activeUploadWaits = React.useRef(new Set<string>())
+  const waitForUpload = async (
+    kind: 'mentor' | 'publish', id: string, payload: Record<string, unknown>,
+    onProgress: (progress: HostUploadProgress) => void,
+  ): ReturnType<typeof post> => {
+    const scope = `${kind}:${id}`
+    const target = kind === 'mentor' ? { kind, projectId: id } : { kind, id }
+    const intent = globalThis.crypto.randomUUID()
+    const start = () => post('upload/start', { ...payload, ...target, intent })
+    let response = await start()
+    while (true) {
+      if (response.ok) {
+        const task = response.value as UploadTask | null
+        setUploadTasks((current) => ({ ...current, [scope]: task }))
+        if (task) {
+          onProgress(task.progress)
+          if (task.result && !task.cancelling) return task.result
+        } else {
+          // A lost acknowledgement can be retried against the same host job key.
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          response = await start()
+          continue
+        }
+      } else if (response.error?.code !== 'transport') {
+        return response
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      response = await post('upload/status', target)
+    }
+  }
+  React.useEffect(() => {
+    if (!session?.uploadTasks) return
+    const projectId = exchange?.mode === 'upload' ? exchange.proposal.projectId : undefined
+    const publishId = dialog?.work.id
+    const target = projectId ? { kind: 'mentor', projectId } : publishId ? { kind: 'publish', id: publishId } : null
+    if (!target) return
+    const scope = `${target.kind}:${projectId ?? publishId}`
+    let mounted = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const poll = async () => {
+      const response = await post('upload/status', target)
+      if (!mounted || activeUploadWaits.current.has(scope)) return
+      if (response.ok) {
+        const task = response.value as UploadTask | null
+        setUploadTasks((current) => ({ ...current, [scope]: task }))
+        if (!task?.progress.running && !task?.cancelling) return
+      }
+      timer = setTimeout(() => void poll(), 1000)
+    }
+    void poll()
+    return () => { mounted = false; if (timer !== undefined) clearTimeout(timer) }
+  }, [session?.uploadTasks, exchange?.mode, exchange?.proposal.projectId, dialog?.work.id, post])
+  const cancelUpload = async (kind: 'mentor' | 'publish', id: string) => {
+    const scope = `${kind}:${id}`
+    const target = kind === 'mentor' ? { kind, projectId: id } : { kind, id }
+    let response = await post('upload/cancel', target)
+    while (response.ok) {
+      const task = response.value as UploadTask | null
+      setUploadTasks((current) => ({ ...current, [scope]: task }))
+      if (!task?.cancelling) break
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      response = await post('upload/status', target)
+    }
+    if (!response.ok) {
+      const notice = response.error?.message ?? t('community.error.unknown')
+      if (kind === 'mentor') setExchangeNotice({ tone: 'error', text: notice })
+      else setPublishNotice({ tone: 'error', code: response.error?.code ?? 'unknown', text: notice })
+    }
+  }
+
   const runUpload = async (): Promise<void> => {
     const target = exchange?.proposal
     if (!target || !uploadWorkspaceId) return
+    if (activeUploadWaits.current.has(`mentor:${target.projectId}`)) return
     setExchangeBusy(true)
     setExchangeNotice(null)
     setUploadProgress(null)
-    let timer: ReturnType<typeof setInterval> | undefined
-    const stopPoll = (): void => {
-      if (timer !== undefined) clearInterval(timer)
-      timer = undefined
-    }
-    timer = setInterval(() => {
-      void post('mentor/uploadProgress', { projectId: target.projectId }).then((p) => {
-        if (!p.ok) return
-        const v = p.value as HostUploadProgress | undefined
-        if (v && typeof v.doneFiles === 'number') setUploadProgress(v)
-      })
-    }, 1000)
+    const scope = `mentor:${target.projectId}`
+    activeUploadWaits.current.add(scope)
     let res: Awaited<ReturnType<typeof post>>
-    try {
-      res = await post('mentor/upload', {
-        projectId: target.projectId,
-        workspaceId: uploadWorkspaceId,
-        paths: Array.from(uploadSelected),
-        // 增量比对**自己那一侧**（服务器按"谁写的"分两侧，同名互不覆盖）
-        source: viewOf(target).mySide,
-      })
-    } finally {
-      stopPoll()
+    if (session?.uploadTasks) {
+      res = await waitForUpload('mentor', target.projectId, {
+        workspaceId: uploadWorkspaceId, paths: Array.from(uploadSelected), source: viewOf(target).mySide,
+      }, setUploadProgress)
       setExchangeBusy(false)
       setUploadProgress(null)
+    } else {
+      let timer: ReturnType<typeof setInterval> | undefined
+      const stopPoll = (): void => {
+        if (timer !== undefined) clearInterval(timer)
+        timer = undefined
+      }
+      timer = setInterval(() => {
+        void post('mentor/uploadProgress', { projectId: target.projectId }).then((p) => {
+          if (!p.ok) return
+          const v = p.value as HostUploadProgress | undefined
+          if (v && typeof v.doneFiles === 'number') setUploadProgress(v)
+        })
+      }, 1000)
+      try {
+        res = await post('mentor/upload', {
+          projectId: target.projectId,
+          workspaceId: uploadWorkspaceId,
+          paths: Array.from(uploadSelected),
+          // 增量比对**自己那一侧**（服务器按"谁写的"分两侧，同名互不覆盖）
+          source: viewOf(target).mySide,
+        })
+      } finally {
+        stopPoll()
+        setExchangeBusy(false)
+        setUploadProgress(null)
+      }
     }
+    activeUploadWaits.current.delete(scope)
     if (!res.ok) {
       // 不关窗：失败原因（尤其"服务器还没放开 review/ 限制"）要留在眼前；文件也没丢
       setExchangeNotice({ tone: 'error', text: res.error?.message ?? t('community.error.unknown') })
@@ -6413,7 +6519,7 @@ export function CommunityTab({
     }
     const skippedOversize = (v.oversize ?? []).length
     // 成功就关窗（同下载）：文件已经上去了，对话框没有可做的事，回执放到列表页顶部
-    setExchange(null)
+    setExchange((current) => current?.mode === 'upload' && current.proposal.projectId === target.projectId ? null : current)
     setMentorNotice({
       tone: 'success',
       text:
@@ -6816,41 +6922,49 @@ export function CommunityTab({
      */
     askingFee?: number,
   ): Promise<void> => {
+    if (activeUploadWaits.current.has(`publish:${w.id}`)) return
     setPublishing({ id: w.id, direction })
     setPublishNotice(null)
-    /*
-     * 上传期间按秒问进度（与导师回传同一条端点、同一根进度条）。
-     *
-     * 附件阶段是一串请求，`work/publish` 要等全部批次做完才返回 —— 没有这个轮询，
-     * 【我的】里发布一个带附件的工作时界面上只有按钮的「发布中…」，慢与死分不出来。
-     * 轮询失败不打断发布（那只是好看，不能把主流程弄挂）。
-     */
-    setPublishProgress(null)
-    let publishTimer: ReturnType<typeof setInterval> | undefined
-    const stopPublishPoll = (): void => {
-      if (publishTimer !== undefined) clearInterval(publishTimer)
-      publishTimer = undefined
-    }
-    publishTimer = setInterval(() => {
-      void post('mentor/uploadProgress', { projectId: w.id }).then((p) => {
-        if (!p.ok) return
-        const v = p.value as HostUploadProgress | undefined
-        if (v && typeof v.doneFiles === 'number') setPublishProgress(v)
-      })
-    }, 1000)
+    const scope = `publish:${w.id}`
+    activeUploadWaits.current.add(scope)
     let res: Awaited<ReturnType<typeof post>>
-    try {
-      res = await post('work/publish', {
-        id: w.id,
-        direction,
-        selection,
-        remember,
-        ...(askingFee !== undefined ? { askingFee } : {}),
-      })
-    } finally {
-      stopPublishPoll()
+    if (session?.uploadTasks) {
+      res = await waitForUpload('publish', w.id, { direction, selection, remember, askingFee }, setPublishProgress)
+    } else {
+      /*
+       * 上传期间按秒问进度（与导师回传同一条端点、同一根进度条）。
+       *
+       * 附件阶段是一串请求，`work/publish` 要等全部批次做完才返回 —— 没有这个轮询，
+       * 【我的】里发布一个带附件的工作时界面上只有按钮的「发布中…」，慢与死分不出来。
+       * 轮询失败不打断发布（那只是好看，不能把主流程弄挂）。
+       */
+      setPublishProgress(null)
+      let publishTimer: ReturnType<typeof setInterval> | undefined
+      const stopPublishPoll = (): void => {
+        if (publishTimer !== undefined) clearInterval(publishTimer)
+        publishTimer = undefined
+      }
+      publishTimer = setInterval(() => {
+        void post('mentor/uploadProgress', { projectId: w.id }).then((p) => {
+          if (!p.ok) return
+          const v = p.value as HostUploadProgress | undefined
+          if (v && typeof v.doneFiles === 'number') setPublishProgress(v)
+        })
+      }, 1000)
+      try {
+        res = await post('work/publish', {
+          id: w.id,
+          direction,
+          selection,
+          remember,
+          ...(askingFee !== undefined ? { askingFee } : {}),
+        })
+      } finally {
+        stopPublishPoll()
+      }
     }
-    setPublishing(null)
+    activeUploadWaits.current.delete(scope)
+    setPublishing((current) => current?.id === w.id ? null : current)
     if (!res.ok) {
       const staleHost = res.error?.code === 'unknown-endpoint'
       setPublishNotice({
@@ -6915,7 +7029,7 @@ export function CommunityTab({
       text: bits.join(' · '),
       ...(value.missing && value.missing.length ? { missing: value.missing } : {}),
     })
-    setDialog(null)
+    setDialog((current) => current?.work.id === w.id ? null : current)
     await loadMine()
   }
 
@@ -7925,8 +8039,12 @@ export function CommunityTab({
           selection={dialog.selection}
           remember={dialog.remember}
           expanded={dialog.expanded}
-          busy={publishing !== null}
-          progress={publishProgress}
+          busy={activeUploadWaits.current.has(`publish:${dialog.work.id}`) || Boolean(uploadTasks[`publish:${dialog.work.id}`]?.canCancel || uploadTasks[`publish:${dialog.work.id}`]?.progress.running)}
+          onCancelUpload={session?.uploadTasks && uploadTasks[`publish:${dialog.work.id}`]?.canCancel
+            ? () => void cancelUpload('publish', dialog.work.id) : undefined}
+          canCloseWhileUploading={session?.uploadTasks === true}
+          notice={uploadTasks[`publish:${dialog.work.id}`]?.result?.error?.message}
+          progress={uploadTasks[`publish:${dialog.work.id}`]?.progress ?? publishProgress}
           onToggleFiles={(relPaths, next) =>
             setDialog((d) => {
               if (!d) return d
@@ -8136,12 +8254,21 @@ export function CommunityTab({
           planLoading={uploadPlanLoading}
           selection={uploadSelected}
           expanded={uploadExpanded}
-          busy={exchangeBusy}
-          progress={uploadProgress}
-          notice={exchangeNotice}
+          busy={session?.uploadTasks
+            ? activeUploadWaits.current.has(`mentor:${exchange.proposal.projectId}`) || Boolean(uploadTasks[`mentor:${exchange.proposal.projectId}`]?.progress.running ||
+              (uploadTasks[`mentor:${exchange.proposal.projectId}`]?.canCancel && !uploadTasks[`mentor:${exchange.proposal.projectId}`]?.canResume))
+            : exchangeBusy}
+          progress={uploadTasks[`mentor:${exchange.proposal.projectId}`]?.progress ?? uploadProgress}
+          notice={uploadTasks[`mentor:${exchange.proposal.projectId}`]?.canResume
+            ? { tone: 'success', text: t('community.upload.resume') }
+            : uploadTasks[`mentor:${exchange.proposal.projectId}`]?.result?.error?.message
+            ? { tone: 'error', text: uploadTasks[`mentor:${exchange.proposal.projectId}`]!.result!.error!.message }
+            : exchangeNotice}
           onSelectWorkspace={(id) => void selectUploadWorkspace(id)}
           onToggleFiles={toggleUploadFiles}
           onToggleExpand={toggleUploadExpand}
+          onCancelUpload={session?.uploadTasks && uploadTasks[`mentor:${exchange.proposal.projectId}`]?.canCancel
+            ? () => void cancelUpload('mentor', exchange.proposal.projectId) : undefined}
           onUpload={() => void runUpload()}
           onClose={() => setExchange(null)}
         />
@@ -8772,7 +8899,7 @@ export function CommunityTab({
                             w.published.map((r) => r.direction),
                           )
                           /** 这个工作正在发布/取计划（只有一个按钮，所以不再按方向分）。 */
-                          const busyHere = publishing?.id === w.id || dialogLoading?.id === w.id
+                          const busyHere = activeUploadWaits.current.has(`publish:${w.id}`) || dialogLoading?.id === w.id
                           const busyLabel =
                             publishing?.id === w.id
                               ? /* 无对话框的「更新文件」路径也要看得见进度（附件仍在传） */
@@ -8782,7 +8909,7 @@ export function CommunityTab({
                                     : ''
                                 }`
                               : t('community.action.loading')
-                          const disabled = !account || publishing !== null || dialogLoading !== null
+                          const disabled = !account || (!session?.uploadTasks && publishing !== null) || dialogLoading !== null
                           return (
                             <div style={{ opacity: account && !busyHere && disabled ? 0.55 : 1 }}>
                               <PublishButton

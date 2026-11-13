@@ -89,7 +89,7 @@ export function createCodexUiHost(options = {}) {
     return workspaces.get(id)
   }
   const handler = createSettingsRpcHandler({
-    getConfig, setConfig, store, version: pkg.version, env,
+    getConfig, setConfig, store, version: pkg.version, env, workspaceUploads: true,
     ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
     resolvePath: () => path('skill-customizations.json'),
     resolveSessionWorkspace: (id) => workspaces.get(id)?.path,
@@ -115,7 +115,7 @@ export function createCodexUiHost(options = {}) {
     const row = root ? registerWorkspace(root) : null
     let research = false
     try { research = Boolean(row && isResearchWorkspace(researchWorkspaceOf(row.path))) } catch { /* Keep the default view available. */ }
-    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? '研究工作台', version: pkg.version, downloadTasks: true, initialTab: research ? 'progress' : 'community' }
+    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? '研究工作台', version: pkg.version, downloadTasks: true, uploadTasks: true, initialTab: research ? 'progress' : 'community' }
   }
   const dispatch = async (root, endpoint, payload) => {
     if (root) registerWorkspace(root)

@@ -117,6 +117,8 @@ window.__ModuleLoader__.load({
 		  "community.download.validating": "Validating and saving ZIP…",
 		  "community.download.cancelling": "Cancelling download…",
 		  "community.download.cancelled": "Download cancelled. You can download again.",
+		  "community.upload.resume": "An unfinished upload exists. Use the original file selection to resume, or cancel it.",
+		  "community.upload.cancel": "Cancel upload",
 		  "community.download.cancel": "Cancel download",
 		  "community.download.close": "Close and continue in background",
 		  "community.download.reconnecting": "Download status is unavailable. Reconnecting; the background task may still be running.",
@@ -918,6 +920,8 @@ window.__ModuleLoader__.load({
 		  "community.download.validating": "正在校验并保存 ZIP…",
 		  "community.download.cancelling": "正在取消下载…",
 		  "community.download.cancelled": "下载已取消，可以重新下载。",
+		  "community.upload.resume": "服务器已有未完成的上传。使用原文件清单继续，或取消该任务。",
+		  "community.upload.cancel": "取消上传",
 		  "community.download.cancel": "取消下载",
 		  "community.download.close": "关闭，继续后台下载",
 		  "community.download.reconnecting": "暂未取得下载状态，正在重新连接；后台任务可能仍在运行。",
@@ -4030,7 +4034,10 @@ window.__ModuleLoader__.load({
 		  onSelectPriceCustom,
 		  onPriceText,
 		  onCancel,
-		  onConfirm
+		  onConfirm,
+		  onCancelUpload,
+		  canCloseWhileUploading,
+		  notice
 		}) {
 		  const selectable = data.plan.categories.filter((c) => c.decision !== "excluded").flatMap((c) => c.files);
 		  const selectedFiles = selectable.map((f) => f.relPath).filter((r) => selection.has(r));
@@ -4111,7 +4118,9 @@ window.__ModuleLoader__.load({
 		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("input", { type: "checkbox", checked: remember, onChange: (e) => onRemember(e.target.checked) }),
 		                  t("community.publish.remember")
 		                ] }),
-		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, disabled: busy, onClick: onCancel, children: t("community.action.cancel") }),
+		                onCancelUpload ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancelUpload, children: t("community.upload.cancel") }) : null,
+		                notice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { role: "alert", style: S.hint, children: notice }) : null,
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, disabled: busy && !canCloseWhileUploading, onClick: onCancel, children: t("community.action.cancel") }),
 		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  "button",
 		                  {
@@ -5103,6 +5112,7 @@ window.__ModuleLoader__.load({
 		  onToggleFiles,
 		  onToggleExpand,
 		  onUpload,
+		  onCancelUpload,
 		  onClose
 		}) {
 		  const chosen = workspaces?.find((w) => w.id === workspaceId) ?? null;
@@ -5179,6 +5189,7 @@ window.__ModuleLoader__.load({
 		              size: formatBytes(selectedBytes),
 		              batches
 		            }) : "" }),
+		            onCancelUpload ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancelUpload, children: t("community.upload.cancel") }) : null,
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") }),
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "button",
@@ -5730,45 +5741,128 @@ window.__ModuleLoader__.load({
 		      return out;
 		    });
 		  };
+		  const [uploadTasks, setUploadTasks] = import_react.default.useState({});
+		  const activeUploadWaits = import_react.default.useRef(/* @__PURE__ */ new Set());
+		  const waitForUpload = async (kind, id, payload, onProgress) => {
+		    const scope = `${kind}:${id}`;
+		    const target = kind === "mentor" ? { kind, projectId: id } : { kind, id };
+		    const intent = globalThis.crypto.randomUUID();
+		    const start = () => post("upload/start", { ...payload, ...target, intent });
+		    let response = await start();
+		    while (true) {
+		      if (response.ok) {
+		        const task = response.value;
+		        setUploadTasks((current) => ({ ...current, [scope]: task }));
+		        if (task) {
+		          onProgress(task.progress);
+		          if (task.result && !task.cancelling) return task.result;
+		        } else {
+		          await new Promise((resolve) => setTimeout(resolve, 1e3));
+		          response = await start();
+		          continue;
+		        }
+		      } else if (response.error?.code !== "transport") {
+		        return response;
+		      }
+		      await new Promise((resolve) => setTimeout(resolve, 1e3));
+		      response = await post("upload/status", target);
+		    }
+		  };
+		  import_react.default.useEffect(() => {
+		    if (!session?.uploadTasks) return;
+		    const projectId = exchange?.mode === "upload" ? exchange.proposal.projectId : void 0;
+		    const publishId = dialog?.work.id;
+		    const target = projectId ? { kind: "mentor", projectId } : publishId ? { kind: "publish", id: publishId } : null;
+		    if (!target) return;
+		    const scope = `${target.kind}:${projectId ?? publishId}`;
+		    let mounted = true;
+		    let timer;
+		    const poll = async () => {
+		      const response = await post("upload/status", target);
+		      if (!mounted || activeUploadWaits.current.has(scope)) return;
+		      if (response.ok) {
+		        const task = response.value;
+		        setUploadTasks((current) => ({ ...current, [scope]: task }));
+		        if (!task?.progress.running && !task?.cancelling) return;
+		      }
+		      timer = setTimeout(() => void poll(), 1e3);
+		    };
+		    void poll();
+		    return () => {
+		      mounted = false;
+		      if (timer !== void 0) clearTimeout(timer);
+		    };
+		  }, [session?.uploadTasks, exchange?.mode, exchange?.proposal.projectId, dialog?.work.id, post]);
+		  const cancelUpload = async (kind, id) => {
+		    const scope = `${kind}:${id}`;
+		    const target = kind === "mentor" ? { kind, projectId: id } : { kind, id };
+		    let response = await post("upload/cancel", target);
+		    while (response.ok) {
+		      const task = response.value;
+		      setUploadTasks((current) => ({ ...current, [scope]: task }));
+		      if (!task?.cancelling) break;
+		      await new Promise((resolve) => setTimeout(resolve, 500));
+		      response = await post("upload/status", target);
+		    }
+		    if (!response.ok) {
+		      const notice = response.error?.message ?? t("community.error.unknown");
+		      if (kind === "mentor") setExchangeNotice({ tone: "error", text: notice });
+		      else setPublishNotice({ tone: "error", code: response.error?.code ?? "unknown", text: notice });
+		    }
+		  };
 		  const runUpload = async () => {
 		    const target = exchange?.proposal;
 		    if (!target || !uploadWorkspaceId) return;
+		    if (activeUploadWaits.current.has(`mentor:${target.projectId}`)) return;
 		    setExchangeBusy(true);
 		    setExchangeNotice(null);
 		    setUploadProgress(null);
-		    let timer;
-		    const stopPoll = () => {
-		      if (timer !== void 0) clearInterval(timer);
-		      timer = void 0;
-		    };
-		    timer = setInterval(() => {
-		      void post("mentor/uploadProgress", { projectId: target.projectId }).then((p) => {
-		        if (!p.ok) return;
-		        const v2 = p.value;
-		        if (v2 && typeof v2.doneFiles === "number") setUploadProgress(v2);
-		      });
-		    }, 1e3);
+		    const scope = `mentor:${target.projectId}`;
+		    activeUploadWaits.current.add(scope);
 		    let res;
-		    try {
-		      res = await post("mentor/upload", {
-		        projectId: target.projectId,
+		    if (session?.uploadTasks) {
+		      res = await waitForUpload("mentor", target.projectId, {
 		        workspaceId: uploadWorkspaceId,
 		        paths: Array.from(uploadSelected),
-		        // 增量比对**自己那一侧**（服务器按"谁写的"分两侧，同名互不覆盖）
 		        source: viewOf(target).mySide
-		      });
-		    } finally {
-		      stopPoll();
+		      }, setUploadProgress);
 		      setExchangeBusy(false);
 		      setUploadProgress(null);
+		    } else {
+		      let timer;
+		      const stopPoll = () => {
+		        if (timer !== void 0) clearInterval(timer);
+		        timer = void 0;
+		      };
+		      timer = setInterval(() => {
+		        void post("mentor/uploadProgress", { projectId: target.projectId }).then((p) => {
+		          if (!p.ok) return;
+		          const v2 = p.value;
+		          if (v2 && typeof v2.doneFiles === "number") setUploadProgress(v2);
+		        });
+		      }, 1e3);
+		      try {
+		        res = await post("mentor/upload", {
+		          projectId: target.projectId,
+		          workspaceId: uploadWorkspaceId,
+		          paths: Array.from(uploadSelected),
+		          // 增量比对**自己那一侧**（服务器按"谁写的"分两侧，同名互不覆盖）
+		          source: viewOf(target).mySide
+		        });
+		      } finally {
+		        stopPoll();
+		        setExchangeBusy(false);
+		        setUploadProgress(null);
+		      }
 		    }
+		    activeUploadWaits.current.delete(scope);
 		    if (!res.ok) {
 		      setExchangeNotice({ tone: "error", text: res.error?.message ?? t("community.error.unknown") });
 		      return;
 		    }
 		    const v = res.value;
 		    const skippedOversize = (v.oversize ?? []).length;
-		    setExchange(null);
+		    setExchange((current) => current?.mode === "upload" && current.proposal.projectId === target.projectId ? null : current);
 		    setMentorNotice({
 		      tone: "success",
 		      text: (v.uploaded ?? 0) === 0 && (v.skippedExisting ?? 0) > 0 ? t("community.exchange.uploadNoChange", { count: v.selected ?? 0 }) : skippedOversize > 0 ? t("community.exchange.uploadPartial", { uploaded: v.uploaded ?? 0, skipped: skippedOversize }) : t("community.exchange.uploadDone", { count: v.uploaded ?? 0 })
@@ -6050,34 +6144,42 @@ window.__ModuleLoader__.load({
 		    });
 		  };
 		  const doPublish = async (w, direction, selection, remember, askingFee) => {
+		    if (activeUploadWaits.current.has(`publish:${w.id}`)) return;
 		    setPublishing({ id: w.id, direction });
 		    setPublishNotice(null);
-		    setPublishProgress(null);
-		    let publishTimer;
-		    const stopPublishPoll = () => {
-		      if (publishTimer !== void 0) clearInterval(publishTimer);
-		      publishTimer = void 0;
-		    };
-		    publishTimer = setInterval(() => {
-		      void post("mentor/uploadProgress", { projectId: w.id }).then((p) => {
-		        if (!p.ok) return;
-		        const v = p.value;
-		        if (v && typeof v.doneFiles === "number") setPublishProgress(v);
-		      });
-		    }, 1e3);
+		    const scope = `publish:${w.id}`;
+		    activeUploadWaits.current.add(scope);
 		    let res;
-		    try {
-		      res = await post("work/publish", {
-		        id: w.id,
-		        direction,
-		        selection,
-		        remember,
-		        ...askingFee !== void 0 ? { askingFee } : {}
-		      });
-		    } finally {
-		      stopPublishPoll();
+		    if (session?.uploadTasks) {
+		      res = await waitForUpload("publish", w.id, { direction, selection, remember, askingFee }, setPublishProgress);
+		    } else {
+		      setPublishProgress(null);
+		      let publishTimer;
+		      const stopPublishPoll = () => {
+		        if (publishTimer !== void 0) clearInterval(publishTimer);
+		        publishTimer = void 0;
+		      };
+		      publishTimer = setInterval(() => {
+		        void post("mentor/uploadProgress", { projectId: w.id }).then((p) => {
+		          if (!p.ok) return;
+		          const v = p.value;
+		          if (v && typeof v.doneFiles === "number") setPublishProgress(v);
+		        });
+		      }, 1e3);
+		      try {
+		        res = await post("work/publish", {
+		          id: w.id,
+		          direction,
+		          selection,
+		          remember,
+		          ...askingFee !== void 0 ? { askingFee } : {}
+		        });
+		      } finally {
+		        stopPublishPoll();
+		      }
 		    }
-		    setPublishing(null);
+		    activeUploadWaits.current.delete(scope);
+		    setPublishing((current) => current?.id === w.id ? null : current);
 		    if (!res.ok) {
 		      const staleHost = res.error?.code === "unknown-endpoint";
 		      setPublishNotice({
@@ -6114,7 +6216,7 @@ window.__ModuleLoader__.load({
 		      text: bits.join(" · "),
 		      ...value.missing && value.missing.length ? { missing: value.missing } : {}
 		    });
-		    setDialog(null);
+		    setDialog((current) => current?.work.id === w.id ? null : current);
 		    await loadMine();
 		  };
 		  import_react.default.useEffect(() => {
@@ -6855,8 +6957,11 @@ window.__ModuleLoader__.load({
 		        selection: dialog.selection,
 		        remember: dialog.remember,
 		        expanded: dialog.expanded,
-		        busy: publishing !== null,
-		        progress: publishProgress,
+		        busy: activeUploadWaits.current.has(`publish:${dialog.work.id}`) || Boolean(uploadTasks[`publish:${dialog.work.id}`]?.canCancel || uploadTasks[`publish:${dialog.work.id}`]?.progress.running),
+		        onCancelUpload: session?.uploadTasks && uploadTasks[`publish:${dialog.work.id}`]?.canCancel ? () => void cancelUpload("publish", dialog.work.id) : void 0,
+		        canCloseWhileUploading: session?.uploadTasks === true,
+		        notice: uploadTasks[`publish:${dialog.work.id}`]?.result?.error?.message,
+		        progress: uploadTasks[`publish:${dialog.work.id}`]?.progress ?? publishProgress,
 		        onToggleFiles: (relPaths, next) => setDialog((d) => {
 		          if (!d) return d;
 		          const sel = new Set(d.selection);
@@ -7042,12 +7147,13 @@ window.__ModuleLoader__.load({
 		        planLoading: uploadPlanLoading,
 		        selection: uploadSelected,
 		        expanded: uploadExpanded,
-		        busy: exchangeBusy,
-		        progress: uploadProgress,
-		        notice: exchangeNotice,
+		        busy: session?.uploadTasks ? activeUploadWaits.current.has(`mentor:${exchange.proposal.projectId}`) || Boolean(uploadTasks[`mentor:${exchange.proposal.projectId}`]?.progress.running || uploadTasks[`mentor:${exchange.proposal.projectId}`]?.canCancel && !uploadTasks[`mentor:${exchange.proposal.projectId}`]?.canResume) : exchangeBusy,
+		        progress: uploadTasks[`mentor:${exchange.proposal.projectId}`]?.progress ?? uploadProgress,
+		        notice: uploadTasks[`mentor:${exchange.proposal.projectId}`]?.canResume ? { tone: "success", text: t("community.upload.resume") } : uploadTasks[`mentor:${exchange.proposal.projectId}`]?.result?.error?.message ? { tone: "error", text: uploadTasks[`mentor:${exchange.proposal.projectId}`].result.error.message } : exchangeNotice,
 		        onSelectWorkspace: (id) => void selectUploadWorkspace(id),
 		        onToggleFiles: toggleUploadFiles,
 		        onToggleExpand: toggleUploadExpand,
+		        onCancelUpload: session?.uploadTasks && uploadTasks[`mentor:${exchange.proposal.projectId}`]?.canCancel ? () => void cancelUpload("mentor", exchange.proposal.projectId) : void 0,
 		        onUpload: () => void runUpload(),
 		        onClose: () => setExchange(null)
 		      }
@@ -7452,12 +7558,12 @@ window.__ModuleLoader__.load({
 		                          canMentor,
 		                          w.published.map((r) => r.direction)
 		                        );
-		                        const busyHere = publishing?.id === w.id || dialogLoading?.id === w.id;
+		                        const busyHere = activeUploadWaits.current.has(`publish:${w.id}`) || dialogLoading?.id === w.id;
 		                        const busyLabel = publishing?.id === w.id ? (
 		                          /* 无对话框的「更新文件」路径也要看得见进度（附件仍在传） */
 		                          `${t("community.action.publishing")}${publishProgress && publishProgress.totalBytes > 0 ? ` ${Math.min(100, Math.round(publishProgress.sentBytes / publishProgress.totalBytes * 100))}%` : ""}`
 		                        ) : t("community.action.loading");
-		                        const disabled = !account || publishing !== null || dialogLoading !== null;
+		                        const disabled = !account || !session?.uploadTasks && publishing !== null || dialogLoading !== null;
 		                        return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { opacity: account && !busyHere && disabled ? 0.55 : 1 }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                          PublishButton,
 		                          {

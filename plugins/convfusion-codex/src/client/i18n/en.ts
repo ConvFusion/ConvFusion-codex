@@ -28,6 +28,8 @@ export const en = {
   'community.download.validating': 'Validating and saving ZIP…',
   'community.download.cancelling': 'Cancelling download…',
   'community.download.cancelled': 'Download cancelled. You can download again.',
+  'community.upload.resume': 'An unfinished upload exists. Use the original file selection to resume, or cancel it.',
+  'community.upload.cancel': 'Cancel upload',
   'community.download.cancel': 'Cancel download',
   'community.download.close': 'Close and continue in background',
   'community.download.reconnecting': 'Download status is unavailable. Reconnecting; the background task may still be running.',

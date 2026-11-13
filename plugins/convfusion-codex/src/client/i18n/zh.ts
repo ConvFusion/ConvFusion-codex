@@ -30,6 +30,8 @@ export const zh = {
   'community.download.validating': '正在校验并保存 ZIP…',
   'community.download.cancelling': '正在取消下载…',
   'community.download.cancelled': '下载已取消，可以重新下载。',
+  'community.upload.resume': '服务器已有未完成的上传。使用原文件清单继续，或取消该任务。',
+  'community.upload.cancel': '取消上传',
   'community.download.cancel': '取消下载',
   'community.download.close': '关闭，继续后台下载',
   'community.download.reconnecting': '暂未取得下载状态，正在重新连接；后台任务可能仍在运行。',

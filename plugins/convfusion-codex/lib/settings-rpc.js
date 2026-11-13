@@ -72,6 +72,7 @@
  * 所以 v0.1.5 的 `methodTemplates[module][promptId]` 在 v2 里就是
  * `customizations[skillId][section]` —— 存储形态没变，变的只是键的语义。
  */
+import { transferWorkspace } from './codex/uploads.js';
 import { existsSync, realpathSync, statSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -83,7 +84,7 @@ import { CUSTOMIZABLE_SECTIONS, clearAllCustomizations, listCustomizationPoints,
 import { effectiveSkillContentById } from './research/library.js';
 import { openDownloadPart, readResearchFile, safeDirName, } from './research/workspace-sync.js';
 import { describeConvFusionKey, describeOpenAlexKey, redactConfig, resolveConvFusionApiKey, resolveCustomizationPath, resolveServerUrl, } from './config.js';
-import { acceptInvitation, createProject, fetchAcceptProposal, fetchAccount, fetchEmailNotificationPreferences, fetchProjectArchive, fetchProjectFiles, fetchProjectFilesWithIdentity, fetchFeeSuggestion, fetchProposals, fetchPropose, fetchRejectProposal, fetchTokenBalance, asCcfLevel, asJcrLevel, fetchWorkBrief, fetchWorkList, fetchWorkSummary, normalizeApiKey, normalizeBaseUrl, fetchUsage, fetchProject, fetchProjects, probeServerHealth, publishProject, purchaseStorage, readStateVersion, fetchPriceGuide, updateProject, submitRechargeRequest, fetchRechargeRequests, PROJECT_DIRECTIONS, SERVER_TIMEOUT_MS, ServerError, uploadProjectFiles, uploadWorkspaceFiles, uploadResearchState, } from './server-client.js';
+import { acceptInvitation, createProject, fetchAcceptProposal, fetchAccount, fetchEmailNotificationPreferences, fetchProjectArchive, fetchProjectFiles, fetchProjectFilesWithIdentity, fetchFeeSuggestion, fetchProposals, fetchPropose, fetchRejectProposal, fetchTokenBalance, asCcfLevel, asJcrLevel, fetchWorkBrief, fetchWorkList, fetchWorkSummary, normalizeApiKey, normalizeBaseUrl, fetchUsage, fetchProject, fetchProjects, probeServerHealth, publishProject, purchaseStorage, readStateVersion, fetchPriceGuide, updateProject, submitRechargeRequest, fetchRechargeRequests, PROJECT_DIRECTIONS, SERVER_TIMEOUT_MS, ServerError, uploadProjectFiles, uploadWorkspaceFiles, workspaceUploadRequest, uploadResearchState, } from './server-client.js';
 import { isResearchWorkspace, researchWorkspaceOf } from './research/workspace.js';
 import { latestTurnReport } from './research/progress-bridge.js';
 import { buildWorkspaceProgress, captureProgress } from './research/progress.js';
@@ -1165,7 +1166,7 @@ export function createSettingsRpcHandler(deps) {
             publishedStore.updateByProject(record.projectId, { serverVisibility: 'PUBLISHED', checkedAt });
         }
     };
-    return async (endpoint, payload, downloadControl) => {
+    const dispatch = async (endpoint, payload, downloadControl, upload) => {
         const p = (payload ?? {});
         try {
             switch (endpoint) {
@@ -1911,7 +1912,7 @@ export function createSettingsRpcHandler(deps) {
                     };
                 }
                 case 'work/publish': {
-                    const config = deps.getConfig();
+                    const config = upload?.config ?? deps.getConfig();
                     const apiKey = resolveConvFusionApiKey(config, env());
                     if (!apiKey)
                         return fail('not-configured', '尚未登录 ConvFusion.com。');
@@ -1986,6 +1987,7 @@ export function createSettingsRpcHandler(deps) {
                         // （服务器 GET /projects/{id} 是 owner-only，重用别人的 id 只会 404）
                         const reusable = previous && previous.serverUrl === base && previous.accountId === me.id;
                         let projectId = reusable ? previous.projectId : '';
+                        let retiredProjectId;
                         let created = false;
                         /** 改名失败的原因（`null` = 改名成功或不需要改名）—— 回执要如实说。 */
                         let renameFailed = null;
@@ -2032,10 +2034,16 @@ export function createSettingsRpcHandler(deps) {
                             writeWorkMarker(source.root, identity);
                         };
                         const create = async () => {
+                            upload?.signal.throwIfAborted();
+                            // Keep first publication recoverable even if the server created it before the response was lost.
+                            const creationId = upload ? createHash('sha256').update(JSON.stringify([
+                                base, me.id, direction, researchRootFingerprint(source.root) ?? source.root, retiredProjectId,
+                            ])).digest('hex').slice(0, 32) : undefined;
                             const project = await createProject(base, apiKey, {
                                 // **这项研究工作自己的名字**（有论文用论文标题）——不是本机工作区名：
                                 // 网络里的列表都显示它，而看列表的人本机不一定有这份 workspace。
                                 title: workName,
+                                ...(creationId ? { creationId } : {}),
                                 description: content.summary ? content.summary : undefined,
                                 // 只在非默认方向时显式发：默认方向归服务器所有（见 createProject 注释）
                                 ...(direction === 'SEEK_STUDENT' ? { direction } : {}),
@@ -2068,38 +2076,12 @@ export function createSettingsRpcHandler(deps) {
                                 /* 回查失败不影响发布：下一次发布还会再试 */
                             }
                         }
-                        // 一次保存意图一个幂等键；因 409 重基后 payload 变了 → 换新键
-                        const saveState = async (baseVersion) => uploadResearchState(base, apiKey, projectId, {
-                            baseVersion,
-                            content: content,
-                            intentKey: crypto.randomUUID(),
-                        }, netOptions(workIdForWrite));
-                        const saveStateWithRebase = async (version) => {
-                            try {
-                                return await saveState(version);
-                            }
-                            catch (e) {
-                                if (!(e instanceof ServerError) || e.code !== 'version-conflict')
-                                    throw e;
-                                // 409：拉最新版本，基于它**重新上传**（换新 key —— payload 已变）
-                                const latest = e.currentVersion ?? (await readStateVersion(base, apiKey, projectId, netOptions()));
-                                return await saveState(latest);
-                            }
-                        };
-                        // 以**服务器**的当前版本为准（本地记录可能过期：另一个客户端也传过）
                         let uploaded;
-                        try {
-                            uploaded = await saveStateWithRebase(await readStateVersion(base, apiKey, projectId, netOptions()));
-                        }
-                        catch (e) {
-                            // 映射指向的项目已被服务器删除（本地记录不会自己知道）：忘掉它、新建项目重来一次
-                            if (!reusable || !(e instanceof ServerError) || e.code !== 'not-found')
-                                throw e;
-                            publishedStore.remove(source.root, direction);
-                            projectId = await create();
-                            uploaded = await saveStateWithRebase(await readStateVersion(base, apiKey, projectId, netOptions()));
-                        }
-                        // ── 附件：状态传完再传（服务器要求 state_version 存在）──────────
+                        let digests;
+                        let skipped;
+                        let skippedExisting;
+                        let uploadedFiles = 0;
+                        let uploadedBytes = 0;
                         const plan = buildUploadPlan(source.root);
                         const recommendedFiles = plan.categories
                             .filter((c) => c.decision === 'recommended')
@@ -2113,65 +2095,127 @@ export function createSettingsRpcHandler(deps) {
                             : (previous?.selection ?? []).length > 0
                                 ? [...new Set([...(previous?.selection ?? []).filter((r) => selectable.has(r)), ...recommendedFiles])]
                                 : recommendedFiles;
-                        // 增量：只传新增/变化的（服务器不去重，重复传会翻倍占空间）
-                        const previousFiles = previous?.files ?? {};
-                        const toUpload = [];
-                        const digests = { ...previousFiles };
-                        for (const relPath of selected) {
-                            const abs = resolve(source.root, relPath);
-                            let digest;
-                            try {
-                                digest = await fileDigest(abs);
-                            }
-                            catch {
-                                continue; // 文件不存在/读不动：跳过，不阻塞发布
-                            }
-                            digests[relPath] = digest;
-                            if (previousFiles[relPath] !== digest)
-                                toUpload.push(relPath);
-                        }
-                        const { batches, skipped } = planUploadBatches(source.root, toUpload);
-                        /*
-                         * 发布也**上报进度**（与导师回传同一根进度条）。
-                         *
-                         * 为什么必须报：附件阶段是"几十个文件 / 几十 MB"的一串请求，浏览器那一次
-                         * `post('work/publish')` 要等全部批次做完才返回 —— 之前这里什么都不报，
-                         * 【我的】里发布一个带附件的工作时就只有按钮上的「发布中…」。
-                         */
-                        const sizes = new Map();
-                        for (const c of plan.categories)
-                            for (const f of c.files)
-                                sizes.set(f.relPath, f.size);
-                        const skippedSet = new Set(skipped.map((x) => x.relPath));
-                        const sending = toUpload.filter((rel) => !skippedSet.has(rel));
-                        // 两个 id 都放进去：界面用**本机工作区 id** 轮询（那时服务器 id 还不知道）
-                        const progress = beginUploadProgress([projectId, id], sending.length, sending.reduce((n, rel) => n + (sizes.get(rel) ?? 0), 0));
-                        let uploadedFiles = 0;
-                        let uploadedBytes = 0;
-                        for (const batch of batches) {
-                            const payload = [];
-                            for (const relPath of batch) {
+                        if (upload) {
+                            upload.signal.throwIfAborted();
+                            if (reusable && !created) {
                                 try {
-                                    const { readFile } = await import('node:fs/promises');
-                                    payload.push({ relPath, bytes: await readFile(resolve(source.root, relPath)) });
+                                    await fetchProject(base, apiKey, projectId, netOptions());
+                                }
+                                catch (error) {
+                                    if (!(error instanceof ServerError) || error.code !== 'not-found')
+                                        throw error;
+                                    retiredProjectId = projectId;
+                                    projectId = await create();
+                                }
+                            }
+                            const baseVersion = await readStateVersion(base, apiKey, projectId, netOptions());
+                            if (selected.some((path) => !selectable.has(path))) {
+                                return fail('bad-request', '所选文件已变更，请重新打开上传清单。');
+                            }
+                            const result = await transferWorkspace(base, apiKey, projectId, source.root, selected, netOptions(workIdForWrite) ?? {}, upload, uploadTimeoutForBytes, { content, baseVersion });
+                            const receipt = result.receipt;
+                            if (receipt.version === null || receipt.content_hash === null) {
+                                return fail('bad-response', '服务器未返回研究状态版本。');
+                            }
+                            uploaded = { version: receipt.version, contentHash: receipt.content_hash };
+                            uploadedFiles = receipt.uploaded;
+                            uploadedBytes = receipt.uploaded_bytes;
+                            skippedExisting = receipt.skipped_existing;
+                            skipped = result.skipped;
+                            digests = Object.fromEntries(result.manifest.map((file) => [file.path, file.sha256]));
+                        }
+                        else {
+                            // 一次保存意图一个幂等键；因 409 重基后 payload 变了 → 换新键
+                            const saveState = async (baseVersion) => uploadResearchState(base, apiKey, projectId, {
+                                baseVersion,
+                                content: content,
+                                intentKey: crypto.randomUUID(),
+                            }, netOptions(workIdForWrite));
+                            const saveStateWithRebase = async (version) => {
+                                try {
+                                    return await saveState(version);
+                                }
+                                catch (e) {
+                                    if (!(e instanceof ServerError) || e.code !== 'version-conflict')
+                                        throw e;
+                                    // 409：拉最新版本，基于它**重新上传**（换新 key —— payload 已变）
+                                    const latest = e.currentVersion ?? (await readStateVersion(base, apiKey, projectId, netOptions()));
+                                    return await saveState(latest);
+                                }
+                            };
+                            // 以**服务器**的当前版本为准（本地记录可能过期：另一个客户端也传过）
+                            try {
+                                uploaded = await saveStateWithRebase(await readStateVersion(base, apiKey, projectId, netOptions()));
+                            }
+                            catch (e) {
+                                // 映射指向的项目已被服务器删除（本地记录不会自己知道）：忘掉它、新建项目重来一次
+                                if (!reusable || !(e instanceof ServerError) || e.code !== 'not-found')
+                                    throw e;
+                                publishedStore.remove(source.root, direction);
+                                projectId = await create();
+                                uploaded = await saveStateWithRebase(await readStateVersion(base, apiKey, projectId, netOptions()));
+                            }
+                            // ── 附件：状态传完再传（服务器要求 state_version 存在）──────────
+                            // 增量：只传新增/变化的（服务器不去重，重复传会翻倍占空间）
+                            const previousFiles = previous?.files ?? {};
+                            const toUpload = [];
+                            digests = { ...previousFiles };
+                            for (const relPath of selected) {
+                                const abs = resolve(source.root, relPath);
+                                let digest;
+                                try {
+                                    digest = await fileDigest(abs);
                                 }
                                 catch {
-                                    /* 读不到就跳过该文件 */
+                                    continue; // 文件不存在/读不动：跳过，不阻塞发布
                                 }
+                                digests[relPath] = digest;
+                                if (previousFiles[relPath] !== digest)
+                                    toUpload.push(relPath);
                             }
-                            if (payload.length === 0)
-                                continue;
-                            const results = await uploadProjectFiles(base, apiKey, projectId, payload, {
-                                stateVersion: uploaded.version,
-                                ...netOptions(workIdForWrite),
-                            });
-                            uploadedFiles += results.length;
-                            uploadedBytes += results.reduce((n, r) => n + r.size, 0);
-                            progress.doneFiles = uploadedFiles;
-                            progress.sentBytes = uploadedBytes;
+                            const { batches, skipped: oversize } = planUploadBatches(source.root, toUpload);
+                            skipped = oversize;
+                            skippedExisting = selected.length - toUpload.length;
+                            /*
+                             * 发布也**上报进度**（与导师回传同一根进度条）。
+                             *
+                             * 为什么必须报：附件阶段是"几十个文件 / 几十 MB"的一串请求，浏览器那一次
+                             * `post('work/publish')` 要等全部批次做完才返回 —— 之前这里什么都不报，
+                             * 【我的】里发布一个带附件的工作时就只有按钮上的「发布中…」。
+                             */
+                            const sizes = new Map();
+                            for (const c of plan.categories)
+                                for (const f of c.files)
+                                    sizes.set(f.relPath, f.size);
+                            const skippedSet = new Set(skipped.map((x) => x.relPath));
+                            const sending = toUpload.filter((rel) => !skippedSet.has(rel));
+                            // 两个 id 都放进去：界面用**本机工作区 id** 轮询（那时服务器 id 还不知道）
+                            const progress = beginUploadProgress([projectId, id], sending.length, sending.reduce((n, rel) => n + (sizes.get(rel) ?? 0), 0));
+                            for (const batch of batches) {
+                                const payload = [];
+                                for (const relPath of batch) {
+                                    try {
+                                        const { readFile } = await import('node:fs/promises');
+                                        payload.push({ relPath, bytes: await readFile(resolve(source.root, relPath)) });
+                                    }
+                                    catch {
+                                        /* 读不到就跳过该文件 */
+                                    }
+                                }
+                                if (payload.length === 0)
+                                    continue;
+                                const results = await uploadProjectFiles(base, apiKey, projectId, payload, {
+                                    stateVersion: uploaded.version,
+                                    ...netOptions(workIdForWrite),
+                                });
+                                uploadedFiles += results.length;
+                                uploadedBytes += results.reduce((n, r) => n + r.size, 0);
+                                progress.doneFiles = uploadedFiles;
+                                progress.sentBytes = uploadedBytes;
+                            }
+                            // 附件传完 → 不再"进行中"（后面的发布/改名很快，不需要进度条）
+                            progress.running = false;
                         }
-                        // 附件传完 → 不再"进行中"（后面的发布/改名很快，不需要进度条）
-                        progress.running = false;
                         // 上传成功后才发布（顺序不能反：先发布会留下空卡片）。
                         // 幂等键由 (项目, 版本) 决定：同一次发布的重试不会重复扣费。
                         const { visibility, chargedTokens } = await publishProject(base, apiKey, projectId, {
@@ -2262,7 +2306,7 @@ export function createSettingsRpcHandler(deps) {
                                     selected: selected.length,
                                     uploaded: uploadedFiles,
                                     uploadedBytes,
-                                    skippedExisting: selected.length - toUpload.length,
+                                    skippedExisting,
                                     /** 超过服务器单文件上限（100 MB）而没能上传的。 */
                                     oversize: skipped,
                                 },
@@ -2662,7 +2706,7 @@ export function createSettingsRpcHandler(deps) {
                      *      服务器不去重（同路径再传 = 新行 + 新字节，配额照涨），而回传的多数文件没动过。
                      *      旧服务器不给 `sha256` 时比对必然不等 → 保守地全传（宁可多传，不可漏传）。
                      */
-                    const config = deps.getConfig();
+                    const config = upload?.config ?? deps.getConfig();
                     const apiKey = resolveConvFusionApiKey(config, env());
                     if (!apiKey)
                         return fail('not-configured', '尚未登录 ConvFusion.com。');
@@ -2707,6 +2751,17 @@ export function createSettingsRpcHandler(deps) {
                          * 导师回传 → `mentor` 侧；学生上传 → `owner` 侧（默认）。
                          * 服务器上"每个路径的最新一版"：`list_for_project` 按 created_at asc，后者覆盖前者。
                          */
+                        if (upload) {
+                            if (picked.length !== wanted.length) {
+                                return fail('bad-request', '所选文件已变更，请重新打开上传清单。');
+                            }
+                            const result = await transferWorkspace(base, apiKey, projectId, root, picked, netOptions(readLocalIdentity(root, deps.workIdentity).workspaceId) ?? {}, upload, uploadTimeoutForBytes);
+                            return { ok: true, value: {
+                                    selected: picked.length, uploaded: result.receipt.uploaded,
+                                    uploadedBytes: result.receipt.uploaded_bytes,
+                                    skippedExisting: result.receipt.skipped_existing, oversize: result.skipped,
+                                } };
+                        }
                         const source = asSource(p.source);
                         const remote = await fetchProjectFiles(base, apiKey, projectId, { source, ...netOptions() });
                         const onServer = new Map();
@@ -3130,6 +3185,99 @@ export function createSettingsRpcHandler(deps) {
         catch (e) {
             return fail('internal', e instanceof Error ? e.message : String(e));
         }
+    };
+    const jobs = new Map();
+    return async (endpoint, payload, downloadControl) => {
+        if (!deps.workspaceUploads || !endpoint.startsWith('upload/')) {
+            return dispatch(endpoint, payload, downloadControl);
+        }
+        const p = (payload ?? {});
+        const kind = asString(p.kind);
+        if (kind !== 'mentor' && kind !== 'publish')
+            return fail('bad-request', '未知的上传类型。');
+        const id = asString(kind === 'mentor' ? p.projectId : p.id);
+        if (!id)
+            return fail('bad-request', '缺少研究工作标识。');
+        const config = deps.getConfig();
+        const key = resolveConvFusionApiKey(config, env());
+        if (!key)
+            return fail('not-configured', '尚未登录 ConvFusion.com。');
+        const scope = JSON.stringify([resolveServerUrl(config, env()).url, createHash('sha256').update(key).digest('hex'), kind, id]);
+        let job = jobs.get(scope);
+        const intent = asString(p.intent);
+        if (endpoint === 'upload/start' && !intent)
+            return fail('bad-request', '缺少上传请求标识。');
+        if (endpoint === 'upload/start' && (!job || (job.intent !== intent && job.result && !job.control.cancelRemote && !job.cancellation))) {
+            const abort = new AbortController();
+            const control = {
+                config, signal: abort.signal, finishing: false,
+                progress: { doneFiles: 0, totalFiles: 0, sentBytes: 0, totalBytes: 0, running: true },
+            };
+            const current = { intent, abort, control };
+            jobs.set(scope, current);
+            job = current;
+            void dispatch(kind === 'mentor' ? 'mentor/upload' : 'work/publish', payload, undefined, control)
+                .then((result) => {
+                current.result = result;
+                if (result.ok)
+                    control.cancelRemote = undefined;
+                control.finishing = false;
+            }).finally(() => { control.progress.running = false; });
+        }
+        if (!job && kind === 'mentor' && (endpoint === 'upload/status' || endpoint === 'upload/cancel')) {
+            try {
+                const base = resolveServerUrl(config, env()).url;
+                const remote = await workspaceUploadRequest(base, key, id, 'GET', '/active', undefined, netOptions());
+                if (remote) {
+                    if (endpoint === 'upload/cancel') {
+                        const cancelled = await workspaceUploadRequest(base, key, id, 'DELETE', `/${remote.id}`, undefined, netOptions());
+                        if (cancelled.status === 'completed')
+                            return fail('upload-completed', '服务器已提交本次上传。');
+                        return { ok: true, value: null };
+                    }
+                    return { ok: true, value: {
+                            progress: { doneFiles: remote.received.length, totalFiles: remote.needed.length, sentBytes: remote.received_bytes, totalBytes: remote.total_bytes, running: false },
+                            result: null, cancelling: false, canCancel: true, canResume: true,
+                        } };
+                }
+            }
+            catch (error) {
+                if (!(error instanceof ServerError && error.httpStatus === 404))
+                    return serverFail(error);
+            }
+        }
+        if (!job)
+            return { ok: true, value: null };
+        if (endpoint === 'upload/cancel' && !job.control.finishing && (!job.result || job.control.cancelRemote)) {
+            const current = job;
+            current.abort.abort();
+            if (!current.cancellation) {
+                const cleanup = async () => {
+                    while (!current.result)
+                        await new Promise((resolve) => setTimeout(resolve, 50));
+                    if (current.control.cancelRemote) {
+                        try {
+                            const remote = await current.control.cancelRemote();
+                            if (remote.status === 'completed')
+                                throw new Error('服务器已提交本次上传。');
+                        }
+                        catch (error) {
+                            if (!(error instanceof ServerError && error.httpStatus === 404))
+                                throw error;
+                        }
+                    }
+                    current.control.cancelRemote = undefined;
+                    current.result = fail('upload-cancelled', '上传已取消。');
+                };
+                current.cancellation = cleanup().catch((error) => {
+                    current.result = serverFail(error);
+                }).finally(() => { current.cancellation = undefined; });
+            }
+        }
+        return { ok: true, value: {
+                progress: job.control.progress, result: job.result ?? null,
+                cancelling: Boolean(job.cancellation), canCancel: !job.control.finishing && (!job.result || Boolean(job.control.cancelRemote)),
+            } };
     };
 }
 function sendJson(res, status, body) {

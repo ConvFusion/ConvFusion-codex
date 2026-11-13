@@ -7,19 +7,509 @@ import { pathToFileURL } from "node:url";
 
 // scripts/codex-ui-server.mjs
 import { createServer } from "node:http";
-import { createHash as createHash4, randomBytes as randomBytes4 } from "node:crypto";
+import { createHash as createHash5, randomBytes as randomBytes4 } from "node:crypto";
 import { existsSync as existsSync31, readFileSync as readFileSync27, realpathSync as realpathSync5, statSync as statSync11 } from "node:fs";
 import { basename as basename5, dirname as dirname15, isAbsolute as isAbsolute9, join as join30, resolve as resolve10, relative as relative7, sep as sep5 } from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 
-// lib/settings-rpc.js
-import { existsSync as existsSync22, realpathSync, statSync as statSync7 } from "node:fs";
-import { basename, resolve as resolve5 } from "node:path";
-import { createHash } from "node:crypto";
+// lib/codex/uploads.js
+import { createHash, randomUUID } from "node:crypto";
+import { readFile, realpath } from "node:fs/promises";
+
+// lib/research/workspace-sync.js
+import { randomBytes } from "node:crypto";
+import { closeSync, mkdirSync, openSync, readdirSync, readFileSync, linkSync, statSync, unlinkSync, writeSync } from "node:fs";
+import { isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
+function safeJoin(root, relativePath) {
+  const rel = (relativePath ?? "").trim();
+  if (!rel || isAbsolute(rel))
+    return null;
+  const normalizedRoot = resolve(root);
+  const target = normalize(resolve(normalizedRoot, rel));
+  if (target !== normalizedRoot && !target.startsWith(normalizedRoot + sep))
+    return null;
+  return target;
+}
+function readResearchFile(researchRoot2, relPath) {
+  const abs = safeJoin(researchRoot2, relPath);
+  if (!abs)
+    throw new Error(`\u4E0D\u5B89\u5168\u7684\u76F8\u5BF9\u8DEF\u5F84\uFF1A${relPath}`);
+  return new Uint8Array(readFileSync(abs));
+}
+function safeDirName(raw, fallback = "download") {
+  const cleaned = (raw ?? "").replace(/[/\\:*?"<>|\u0000-\u001f]/g, "-").replace(/\.{2,}/g, "-").replace(/^[.\s-]+|[.\s-]+$/g, "").trim();
+  return cleaned || fallback;
+}
+var EOCD_SIGNATURE = 101010256;
+var EOCD_SIZE = 22;
+var EOCD_WINDOW = EOCD_SIZE + 65535;
+function zipTailCheck(tail) {
+  if (tail.byteLength < EOCD_SIZE)
+    return { ok: false, reason: "\u6570\u636E\u592A\u77ED\uFF0C\u4E0D\u50CF\u4E00\u4E2A\u5B8C\u6574\u7684 ZIP" };
+  const view2 = new DataView(tail.buffer, tail.byteOffset, tail.byteLength);
+  for (let i = tail.byteLength - EOCD_SIZE; i >= 0; i -= 1) {
+    if (view2.getUint32(i, true) !== EOCD_SIGNATURE)
+      continue;
+    const commentLength = view2.getUint16(i + 20, true);
+    if (i + EOCD_SIZE + commentLength !== tail.byteLength)
+      continue;
+    const entries = view2.getUint16(i + 10, true);
+    const size = view2.getUint32(i + 16, true);
+    const offset = view2.getUint32(i + 12, true);
+    const zip64 = entries === 65535 || size === 4294967295 || offset === 4294967295;
+    return { ok: true, entries: zip64 ? null : entries };
+  }
+  return { ok: false, reason: "\u7ED3\u5C3E\u6CA1\u6709 ZIP \u7684\u4E2D\u592E\u76EE\u5F55\u8BB0\u5F55\uFF08\u4F20\u8F93\u88AB\u622A\u65AD\u4E86\uFF09" };
+}
+function sweepStaleParts(dir) {
+  let names;
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return;
+  }
+  const cutoff = Date.now() - 24 * 60 * 60 * 1e3;
+  for (const name of names) {
+    if (!/^\.convfusion-.*\.zip\.part$/.test(name))
+      continue;
+    const abs = join(dir, name);
+    try {
+      if (statSync(abs).mtimeMs < cutoff)
+        unlinkSync(abs);
+    } catch {
+    }
+  }
+}
+function openDownloadPart(dir, nameHint = "download") {
+  mkdirSync(dir, { recursive: true });
+  sweepStaleParts(dir);
+  const hint = safeDirName(nameHint, "download.zip").replace(/\.zip$/i, "");
+  const partPath = join(dir, `.convfusion-${hint.slice(0, 40)}-${randomBytes(6).toString("hex")}.zip.part`);
+  const fd = openSync(partPath, "w");
+  let received = 0;
+  let tail = new Uint8Array(0);
+  let head = new Uint8Array(0);
+  let closed = false;
+  const closeFd = () => {
+    if (closed)
+      return;
+    closed = true;
+    try {
+      closeSync(fd);
+    } catch {
+    }
+  };
+  const discard = (message) => {
+    closeFd();
+    try {
+      unlinkSync(partPath);
+    } catch {
+    }
+    return new Error(message);
+  };
+  return {
+    path: partPath,
+    get received() {
+      return received;
+    },
+    write(chunk) {
+      if (closed)
+        throw new Error("\u4E0B\u8F7D\u5DF2\u7ED3\u675F\uFF0C\u4E0D\u80FD\u518D\u5199\u5165\u3002");
+      writeSync(fd, chunk);
+      received += chunk.byteLength;
+      if (head.byteLength < 4) {
+        head = Buffer.concat([head, Buffer.from(chunk)]).subarray(0, 4);
+      }
+      tail = Buffer.concat([tail, Buffer.from(chunk)]);
+      if (tail.byteLength > EOCD_WINDOW)
+        tail = tail.subarray(tail.byteLength - EOCD_WINDOW);
+    },
+    commit(rawName, expect) {
+      if (received === 0)
+        throw discard("\u670D\u52A1\u5668\u6CA1\u6709\u8FD4\u56DE\u4EFB\u4F55\u6570\u636E\uFF0C\u8BF7\u91CD\u8BD5\u3002");
+      if (head.byteLength < 2 || head[0] !== 80 || head[1] !== 75) {
+        throw discard("\u4E0B\u8F7D\u5230\u7684\u4E0D\u662F\u4E00\u4E2A ZIP\uFF08\u670D\u52A1\u5668\u8FD4\u56DE\u4E86\u610F\u5916\u5185\u5BB9\uFF09\uFF0C\u8BF7\u91CD\u8BD5\u3002");
+      }
+      const check = zipTailCheck(tail);
+      if (!check.ok)
+        throw discard(`\u4E0B\u8F7D\u4E0D\u5B8C\u6574\uFF1A${check.reason}\u3002\u8BF7\u91CD\u8BD5\u3002`);
+      const want = expect?.fileCount;
+      if (typeof want === "number" && check.entries !== null && check.entries !== want) {
+        throw discard(`\u4E0B\u8F7D\u4E0D\u5B8C\u6574\uFF1AZIP \u91CC\u53EA\u6709 ${check.entries} \u4E2A\u6761\u76EE\uFF0C\u670D\u52A1\u5668\u8BF4\u6709 ${want} \u4E2A\u3002\u8BF7\u91CD\u8BD5\u3002`);
+      }
+      closeFd();
+      const name = safeDirName(rawName, "download.zip");
+      const stem = name.replace(/\.zip$/i, "");
+      let target = join(dir, name);
+      let n = 2;
+      for (; ; ) {
+        try {
+          linkSync(partPath, target);
+          break;
+        } catch (error2) {
+          if (error2.code !== "EEXIST")
+            throw error2;
+          target = join(dir, `${stem}-${n++}.zip`);
+        }
+      }
+      try {
+        unlinkSync(partPath);
+      } catch {
+      }
+      return { path: target, name: relative(dir, target), bytes: received };
+    },
+    abort() {
+      closeFd();
+      try {
+        unlinkSync(partPath);
+      } catch {
+      }
+    }
+  };
+}
+
+// lib/research/upload-selection.js
+import { readdirSync as readdirSync2, statSync as statSync2 } from "node:fs";
+import { join as join2, relative as relative2, sep as sep2 } from "node:path";
+var UPLOAD_LIMITS = {
+  /** 单文件上限（`MAX_FILE_SIZE`）。 */
+  maxFileBytes: 100 * 1024 * 1024,
+  /** 单次请求文件数（`MAX_FILES_PER_REQUEST`）。 */
+  maxFilesPerRequest: 20,
+  /** 单次请求总量（`MAX_UPLOAD_SIZE`）。 */
+  maxRequestBytes: 200 * 1024 * 1024
+};
+var LARGE_FILE_BYTES = 10 * 1024 * 1024;
+function norm(relPath) {
+  return relPath.split(sep2).join("/");
+}
+function under(relPath, dir) {
+  return relPath === dir || relPath.startsWith(`${dir}/`);
+}
+function ext(relPath) {
+  const base = relPath.slice(relPath.lastIndexOf("/") + 1);
+  const dot = base.lastIndexOf(".");
+  return dot > 0 ? base.slice(dot).toLowerCase() : "";
+}
+var WEIGHT_EXTS = /* @__PURE__ */ new Set([
+  ".safetensors",
+  ".bin",
+  ".pt",
+  ".pth",
+  ".ckpt",
+  ".gguf",
+  ".onnx",
+  ".h5",
+  ".pb",
+  ".mlmodel",
+  ".npy",
+  ".npz",
+  ".parquet",
+  ".feather",
+  ".arrow",
+  ".pkl",
+  ".joblib",
+  ".zip",
+  ".tar",
+  ".gz"
+]);
+var BUILD_EXTS = /* @__PURE__ */ new Set([".fmt", ".index", ".tfm", ".pfb", ".afm", ".otf", ".ttf", ".map", ".pat"]);
+var JUNK_DIRS = /* @__PURE__ */ new Set([
+  ".git",
+  "node_modules",
+  "__pycache__",
+  ".tectonic-cache",
+  ".venv",
+  "venv",
+  /*
+   * 插件自己的元数据目录（研究根下的 `.convfusion/`，放 `work.json` = "这项研究是谁"）。
+   *
+   * 为什么必须在这里：它是**插件**的本机记忆，不是研究事实 —— 传上去只会让导师那一侧
+   * 多出一个与他的研究无关的文件；而它又必须留在工作区里（换机器/被复制后要能自证身份，
+   * 见 `work-identity.ts`）。所以"留在工作区、但不参与上传"。
+   */
+  ".convfusion",
+  ".mypy_cache",
+  ".pytest_cache",
+  ".ruff_cache",
+  ".ipynb_checkpoints",
+  // Node/npm 系缓存（`.npmcache` 是 npm 在自定义 cache 目录下自建的）
+  ".npmcache",
+  "_cacache",
+  ".cache",
+  ".parcel-cache",
+  ".turbo",
+  ".eslintcache",
+  ".pnpm-store",
+  ".yarn",
+  ".next",
+  ".nuxt",
+  ".svelte-kit",
+  ".output"
+]);
+var JUNK_NAME = /^(\.DS_Store|Thumbs\.db|\.gitignore|\.gitattributes)$/i;
+var BACKUP_NAME = /(^|[._-])bak([._-]|$)|\.(orig|rej|swp|swo|tmp|temp)$|~$|^#.*#$/i;
+function assetCategory(relPath) {
+  if (relPath === "project.md" || relPath === "research-state.md")
+    return "state";
+  if (under(relPath, "review"))
+    return "review";
+  if (under(relPath, "plans"))
+    return "plans";
+  if (under(relPath, "papers"))
+    return "papers";
+  if (under(relPath, "experiments"))
+    return "experiments";
+  if (under(relPath, "outputs"))
+    return "outputs";
+  if (under(relPath, "research"))
+    return "research-assets";
+  return null;
+}
+function classify(relPath, size, purpose = "publish") {
+  const p = norm(relPath);
+  const parts = p.split("/");
+  if (parts.some((seg) => JUNK_DIRS.has(seg)))
+    return { categoryId: "build-artifacts", decision: "excluded" };
+  if (JUNK_NAME.test(parts[parts.length - 1] ?? ""))
+    return { categoryId: "build-artifacts", decision: "excluded" };
+  if (BACKUP_NAME.test(parts[parts.length - 1] ?? ""))
+    return { categoryId: "build-artifacts", decision: "excluded" };
+  if (BUILD_EXTS.has(ext(p)))
+    return { categoryId: "build-artifacts", decision: "excluded" };
+  if (WEIGHT_EXTS.has(ext(p)))
+    return { categoryId: "models-data", decision: "excluded" };
+  if (under(p, "harness"))
+    return { categoryId: "runtime-artifacts", decision: "excluded" };
+  if (under(p, "research/literature/fulltext"))
+    return { categoryId: "literature-fulltext", decision: "optional" };
+  if (under(p, "research/literature") && [".pdf", ".ps", ".djvu", ".epub"].includes(ext(p))) {
+    return { categoryId: "literature-fulltext", decision: "optional" };
+  }
+  if (under(p, "research/literature") && [".txt", ".json", ".html", ".xml"].includes(ext(p))) {
+    return { categoryId: "literature-raw", decision: "optional" };
+  }
+  if (purpose === "mentor") {
+    const asset2 = assetCategory(p);
+    if (asset2)
+      return { categoryId: asset2, decision: "recommended" };
+    if (size >= LARGE_FILE_BYTES)
+      return { categoryId: "large-files", decision: "optional" };
+    return { categoryId: "others", decision: "optional" };
+  }
+  if (size >= LARGE_FILE_BYTES)
+    return { categoryId: "large-files", decision: "optional" };
+  const asset = assetCategory(p);
+  if (asset) {
+    if (asset === "review")
+      return { categoryId: "review", decision: "excluded" };
+    return { categoryId: asset, decision: "recommended" };
+  }
+  return { categoryId: "others", decision: "optional" };
+}
+var CATEGORY_ORDER = [
+  "state",
+  "plans",
+  "papers",
+  "experiments",
+  "research-assets",
+  "review",
+  "outputs",
+  "literature-raw",
+  "literature-fulltext",
+  "large-files",
+  "others",
+  "runtime-artifacts",
+  "build-artifacts",
+  "models-data"
+];
+function measureDir(dir, budget = 2e4) {
+  let bytes = 0;
+  let files = 0;
+  const walk = (d) => {
+    let entries;
+    try {
+      entries = readdirSync2(d, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (files >= budget)
+        return;
+      const abs = join2(d, e.name);
+      if (e.isSymbolicLink())
+        continue;
+      if (e.isDirectory()) {
+        walk(abs);
+        continue;
+      }
+      if (!e.isFile())
+        continue;
+      try {
+        bytes += statSync2(abs).size;
+        files += 1;
+      } catch {
+      }
+    }
+  };
+  walk(dir);
+  return { bytes, files };
+}
+var SCAN_MAX_FILES = 2e4;
+function buildUploadPlan(root, purpose = "publish") {
+  const files = [];
+  const skipped2 = /* @__PURE__ */ new Map();
+  const walk = (dir) => {
+    let entries;
+    try {
+      entries = readdirSync2(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (files.length >= SCAN_MAX_FILES)
+        return;
+      const abs = join2(dir, entry.name);
+      const relPath = norm(relative2(root, abs));
+      if (entry.isSymbolicLink())
+        continue;
+      if (entry.isDirectory()) {
+        if (JUNK_DIRS.has(entry.name) || relPath === "harness") {
+          const stat = measureDir(abs);
+          const { categoryId: categoryId2, decision: decision2 } = classify(relPath, 0, purpose);
+          files.push({ relPath: `${relPath}/`, size: 0, categoryId: categoryId2, decision: decision2 });
+          skipped2.set(categoryId2, {
+            bytes: (skipped2.get(categoryId2)?.bytes ?? 0) + stat.bytes,
+            files: (skipped2.get(categoryId2)?.files ?? 0) + stat.files
+          });
+          continue;
+        }
+        walk(abs);
+        continue;
+      }
+      if (!entry.isFile())
+        continue;
+      let size = 0;
+      try {
+        size = statSync2(abs).size;
+      } catch {
+        continue;
+      }
+      const { categoryId, decision } = classify(relPath, size, purpose);
+      files.push({ relPath, size, categoryId, decision });
+    }
+  };
+  walk(root);
+  const byCategory = /* @__PURE__ */ new Map();
+  for (const f of files) {
+    const isPlaceholder = f.relPath.endsWith("/");
+    const cat = byCategory.get(f.categoryId) ?? {
+      id: f.categoryId,
+      decision: f.decision,
+      files: [],
+      bytes: 0
+    };
+    if (!isPlaceholder) {
+      cat.files.push({ relPath: f.relPath, size: f.size });
+      cat.bytes += f.size;
+    } else {
+      cat.files.push({ relPath: f.relPath, size: 0 });
+      const extra2 = skipped2.get(f.categoryId);
+      if (extra2)
+        cat.bytes += extra2.bytes;
+    }
+    byCategory.set(f.categoryId, cat);
+  }
+  const categories = [...byCategory.values()].sort((a, b) => CATEGORY_ORDER.indexOf(a.id) - CATEGORY_ORDER.indexOf(b.id));
+  for (const c of categories)
+    c.files.sort((a, b) => a.relPath.localeCompare(b.relPath));
+  const sum = (d) => {
+    let bytes = 0;
+    let files2 = 0;
+    for (const c of categories) {
+      if (c.decision !== d)
+        continue;
+      bytes += c.bytes;
+      files2 += c.files.filter((f) => !f.relPath.endsWith("/")).length;
+      files2 += skipped2.get(c.id)?.files ?? 0;
+    }
+    return { bytes, files: files2 };
+  };
+  const all = sum("recommended");
+  const optional = sum("optional");
+  const excluded = sum("excluded");
+  const defaultSelection = [];
+  const oversize = [];
+  for (const c of categories) {
+    if (c.decision !== "recommended")
+      continue;
+    for (const f of c.files) {
+      if (f.relPath.endsWith("/"))
+        continue;
+      if (f.size > UPLOAD_LIMITS.maxFileBytes) {
+        oversize.push({ relPath: f.relPath, size: f.size });
+        continue;
+      }
+      defaultSelection.push(f.relPath);
+    }
+  }
+  return {
+    root,
+    categories,
+    totals: {
+      // ⚠️ 分类的 bytes 已包含"整枝跳过的机器产物目录"的实测体积（见上面 cat.bytes +=），
+      // 所以这里**不能**再加一次，否则总账会翻倍（第一版就是这样）。
+      allBytes: all.bytes + optional.bytes + excluded.bytes,
+      allFiles: all.files + optional.files + excluded.files,
+      recommendedBytes: all.bytes,
+      recommendedFiles: all.files,
+      optionalBytes: optional.bytes,
+      optionalFiles: optional.files,
+      excludedBytes: excluded.bytes,
+      excludedFiles: excluded.files
+    },
+    limits: UPLOAD_LIMITS,
+    defaultSelection,
+    oversize,
+    requestCount: Math.max(1, Math.ceil(defaultSelection.length / UPLOAD_LIMITS.maxFilesPerRequest))
+  };
+}
+function planUploadBatches(root, selection) {
+  const skipped2 = [];
+  const batches = [];
+  let current = [];
+  let currentBytes = 0;
+  let total = 0;
+  for (const relPath of [...selection].sort()) {
+    const abs = join2(root, relPath);
+    let size = 0;
+    try {
+      size = statSync2(abs).size;
+    } catch {
+      continue;
+    }
+    total += size;
+    if (size > UPLOAD_LIMITS.maxFileBytes) {
+      skipped2.push({ relPath, size });
+      continue;
+    }
+    if (current.length >= UPLOAD_LIMITS.maxFilesPerRequest || currentBytes + size > UPLOAD_LIMITS.maxRequestBytes) {
+      if (current.length)
+        batches.push(current);
+      current = [];
+      currentBytes = 0;
+    }
+    current.push(relPath);
+    currentBytes += size;
+  }
+  if (current.length)
+    batches.push(current);
+  return { batches, skipped: skipped2, bytes: total };
+}
 
 // lib/config.js
 import { homedir as homedir2 } from "node:os";
-import { isAbsolute as isAbsolute2, join as join2 } from "node:path";
+import { isAbsolute as isAbsolute3, join as join4 } from "node:path";
 
 // node_modules/@deepseek-ai/cosmokit/lib/index.js
 function isNullable(value) {
@@ -538,7 +1028,7 @@ function validateVolatileSchema(schema, path = [], blocked = false, seen = /* @_
 Schema.extend = function extend(type, resolve12) {
   resolvers[type] = resolve12;
 };
-Schema.resolve = function resolve(data, schema, options = {}, strict = false) {
+Schema.resolve = function resolve2(data, schema, options = {}, strict = false) {
   if (!schema) return [data];
   if (!options[checkedVolatile]) {
     validateVolatileSchema(schema, options.path);
@@ -924,9 +1414,9 @@ defineMethod("transform", [
 ], ({ inner }, isInner) => inner.toString(isInner));
 
 // lib/server-env.js
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync as readFileSync2 } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, isAbsolute, join, resolve as resolve2 } from "node:path";
+import { dirname, isAbsolute as isAbsolute2, join as join3, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
 var SERVER_ENV_FILE_NAME = "convfusion.env.json";
 var SERVER_ENV_FILE_EXAMPLE = "convfusion.env.example.json";
@@ -939,10 +1429,10 @@ var BUILTIN_SERVER_URL = {
 var LOCAL_HOSTNAMES = /* @__PURE__ */ new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]);
 function dshHome(env) {
   const custom = (env.DSH_HOME ?? "").trim();
-  return custom || join(homedir(), ".dsh");
+  return custom || join3(homedir(), ".dsh");
 }
 function packageRoot() {
-  return resolve2(dirname(fileURLToPath(new URL("./server-env.js", import.meta.url).href)), "..");
+  return resolve3(dirname(fileURLToPath(new URL("./server-env.js", import.meta.url).href)), "..");
 }
 function serverEnvFileCandidates(env = process.env) {
   const explicit = (env[SERVER_ENV_FILE_ENV] ?? "").trim();
@@ -950,10 +1440,10 @@ function serverEnvFileCandidates(env = process.env) {
     return [];
   const root = packageRoot();
   return [
-    ...explicit ? [resolve2(explicit)] : [],
-    join(root, SERVER_ENV_FILE_NAME),
-    join(dshHome(env), "convfusion", "server-env.json"),
-    join(root, SERVER_ENV_FILE_EXAMPLE)
+    ...explicit ? [resolve3(explicit)] : [],
+    join3(root, SERVER_ENV_FILE_NAME),
+    join3(dshHome(env), "convfusion", "server-env.json"),
+    join3(root, SERVER_ENV_FILE_EXAMPLE)
   ];
 }
 function normalizeEnvironment(raw) {
@@ -980,7 +1470,7 @@ function parseServerEnvFile(path) {
   const empty = { environments: {}, dev: {} };
   let raw;
   try {
-    raw = readFileSync(path, "utf8");
+    raw = readFileSync2(path, "utf8");
   } catch {
     return empty;
   }
@@ -1005,7 +1495,7 @@ function parseServerEnvFile(path) {
   const base = dirname(path);
   const serverDir = asString(devRaw.serverDir);
   if (serverDir)
-    dev.serverDir = isAbsolute(serverDir) ? serverDir : resolve2(base, serverDir);
+    dev.serverDir = isAbsolute2(serverDir) ? serverDir : resolve3(base, serverDir);
   const python = asString(devRaw.python);
   if (python)
     dev.python = python;
@@ -1090,7 +1580,7 @@ function resolveDevTooling(env = process.env) {
   const cfg = loadServerEnv(env);
   const serverDir = (env.CONVFUSION_SERVER_DIR ?? "").trim() || cfg.dev.serverDir;
   return {
-    ...serverDir ? { serverDir: resolve2(serverDir) } : {},
+    ...serverDir ? { serverDir: resolve3(serverDir) } : {},
     // 解释器：环境变量 > 配置文件 > PATH 上的 python3（**不写死任何机器路径**）
     python: (env.CONVFUSION_PYTHON ?? "").trim() || cfg.dev.python || "python3",
     host: (env.CONVFUSION_HOST ?? "").trim() || cfg.dev.host || "127.0.0.1",
@@ -1124,7 +1614,7 @@ var CONVFUSION_SERVER_URL_ENV = "CONVFUSION_SERVER_URL";
 var DEFAULT_SERVER_URL = BUILTIN_SERVER_URL.development;
 function dshHome2() {
   const env = process.env.DSH_HOME?.trim();
-  return env ? env : join2(homedir2(), ".dsh");
+  return env ? env : join4(homedir2(), ".dsh");
 }
 var Config = Schema.object({
   decisionAssistEnabled: Schema.boolean().default(true).volatile().description("\u542F\u7528\u51B3\u7B56\u8F85\u52A9\uFF1A\u5C06\u5F53\u524D\u51B3\u7B56\u6240\u9700\u7684\u7814\u7A76\u72B6\u6001\u53D1\u9001\u5230 ConvFusion \u51B3\u7B56\u670D\u52A1\uFF1B\u5173\u95ED\u540E\u6CBF\u7528\u539F\u6709\u6D41\u7A0B\u3002"),
@@ -1140,10 +1630,10 @@ var Config = Schema.object({
 });
 function resolveCustomizationPath(config) {
   const file = (config.customizationFile ?? "").trim() || "skill-customizations.json";
-  if (isAbsolute2(file))
+  if (isAbsolute3(file))
     return file;
-  const dir = (config.customizationDir ?? "").trim() || join2(dshHome2(), "convfusion");
-  return join2(dir, file);
+  const dir = (config.customizationDir ?? "").trim() || join4(dshHome2(), "convfusion");
+  return join4(dir, file);
 }
 function redactConfig(config) {
   const { openalexApiKey: _a, convfusionApiKey: _b, convfusionDevApiKey: _c, convfusionProdApiKey: _d, ...rest } = config;
@@ -1196,127 +1686,9 @@ function describeOpenAlexKey(config, env = process.env) {
   return { configured: false, source: "none" };
 }
 
-// lib/protocol.js
-var HOST_PROTOCOL = 31;
-var HOST_PROTOCOL_FIELD = "protocol";
-
-// lib/research/sync-watermarks.js
-import { existsSync as existsSync2, mkdirSync, readFileSync as readFileSync2, renameSync, writeFileSync } from "node:fs";
-import { dirname as dirname2 } from "node:path";
-function syncWatermarkKey(serverUrl, projectId, side = "owner") {
-  return `${serverUrl.trim()}|${projectId.trim()}|${side}`;
-}
-function parseSyncWatermarkKey(key) {
-  const parts = key.split("|");
-  const side = parts.length >= 3 && parts[parts.length - 1] === "mentor" ? "mentor" : "owner";
-  return {
-    serverUrl: parts[0] ?? "",
-    projectId: parts.length >= 3 ? parts.slice(1, -1).join("|") : parts[1] ?? "",
-    side
-  };
-}
-function isRecord(v) {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-function parseRecord(raw) {
-  if (!isRecord(raw))
-    return void 0;
-  const updatedAt = typeof raw.updatedAt === "string" ? raw.updatedAt.trim() : "";
-  if (!updatedAt)
-    return void 0;
-  const fileCount = typeof raw.fileCount === "number" && Number.isFinite(raw.fileCount) && raw.fileCount >= 0 ? Math.trunc(raw.fileCount) : raw.fileCount === null ? null : void 0;
-  if (fileCount === void 0)
-    return void 0;
-  return {
-    updatedAt,
-    fileCount,
-    downloadedAt: typeof raw.downloadedAt === "string" ? raw.downloadedAt : ""
-  };
-}
-function parseTable(text) {
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return {};
-  }
-  if (!isRecord(data))
-    return {};
-  const out = {};
-  for (const [key, value] of Object.entries(data)) {
-    const record = parseRecord(value);
-    if (record) {
-      const { serverUrl, projectId, side } = parseSyncWatermarkKey(key);
-      out[syncWatermarkKey(serverUrl, projectId, side)] = record;
-    }
-  }
-  return out;
-}
-function createFileSyncWatermarkStore(resolvePath) {
-  const load = () => {
-    try {
-      const path = resolvePath();
-      if (!existsSync2(path))
-        return {};
-      return parseTable(readFileSync2(path, "utf8"));
-    } catch {
-      return {};
-    }
-  };
-  const save = (table) => {
-    const path = resolvePath();
-    mkdirSync(dirname2(path), { recursive: true });
-    const tmp = `${path}.tmp`;
-    writeFileSync(tmp, `${JSON.stringify(table, null, 2)}
-`, "utf8");
-    renameSync(tmp, path);
-  };
-  return {
-    get: (serverUrl, projectId, side = "owner") => load()[syncWatermarkKey(serverUrl, projectId, side)],
-    set: (serverUrl, projectId, side, watermark) => {
-      const table = load();
-      table[syncWatermarkKey(serverUrl, projectId, side)] = watermark;
-      save(table);
-    },
-    all: () => load(),
-    get path() {
-      return resolvePath();
-    }
-  };
-}
-function checkSideChange(watermark, serverUpdatedAt, serverFiles) {
-  if (!watermark)
-    return { neverDownloaded: true };
-  let uploaded = false;
-  let uploadedKnown = false;
-  if (typeof serverUpdatedAt === "string" && serverUpdatedAt.trim()) {
-    const now = Date.parse(serverUpdatedAt);
-    const then = Date.parse(watermark.updatedAt);
-    if (Number.isFinite(now) && Number.isFinite(then)) {
-      uploadedKnown = true;
-      uploaded = now > then;
-    }
-  }
-  let deleted = false;
-  let deletedKnown = false;
-  if (typeof serverFiles === "number" && Number.isFinite(serverFiles)) {
-    if (watermark.fileCount !== null) {
-      deletedKnown = true;
-      deleted = Math.trunc(serverFiles) !== watermark.fileCount;
-    }
-  }
-  if (uploadedKnown && uploaded)
-    return { changed: true, reason: "uploaded" };
-  if (deletedKnown && deleted)
-    return { changed: true, reason: "deleted" };
-  if (uploadedKnown && deletedKnown)
-    return { changed: false, reason: null };
-  return null;
-}
-
 // lib/research/work-identity.js
-import { existsSync as existsSync3, mkdirSync as mkdirSync2, readFileSync as readFileSync3, renameSync as renameSync2, writeFileSync as writeFileSync2 } from "node:fs";
-import { dirname as dirname3, join as join3 } from "node:path";
+import { existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync as readFileSync3, renameSync, writeFileSync } from "node:fs";
+import { dirname as dirname2, join as join5 } from "node:path";
 var WORK_META_DIR = ".convfusion";
 var WORK_MARKER_REL = `${WORK_META_DIR}/work.json`;
 function isWorkspaceId(value) {
@@ -1324,7 +1696,7 @@ function isWorkspaceId(value) {
 }
 function researchRootFingerprint(researchRoot2) {
   try {
-    const text = readFileSync3(join3(researchRoot2, "project.md"), "utf8");
+    const text = readFileSync3(join5(researchRoot2, "project.md"), "utf8");
     const m = /^created_at:[ \t]*(.+)$/m.exec(text);
     const value = m?.[1]?.trim();
     return value ? value : null;
@@ -1337,26 +1709,26 @@ function normalizeWorkspaceId(value) {
     return null;
   return value.trim().toLowerCase();
 }
-function isRecord2(v) {
+function isRecord(v) {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 function asRole(v) {
   return v === "owner" ? "owner" : "mentor";
 }
 function workMarkerPath(researchRoot2) {
-  return join3(researchRoot2, WORK_META_DIR, "work.json");
+  return join5(researchRoot2, WORK_META_DIR, "work.json");
 }
 function readWorkMarker(researchRoot2) {
   let raw;
   try {
     const path = workMarkerPath(researchRoot2);
-    if (!existsSync3(path))
+    if (!existsSync2(path))
       return void 0;
     raw = JSON.parse(readFileSync3(path, "utf8"));
   } catch {
     return void 0;
   }
-  if (!isRecord2(raw))
+  if (!isRecord(raw))
     return void 0;
   const id = normalizeWorkspaceId(raw.workspace_id ?? raw.workspaceId);
   if (!id)
@@ -1376,10 +1748,10 @@ function readWorkMarker(researchRoot2) {
 function writeWorkMarker(researchRoot2, identity) {
   try {
     const path = workMarkerPath(researchRoot2);
-    mkdirSync2(dirname3(path), { recursive: true });
+    mkdirSync2(dirname2(path), { recursive: true });
     const tmp = `${path}.tmp-${process.pid.toString(36)}`;
-    writeFileSync2(tmp, markerJson(identity), "utf8");
-    renameSync2(tmp, path);
+    writeFileSync(tmp, markerJson(identity), "utf8");
+    renameSync(tmp, path);
     return true;
   } catch {
     return false;
@@ -1398,7 +1770,7 @@ function markerJson(identity) {
 `;
 }
 function parseIdentity(raw) {
-  if (!isRecord2(raw))
+  if (!isRecord(raw))
     return void 0;
   const workspaceId = normalizeWorkspaceId(raw.workspaceId ?? raw.workspace_id);
   if (!workspaceId)
@@ -1412,14 +1784,14 @@ function parseIdentity(raw) {
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : ""
   };
 }
-function parseTable2(text) {
+function parseTable(text) {
   let data;
   try {
     data = JSON.parse(text);
   } catch {
     return {};
   }
-  if (!isRecord2(data))
+  if (!isRecord(data))
     return {};
   const out = {};
   for (const [root, value] of Object.entries(data)) {
@@ -1433,20 +1805,20 @@ function createFileWorkIdentityStore(resolvePath) {
   const load = () => {
     try {
       const path = resolvePath();
-      if (!existsSync3(path))
+      if (!existsSync2(path))
         return {};
-      return parseTable2(readFileSync3(path, "utf8"));
+      return parseTable(readFileSync3(path, "utf8"));
     } catch {
       return {};
     }
   };
   const save = (table) => {
     const path = resolvePath();
-    mkdirSync2(dirname3(path), { recursive: true });
+    mkdirSync2(dirname2(path), { recursive: true });
     const tmp = `${path}.tmp-${process.pid.toString(36)}`;
-    writeFileSync2(tmp, `${JSON.stringify(table, null, 2)}
+    writeFileSync(tmp, `${JSON.stringify(table, null, 2)}
 `, "utf8");
-    renameSync2(tmp, path);
+    renameSync(tmp, path);
   };
   return {
     get: (researchRoot2) => load()[researchRoot2],
@@ -1511,15 +1883,1505 @@ function makeWorkIdentity(input) {
   };
 }
 
+// lib/server-client.js
+var SERVER_API_PREFIX = "/api/v1";
+var SERVER_TIMEOUT_MS = 8e3;
+var PROJECT_DIRECTIONS = ["SEEK_MENTOR", "SEEK_STUDENT"];
+function parseDirection(raw) {
+  return asString2(raw) === "SEEK_STUDENT" ? "SEEK_STUDENT" : "SEEK_MENTOR";
+}
+var ServerError = class extends Error {
+  code;
+  /** HTTP 状态码（网络层失败时缺省）。 */
+  httpStatus;
+  /** 服务器自己的 `error.code`（如 `API_KEY_REVOKED`），仅用于诊断。 */
+  serverCode;
+  /** 429 的 `details.retry_after_seconds`。 */
+  retryAfterSeconds;
+  /** 402 的 `details.required`（本次需要多少 Token）。 */
+  requiredTokens;
+  /** 402 的 `details.available`（当前可用多少 Token）。 */
+  availableTokens;
+  /**
+   * 402（**资金池专属**路径）的 `details.funded`：资金池当前有多少。
+   *
+   * 它出现就说明这次失败是"赠送额度不能付给导师"，而不是"一分钱都没有"——
+   * 界面据此说清话（并提示找管理员发放），而不是笼统说余额不足。
+   */
+  fundedTokens;
+  /** 402（资金池专属路径）的 `details.grant`：同一次失败里赠送额度有多少。 */
+  grantTokens;
+  /** 409 STATE_VERSION_CONFLICT 的 `details.current_version`（重基时用它）。 */
+  currentVersion;
+  constructor(code, message, extra2 = {}) {
+    super(message);
+    this.name = "ServerError";
+    this.code = code;
+    this.httpStatus = extra2.httpStatus;
+    this.serverCode = extra2.serverCode;
+    this.retryAfterSeconds = extra2.retryAfterSeconds;
+    this.requiredTokens = extra2.requiredTokens;
+    this.availableTokens = extra2.availableTokens;
+    this.fundedTokens = extra2.fundedTokens;
+    this.grantTokens = extra2.grantTokens;
+    this.currentVersion = extra2.currentVersion;
+  }
+};
+function normalizeBaseUrl(raw) {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed)
+    return defaultServerUrl();
+  let url;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new ServerError("bad-url", `\u670D\u52A1\u5668\u5730\u5740\u4E0D\u662F\u5408\u6CD5 URL\uFF1A${trimmed}`);
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new ServerError("bad-url", `\u670D\u52A1\u5668\u5730\u5740\u5FC5\u987B\u4EE5 http:// \u6216 https:// \u5F00\u5934\uFF1A${trimmed}`);
+  }
+  return serverAddressKey(trimmed);
+}
+function apiBase(base) {
+  return `${normalizeBaseUrl(base)}${SERVER_API_PREFIX}`;
+}
+function apiUrl(base, path) {
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  return `${normalizeBaseUrl(base)}${SERVER_API_PREFIX}${suffix}`;
+}
+function normalizeApiKey(raw) {
+  return (raw ?? "").trim().replace(/^Bearer\s+/i, "").trim();
+}
+function sourceQuery(source) {
+  return source === void 0 || source === "owner" ? "" : `?source=${source}`;
+}
+var STALL_TIMEOUT_MS = 3e4;
+function errorBodyMessage(body) {
+  if (!body || typeof body !== "object")
+    return {};
+  const error2 = body.error;
+  if (!error2 || typeof error2 !== "object")
+    return {};
+  const e = error2;
+  const details = e.details && typeof e.details === "object" ? e.details : {};
+  const retry = details.retry_after_seconds;
+  return {
+    ...typeof e.code === "string" ? { serverCode: e.code } : {},
+    ...typeof e.message === "string" ? { message: e.message } : {},
+    ...typeof retry === "number" ? { retryAfterSeconds: retry } : {}
+  };
+}
+function errorBodyDetails(body) {
+  if (!body || typeof body !== "object")
+    return {};
+  const error2 = body.error;
+  if (!error2 || typeof error2 !== "object")
+    return {};
+  const details = error2.details;
+  return details && typeof details === "object" ? details : {};
+}
+function mapHttpError(status, body) {
+  const { serverCode, message, retryAfterSeconds } = errorBodyMessage(body);
+  const where = (fallback) => message ? `${fallback}\uFF08\u670D\u52A1\u5668\uFF1A${message}\uFF09` : fallback;
+  const withCode = { httpStatus: status, ...serverCode ? { serverCode } : {} };
+  if (status === 401) {
+    return new ServerError("invalid-key", serverCode === "API_KEY_REVOKED" ? "\u8FD9\u4E2A API Key \u5DF2\u88AB\u64A4\u9500\uFF0C\u8BF7\u6362\u4E00\u4EFD\u6709\u6548\u7684 Key\u3002" : where("API Key \u65E0\u6548\u6216\u4E0D\u5B58\u5728\uFF0C\u8BF7\u6838\u5BF9\u540E\u91CD\u8BD5\u3002"), withCode);
+  }
+  if (status === 402) {
+    const details = errorBodyDetails(body);
+    const required = typeof details.required === "number" ? details.required : void 0;
+    const available = typeof details.available === "number" ? details.available : void 0;
+    const funded = typeof details.funded === "number" ? details.funded : void 0;
+    const grant = typeof details.grant === "number" ? details.grant : void 0;
+    const balance = required === void 0 || available === void 0 ? "Token \u4F59\u989D\u4E0D\u8DB3\u3002" : funded === void 0 ? `Token \u4F59\u989D\u4E0D\u8DB3\uFF1A\u672C\u6B21\u9700\u8981 ${required} \u4E2A\uFF0C\u5F53\u524D\u53EF\u7528 ${available} \u4E2A\u3002` : (
+      // 赠送额度**只在服务器真给了这个数**时才提（拿不到就不编一个 0 出来）
+      `\u8D44\u91D1\u6C60\u4E0D\u8DB3\uFF1A\u672C\u6B21\u9700\u8981 ${required} \u4E2A\uFF0C\u8D44\u91D1\u6C60\u53EF\u7528 ${funded} \u4E2A\uFF08` + (grant === void 0 ? "" : `\u53E6\u6709\u8D60\u9001\u989D\u5EA6 ${grant} \u4E2A\uFF0C`) + "\u8D60\u9001\u989D\u5EA6\u4E0D\u80FD\u4ED8\u7ED9\u5BFC\u5E08\u3001\u4E5F\u4E0D\u80FD\u63D0\u73B0\uFF09\u3002"
+    );
+    return new ServerError(
+      "insufficient-tokens",
+      // ⚠️ 不要在这条**用户可见**的文案里写 markdown（`**` 会原样显示成星号）。
+      // 自助付费尚未开通（见 community.token.renewHint）→ 唯一动作是找管理员发放，
+      // 这句话必须出现在**错误本身**里，界面直接展示 message 时也不会漏掉动作。
+      `${balance}\u6D4B\u8BD5\u9636\u6BB5\u8BF7\u8054\u7CFB\u7BA1\u7406\u5458\u53D1\u653E Token\uFF1B\u62FF\u5230\u540E\u91CD\u8BD5\u5373\u53EF\uFF0C\u4E0D\u4F1A\u91CD\u590D\u6263\u8D39\u3002`,
+      {
+        ...withCode,
+        ...required === void 0 ? {} : { requiredTokens: required },
+        ...available === void 0 ? {} : { availableTokens: available },
+        ...funded === void 0 ? {} : { fundedTokens: funded },
+        ...grant === void 0 ? {} : { grantTokens: grant }
+      }
+    );
+  }
+  if (status === 403) {
+    if (serverCode === "FULL_STATE_ACCESS_REQUIRED") {
+      return new ServerError("no-relationship", "\u5B8C\u6574\u7814\u7A76\u72B6\u6001\u9700\u8981\u6709\u6548\u7684\u5BFC\u5E08\u5173\u7CFB\uFF1B\u5F53\u524D\u8D26\u53F7\u4E0E\u8BE5\u7814\u7A76\u8FD8\u6CA1\u6709\u5173\u7CFB\u3002", withCode);
+    }
+    if (serverCode === "FILE_PATH_RESERVED") {
+      return new ServerError("path-reserved", `\u5F53\u524D\u670D\u52A1\u5668\u53EA\u5141\u8BB8\u5BFC\u5E08\u5199 ${MENTOR_REVIEW_PREFIX}/ \u76EE\u5F55\u4E0B\u7684\u6587\u4EF6\uFF1B\u56DE\u4F20\u6574\u4EFD\u5DE5\u4F5C\u533A\u9700\u8981\u670D\u52A1\u5668\u653E\u5F00\u8FD9\u6761\u9650\u5236\uFF08\u5176\u4F59\u8DEF\u5F84\u7531\u5B66\u751F\u672C\u4EBA\u7EF4\u62A4\uFF09\u3002`, { ...withCode, serverCode });
+    }
+    return new ServerError("account-inactive", where("\u8D26\u53F7\u672A\u6FC0\u6D3B\u6216\u88AB\u505C\u7528\uFF0C\u8BF7\u8054\u7CFB ConvFusion.com \u7BA1\u7406\u5458\u3002"), withCode);
+  }
+  if (status === 404) {
+    return new ServerError("not-found", "\u8FD9\u9879\u7814\u7A76\u5DE5\u4F5C\u4E0D\u5B58\u5728\uFF0C\u6216\u5C1A\u672A\u516C\u5F00\u3001\u5BF9\u4F60\u4E0D\u53EF\u89C1\u3002", withCode);
+  }
+  if (status === 429) {
+    const wait = retryAfterSeconds ?? 0;
+    const hint = wait >= 60 ? `\u8BF7\u7EA6 ${Math.ceil(wait / 60)} \u5206\u949F\u540E\u518D\u8BD5\u3002` : wait > 0 ? `\u8BF7 ${wait} \u79D2\u540E\u518D\u8BD5\u3002` : "\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002";
+    return new ServerError("rate-limited", `\u8BF7\u6C42\u8FC7\u4E8E\u9891\u7E41\u3002${hint}`, {
+      ...withCode,
+      ...retryAfterSeconds === void 0 ? {} : { retryAfterSeconds }
+    });
+  }
+  if (status === 409) {
+    if (serverCode === "UPLOAD_IN_PROGRESS") {
+      return new ServerError("bad-request", "\u8FD9\u9879\u7814\u7A76\u5DF2\u6709\u4E0A\u4F20\u4EFB\u52A1\uFF0C\u8BF7\u7B49\u5F85\u5B8C\u6210\u6216\u53D6\u6D88\u540E\u518D\u4E0A\u4F20\u3002", withCode);
+    }
+    if (serverCode === "INVITATION_USED") {
+      return new ServerError("invitation-used", "\u8FD9\u4E2A\u9080\u8BF7\u7801\u5DF2\u7ECF\u88AB\u4F7F\u7528\u8FC7\u4E86\uFF1B\u5982\u679C\u4F60\u5DF2\u7ECF\u6CE8\u518C\uFF0C\u8BF7\u6539\u7528 API Key \u767B\u5F55\u3002", {
+        ...withCode,
+        serverCode
+      });
+    }
+    if (serverCode === "CONFLICT") {
+      return new ServerError("email-taken", "\u8FD9\u4E2A\u90AE\u7BB1\u5DF2\u7ECF\u6CE8\u518C\u8FC7\u4E86\uFF1B\u8BF7\u6539\u7528 API Key \u767B\u5F55\u3002", {
+        ...withCode,
+        serverCode
+      });
+    }
+    if (serverCode === "STATE_VERSION_CONFLICT") {
+      const details = errorBodyDetails(body);
+      const current = typeof details.current_version === "number" ? details.current_version : void 0;
+      return new ServerError("version-conflict", "\u7814\u7A76\u72B6\u6001\u5DF2\u88AB\u66F4\u65B0\uFF08\u7248\u672C\u51B2\u7A81\uFF09\u3002\u8BF7\u57FA\u4E8E\u6700\u65B0\u7248\u672C\u91CD\u8BD5\u3002", { ...withCode, ...current === void 0 ? {} : { currentVersion: current } });
+    }
+    if (serverCode === "IDEMPOTENCY_KEY_REUSED") {
+      return new ServerError("idempotency-reused", "\u540C\u4E00\u4E2A\u8BF7\u6C42\u6807\u8BC6\u88AB\u7528\u4E8E\u4E86\u4E0D\u540C\u7684\u5185\u5BB9\uFF08\u5BA2\u6237\u7AEF\u95EE\u9898\uFF09\u3002\u8BF7\u91CD\u65B0\u53D1\u8D77\u8FD9\u6B21\u67E5\u770B\u3002", withCode);
+    }
+    if (serverCode === "PROPOSAL_INVALID_STATE") {
+      return new ServerError("proposal-state", "\u8FD9\u6761\u6307\u5BFC\u7533\u8BF7\u5DF2\u7ECF\u4E0D\u5728\u53EF\u63A5\u53D7\u7684\u72B6\u6001\u4E86\uFF08\u53EF\u80FD\u5DF2\u88AB\u5904\u7406\u3001\u6216\u5DF2\u8FC7\u671F\uFF09\u3002\u5217\u8868\u5DF2\u5237\u65B0\u3002", { ...withCode, serverCode });
+    }
+    if (serverCode === "PROJECT_ALREADY_HAS_ACTIVE_MENTORSHIP") {
+      return new ServerError("proposal-state", "\u8FD9\u4E2A\u9879\u76EE\u5DF2\u7ECF\u6709\u751F\u6548\u7684\u6307\u5BFC\u5173\u7CFB\u4E86\u3002\u8BF7\u5237\u65B0\u5217\u8868\u3002", { ...withCode, serverCode });
+    }
+  }
+  if (status === 400 || status === 422) {
+    if (serverCode === "INVALID_INVITATION" || serverCode === "INVITATION_EXPIRED") {
+      return new ServerError("invalid-invitation", serverCode === "INVITATION_EXPIRED" ? "\u9080\u8BF7\u7801\u5DF2\u8FC7\u671F\uFF0C\u8BF7\u5411\u7BA1\u7406\u5458\u7D22\u53D6\u65B0\u7684\u9080\u8BF7\u7801\u3002" : where("\u9080\u8BF7\u7801\u65E0\u6548\uFF0C\u6216\u4E0E\u586B\u5199\u7684\u90AE\u7BB1\u4E0D\u5339\u914D\u3002"), { ...withCode, serverCode });
+    }
+    return new ServerError("bad-request", where("\u8BF7\u6C42\u88AB\u670D\u52A1\u5668\u62D2\u7EDD\uFF0C\u8BF7\u68C0\u67E5\u586B\u5199\u7684\u5185\u5BB9\u3002"), withCode);
+  }
+  if (status >= 500) {
+    return new ServerError("server-error", where("\u670D\u52A1\u5668\u5185\u90E8\u9519\u8BEF\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002"), withCode);
+  }
+  return new ServerError("bad-request", where(`\u8BF7\u6C42\u5931\u8D25\uFF08HTTP ${status}\uFF09\u3002`), withCode);
+}
+async function requestJson(base, path, init, options, label) {
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+  if (typeof fetchImpl !== "function") {
+    throw new ServerError("unreachable", "\u5F53\u524D\u8FD0\u884C\u73AF\u5883\u6CA1\u6709\u53EF\u7528\u7684 fetch\u3002");
+  }
+  options.signal?.throwIfAborted();
+  const controller = new AbortController();
+  const abort = () => controller.abort(options.signal?.reason);
+  options.signal?.addEventListener("abort", abort, { once: true });
+  const timeoutMs = options.timeoutMs ?? SERVER_TIMEOUT_MS;
+  const url = apiUrl(base, path);
+  const timeoutError = new ServerError("unreachable", `\u8FDE\u63A5 ${base} \u8D85\u65F6\uFF08${Math.round(timeoutMs / 1e3)} \u79D2\u65E0\u54CD\u5E94\uFF09\u3002\u8BF7\u786E\u8BA4\u670D\u52A1\u5668\u5DF2\u542F\u52A8\u3001\u5730\u5740\u4E0E\u7AEF\u53E3\u6B63\u786E\u3002`);
+  let timer;
+  const timeout = new Promise((_resolve, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(timeoutError);
+    }, timeoutMs);
+  });
+  let res;
+  try {
+    res = await Promise.race([
+      fetchImpl(url, {
+        method: init.method,
+        headers: {
+          accept: "application/json",
+          ...init.body === void 0 || init.body instanceof FormData ? {} : { "content-type": "application/json" },
+          ...init.apiKey ? { authorization: `Bearer ${init.apiKey}` } : {},
+          // 幂等键：**同一次业务意图**重试必须复用（402 后充值再试就靠它不重复扣费）
+          ...init.idempotencyKey ? { "idempotency-key": init.idempotencyKey } : {},
+          // 这项工作是谁：服务器据此拒绝"往别人的项目里写"（老服务器忽略该头）
+          ...options.workspaceId ? { "x-workspace-id": options.workspaceId } : {}
+        },
+        ...init.body === void 0 ? {} : { body: init.body instanceof FormData ? init.body : JSON.stringify(init.body) },
+        signal: controller.signal
+      }),
+      timeout
+    ]);
+  } catch (e) {
+    options.signal?.throwIfAborted();
+    if (e instanceof ServerError)
+      throw e;
+    throw new ServerError("unreachable", `\u65E0\u6CD5\u8FDE\u63A5 ${base}\uFF1A${e instanceof Error ? e.message : String(e)}\u3002\u8BF7\u786E\u8BA4\u670D\u52A1\u5668\u5DF2\u542F\u52A8\u3002`);
+  } finally {
+    options.signal?.removeEventListener("abort", abort);
+    if (timer !== void 0)
+      clearTimeout(timer);
+  }
+  let body;
+  try {
+    body = await res.json();
+  } catch {
+    body = void 0;
+  }
+  if (!res.ok) {
+    if (process.env.CF_NET_DEBUG) {
+      const code = body?.error?.code;
+      console.error("[net] %s %s \u2192 %d %s", init.method, path, res.status, String(code ?? ""));
+    }
+    throw mapHttpError(res.status, body);
+  }
+  if (body === void 0) {
+    throw new ServerError("bad-response", `${label}\uFF1A\u670D\u52A1\u5668\u8FD4\u56DE\u7684\u4E0D\u662F JSON\u3002`);
+  }
+  return body;
+}
+async function probeServerHealth(base, options = {}) {
+  await requestJson(base, "/health", { method: "GET" }, options, "\u670D\u52A1\u5668\u8FDE\u901A\u6027\u68C0\u67E5");
+}
+function asString2(v) {
+  return typeof v === "string" ? v : "";
+}
+function parseAccount(body) {
+  if (!body || typeof body !== "object") {
+    throw new ServerError("bad-response", "\u8D26\u53F7\u4FE1\u606F\u683C\u5F0F\u4E0D\u6B63\u786E\uFF08\u4E0D\u662F\u5BF9\u8C61\uFF09\u3002");
+  }
+  const b = body;
+  const id = asString2(b.id);
+  const email = asString2(b.email);
+  if (!id || !email) {
+    throw new ServerError("bad-response", "\u8D26\u53F7\u4FE1\u606F\u7F3A\u5C11 id / email \u5B57\u6BB5\u3002");
+  }
+  return {
+    id,
+    email,
+    displayName: asString2(b.display_name) || email.split("@")[0] || email,
+    status: asString2(b.status) || "ACTIVE",
+    roles: Array.isArray(b.roles) ? b.roles.filter((r) => typeof r === "string") : []
+  };
+}
+async function fetchEmailNotificationPreferences(base, apiKey, options = {}, update) {
+  const body = await requestJson(base, "/notifications/preferences", update ? { method: "PATCH", apiKey, body: update } : { method: "GET", apiKey }, options, "\u90AE\u4EF6\u901A\u77E5\u8BBE\u7F6E");
+  if (typeof body?.email_research_updates !== "boolean" || typeof body?.email_new_work !== "boolean") {
+    throw new ServerError("bad-response", "\u90AE\u4EF6\u901A\u77E5\u8BBE\u7F6E\u683C\u5F0F\u4E0D\u6B63\u786E\u3002");
+  }
+  return { email_research_updates: body.email_research_updates, email_new_work: body.email_new_work };
+}
+async function fetchDecisionAssist(base, apiKey, body, options = {}) {
+  const timeoutMs = options.timeoutMs ?? 15e3;
+  const controller = new AbortController();
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+  let timer;
+  const timeout = new Promise((_resolve, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new ServerError("unreachable", "\u51B3\u7B56\u8F85\u52A9\u8D85\u65F6\u3002"));
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([requestJson(base, "/decision-model/assist", { method: "POST", apiKey, body }, {
+      ...options,
+      timeoutMs,
+      fetchImpl: (url, init) => fetchImpl(url, { ...init, signal: controller.signal })
+    }, "\u51B3\u7B56\u8F85\u52A9"), timeout]);
+  } finally {
+    if (timer !== void 0)
+      clearTimeout(timer);
+  }
+}
+async function fetchAccount(base, apiKey, options = {}) {
+  const key = normalizeApiKey(apiKey);
+  if (!key)
+    throw new ServerError("bad-request", "API Key \u4E0D\u80FD\u4E3A\u7A7A\u3002");
+  const body = await requestJson(base, "/auth/me", { method: "GET", apiKey: key }, options, "\u8EAB\u4EFD\u9A8C\u8BC1");
+  return parseAccount(body);
+}
+async function acceptInvitation(base, input, options = {}) {
+  const invitationCode = input.invitationCode.trim();
+  const email = input.email.trim();
+  const displayName = input.displayName.trim();
+  if (!invitationCode)
+    throw new ServerError("bad-request", "\u9080\u8BF7\u7801\u4E0D\u80FD\u4E3A\u7A7A\u3002");
+  if (!email)
+    throw new ServerError("bad-request", "\u90AE\u7BB1\u4E0D\u80FD\u4E3A\u7A7A\u3002");
+  if (!displayName)
+    throw new ServerError("bad-request", "\u663E\u793A\u540D\u4E0D\u80FD\u4E3A\u7A7A\u3002");
+  const body = await requestJson(base, "/auth/invitations/accept", {
+    method: "POST",
+    body: { invitation_code: invitationCode, email, display_name: displayName }
+  }, options, "\u9080\u8BF7\u7801\u6CE8\u518C");
+  const b = body ?? {};
+  const apiKey = normalizeApiKey(asString2(b.api_key));
+  if (!apiKey) {
+    throw new ServerError("bad-response", "\u6CE8\u518C\u6210\u529F\u4F46\u670D\u52A1\u5668\u6CA1\u6709\u8FD4\u56DE API Key\uFF1B\u8BF7\u7528 API Key \u767B\u5F55\u91CD\u8BD5\u3002");
+  }
+  const account = await fetchAccount(base, apiKey, options);
+  return { account, apiKey };
+}
+async function fetchTokenBalance(base, apiKey, options = {}) {
+  const key = requireKey(apiKey);
+  const body = await requestJson(base, "/tokens", { method: "GET", apiKey: key }, options, "Token \u4F59\u989D");
+  const b = asObject(body, "Token \u4F59\u989D");
+  const available = asNumber(b.available_balance);
+  const frozen = asNumber(b.frozen_balance);
+  return {
+    available,
+    frozen,
+    // 服务器会给 total；真缺了就自己加，但服务器给的值优先
+    total: b.total_balance === void 0 ? available + frozen : asNumber(b.total_balance),
+    // ⚠️ 两池是**三态**：缺字段读作 null（旧服务器不分开说），不能读成 0 ——
+    // 读成 0 会让界面把"能付导师"说成 0，把一个好好的账号拦在【接受】外面。
+    grant: optionalNumber(b.grant_balance),
+    funded: optionalNumber(b.funded_balance)
+  };
+}
+function parseRechargeRequest(raw) {
+  const b = asObject(raw, "\u7EED\u8D39\u7533\u8BF7");
+  const id = asString2(b.id);
+  if (!id)
+    throw new ServerError("bad-response", "\u7EED\u8D39\u7533\u8BF7\u7F3A\u5C11 id \u5B57\u6BB5\u3002");
+  return {
+    id,
+    amount: asNumber(b.amount),
+    reason: asString2(b.reason) || null,
+    status: asString2(b.status) || "PENDING",
+    note: asString2(b.note) || null,
+    reviewedBy: asString2(b.reviewed_by) || null,
+    reviewedAt: asString2(b.reviewed_at) || null,
+    grantTxId: asString2(b.grant_tx_id) || null,
+    createdAt: asString2(b.created_at),
+    updatedAt: asString2(b.updated_at)
+  };
+}
+async function submitRechargeRequest(base, apiKey, input, options = {}) {
+  const key = requireKey(apiKey);
+  const amount = input.amount;
+  if (!Number.isInteger(amount) || amount <= 0) {
+    throw new ServerError("bad-request", "\u7533\u8BF7\u6570\u91CF\u5FC5\u987B\u662F\u6B63\u6574\u6570\u3002");
+  }
+  const reason = (input.reason ?? "").trim();
+  const body = await requestJson(base, "/tokens/recharge-requests", {
+    method: "POST",
+    apiKey: key,
+    body: { amount, ...reason ? { reason } : {} }
+  }, options, "\u63D0\u4EA4\u7EED\u8D39\u7533\u8BF7");
+  return parseRechargeRequest(body);
+}
+async function fetchRechargeRequests(base, apiKey, options = {}) {
+  const key = requireKey(apiKey);
+  const body = await requestJson(base, "/tokens/recharge-requests", { method: "GET", apiKey: key }, options, "\u7EED\u8D39\u7533\u8BF7\u8BB0\u5F55");
+  const b = asObject(body, "\u7EED\u8D39\u7533\u8BF7\u8BB0\u5F55");
+  const items = b.items;
+  if (!Array.isArray(items)) {
+    throw new ServerError("bad-response", "\u7EED\u8D39\u7533\u8BF7\u8BB0\u5F55\u7F3A\u5C11 items \u5B57\u6BB5\u3002");
+  }
+  return items.map(parseRechargeRequest);
+}
+async function fetchUsage(base, apiKey, options = {}) {
+  const key = requireKey(apiKey);
+  try {
+    const body = await requestJson(base, "/usage", { method: "GET", apiKey: key }, options, "\u7528\u91CF\u4E0E\u914D\u989D");
+    const root = asObject(body, "\u7528\u91CF\u4E0E\u914D\u989D");
+    const projects = asObject(root.projects, "\u9879\u76EE\u7528\u91CF");
+    const storage = asObject(root.storage, "\u5B58\u50A8\u7528\u91CF");
+    return {
+      nextPublishCost: asNumber(projects.next_publish_cost, 0),
+      paidProjects: asNumber(projects.paid_alive, 0),
+      tier: asNumber(projects.tier, 1),
+      storage: {
+        usedBytes: asNumber(storage.used_bytes, 0),
+        capacityBytes: asNumber(storage.capacity_bytes, 0),
+        availableBytes: asNumber(storage.available_bytes, 0),
+        bytesPerToken: asNumber(storage.bytes_per_token, 0)
+      }
+    };
+  } catch {
+    return null;
+  }
+}
+async function purchaseStorage(base, apiKey, gb, intentKey, options = {}) {
+  const body = asObject(await requestJson(base, "/tokens/storage/purchase", { method: "POST", apiKey: requireKey(apiKey), body: { gb }, idempotencyKey: intentKey }, options, "\u8D2D\u4E70\u5B58\u50A8\u7A7A\u95F4"), "\u5B58\u50A8\u8D2D\u4E70\u7ED3\u679C");
+  const purchasedGb = asNumber(body.purchased_gb, -1);
+  const capacityBytes = asNumber(body.capacity_bytes, -1);
+  const cost = asNumber(body.cost, -1);
+  if (purchasedGb !== gb || !Number.isSafeInteger(capacityBytes) || capacityBytes <= 0 || !Number.isSafeInteger(cost) || cost <= 0) {
+    throw new ServerError("bad-response", "\u670D\u52A1\u5668\u8FD4\u56DE\u7684\u5B58\u50A8\u8D2D\u4E70\u56DE\u6267\u4E0D\u5B8C\u6574\u3002");
+  }
+  return { purchasedGb, capacityBytes, cost };
+}
+async function fetchPriceGuide(base, apiKey, options = {}) {
+  try {
+    const key = requireKey(apiKey);
+    const body = await requestJson(base, "/mentorship/price-guide", { method: "GET", apiKey: key }, options, "\u4EF7\u76EE\u53C2\u8003");
+    const root = asObject(body, "\u4EF7\u76EE\u53C2\u8003");
+    const tiers = [];
+    const rawTiers = Array.isArray(root.tiers) ? root.tiers : [];
+    for (const raw of rawTiers) {
+      const t = asObject(raw, "\u4EF7\u76EE\u6863\u4F4D");
+      const tokens = asNumber(t.tokens, 0);
+      const label = asString2(t.label);
+      if (!Number.isInteger(tokens) || tokens < 1 || !label)
+        continue;
+      tiers.push({
+        jcrLevel: Math.trunc(asNumber(t.jcr_level, 0)),
+        ccfLevel: asString2(t.ccf_level) || null,
+        label,
+        tokens
+      });
+    }
+    return {
+      // 硬下限由服务器给（当前 1），这里不写死：平台若调整，界面跟着走
+      minAllowed: Math.max(1, Math.trunc(asNumber(root.min_allowed, 1))),
+      recommendedMin: Math.trunc(asNumber(root.recommended_min, 0)),
+      recommendedMax: Math.trunc(asNumber(root.recommended_max, 0)),
+      tokenValueFen: Math.trunc(asNumber(root.token_value_fen, 0)),
+      tiers
+    };
+  } catch {
+    return null;
+  }
+}
+async function workspaceUploadRequest(base, apiKey, projectId, method, suffix, body, options = {}) {
+  return await requestJson(base, `/projects/${encodeURIComponent(projectId)}/uploads${suffix}`, { method, apiKey, body }, options, "\u5DE5\u4F5C\u533A\u4E0A\u4F20");
+}
+async function stageWorkspaceFiles(base, apiKey, projectId, taskId, files, options) {
+  const body = new FormData();
+  for (const file of files) {
+    const bytes = file.bytes;
+    const data = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    body.append("files", new Blob([data]), file.path.split("/").at(-1));
+    body.append("indexes", String(file.index));
+  }
+  await workspaceUploadRequest(base, apiKey, projectId, "PUT", `/${taskId}/files`, body, options);
+}
+async function postProjectFiles(base, apiKey, projectId, files, options, timeoutMessage) {
+  const { stateVersion, fetchImpl: fetchOption, timeoutMs, workspaceId } = options;
+  const key = requireKey(apiKey);
+  const id = (projectId ?? "").trim();
+  if (!id)
+    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
+  if (files.length === 0)
+    return [];
+  const fetchImpl = fetchOption ?? globalThis.fetch;
+  if (typeof fetchImpl !== "function")
+    throw new ServerError("unreachable", "\u5F53\u524D\u8FD0\u884C\u73AF\u5883\u6CA1\u6709\u53EF\u7528\u7684 fetch\u3002");
+  const form = new FormData();
+  for (const f of files) {
+    const name = f.relPath.slice(f.relPath.lastIndexOf("/") + 1);
+    const view2 = f.bytes;
+    const buf = view2.buffer.slice(view2.byteOffset, view2.byteOffset + view2.byteLength);
+    form.append("files", new Blob([buf]), name);
+    form.append("relative_paths", f.relPath);
+  }
+  if (stateVersion !== void 0)
+    form.append("state_version", String(stateVersion));
+  const timeout = timeoutMs ?? SERVER_TIMEOUT_MS;
+  const controller = new AbortController();
+  let timer;
+  const timeoutPromise = new Promise((_resolve, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new ServerError("unreachable", `${timeoutMessage}\u5230 ${base} \u8D85\u65F6\uFF08${Math.round(timeout / 1e3)} \u79D2\uFF09\u3002`));
+    }, timeout);
+  });
+  let res;
+  try {
+    res = await Promise.race([
+      fetchImpl(`${apiBase(base)}/projects/${encodeURIComponent(id)}/files`, {
+        method: "POST",
+        // ⚠️ 不设 content-type：multipart 的 boundary 由运行时生成
+        headers: {
+          authorization: `Bearer ${key}`,
+          // 这项工作是谁：与 JSON 写请求同一个头（服务器据此拒绝"往别人的项目里写"）
+          ...workspaceId ? { "x-workspace-id": workspaceId } : {}
+        },
+        body: form,
+        signal: controller.signal
+      }),
+      timeoutPromise
+    ]);
+  } catch (e) {
+    if (e instanceof ServerError)
+      throw e;
+    throw new ServerError("unreachable", `${timeoutMessage}\u5931\u8D25\uFF1A${e instanceof Error ? e.message : String(e)}`);
+  } finally {
+    if (timer !== void 0)
+      clearTimeout(timer);
+  }
+  let body;
+  try {
+    body = await res.json();
+  } catch {
+    body = void 0;
+  }
+  if (!res.ok)
+    throw mapHttpError(res.status, body);
+  if (!Array.isArray(body))
+    throw new ServerError("bad-response", "\u9644\u4EF6\u4E0A\u4F20\u7684\u54CD\u5E94\u4E0D\u662F\u6570\u7EC4\u3002");
+  return body.map((raw) => {
+    const b = asObject(raw, "\u9644\u4EF6\u5143\u6570\u636E");
+    return {
+      id: asString2(b.id),
+      relativePath: asString2(b.relative_path),
+      size: asNumber(b.size, 0),
+      sha256: asString2(b.sha256)
+    };
+  });
+}
+async function uploadProjectFiles(base, apiKey, projectId, files, options = {}) {
+  return await postProjectFiles(base, apiKey, projectId, files, options, "\u4E0A\u4F20\u9644\u4EF6");
+}
+var MENTOR_REVIEW_PREFIX = "review";
+async function uploadWorkspaceFiles(base, apiKey, projectId, files, options = {}) {
+  for (const f of files) {
+    const rel = (f.relPath ?? "").trim();
+    if (!rel || rel.startsWith("/") || rel.split("/").includes("..")) {
+      throw new ServerError("bad-request", `\u56DE\u4F20\u8DEF\u5F84\u4E0D\u5408\u6CD5\uFF1A${f.relPath}`);
+    }
+  }
+  return await postProjectFiles(base, apiKey, projectId, files, options, "\u56DE\u4F20\u7814\u7A76\u8FDB\u5C55");
+}
+async function fetchProjectFiles(base, apiKey, projectId, options = {}) {
+  return (await fetchProjectFilesWithIdentity(base, apiKey, projectId, options)).files;
+}
+async function fetchProjectFilesWithIdentity(base, apiKey, projectId, options = {}) {
+  const key = requireKey(apiKey);
+  const id = (projectId ?? "").trim();
+  if (!id)
+    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
+  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/files${sourceQuery(options.source)}`, { method: "GET", apiKey: key }, options, "\u9879\u76EE\u6587\u4EF6\u5217\u8868");
+  const record = asRecord2(body);
+  const items = record?.items;
+  if (!Array.isArray(items)) {
+    throw new ServerError("bad-response", "\u9879\u76EE\u6587\u4EF6\u5217\u8868\u7F3A\u5C11 items \u5B57\u6BB5\u3002");
+  }
+  const workspaceId = normalizeWorkspaceId(record?.workspace_id);
+  const files = items.map((raw) => {
+    const b = asRecord2(raw) ?? {};
+    const fileId = asString2(b.id);
+    const relativePath = asString2(b.relative_path);
+    if (!fileId || !relativePath) {
+      throw new ServerError("bad-response", "\u9879\u76EE\u6587\u4EF6\u6761\u76EE\u7F3A\u5C11 id / relative_path\u3002");
+    }
+    return { id: fileId, relativePath, size: asNumber(b.size), sha256: asString2(b.sha256) };
+  });
+  return { files, workspaceId };
+}
+async function waitForAbort(promise, signal) {
+  if (!signal)
+    return promise;
+  if (signal.aborted) {
+    promise.catch(() => {
+    });
+    signal.throwIfAborted();
+  }
+  let abort = () => {
+  };
+  const cancelled = new Promise((_resolve, reject) => {
+    abort = () => reject(signal.reason ?? new Error("Cancelled"));
+    signal.addEventListener("abort", abort, { once: true });
+  });
+  try {
+    return await Promise.race([promise, cancelled]);
+  } finally {
+    signal.removeEventListener("abort", abort);
+  }
+}
+async function fetchBinary(base, path, apiKey, options, label) {
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+  if (typeof fetchImpl !== "function")
+    throw new ServerError("unreachable", "\u5F53\u524D\u8FD0\u884C\u73AF\u5883\u6CA1\u6709\u53EF\u7528\u7684 fetch\u3002");
+  const timeoutMs = options.timeoutMs ?? SERVER_TIMEOUT_MS;
+  const controller = new AbortController();
+  const abort = () => controller.abort(options.signal?.reason);
+  options.signal?.addEventListener("abort", abort, { once: true });
+  try {
+    options.signal?.throwIfAborted();
+    let timer;
+    const timeout = new Promise((_resolve, reject) => {
+      timer = setTimeout(() => {
+        controller.abort();
+        reject(new ServerError("unreachable", `${label}\u8D85\u65F6\uFF08${Math.round(timeoutMs / 1e3)} \u79D2\uFF09\u3002`));
+      }, timeoutMs);
+    });
+    let res;
+    try {
+      res = await waitForAbort(Promise.race([
+        fetchImpl(apiUrl(base, path), {
+          method: "GET",
+          headers: { authorization: `Bearer ${apiKey}` },
+          signal: controller.signal
+        }),
+        timeout
+      ]), options.signal);
+    } catch (e) {
+      if (e instanceof ServerError)
+        throw e;
+      throw new ServerError("unreachable", `${label}\u5931\u8D25\uFF1A${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      if (timer !== void 0)
+        clearTimeout(timer);
+    }
+    if (!res.ok) {
+      let body;
+      try {
+        body = await waitForAbort(res.json(), options.signal);
+      } catch {
+        body = void 0;
+      }
+      throw mapHttpError(res.status, body);
+    }
+    const rawLength = res.headers?.get("content-length");
+    const length = rawLength ? Number(rawLength) : NaN;
+    options.onHeaders?.(Number.isSafeInteger(length) && length >= 0 ? length : null);
+    const contentDisposition = res.headers?.get("content-disposition") ?? null;
+    const fileCount = asNumberOrNull(res.headers?.get("x-file-count"));
+    const sourceUpdatedAt = res.headers?.get("x-source-updated-at") ?? null;
+    const workspaceId = normalizeWorkspaceId(res.headers?.get("x-workspace-id"));
+    const sourceSideRaw = (res.headers?.get("x-source") ?? "").trim().toLowerCase();
+    const sourceSide = sourceSideRaw === "owner" || sourceSideRaw === "mentor" ? sourceSideRaw : null;
+    const received = await readBody(res, options, label, controller);
+    return {
+      bytes: received.bytes,
+      contentDisposition,
+      fileCount,
+      sourceUpdatedAt,
+      workspaceId,
+      sourceSide,
+      received: received.total
+    };
+  } finally {
+    options.signal?.removeEventListener("abort", abort);
+  }
+}
+function asNumberOrNull(raw) {
+  if (raw === null || raw === void 0)
+    return null;
+  const n = Number.parseInt(raw.trim(), 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+function humanBytes(n) {
+  if (n >= 1024 * 1024)
+    return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  if (n >= 1024)
+    return `${Math.round(n / 1024)} KB`;
+  return `${n} B`;
+}
+async function readBody(res, options, label, controller) {
+  const stallMs = options.stallTimeoutMs ?? STALL_TIMEOUT_MS;
+  const onChunk = options.onChunk;
+  const onProgress = options.onProgress;
+  const chunks = [];
+  let total = 0;
+  let stalled = false;
+  const withStall = async (p) => {
+    let timer;
+    const stall = new Promise((_resolve, reject) => {
+      timer = setTimeout(() => {
+        stalled = true;
+        controller.abort();
+        reject(new ServerError("unreachable", `${label}\u4E2D\u65AD\uFF1A${Math.round(stallMs / 1e3)} \u79D2\u6CA1\u6709\u6536\u5230\u6570\u636E\uFF08\u5DF2\u6536 ${humanBytes(total)}\uFF09\u2014\u2014 \u7F51\u7EDC\u4E0D\u7A33\u6216\u670D\u52A1\u5668\u4E2D\u65AD\uFF0C\u8BF7\u91CD\u8BD5\u3002`));
+      }, stallMs);
+    });
+    stall.catch(() => {
+    });
+    try {
+      return await waitForAbort(Promise.race([p, stall]), options.signal);
+    } finally {
+      if (timer !== void 0)
+        clearTimeout(timer);
+    }
+  };
+  const take = (chunk) => {
+    options.signal?.throwIfAborted();
+    options.check?.();
+    total += chunk.byteLength;
+    if (onChunk)
+      onChunk(chunk);
+    else
+      chunks.push(chunk);
+    onProgress?.(total);
+  };
+  try {
+    const reader = res.body?.getReader?.();
+    if (reader) {
+      for (; ; ) {
+        const { done, value } = await withStall(reader.read());
+        if (done)
+          break;
+        if (value && value.byteLength > 0)
+          take(value);
+      }
+    } else {
+      const buf = new Uint8Array(await withStall(res.arrayBuffer()));
+      if (buf.byteLength > 0)
+        take(buf);
+    }
+  } catch (e) {
+    controller.abort();
+    if (stalled) {
+      throw new ServerError("unreachable", `${label}\u4E2D\u65AD\uFF1A${Math.round(stallMs / 1e3)} \u79D2\u6CA1\u6709\u6536\u5230\u6570\u636E\uFF08\u5DF2\u6536 ${humanBytes(total)}\uFF09\u2014\u2014 \u7F51\u7EDC\u4E0D\u7A33\u6216\u670D\u52A1\u5668\u4E2D\u65AD\uFF0C\u8BF7\u91CD\u8BD5\u3002`);
+    }
+    throw new ServerError("unreachable", `${label}\u5931\u8D25\uFF1A${e instanceof Error ? e.message : String(e)}`);
+  }
+  if (onChunk)
+    return { bytes: new Uint8Array(0), total };
+  const merged = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    merged.set(c, at);
+    at += c.byteLength;
+  }
+  return { bytes: merged, total };
+}
+function filenameFromDisposition(value) {
+  if (!value)
+    return null;
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(value);
+  if (star?.[1]) {
+    try {
+      return decodeURIComponent(star[1].trim());
+    } catch {
+    }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(value);
+  return plain?.[1]?.trim() || null;
+}
+async function fetchProjectArchive(base, apiKey, projectId, sink, options = {}) {
+  const key = requireKey(apiKey);
+  const id = (projectId ?? "").trim();
+  if (!id)
+    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
+  const { contentDisposition, fileCount, sourceUpdatedAt, workspaceId, sourceSide, received } = await fetchBinary(base, `/projects/${encodeURIComponent(id)}/files/archive${sourceQuery(options.source)}`, key, { ...options, timeoutMs: options.timeoutMs ?? 12e4, onChunk: (chunk) => sink.write(chunk) }, "\u4E0B\u8F7D\u5DE5\u4F5C\u533A\u5FEB\u7167");
+  return {
+    received,
+    filename: filenameFromDisposition(contentDisposition),
+    fileCount,
+    sourceUpdatedAt,
+    workspaceId,
+    sourceSide
+  };
+}
+function parseProject(raw) {
+  const b = asObject(raw, "\u7814\u7A76\u9879\u76EE");
+  const id = asString2(b.id);
+  if (!id)
+    throw new ServerError("bad-response", "\u7814\u7A76\u9879\u76EE\u7F3A\u5C11 id \u5B57\u6BB5\u3002");
+  return {
+    id,
+    title: asString2(b.title),
+    description: asString2(b.description) || null,
+    status: asString2(b.status) || "ACTIVE",
+    visibility: asString2(b.visibility) || "PRIVATE",
+    direction: parseDirection(b.direction),
+    workName: parseTriText(b.work_name),
+    ...b.workspace_id === void 0 ? {} : { workspaceId: normalizeWorkspaceId(b.workspace_id) },
+    // 挂牌价三态：缺字段（旧服务器）→ undefined；显式 null → null（没挂牌价）
+    ...b.asking_fee === void 0 ? {} : { askingFee: parseTriFee(b.asking_fee) },
+    updatedAt: asString2(b.updated_at)
+  };
+}
+async function createProject(base, apiKey, input, options = {}) {
+  const key = requireKey(apiKey);
+  const title = (input.title ?? "").trim();
+  if (!title)
+    throw new ServerError("bad-request", "\u9879\u76EE\u6807\u9898\u4E0D\u80FD\u4E3A\u7A7A\u3002");
+  const body = await requestJson(base, "/projects", {
+    method: "POST",
+    apiKey: key,
+    body: {
+      title,
+      ...input.creationId ? { creation_id: input.creationId } : {},
+      ...input.description ? { description: input.description } : {},
+      // ⚠️ 只在明确给了方向时才发这个字段：默认方向由服务器拥有，
+      // 客户端抄一份默认值只会在平台改默认时悄悄漂移。
+      ...input.direction ? { direction: input.direction } : {},
+      /*
+       * 本机已经知道这项研究的身份（之前发布过 / 下载时记下过）→ 沿用，
+       * 否则同一项研究重新发布会被服务器当成**另一项研究**（新 id），
+       * 而"另一项研究"在下一次下载判定里意味着"禁止写进这个工作区"。
+       */
+      ...input.workspaceId ? { workspace_id: input.workspaceId } : {},
+      // 与方向同理：没标价就不发这个字段（服务器侧 `NULL` = 没挂牌价）
+      ...typeof input.askingFee === "number" ? { asking_fee: input.askingFee } : {}
+    }
+  }, options, "\u5EFA\u9879\u76EE");
+  return parseProject(body);
+}
+async function updateProject(base, apiKey, projectId, input, options = {}) {
+  const key = requireKey(apiKey);
+  const id = (projectId ?? "").trim();
+  if (!id)
+    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
+  const title = (input.title ?? "").trim();
+  if (!title)
+    throw new ServerError("bad-request", "\u6807\u9898\u4E0D\u80FD\u4E3A\u7A7A\u3002");
+  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    apiKey: key,
+    body: {
+      title,
+      /*
+       * 挂牌价：只在明确给了数字时才发。
+       *
+       * ⚠️ 传 `null` **不会清空**（服务层跳过 `None`，与 title/description/status 的既有语义
+       * 一致，见 `payment-system.md` §3.2.5 的"改价的限制"）——所以这里根本不发 null，
+       * 免得界面上出现"以为能撤掉挂牌价"的假象。
+       */
+      ...typeof input.askingFee === "number" ? { asking_fee: input.askingFee } : {}
+    }
+  }, options, "\u6539\u9879\u76EE");
+  return parseProject(body);
+}
+async function fetchProjects(base, apiKey, options = {}) {
+  const key = requireKey(apiKey);
+  const body = await requestJson(base, "/projects", { method: "GET", apiKey: key }, options, "\u8BFB\u53D6\u6211\u7684\u9879\u76EE");
+  const list = Array.isArray(body) ? body : Array.isArray(body?.items) ? body.items : [];
+  const out = [];
+  for (const raw of list) {
+    try {
+      out.push(parseProject(raw));
+    } catch {
+    }
+  }
+  return out;
+}
+async function fetchProject(base, apiKey, projectId, options = {}) {
+  const key = requireKey(apiKey);
+  const id = (projectId ?? "").trim();
+  if (!id)
+    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
+  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}`, { method: "GET", apiKey: key }, options, "\u8BFB\u53D6\u9879\u76EE");
+  return parseProject(body);
+}
+async function readStateVersion(base, apiKey, projectId, options = {}) {
+  const key = requireKey(apiKey);
+  const id = (projectId ?? "").trim();
+  if (!id)
+    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
+  try {
+    const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/state`, { method: "GET", apiKey: key }, options, "\u8BFB\u53D6\u7814\u7A76\u72B6\u6001");
+    const version2 = asObject(body, "\u7814\u7A76\u72B6\u6001").version;
+    return typeof version2 === "number" ? version2 : null;
+  } catch (e) {
+    if (e instanceof ServerError && e.code === "not-found")
+      return null;
+    throw e;
+  }
+}
+async function uploadResearchState(base, apiKey, projectId, input, options = {}) {
+  const key = requireKey(apiKey);
+  const id = (projectId ?? "").trim();
+  if (!id)
+    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
+  const intentKey = (input.intentKey ?? "").trim();
+  if (!intentKey)
+    throw new ServerError("bad-request", "\u7F3A\u5C11\u5E42\u7B49\u952E\uFF08intentKey\uFF09\u3002");
+  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/state`, {
+    method: "POST",
+    apiKey: key,
+    idempotencyKey: intentKey,
+    body: { base_version: input.baseVersion, content: input.content }
+  }, options, "\u4E0A\u4F20\u7814\u7A76\u72B6\u6001");
+  const b = asObject(body, "\u7814\u7A76\u72B6\u6001");
+  const version2 = typeof b.version === "number" ? b.version : null;
+  if (version2 === null)
+    throw new ServerError("bad-response", "\u4E0A\u4F20\u7814\u7A76\u72B6\u6001\u540E\u6CA1\u6709\u8FD4\u56DE\u7248\u672C\u53F7\u3002");
+  return { version: version2, contentHash: asString2(b.content_hash) };
+}
+async function publishProject(base, apiKey, projectId, options = {}) {
+  const { intentKey, ...net } = options;
+  const key = requireKey(apiKey);
+  const id = (projectId ?? "").trim();
+  if (!id)
+    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
+  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/publish`, { method: "POST", apiKey: key, ...intentKey ? { idempotencyKey: intentKey } : {} }, net, "\u53D1\u5E03\u9879\u76EE");
+  const parsed = asObject(body, "\u53D1\u5E03\u7ED3\u679C");
+  return {
+    visibility: asString2(parsed.visibility) || "PUBLISHED",
+    chargedTokens: typeof parsed.charged_tokens === "number" ? parsed.charged_tokens : 0
+  };
+}
+function asNumber(v, fallback = 0) {
+  return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+}
+function optionalNumber(v) {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+function asStringArray(v) {
+  return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+}
+function asObject(v, label) {
+  if (!v || typeof v !== "object") {
+    throw new ServerError("bad-response", `${label}\u7684\u54CD\u5E94\u683C\u5F0F\u4E0D\u6B63\u786E\uFF08\u4E0D\u662F\u5BF9\u8C61\uFF09\u3002`);
+  }
+  return v;
+}
+function parseWorkItem(raw) {
+  const b = asObject(raw, "\u7814\u7A76\u5DE5\u4F5C");
+  const projectId = asString2(b.project_id) || asString2(b.id);
+  const title = asString2(b.title);
+  if (!projectId || !title) {
+    throw new ServerError("bad-response", "\u7814\u7A76\u5DE5\u4F5C\u7F3A\u5C11 project_id / title \u5B57\u6BB5\u3002");
+  }
+  const stage = asString2(b.stage);
+  return {
+    projectId,
+    title,
+    researchFields: asStringArray(b.research_fields),
+    stage: stage || null,
+    progress: asNumber(b.progress),
+    researchQuestion: asString2(b.research_question) || null,
+    summary: asString2(b.summary) || null,
+    updatedAt: asString2(b.updated_at),
+    direction: parseDirection(b.direction),
+    workName: parseTriText(b.work_name),
+    // `brief_paid`：打开这项简报还会不会再扣 Token（服务器按支付记录 / owner 判定）。
+    // 只有真的是布尔才采信；字段缺失或类型不对 → null（= 不知道，界面会照常提醒）。
+    briefPaid: typeof b.brief_paid === "boolean" ? b.brief_paid : null,
+    owner: parseWorkOwner(b.owner),
+    // 挂牌价三态：缺字段（旧服务器）→ 不带这个键；显式 null → null（没挂牌价）
+    ...b.asking_fee === void 0 ? {} : { askingFee: parseTriFee(b.asking_fee) }
+  };
+}
+function parseWorkOwner(raw) {
+  const b = asRecord2(raw);
+  const id = b ? asString2(b.id) : "";
+  if (!id)
+    return null;
+  const displayName = b ? asString2(b.display_name) : "";
+  return { id, displayName: displayName || id.slice(0, 8) };
+}
+function parseWorkBrief(raw) {
+  const b = asObject(raw, "\u7B80\u62A5");
+  const base = parseWorkItem(raw);
+  return {
+    ...base,
+    motivation: asString2(b.motivation) || null,
+    coreIdea: asString2(b.core_idea) || null,
+    hypothesis: asString2(b.hypothesis) || null,
+    methodOverview: asString2(b.method_overview) || null,
+    keyEvidence: asStringArray(b.key_evidence),
+    openProblems: asStringArray(b.open_problems),
+    // `charged_tokens`：本次调用花掉的 Token（0 = 自己的项目 / 已经买过）。
+    // 字段缺失/不是数字 → null（界面据此退回"按余额差值"），不谎报 0。
+    chargedTokens: typeof b.charged_tokens === "number" && Number.isFinite(b.charged_tokens) && b.charged_tokens >= 0 ? b.charged_tokens : null
+  };
+}
+function requireKey(apiKey) {
+  const key = normalizeApiKey(apiKey);
+  if (!key)
+    throw new ServerError("bad-request", "API Key \u4E0D\u80FD\u4E3A\u7A7A\u3002");
+  return key;
+}
+async function fetchWorkList(base, apiKey, options = {}, direction) {
+  const key = requireKey(apiKey);
+  const query = direction ? `?direction=${encodeURIComponent(direction)}` : "";
+  const body = await requestJson(base, `/discovery/random${query}`, { method: "GET", apiKey: key }, options, "\u7814\u7A76\u5DE5\u4F5C\u5217\u8868");
+  const items = asObject(body, "\u7814\u7A76\u5DE5\u4F5C\u5217\u8868").items;
+  if (!Array.isArray(items)) {
+    throw new ServerError("bad-response", "\u7814\u7A76\u5DE5\u4F5C\u5217\u8868\u7F3A\u5C11 items \u5B57\u6BB5\u3002");
+  }
+  return items.map(parseWorkItem);
+}
+async function fetchWorkSummary(base, apiKey, projectId, options = {}) {
+  const key = requireKey(apiKey);
+  const id = (projectId ?? "").trim();
+  if (!id)
+    throw new ServerError("bad-request", "\u7F3A\u5C11\u7814\u7A76\u5DE5\u4F5C id\u3002");
+  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/summary`, { method: "GET", apiKey: key }, options, "\u7814\u7A76\u5DE5\u4F5C\u6458\u8981");
+  return parseWorkItem(body);
+}
+async function fetchWorkBrief(base, apiKey, projectId, intentKey, options = {}) {
+  const key = requireKey(apiKey);
+  const id = (projectId ?? "").trim();
+  if (!id)
+    throw new ServerError("bad-request", "\u7F3A\u5C11\u7814\u7A76\u5DE5\u4F5C id\u3002");
+  const intent = (intentKey ?? "").trim();
+  if (!intent)
+    throw new ServerError("bad-request", "\u7F3A\u5C11\u5E42\u7B49\u952E\uFF08intentKey\uFF09\u3002");
+  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/brief`, { method: "GET", apiKey: key, idempotencyKey: intent }, options, "\u7814\u7A76\u5DE5\u4F5C\u7B80\u62A5");
+  return parseWorkBrief(body);
+}
+var CCF_LEVELS = ["A", "B", "C"];
+function asJcrLevel(v) {
+  const n = typeof v === "number" ? v : Number.NaN;
+  return Number.isInteger(n) && n >= 1 && n <= 4 ? n : null;
+}
+function asCcfLevel(v) {
+  if (typeof v !== "string")
+    return null;
+  const s = v.trim().toUpperCase();
+  return CCF_LEVELS.includes(s) ? s : null;
+}
+function asRecord2(v) {
+  return v !== null && typeof v === "object" && !Array.isArray(v) ? v : null;
+}
+function parseProfile(raw) {
+  const b = asRecord2(raw);
+  if (!b)
+    return null;
+  return {
+    institution: asString2(b.institution) || null,
+    department: asString2(b.department) || null,
+    bio: asString2(b.bio) || null,
+    researchFields: asStringArray(b.research_fields),
+    researchInterests: asStringArray(b.research_interests),
+    researchExpertise: asStringArray(b.research_expertise)
+  };
+}
+function parseParty(raw, fallbackId) {
+  const b = asRecord2(raw);
+  const id = (b ? asString2(b.id) : "") || asString2(fallbackId);
+  if (!id)
+    return null;
+  const displayName = b ? asString2(b.display_name) : "";
+  return {
+    id,
+    // 后端还没 enrich 身份字段时回退成短 id，界面仍然有东西可显示、可区分
+    displayName: displayName || id.slice(0, 8),
+    /*
+     * ⚠️ 只在**键存在**时才给 `profile`：`undefined`（键不在）= 服务器不给你看这一方的
+     * 资料；`null` = 投影了但对方没填。合并成 `null` 会让界面在"不该有入口"的那一侧
+     * 也显示【导师】/【学生】按钮（点开只能说"尚未填写"）。
+     */
+    ...b && "profile" in b ? { profile: parseProfile(b.profile) } : {}
+  };
+}
+function parseSuccessCondition(raw) {
+  const b = asRecord2(raw);
+  return {
+    type: asString2(b?.type) || "MUTUAL_COMPLETION",
+    description: asString2(b?.description) || null,
+    jcrLevel: asJcrLevel(b?.jcr_level),
+    ccfLevel: asCcfLevel(b?.ccf_level)
+  };
+}
+function parseTriCount(raw) {
+  if (raw === null)
+    return null;
+  if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0)
+    return Math.trunc(raw);
+  return void 0;
+}
+function parseTriText(raw) {
+  if (raw === null)
+    return null;
+  const text = asString2(raw);
+  return text ? text : void 0;
+}
+function parseTriFee(raw) {
+  if (raw === null)
+    return null;
+  const n = asNumber(raw, 0);
+  return Number.isInteger(n) && n >= 1 ? n : null;
+}
+function parseTriIso(raw) {
+  if (raw === null)
+    return null;
+  if (typeof raw === "string" && raw.trim())
+    return raw.trim();
+  return void 0;
+}
+function parseProposal(raw) {
+  const b = asRecord2(raw);
+  if (!b)
+    throw new ServerError("bad-response", "\u6307\u5BFC\u63D0\u6848\uFF1A\u54CD\u5E94\u683C\u5F0F\u4E0D\u5BF9\u3002");
+  const id = asString2(b.id);
+  if (!id)
+    throw new ServerError("bad-response", "\u6307\u5BFC\u63D0\u6848\u7F3A\u5C11 id\u3002");
+  return {
+    id,
+    projectId: asString2(b.project_id),
+    direction: parseDirection(b.direction),
+    // `proposed_by_id`：谁发起的。缺失（旧服务器）→ null，界面按方向推断。
+    proposedById: asString2(b.proposed_by_id) || null,
+    projectTitle: asString2(b.project_title) || null,
+    workName: parseTriText(b.work_name),
+    ...b.asking_fee === void 0 ? {} : { askingFee: parseTriFee(b.asking_fee) },
+    // 后端 enrich 之后 `mentor` / `researcher` 是内嵌对象；没 enrich 时退回顶层
+    // `mentor_id` / `researcher_id`（UUID），界面用短 id 显示 —— 至少能分出"哪边是我"。
+    mentor: parseParty(b.mentor, b.mentor_id),
+    researcher: parseParty(b.researcher, b.researcher_id),
+    guidanceScope: asString2(b.guidance_scope),
+    totalFee: asNumber(b.total_fee),
+    depositAmount: asNumber(b.deposit_amount),
+    successPaymentAmount: asNumber(b.success_payment_amount),
+    successCondition: parseSuccessCondition(b.success_condition),
+    status: asString2(b.status) || "PROPOSED",
+    reviewFiles: parseTriCount(b.review_files),
+    workspaceFiles: parseTriCount(b.workspace_files),
+    workspaceUpdatedAt: parseTriIso(b.workspace_updated_at),
+    counterpartUpdatedAt: parseTriIso(b.counterpart_updated_at),
+    expiresAt: asString2(b.expires_at),
+    createdAt: asString2(b.created_at)
+  };
+}
+function parseContract(raw) {
+  const b = asRecord2(raw);
+  if (!b)
+    throw new ServerError("bad-response", "\u6307\u5BFC\u5408\u540C\uFF1A\u54CD\u5E94\u683C\u5F0F\u4E0D\u5BF9\u3002");
+  const id = asString2(b.id);
+  if (!id)
+    throw new ServerError("bad-response", "\u6307\u5BFC\u5408\u540C\u7F3A\u5C11 id\u3002");
+  return {
+    id,
+    researcherId: asString2(b.researcher_id),
+    mentorId: asString2(b.mentor_id),
+    projectId: asString2(b.project_id),
+    direction: parseDirection(b.direction),
+    totalFee: asNumber(b.total_fee),
+    depositAmount: asNumber(b.deposit_amount),
+    successPaymentAmount: asNumber(b.success_payment_amount),
+    guidanceScope: asString2(b.guidance_scope),
+    successCondition: parseSuccessCondition(b.success_condition),
+    status: asString2(b.status) || "ACCEPTED",
+    createdAt: asString2(b.created_at),
+    acceptedAt: asString2(b.accepted_at) || null,
+    startedAt: asString2(b.started_at) || null,
+    completedAt: asString2(b.completed_at) || null,
+    settledAt: asString2(b.settled_at) || null
+  };
+}
+async function fetchFeeSuggestion(base, apiKey, options = {}, level) {
+  const key = requireKey(apiKey);
+  const jcr = asJcrLevel(level?.system === "JCR" ? level.level : null);
+  const ccf = asCcfLevel(level?.system === "CCF" ? level.level : null);
+  if (level && jcr === null && ccf === null) {
+    throw new ServerError("bad-request", "\u8BBA\u6587\u7B49\u7EA7\u4E0D\u5408\u6CD5\uFF1AJCR \u53EA\u80FD\u586B 1\u20134\uFF0CCCF \u53EA\u80FD\u586B A/B/C\u3002");
+  }
+  const query = jcr !== null ? `?jcr_level=${jcr}` : ccf !== null ? `?ccf_level=${ccf}` : "";
+  const body = await requestJson(base, `/mentorship-proposals/fee-suggestion${query}`, { method: "GET", apiKey: key }, options, "\u6307\u5BFC\u8D39\u7528\u5EFA\u8BAE");
+  const b = asRecord2(body);
+  if (!b)
+    throw new ServerError("bad-response", "\u6307\u5BFC\u8D39\u7528\u5EFA\u8BAE\uFF1A\u54CD\u5E94\u683C\u5F0F\u4E0D\u5BF9\u3002");
+  return {
+    suggestedFee: asNumber(b.suggested_fee),
+    suggestedDeposit: asNumber(b.suggested_deposit),
+    suggestedSuccessPayment: asNumber(b.suggested_success_payment)
+  };
+}
+async function fetchPropose(base, apiKey, projectId, input, options = {}) {
+  const key = requireKey(apiKey);
+  const id = (projectId ?? "").trim();
+  if (!id)
+    throw new ServerError("bad-request", "\u7F3A\u5C11\u7814\u7A76\u5DE5\u4F5C id\u3002");
+  const scope = (input.guidanceScope ?? "").trim();
+  if (!scope)
+    throw new ServerError("bad-request", "\u6307\u5BFC\u8303\u56F4\u4E0D\u80FD\u4E3A\u7A7A\u3002");
+  const jcr = asJcrLevel(input.successCondition.jcrLevel);
+  const ccf = asCcfLevel(input.successCondition.ccfLevel);
+  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/mentorship-proposals`, {
+    method: "POST",
+    apiKey: key,
+    body: {
+      guidance_scope: scope,
+      total_fee: input.totalFee,
+      deposit_amount: input.depositAmount,
+      success_payment_amount: input.successPaymentAmount,
+      success_condition: {
+        type: input.successCondition.type,
+        description: input.successCondition.description ?? null,
+        ...jcr !== null ? { jcr_level: jcr } : ccf !== null ? { ccf_level: ccf } : {}
+      }
+    }
+  }, options, "\u6307\u5BFC\u63D0\u6848");
+  return parseProposal(body);
+}
+async function fetchProposals(base, apiKey, options = {}) {
+  const key = requireKey(apiKey);
+  const body = await requestJson(base, "/mentorship-proposals", { method: "GET", apiKey: key }, options, "\u6307\u5BFC\u63D0\u6848\u5217\u8868");
+  if (!Array.isArray(body)) {
+    throw new ServerError("bad-response", "\u6307\u5BFC\u63D0\u6848\u5217\u8868\uFF1A\u54CD\u5E94\u5E94\u4E3A\u6570\u7EC4\u3002");
+  }
+  return body.map(parseProposal);
+}
+async function fetchAcceptProposal(base, apiKey, proposalId, intentKey, options = {}) {
+  const key = requireKey(apiKey);
+  const id = (proposalId ?? "").trim();
+  if (!id)
+    throw new ServerError("bad-request", "\u7F3A\u5C11\u63D0\u6848 id\u3002");
+  const intent = (intentKey ?? "").trim();
+  if (!intent)
+    throw new ServerError("bad-request", "\u7F3A\u5C11\u5E42\u7B49\u952E\uFF08\u63A5\u53D7\u6307\u5BFC\u7684\u4E00\u6B21\u6027\u610F\u56FE\uFF09\u3002");
+  const body = await requestJson(base, `/mentorship-proposals/${encodeURIComponent(id)}/accept`, { method: "POST", apiKey: key, idempotencyKey: intent }, options, "\u63A5\u53D7\u6307\u5BFC");
+  return parseContract(body);
+}
+async function fetchRejectProposal(base, apiKey, proposalId, options = {}) {
+  const key = requireKey(apiKey);
+  const id = (proposalId ?? "").trim();
+  if (!id)
+    throw new ServerError("bad-request", "\u7F3A\u5C11\u63D0\u6848 id\u3002");
+  const body = await requestJson(base, `/mentorship-proposals/${encodeURIComponent(id)}/reject`, { method: "POST", apiKey: key }, options, "\u62D2\u7EDD\u6307\u5BFC");
+  return parseProposal(body);
+}
+
+// lib/codex/uploads.js
+async function transferWorkspace(base, key, projectId, root, paths, options, control, timeoutForBytes, state) {
+  const signal = control.signal;
+  const uniquePaths = [...new Set(paths)];
+  const { batches, skipped: skipped2 } = planUploadBatches(root, uniquePaths);
+  if (batches.flat().length + skipped2.length !== uniquePaths.length) {
+    throw new Error("\u9009\u4E2D\u7684\u6587\u4EF6\u5DF2\u88AB\u79FB\u9664\uFF0C\u8BF7\u91CD\u65B0\u9009\u62E9\u540E\u4E0A\u4F20\u3002");
+  }
+  if (skipped2.length) {
+    throw new Error(`\u6709 ${skipped2.length} \u4E2A\u6587\u4EF6\u8D85\u8FC7\u5355\u6587\u4EF6\u4E0A\u4F20\u4E0A\u9650\u3002\u8BF7\u53D6\u6D88\u9009\u4E2D\u8FD9\u4E9B\u6587\u4EF6\u540E\u518D\u4E0A\u4F20\u3002`);
+  }
+  const canonicalRoot = await realpath(root);
+  const read = async (path) => {
+    signal.throwIfAborted();
+    const absolute = safeJoin(root, path);
+    if (!absolute)
+      throw new Error("\u6240\u9009\u6587\u4EF6\u8DEF\u5F84\u65E0\u6548\uFF0C\u8BF7\u91CD\u65B0\u626B\u63CF\u5DE5\u4F5C\u533A\u3002");
+    const canonical = await realpath(absolute);
+    if (canonical !== safeJoin(canonicalRoot, path)) {
+      throw new Error("\u9009\u4E2D\u7684\u6587\u4EF6\u5DF2\u53D8\u4E3A\u7B26\u53F7\u94FE\u63A5\uFF0C\u8BF7\u91CD\u65B0\u9009\u62E9\u3002");
+    }
+    return await readFile(canonical, { signal });
+  };
+  const manifest = [];
+  for (const batch of batches) {
+    for (const path of batch) {
+      const bytes = await read(path);
+      manifest.push({ path, size: bytes.length, sha256: `sha256:${createHash("sha256").update(bytes).digest("hex")}` });
+    }
+  }
+  signal.throwIfAborted();
+  const id = randomUUID();
+  const request = (method, suffix, body2, timeoutMs) => workspaceUploadRequest(base, key, projectId, method, suffix, body2, { ...options, ...timeoutMs === void 0 ? {} : { timeoutMs } });
+  const retry = async (send) => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await send();
+      } catch (error2) {
+        if (!(error2 instanceof ServerError && error2.code === "unreachable") || attempt === 2)
+          throw error2;
+      }
+    }
+  };
+  const body = {
+    id,
+    files: manifest,
+    ...state ? { state: state.content, base_version: state.baseVersion } : {}
+  };
+  let job;
+  try {
+    job = await retry(() => request("POST", "", body, 6e4));
+  } catch (error2) {
+    if (error2 instanceof ServerError && error2.serverCode === "UPLOAD_IN_PROGRESS") {
+      const active2 = await request("GET", "/active");
+      if (active2?.id)
+        control.cancelRemote = () => request("DELETE", `/${active2.id}`);
+    } else if (error2 instanceof ServerError && error2.code === "unreachable") {
+      control.cancelRemote = () => request("DELETE", `/${id}`);
+    }
+    throw error2;
+  }
+  const resource = `/${job.id}`;
+  control.cancelRemote = () => request("DELETE", resource);
+  signal.throwIfAborted();
+  if (job.status === "cancelled")
+    throw new Error("\u4E0A\u4F20\u4EFB\u52A1\u5DF2\u53D6\u6D88\u6216\u8FC7\u671F\uFF0C\u8BF7\u91CD\u65B0\u5F00\u59CB\u3002");
+  if (job.status === "pending") {
+    const indexes = new Map(manifest.map((file, index) => [file.path, index]));
+    const received = new Set(job.received);
+    const needed = new Set(job.needed);
+    const progress = control.progress;
+    progress.totalFiles = needed.size;
+    progress.totalBytes = job.needed.reduce((bytes, index) => bytes + manifest[index].size, 0);
+    progress.doneFiles = received.size;
+    progress.sentBytes = job.received.reduce((bytes, index) => bytes + manifest[index].size, 0);
+    for (const batch of batches) {
+      signal.throwIfAborted();
+      const pending = batch.map((path) => indexes.get(path)).filter((index) => needed.has(index) && !received.has(index));
+      if (!pending.length)
+        continue;
+      const files = [];
+      for (const index of pending) {
+        const { path } = manifest[index];
+        files.push({ index, path, bytes: await read(path) });
+      }
+      const bytes = files.reduce((total, file) => total + file.bytes.length, 0);
+      let remaining = files;
+      await retry(async () => {
+        signal.throwIfAborted();
+        if (!remaining.length)
+          return;
+        try {
+          await stageWorkspaceFiles(base, key, projectId, job.id, remaining, {
+            ...options,
+            timeoutMs: timeoutForBytes(bytes),
+            signal
+          });
+        } catch (error2) {
+          if (error2 instanceof ServerError && error2.code === "unreachable") {
+            const status = await request("GET", resource);
+            const verified = new Set(status.received);
+            remaining = remaining.filter((file) => !verified.has(file.index));
+            if (!remaining.length)
+              return;
+          }
+          throw error2;
+        }
+      });
+      progress.doneFiles += files.length;
+      progress.sentBytes += bytes;
+    }
+    signal.throwIfAborted();
+    control.finishing = true;
+    try {
+      job = await retry(() => request("POST", `${resource}/complete`, void 0, 12e4));
+    } catch (error2) {
+      if (error2 instanceof ServerError && error2.code === "unreachable") {
+        job = await request("GET", resource);
+        if (job.status !== "completed")
+          throw error2;
+      } else
+        throw error2;
+    }
+  }
+  if (job.status !== "completed" || !job.receipt)
+    throw new Error("\u670D\u52A1\u5668\u5C1A\u672A\u786E\u8BA4\u5B8C\u6574\u4E0A\u4F20\u3002");
+  control.cancelRemote = void 0;
+  return { receipt: job.receipt, skipped: skipped2, manifest };
+}
+
+// lib/settings-rpc.js
+import { existsSync as existsSync22, realpathSync, statSync as statSync7 } from "node:fs";
+import { basename, resolve as resolve5 } from "node:path";
+import { createHash as createHash2 } from "node:crypto";
+
+// lib/protocol.js
+var HOST_PROTOCOL = 31;
+var HOST_PROTOCOL_FIELD = "protocol";
+
+// lib/research/sync-watermarks.js
+import { existsSync as existsSync3, mkdirSync as mkdirSync3, readFileSync as readFileSync4, renameSync as renameSync2, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname as dirname3 } from "node:path";
+function syncWatermarkKey(serverUrl, projectId, side = "owner") {
+  return `${serverUrl.trim()}|${projectId.trim()}|${side}`;
+}
+function parseSyncWatermarkKey(key) {
+  const parts = key.split("|");
+  const side = parts.length >= 3 && parts[parts.length - 1] === "mentor" ? "mentor" : "owner";
+  return {
+    serverUrl: parts[0] ?? "",
+    projectId: parts.length >= 3 ? parts.slice(1, -1).join("|") : parts[1] ?? "",
+    side
+  };
+}
+function isRecord2(v) {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+function parseRecord(raw) {
+  if (!isRecord2(raw))
+    return void 0;
+  const updatedAt = typeof raw.updatedAt === "string" ? raw.updatedAt.trim() : "";
+  if (!updatedAt)
+    return void 0;
+  const fileCount = typeof raw.fileCount === "number" && Number.isFinite(raw.fileCount) && raw.fileCount >= 0 ? Math.trunc(raw.fileCount) : raw.fileCount === null ? null : void 0;
+  if (fileCount === void 0)
+    return void 0;
+  return {
+    updatedAt,
+    fileCount,
+    downloadedAt: typeof raw.downloadedAt === "string" ? raw.downloadedAt : ""
+  };
+}
+function parseTable2(text) {
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return {};
+  }
+  if (!isRecord2(data))
+    return {};
+  const out = {};
+  for (const [key, value] of Object.entries(data)) {
+    const record = parseRecord(value);
+    if (record) {
+      const { serverUrl, projectId, side } = parseSyncWatermarkKey(key);
+      out[syncWatermarkKey(serverUrl, projectId, side)] = record;
+    }
+  }
+  return out;
+}
+function createFileSyncWatermarkStore(resolvePath) {
+  const load = () => {
+    try {
+      const path = resolvePath();
+      if (!existsSync3(path))
+        return {};
+      return parseTable2(readFileSync4(path, "utf8"));
+    } catch {
+      return {};
+    }
+  };
+  const save = (table) => {
+    const path = resolvePath();
+    mkdirSync3(dirname3(path), { recursive: true });
+    const tmp = `${path}.tmp`;
+    writeFileSync2(tmp, `${JSON.stringify(table, null, 2)}
+`, "utf8");
+    renameSync2(tmp, path);
+  };
+  return {
+    get: (serverUrl, projectId, side = "owner") => load()[syncWatermarkKey(serverUrl, projectId, side)],
+    set: (serverUrl, projectId, side, watermark) => {
+      const table = load();
+      table[syncWatermarkKey(serverUrl, projectId, side)] = watermark;
+      save(table);
+    },
+    all: () => load(),
+    get path() {
+      return resolvePath();
+    }
+  };
+}
+function checkSideChange(watermark, serverUpdatedAt, serverFiles) {
+  if (!watermark)
+    return { neverDownloaded: true };
+  let uploaded = false;
+  let uploadedKnown = false;
+  if (typeof serverUpdatedAt === "string" && serverUpdatedAt.trim()) {
+    const now = Date.parse(serverUpdatedAt);
+    const then = Date.parse(watermark.updatedAt);
+    if (Number.isFinite(now) && Number.isFinite(then)) {
+      uploadedKnown = true;
+      uploaded = now > then;
+    }
+  }
+  let deleted = false;
+  let deletedKnown = false;
+  if (typeof serverFiles === "number" && Number.isFinite(serverFiles)) {
+    if (watermark.fileCount !== null) {
+      deletedKnown = true;
+      deleted = Math.trunc(serverFiles) !== watermark.fileCount;
+    }
+  }
+  if (uploadedKnown && uploaded)
+    return { changed: true, reason: "uploaded" };
+  if (deletedKnown && deleted)
+    return { changed: true, reason: "deleted" };
+  if (uploadedKnown && deletedKnown)
+    return { changed: false, reason: null };
+  return null;
+}
+
 // lib/research/skill-customization.js
-import { existsSync as existsSync5, mkdirSync as mkdirSync3, readFileSync as readFileSync5, readdirSync as readdirSync2, rmSync, writeFileSync as writeFileSync3 } from "node:fs";
-import { join as join5 } from "node:path";
+import { existsSync as existsSync5, mkdirSync as mkdirSync4, readFileSync as readFileSync6, readdirSync as readdirSync4, rmSync, writeFileSync as writeFileSync3 } from "node:fs";
+import { join as join7 } from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 import { dirname as dirname5 } from "node:path";
 
 // lib/research/skills.js
-import { existsSync as existsSync4, readFileSync as readFileSync4, readdirSync } from "node:fs";
-import { dirname as dirname4, join as join4, relative } from "node:path";
+import { existsSync as existsSync4, readFileSync as readFileSync5, readdirSync as readdirSync3 } from "node:fs";
+import { dirname as dirname4, join as join6, relative as relative3 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // lib/research/taxonomy.js
@@ -2012,7 +3874,7 @@ function normalizeStatus(raw) {
 function parseSkillDocument(absPath, relPath, typeDefault = "system") {
   let source;
   try {
-    source = readFileSync4(absPath, "utf8");
+    source = readFileSync5(absPath, "utf8");
   } catch {
     return null;
   }
@@ -2048,18 +3910,18 @@ function listMarkdownRecursive(root) {
   const walk = (dir) => {
     let entries;
     try {
-      entries = readdirSync(dir, { withFileTypes: true });
+      entries = readdirSync3(dir, { withFileTypes: true });
     } catch {
       return;
     }
     for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
       if (e.name.startsWith("."))
         continue;
-      const abs = join4(dir, e.name);
+      const abs = join6(dir, e.name);
       if (e.isDirectory())
         walk(abs);
       else if (e.name.endsWith(".md")) {
-        const rel = relative(root, abs).replace(/\\/g, "/");
+        const rel = relative3(root, abs).replace(/\\/g, "/");
         out.push({ abs, rel });
       }
     }
@@ -2070,13 +3932,13 @@ function listMarkdownRecursive(root) {
 function systemSkillRoot() {
   const hereDir = dirname4(fileURLToPath2(new URL("./research/skills.js", import.meta.url).href));
   const candidates = [
-    join4(hereDir, "..", "..", "skills", "convfusion-research", "references"),
+    join6(hereDir, "..", "..", "skills", "convfusion-research", "references"),
     // Codex method library
-    join4(hereDir, "..", "..", SKILLS_DIR),
+    join6(hereDir, "..", "..", SKILLS_DIR),
     // lib/research → 包根
-    join4(hereDir, "..", "..", "..", SKILLS_DIR),
+    join6(hereDir, "..", "..", "..", SKILLS_DIR),
     // 布局变化兜底
-    join4(process.cwd(), SKILLS_DIR)
+    join6(process.cwd(), SKILLS_DIR)
   ];
   for (const c of candidates) {
     if (existsSync4(c))
@@ -2165,7 +4027,7 @@ function createFileCustomizationStore(resolvePath) {
     if (!existsSync5(file))
       return {};
     try {
-      return parseCustomizations(readFileSync5(file, "utf8"));
+      return parseCustomizations(readFileSync6(file, "utf8"));
     } catch {
       return {};
     }
@@ -2176,7 +4038,7 @@ function createFileCustomizationStore(resolvePath) {
       rmSync(file, { force: true });
       return;
     }
-    mkdirSync3(dirname5(file), { recursive: true });
+    mkdirSync4(dirname5(file), { recursive: true });
     writeFileSync3(file, JSON.stringify(sortCustomizations(c), null, 2) + "\n", "utf8");
   };
   return {
@@ -2279,15 +4141,15 @@ function listCustomizationPoints(workspace, customizations) {
 var here = dirname5(fileURLToPath3(new URL("./research/skill-customization.js", import.meta.url).href));
 function systemSkillRoot2() {
   const candidates = [
-    join5(here, "..", "..", "skills", "convfusion-research", "references"),
-    join5(here, "..", "..", "skills"),
-    join5(here, "..", "..", "..", "skills"),
-    join5(process.cwd(), "skills")
+    join7(here, "..", "..", "skills", "convfusion-research", "references"),
+    join7(here, "..", "..", "skills"),
+    join7(here, "..", "..", "..", "skills"),
+    join7(process.cwd(), "skills")
   ];
   for (const c of candidates) {
     if (existsSync5(c)) {
       try {
-        if (readdirSync2(c).some((f) => f.endsWith(".md") || existsSync5(join5(c, f, ""))))
+        if (readdirSync4(c).some((f) => f.endsWith(".md") || existsSync5(join7(c, f, ""))))
           return c;
       } catch {
       }
@@ -2300,9 +4162,9 @@ function systemLibraryStatus() {
   let count = 0;
   try {
     const walk = (dir) => {
-      for (const e of readdirSync2(dir, { withFileTypes: true })) {
+      for (const e of readdirSync4(dir, { withFileTypes: true })) {
         if (e.isDirectory())
-          walk(join5(dir, e.name));
+          walk(join7(dir, e.name));
         else if (e.name.endsWith(".md") && !e.name.startsWith("."))
           count++;
       }
@@ -2377,1376 +4239,9 @@ function skillSummaries(_workspace) {
   }));
 }
 
-// lib/research/workspace-sync.js
-import { randomBytes } from "node:crypto";
-import { closeSync, mkdirSync as mkdirSync4, openSync, readdirSync as readdirSync3, readFileSync as readFileSync6, linkSync, statSync, unlinkSync, writeSync } from "node:fs";
-import { isAbsolute as isAbsolute3, join as join6, normalize, relative as relative2, resolve as resolve3, sep } from "node:path";
-function safeJoin(root, relativePath) {
-  const rel = (relativePath ?? "").trim();
-  if (!rel || isAbsolute3(rel))
-    return null;
-  const normalizedRoot = resolve3(root);
-  const target = normalize(resolve3(normalizedRoot, rel));
-  if (target !== normalizedRoot && !target.startsWith(normalizedRoot + sep))
-    return null;
-  return target;
-}
-function readResearchFile(researchRoot2, relPath) {
-  const abs = safeJoin(researchRoot2, relPath);
-  if (!abs)
-    throw new Error(`\u4E0D\u5B89\u5168\u7684\u76F8\u5BF9\u8DEF\u5F84\uFF1A${relPath}`);
-  return new Uint8Array(readFileSync6(abs));
-}
-function safeDirName(raw, fallback = "download") {
-  const cleaned = (raw ?? "").replace(/[/\\:*?"<>|\u0000-\u001f]/g, "-").replace(/\.{2,}/g, "-").replace(/^[.\s-]+|[.\s-]+$/g, "").trim();
-  return cleaned || fallback;
-}
-var EOCD_SIGNATURE = 101010256;
-var EOCD_SIZE = 22;
-var EOCD_WINDOW = EOCD_SIZE + 65535;
-function zipTailCheck(tail) {
-  if (tail.byteLength < EOCD_SIZE)
-    return { ok: false, reason: "\u6570\u636E\u592A\u77ED\uFF0C\u4E0D\u50CF\u4E00\u4E2A\u5B8C\u6574\u7684 ZIP" };
-  const view2 = new DataView(tail.buffer, tail.byteOffset, tail.byteLength);
-  for (let i = tail.byteLength - EOCD_SIZE; i >= 0; i -= 1) {
-    if (view2.getUint32(i, true) !== EOCD_SIGNATURE)
-      continue;
-    const commentLength = view2.getUint16(i + 20, true);
-    if (i + EOCD_SIZE + commentLength !== tail.byteLength)
-      continue;
-    const entries = view2.getUint16(i + 10, true);
-    const size = view2.getUint32(i + 16, true);
-    const offset = view2.getUint32(i + 12, true);
-    const zip64 = entries === 65535 || size === 4294967295 || offset === 4294967295;
-    return { ok: true, entries: zip64 ? null : entries };
-  }
-  return { ok: false, reason: "\u7ED3\u5C3E\u6CA1\u6709 ZIP \u7684\u4E2D\u592E\u76EE\u5F55\u8BB0\u5F55\uFF08\u4F20\u8F93\u88AB\u622A\u65AD\u4E86\uFF09" };
-}
-function sweepStaleParts(dir) {
-  let names;
-  try {
-    names = readdirSync3(dir);
-  } catch {
-    return;
-  }
-  const cutoff = Date.now() - 24 * 60 * 60 * 1e3;
-  for (const name of names) {
-    if (!/^\.convfusion-.*\.zip\.part$/.test(name))
-      continue;
-    const abs = join6(dir, name);
-    try {
-      if (statSync(abs).mtimeMs < cutoff)
-        unlinkSync(abs);
-    } catch {
-    }
-  }
-}
-function openDownloadPart(dir, nameHint = "download") {
-  mkdirSync4(dir, { recursive: true });
-  sweepStaleParts(dir);
-  const hint = safeDirName(nameHint, "download.zip").replace(/\.zip$/i, "");
-  const partPath = join6(dir, `.convfusion-${hint.slice(0, 40)}-${randomBytes(6).toString("hex")}.zip.part`);
-  const fd = openSync(partPath, "w");
-  let received = 0;
-  let tail = new Uint8Array(0);
-  let head = new Uint8Array(0);
-  let closed = false;
-  const closeFd = () => {
-    if (closed)
-      return;
-    closed = true;
-    try {
-      closeSync(fd);
-    } catch {
-    }
-  };
-  const discard = (message) => {
-    closeFd();
-    try {
-      unlinkSync(partPath);
-    } catch {
-    }
-    return new Error(message);
-  };
-  return {
-    path: partPath,
-    get received() {
-      return received;
-    },
-    write(chunk) {
-      if (closed)
-        throw new Error("\u4E0B\u8F7D\u5DF2\u7ED3\u675F\uFF0C\u4E0D\u80FD\u518D\u5199\u5165\u3002");
-      writeSync(fd, chunk);
-      received += chunk.byteLength;
-      if (head.byteLength < 4) {
-        head = Buffer.concat([head, Buffer.from(chunk)]).subarray(0, 4);
-      }
-      tail = Buffer.concat([tail, Buffer.from(chunk)]);
-      if (tail.byteLength > EOCD_WINDOW)
-        tail = tail.subarray(tail.byteLength - EOCD_WINDOW);
-    },
-    commit(rawName, expect) {
-      if (received === 0)
-        throw discard("\u670D\u52A1\u5668\u6CA1\u6709\u8FD4\u56DE\u4EFB\u4F55\u6570\u636E\uFF0C\u8BF7\u91CD\u8BD5\u3002");
-      if (head.byteLength < 2 || head[0] !== 80 || head[1] !== 75) {
-        throw discard("\u4E0B\u8F7D\u5230\u7684\u4E0D\u662F\u4E00\u4E2A ZIP\uFF08\u670D\u52A1\u5668\u8FD4\u56DE\u4E86\u610F\u5916\u5185\u5BB9\uFF09\uFF0C\u8BF7\u91CD\u8BD5\u3002");
-      }
-      const check = zipTailCheck(tail);
-      if (!check.ok)
-        throw discard(`\u4E0B\u8F7D\u4E0D\u5B8C\u6574\uFF1A${check.reason}\u3002\u8BF7\u91CD\u8BD5\u3002`);
-      const want = expect?.fileCount;
-      if (typeof want === "number" && check.entries !== null && check.entries !== want) {
-        throw discard(`\u4E0B\u8F7D\u4E0D\u5B8C\u6574\uFF1AZIP \u91CC\u53EA\u6709 ${check.entries} \u4E2A\u6761\u76EE\uFF0C\u670D\u52A1\u5668\u8BF4\u6709 ${want} \u4E2A\u3002\u8BF7\u91CD\u8BD5\u3002`);
-      }
-      closeFd();
-      const name = safeDirName(rawName, "download.zip");
-      const stem = name.replace(/\.zip$/i, "");
-      let target = join6(dir, name);
-      let n = 2;
-      for (; ; ) {
-        try {
-          linkSync(partPath, target);
-          break;
-        } catch (error2) {
-          if (error2.code !== "EEXIST")
-            throw error2;
-          target = join6(dir, `${stem}-${n++}.zip`);
-        }
-      }
-      try {
-        unlinkSync(partPath);
-      } catch {
-      }
-      return { path: target, name: relative2(dir, target), bytes: received };
-    },
-    abort() {
-      closeFd();
-      try {
-        unlinkSync(partPath);
-      } catch {
-      }
-    }
-  };
-}
-
-// lib/server-client.js
-var SERVER_API_PREFIX = "/api/v1";
-var SERVER_TIMEOUT_MS = 8e3;
-var PROJECT_DIRECTIONS = ["SEEK_MENTOR", "SEEK_STUDENT"];
-function parseDirection(raw) {
-  return asString2(raw) === "SEEK_STUDENT" ? "SEEK_STUDENT" : "SEEK_MENTOR";
-}
-var ServerError = class extends Error {
-  code;
-  /** HTTP 状态码（网络层失败时缺省）。 */
-  httpStatus;
-  /** 服务器自己的 `error.code`（如 `API_KEY_REVOKED`），仅用于诊断。 */
-  serverCode;
-  /** 429 的 `details.retry_after_seconds`。 */
-  retryAfterSeconds;
-  /** 402 的 `details.required`（本次需要多少 Token）。 */
-  requiredTokens;
-  /** 402 的 `details.available`（当前可用多少 Token）。 */
-  availableTokens;
-  /**
-   * 402（**资金池专属**路径）的 `details.funded`：资金池当前有多少。
-   *
-   * 它出现就说明这次失败是"赠送额度不能付给导师"，而不是"一分钱都没有"——
-   * 界面据此说清话（并提示找管理员发放），而不是笼统说余额不足。
-   */
-  fundedTokens;
-  /** 402（资金池专属路径）的 `details.grant`：同一次失败里赠送额度有多少。 */
-  grantTokens;
-  /** 409 STATE_VERSION_CONFLICT 的 `details.current_version`（重基时用它）。 */
-  currentVersion;
-  constructor(code, message, extra2 = {}) {
-    super(message);
-    this.name = "ServerError";
-    this.code = code;
-    this.httpStatus = extra2.httpStatus;
-    this.serverCode = extra2.serverCode;
-    this.retryAfterSeconds = extra2.retryAfterSeconds;
-    this.requiredTokens = extra2.requiredTokens;
-    this.availableTokens = extra2.availableTokens;
-    this.fundedTokens = extra2.fundedTokens;
-    this.grantTokens = extra2.grantTokens;
-    this.currentVersion = extra2.currentVersion;
-  }
-};
-function normalizeBaseUrl(raw) {
-  const trimmed = (raw ?? "").trim();
-  if (!trimmed)
-    return defaultServerUrl();
-  let url;
-  try {
-    url = new URL(trimmed);
-  } catch {
-    throw new ServerError("bad-url", `\u670D\u52A1\u5668\u5730\u5740\u4E0D\u662F\u5408\u6CD5 URL\uFF1A${trimmed}`);
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new ServerError("bad-url", `\u670D\u52A1\u5668\u5730\u5740\u5FC5\u987B\u4EE5 http:// \u6216 https:// \u5F00\u5934\uFF1A${trimmed}`);
-  }
-  return serverAddressKey(trimmed);
-}
-function apiBase(base) {
-  return `${normalizeBaseUrl(base)}${SERVER_API_PREFIX}`;
-}
-function apiUrl(base, path) {
-  const suffix = path.startsWith("/") ? path : `/${path}`;
-  return `${normalizeBaseUrl(base)}${SERVER_API_PREFIX}${suffix}`;
-}
-function normalizeApiKey(raw) {
-  return (raw ?? "").trim().replace(/^Bearer\s+/i, "").trim();
-}
-function sourceQuery(source) {
-  return source === void 0 || source === "owner" ? "" : `?source=${source}`;
-}
-var STALL_TIMEOUT_MS = 3e4;
-function errorBodyMessage(body) {
-  if (!body || typeof body !== "object")
-    return {};
-  const error2 = body.error;
-  if (!error2 || typeof error2 !== "object")
-    return {};
-  const e = error2;
-  const details = e.details && typeof e.details === "object" ? e.details : {};
-  const retry = details.retry_after_seconds;
-  return {
-    ...typeof e.code === "string" ? { serverCode: e.code } : {},
-    ...typeof e.message === "string" ? { message: e.message } : {},
-    ...typeof retry === "number" ? { retryAfterSeconds: retry } : {}
-  };
-}
-function errorBodyDetails(body) {
-  if (!body || typeof body !== "object")
-    return {};
-  const error2 = body.error;
-  if (!error2 || typeof error2 !== "object")
-    return {};
-  const details = error2.details;
-  return details && typeof details === "object" ? details : {};
-}
-function mapHttpError(status, body) {
-  const { serverCode, message, retryAfterSeconds } = errorBodyMessage(body);
-  const where = (fallback) => message ? `${fallback}\uFF08\u670D\u52A1\u5668\uFF1A${message}\uFF09` : fallback;
-  const withCode = { httpStatus: status, ...serverCode ? { serverCode } : {} };
-  if (status === 401) {
-    return new ServerError("invalid-key", serverCode === "API_KEY_REVOKED" ? "\u8FD9\u4E2A API Key \u5DF2\u88AB\u64A4\u9500\uFF0C\u8BF7\u6362\u4E00\u4EFD\u6709\u6548\u7684 Key\u3002" : where("API Key \u65E0\u6548\u6216\u4E0D\u5B58\u5728\uFF0C\u8BF7\u6838\u5BF9\u540E\u91CD\u8BD5\u3002"), withCode);
-  }
-  if (status === 402) {
-    const details = errorBodyDetails(body);
-    const required = typeof details.required === "number" ? details.required : void 0;
-    const available = typeof details.available === "number" ? details.available : void 0;
-    const funded = typeof details.funded === "number" ? details.funded : void 0;
-    const grant = typeof details.grant === "number" ? details.grant : void 0;
-    const balance = required === void 0 || available === void 0 ? "Token \u4F59\u989D\u4E0D\u8DB3\u3002" : funded === void 0 ? `Token \u4F59\u989D\u4E0D\u8DB3\uFF1A\u672C\u6B21\u9700\u8981 ${required} \u4E2A\uFF0C\u5F53\u524D\u53EF\u7528 ${available} \u4E2A\u3002` : (
-      // 赠送额度**只在服务器真给了这个数**时才提（拿不到就不编一个 0 出来）
-      `\u8D44\u91D1\u6C60\u4E0D\u8DB3\uFF1A\u672C\u6B21\u9700\u8981 ${required} \u4E2A\uFF0C\u8D44\u91D1\u6C60\u53EF\u7528 ${funded} \u4E2A\uFF08` + (grant === void 0 ? "" : `\u53E6\u6709\u8D60\u9001\u989D\u5EA6 ${grant} \u4E2A\uFF0C`) + "\u8D60\u9001\u989D\u5EA6\u4E0D\u80FD\u4ED8\u7ED9\u5BFC\u5E08\u3001\u4E5F\u4E0D\u80FD\u63D0\u73B0\uFF09\u3002"
-    );
-    return new ServerError(
-      "insufficient-tokens",
-      // ⚠️ 不要在这条**用户可见**的文案里写 markdown（`**` 会原样显示成星号）。
-      // 自助付费尚未开通（见 community.token.renewHint）→ 唯一动作是找管理员发放，
-      // 这句话必须出现在**错误本身**里，界面直接展示 message 时也不会漏掉动作。
-      `${balance}\u6D4B\u8BD5\u9636\u6BB5\u8BF7\u8054\u7CFB\u7BA1\u7406\u5458\u53D1\u653E Token\uFF1B\u62FF\u5230\u540E\u91CD\u8BD5\u5373\u53EF\uFF0C\u4E0D\u4F1A\u91CD\u590D\u6263\u8D39\u3002`,
-      {
-        ...withCode,
-        ...required === void 0 ? {} : { requiredTokens: required },
-        ...available === void 0 ? {} : { availableTokens: available },
-        ...funded === void 0 ? {} : { fundedTokens: funded },
-        ...grant === void 0 ? {} : { grantTokens: grant }
-      }
-    );
-  }
-  if (status === 403) {
-    if (serverCode === "FULL_STATE_ACCESS_REQUIRED") {
-      return new ServerError("no-relationship", "\u5B8C\u6574\u7814\u7A76\u72B6\u6001\u9700\u8981\u6709\u6548\u7684\u5BFC\u5E08\u5173\u7CFB\uFF1B\u5F53\u524D\u8D26\u53F7\u4E0E\u8BE5\u7814\u7A76\u8FD8\u6CA1\u6709\u5173\u7CFB\u3002", withCode);
-    }
-    if (serverCode === "FILE_PATH_RESERVED") {
-      return new ServerError("path-reserved", `\u5F53\u524D\u670D\u52A1\u5668\u53EA\u5141\u8BB8\u5BFC\u5E08\u5199 ${MENTOR_REVIEW_PREFIX}/ \u76EE\u5F55\u4E0B\u7684\u6587\u4EF6\uFF1B\u56DE\u4F20\u6574\u4EFD\u5DE5\u4F5C\u533A\u9700\u8981\u670D\u52A1\u5668\u653E\u5F00\u8FD9\u6761\u9650\u5236\uFF08\u5176\u4F59\u8DEF\u5F84\u7531\u5B66\u751F\u672C\u4EBA\u7EF4\u62A4\uFF09\u3002`, { ...withCode, serverCode });
-    }
-    return new ServerError("account-inactive", where("\u8D26\u53F7\u672A\u6FC0\u6D3B\u6216\u88AB\u505C\u7528\uFF0C\u8BF7\u8054\u7CFB ConvFusion.com \u7BA1\u7406\u5458\u3002"), withCode);
-  }
-  if (status === 404) {
-    return new ServerError("not-found", "\u8FD9\u9879\u7814\u7A76\u5DE5\u4F5C\u4E0D\u5B58\u5728\uFF0C\u6216\u5C1A\u672A\u516C\u5F00\u3001\u5BF9\u4F60\u4E0D\u53EF\u89C1\u3002", withCode);
-  }
-  if (status === 429) {
-    const wait = retryAfterSeconds ?? 0;
-    const hint = wait >= 60 ? `\u8BF7\u7EA6 ${Math.ceil(wait / 60)} \u5206\u949F\u540E\u518D\u8BD5\u3002` : wait > 0 ? `\u8BF7 ${wait} \u79D2\u540E\u518D\u8BD5\u3002` : "\u8BF7\u7A0D\u540E\u518D\u8BD5\u3002";
-    return new ServerError("rate-limited", `\u8BF7\u6C42\u8FC7\u4E8E\u9891\u7E41\u3002${hint}`, {
-      ...withCode,
-      ...retryAfterSeconds === void 0 ? {} : { retryAfterSeconds }
-    });
-  }
-  if (status === 409) {
-    if (serverCode === "INVITATION_USED") {
-      return new ServerError("invitation-used", "\u8FD9\u4E2A\u9080\u8BF7\u7801\u5DF2\u7ECF\u88AB\u4F7F\u7528\u8FC7\u4E86\uFF1B\u5982\u679C\u4F60\u5DF2\u7ECF\u6CE8\u518C\uFF0C\u8BF7\u6539\u7528 API Key \u767B\u5F55\u3002", {
-        ...withCode,
-        serverCode
-      });
-    }
-    if (serverCode === "CONFLICT") {
-      return new ServerError("email-taken", "\u8FD9\u4E2A\u90AE\u7BB1\u5DF2\u7ECF\u6CE8\u518C\u8FC7\u4E86\uFF1B\u8BF7\u6539\u7528 API Key \u767B\u5F55\u3002", {
-        ...withCode,
-        serverCode
-      });
-    }
-    if (serverCode === "STATE_VERSION_CONFLICT") {
-      const details = errorBodyDetails(body);
-      const current = typeof details.current_version === "number" ? details.current_version : void 0;
-      return new ServerError("version-conflict", "\u7814\u7A76\u72B6\u6001\u5DF2\u88AB\u66F4\u65B0\uFF08\u7248\u672C\u51B2\u7A81\uFF09\u3002\u8BF7\u57FA\u4E8E\u6700\u65B0\u7248\u672C\u91CD\u8BD5\u3002", { ...withCode, ...current === void 0 ? {} : { currentVersion: current } });
-    }
-    if (serverCode === "IDEMPOTENCY_KEY_REUSED") {
-      return new ServerError("idempotency-reused", "\u540C\u4E00\u4E2A\u8BF7\u6C42\u6807\u8BC6\u88AB\u7528\u4E8E\u4E86\u4E0D\u540C\u7684\u5185\u5BB9\uFF08\u5BA2\u6237\u7AEF\u95EE\u9898\uFF09\u3002\u8BF7\u91CD\u65B0\u53D1\u8D77\u8FD9\u6B21\u67E5\u770B\u3002", withCode);
-    }
-    if (serverCode === "PROPOSAL_INVALID_STATE") {
-      return new ServerError("proposal-state", "\u8FD9\u6761\u6307\u5BFC\u7533\u8BF7\u5DF2\u7ECF\u4E0D\u5728\u53EF\u63A5\u53D7\u7684\u72B6\u6001\u4E86\uFF08\u53EF\u80FD\u5DF2\u88AB\u5904\u7406\u3001\u6216\u5DF2\u8FC7\u671F\uFF09\u3002\u5217\u8868\u5DF2\u5237\u65B0\u3002", { ...withCode, serverCode });
-    }
-    if (serverCode === "PROJECT_ALREADY_HAS_ACTIVE_MENTORSHIP") {
-      return new ServerError("proposal-state", "\u8FD9\u4E2A\u9879\u76EE\u5DF2\u7ECF\u6709\u751F\u6548\u7684\u6307\u5BFC\u5173\u7CFB\u4E86\u3002\u8BF7\u5237\u65B0\u5217\u8868\u3002", { ...withCode, serverCode });
-    }
-  }
-  if (status === 400 || status === 422) {
-    if (serverCode === "INVALID_INVITATION" || serverCode === "INVITATION_EXPIRED") {
-      return new ServerError("invalid-invitation", serverCode === "INVITATION_EXPIRED" ? "\u9080\u8BF7\u7801\u5DF2\u8FC7\u671F\uFF0C\u8BF7\u5411\u7BA1\u7406\u5458\u7D22\u53D6\u65B0\u7684\u9080\u8BF7\u7801\u3002" : where("\u9080\u8BF7\u7801\u65E0\u6548\uFF0C\u6216\u4E0E\u586B\u5199\u7684\u90AE\u7BB1\u4E0D\u5339\u914D\u3002"), { ...withCode, serverCode });
-    }
-    return new ServerError("bad-request", where("\u8BF7\u6C42\u88AB\u670D\u52A1\u5668\u62D2\u7EDD\uFF0C\u8BF7\u68C0\u67E5\u586B\u5199\u7684\u5185\u5BB9\u3002"), withCode);
-  }
-  if (status >= 500) {
-    return new ServerError("server-error", where("\u670D\u52A1\u5668\u5185\u90E8\u9519\u8BEF\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002"), withCode);
-  }
-  return new ServerError("bad-request", where(`\u8BF7\u6C42\u5931\u8D25\uFF08HTTP ${status}\uFF09\u3002`), withCode);
-}
-async function requestJson(base, path, init, options, label) {
-  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
-  if (typeof fetchImpl !== "function") {
-    throw new ServerError("unreachable", "\u5F53\u524D\u8FD0\u884C\u73AF\u5883\u6CA1\u6709\u53EF\u7528\u7684 fetch\u3002");
-  }
-  const controller = new AbortController();
-  const timeoutMs = options.timeoutMs ?? SERVER_TIMEOUT_MS;
-  const url = apiUrl(base, path);
-  const timeoutError = new ServerError("unreachable", `\u8FDE\u63A5 ${base} \u8D85\u65F6\uFF08${Math.round(timeoutMs / 1e3)} \u79D2\u65E0\u54CD\u5E94\uFF09\u3002\u8BF7\u786E\u8BA4\u670D\u52A1\u5668\u5DF2\u542F\u52A8\u3001\u5730\u5740\u4E0E\u7AEF\u53E3\u6B63\u786E\u3002`);
-  let timer;
-  const timeout = new Promise((_resolve, reject) => {
-    timer = setTimeout(() => {
-      controller.abort();
-      reject(timeoutError);
-    }, timeoutMs);
-  });
-  let res;
-  try {
-    res = await Promise.race([
-      fetchImpl(url, {
-        method: init.method,
-        headers: {
-          accept: "application/json",
-          ...init.body === void 0 ? {} : { "content-type": "application/json" },
-          ...init.apiKey ? { authorization: `Bearer ${init.apiKey}` } : {},
-          // 幂等键：**同一次业务意图**重试必须复用（402 后充值再试就靠它不重复扣费）
-          ...init.idempotencyKey ? { "idempotency-key": init.idempotencyKey } : {},
-          // 这项工作是谁：服务器据此拒绝"往别人的项目里写"（老服务器忽略该头）
-          ...options.workspaceId ? { "x-workspace-id": options.workspaceId } : {}
-        },
-        ...init.body === void 0 ? {} : { body: JSON.stringify(init.body) },
-        signal: controller.signal
-      }),
-      timeout
-    ]);
-  } catch (e) {
-    if (e instanceof ServerError)
-      throw e;
-    throw new ServerError("unreachable", `\u65E0\u6CD5\u8FDE\u63A5 ${base}\uFF1A${e instanceof Error ? e.message : String(e)}\u3002\u8BF7\u786E\u8BA4\u670D\u52A1\u5668\u5DF2\u542F\u52A8\u3002`);
-  } finally {
-    if (timer !== void 0)
-      clearTimeout(timer);
-  }
-  let body;
-  try {
-    body = await res.json();
-  } catch {
-    body = void 0;
-  }
-  if (!res.ok) {
-    if (process.env.CF_NET_DEBUG) {
-      const code = body?.error?.code;
-      console.error("[net] %s %s \u2192 %d %s", init.method, path, res.status, String(code ?? ""));
-    }
-    throw mapHttpError(res.status, body);
-  }
-  if (body === void 0) {
-    throw new ServerError("bad-response", `${label}\uFF1A\u670D\u52A1\u5668\u8FD4\u56DE\u7684\u4E0D\u662F JSON\u3002`);
-  }
-  return body;
-}
-async function probeServerHealth(base, options = {}) {
-  await requestJson(base, "/health", { method: "GET" }, options, "\u670D\u52A1\u5668\u8FDE\u901A\u6027\u68C0\u67E5");
-}
-function asString2(v) {
-  return typeof v === "string" ? v : "";
-}
-function parseAccount(body) {
-  if (!body || typeof body !== "object") {
-    throw new ServerError("bad-response", "\u8D26\u53F7\u4FE1\u606F\u683C\u5F0F\u4E0D\u6B63\u786E\uFF08\u4E0D\u662F\u5BF9\u8C61\uFF09\u3002");
-  }
-  const b = body;
-  const id = asString2(b.id);
-  const email = asString2(b.email);
-  if (!id || !email) {
-    throw new ServerError("bad-response", "\u8D26\u53F7\u4FE1\u606F\u7F3A\u5C11 id / email \u5B57\u6BB5\u3002");
-  }
-  return {
-    id,
-    email,
-    displayName: asString2(b.display_name) || email.split("@")[0] || email,
-    status: asString2(b.status) || "ACTIVE",
-    roles: Array.isArray(b.roles) ? b.roles.filter((r) => typeof r === "string") : []
-  };
-}
-async function fetchEmailNotificationPreferences(base, apiKey, options = {}, update) {
-  const body = await requestJson(base, "/notifications/preferences", update ? { method: "PATCH", apiKey, body: update } : { method: "GET", apiKey }, options, "\u90AE\u4EF6\u901A\u77E5\u8BBE\u7F6E");
-  if (typeof body?.email_research_updates !== "boolean" || typeof body?.email_new_work !== "boolean") {
-    throw new ServerError("bad-response", "\u90AE\u4EF6\u901A\u77E5\u8BBE\u7F6E\u683C\u5F0F\u4E0D\u6B63\u786E\u3002");
-  }
-  return { email_research_updates: body.email_research_updates, email_new_work: body.email_new_work };
-}
-async function fetchDecisionAssist(base, apiKey, body, options = {}) {
-  const timeoutMs = options.timeoutMs ?? 15e3;
-  const controller = new AbortController();
-  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
-  let timer;
-  const timeout = new Promise((_resolve, reject) => {
-    timer = setTimeout(() => {
-      controller.abort();
-      reject(new ServerError("unreachable", "\u51B3\u7B56\u8F85\u52A9\u8D85\u65F6\u3002"));
-    }, timeoutMs);
-  });
-  try {
-    return await Promise.race([requestJson(base, "/decision-model/assist", { method: "POST", apiKey, body }, {
-      ...options,
-      timeoutMs,
-      fetchImpl: (url, init) => fetchImpl(url, { ...init, signal: controller.signal })
-    }, "\u51B3\u7B56\u8F85\u52A9"), timeout]);
-  } finally {
-    if (timer !== void 0)
-      clearTimeout(timer);
-  }
-}
-async function fetchAccount(base, apiKey, options = {}) {
-  const key = normalizeApiKey(apiKey);
-  if (!key)
-    throw new ServerError("bad-request", "API Key \u4E0D\u80FD\u4E3A\u7A7A\u3002");
-  const body = await requestJson(base, "/auth/me", { method: "GET", apiKey: key }, options, "\u8EAB\u4EFD\u9A8C\u8BC1");
-  return parseAccount(body);
-}
-async function acceptInvitation(base, input, options = {}) {
-  const invitationCode = input.invitationCode.trim();
-  const email = input.email.trim();
-  const displayName = input.displayName.trim();
-  if (!invitationCode)
-    throw new ServerError("bad-request", "\u9080\u8BF7\u7801\u4E0D\u80FD\u4E3A\u7A7A\u3002");
-  if (!email)
-    throw new ServerError("bad-request", "\u90AE\u7BB1\u4E0D\u80FD\u4E3A\u7A7A\u3002");
-  if (!displayName)
-    throw new ServerError("bad-request", "\u663E\u793A\u540D\u4E0D\u80FD\u4E3A\u7A7A\u3002");
-  const body = await requestJson(base, "/auth/invitations/accept", {
-    method: "POST",
-    body: { invitation_code: invitationCode, email, display_name: displayName }
-  }, options, "\u9080\u8BF7\u7801\u6CE8\u518C");
-  const b = body ?? {};
-  const apiKey = normalizeApiKey(asString2(b.api_key));
-  if (!apiKey) {
-    throw new ServerError("bad-response", "\u6CE8\u518C\u6210\u529F\u4F46\u670D\u52A1\u5668\u6CA1\u6709\u8FD4\u56DE API Key\uFF1B\u8BF7\u7528 API Key \u767B\u5F55\u91CD\u8BD5\u3002");
-  }
-  const account = await fetchAccount(base, apiKey, options);
-  return { account, apiKey };
-}
-async function fetchTokenBalance(base, apiKey, options = {}) {
-  const key = requireKey(apiKey);
-  const body = await requestJson(base, "/tokens", { method: "GET", apiKey: key }, options, "Token \u4F59\u989D");
-  const b = asObject(body, "Token \u4F59\u989D");
-  const available = asNumber(b.available_balance);
-  const frozen = asNumber(b.frozen_balance);
-  return {
-    available,
-    frozen,
-    // 服务器会给 total；真缺了就自己加，但服务器给的值优先
-    total: b.total_balance === void 0 ? available + frozen : asNumber(b.total_balance),
-    // ⚠️ 两池是**三态**：缺字段读作 null（旧服务器不分开说），不能读成 0 ——
-    // 读成 0 会让界面把"能付导师"说成 0，把一个好好的账号拦在【接受】外面。
-    grant: optionalNumber(b.grant_balance),
-    funded: optionalNumber(b.funded_balance)
-  };
-}
-function parseRechargeRequest(raw) {
-  const b = asObject(raw, "\u7EED\u8D39\u7533\u8BF7");
-  const id = asString2(b.id);
-  if (!id)
-    throw new ServerError("bad-response", "\u7EED\u8D39\u7533\u8BF7\u7F3A\u5C11 id \u5B57\u6BB5\u3002");
-  return {
-    id,
-    amount: asNumber(b.amount),
-    reason: asString2(b.reason) || null,
-    status: asString2(b.status) || "PENDING",
-    note: asString2(b.note) || null,
-    reviewedBy: asString2(b.reviewed_by) || null,
-    reviewedAt: asString2(b.reviewed_at) || null,
-    grantTxId: asString2(b.grant_tx_id) || null,
-    createdAt: asString2(b.created_at),
-    updatedAt: asString2(b.updated_at)
-  };
-}
-async function submitRechargeRequest(base, apiKey, input, options = {}) {
-  const key = requireKey(apiKey);
-  const amount = input.amount;
-  if (!Number.isInteger(amount) || amount <= 0) {
-    throw new ServerError("bad-request", "\u7533\u8BF7\u6570\u91CF\u5FC5\u987B\u662F\u6B63\u6574\u6570\u3002");
-  }
-  const reason = (input.reason ?? "").trim();
-  const body = await requestJson(base, "/tokens/recharge-requests", {
-    method: "POST",
-    apiKey: key,
-    body: { amount, ...reason ? { reason } : {} }
-  }, options, "\u63D0\u4EA4\u7EED\u8D39\u7533\u8BF7");
-  return parseRechargeRequest(body);
-}
-async function fetchRechargeRequests(base, apiKey, options = {}) {
-  const key = requireKey(apiKey);
-  const body = await requestJson(base, "/tokens/recharge-requests", { method: "GET", apiKey: key }, options, "\u7EED\u8D39\u7533\u8BF7\u8BB0\u5F55");
-  const b = asObject(body, "\u7EED\u8D39\u7533\u8BF7\u8BB0\u5F55");
-  const items = b.items;
-  if (!Array.isArray(items)) {
-    throw new ServerError("bad-response", "\u7EED\u8D39\u7533\u8BF7\u8BB0\u5F55\u7F3A\u5C11 items \u5B57\u6BB5\u3002");
-  }
-  return items.map(parseRechargeRequest);
-}
-async function fetchUsage(base, apiKey, options = {}) {
-  const key = requireKey(apiKey);
-  try {
-    const body = await requestJson(base, "/usage", { method: "GET", apiKey: key }, options, "\u7528\u91CF\u4E0E\u914D\u989D");
-    const root = asObject(body, "\u7528\u91CF\u4E0E\u914D\u989D");
-    const projects = asObject(root.projects, "\u9879\u76EE\u7528\u91CF");
-    const storage = asObject(root.storage, "\u5B58\u50A8\u7528\u91CF");
-    return {
-      nextPublishCost: asNumber(projects.next_publish_cost, 0),
-      paidProjects: asNumber(projects.paid_alive, 0),
-      tier: asNumber(projects.tier, 1),
-      storage: {
-        usedBytes: asNumber(storage.used_bytes, 0),
-        capacityBytes: asNumber(storage.capacity_bytes, 0),
-        availableBytes: asNumber(storage.available_bytes, 0),
-        bytesPerToken: asNumber(storage.bytes_per_token, 0)
-      }
-    };
-  } catch {
-    return null;
-  }
-}
-async function purchaseStorage(base, apiKey, gb, intentKey, options = {}) {
-  const body = asObject(await requestJson(base, "/tokens/storage/purchase", { method: "POST", apiKey: requireKey(apiKey), body: { gb }, idempotencyKey: intentKey }, options, "\u8D2D\u4E70\u5B58\u50A8\u7A7A\u95F4"), "\u5B58\u50A8\u8D2D\u4E70\u7ED3\u679C");
-  const purchasedGb = asNumber(body.purchased_gb, -1);
-  const capacityBytes = asNumber(body.capacity_bytes, -1);
-  const cost = asNumber(body.cost, -1);
-  if (purchasedGb !== gb || !Number.isSafeInteger(capacityBytes) || capacityBytes <= 0 || !Number.isSafeInteger(cost) || cost <= 0) {
-    throw new ServerError("bad-response", "\u670D\u52A1\u5668\u8FD4\u56DE\u7684\u5B58\u50A8\u8D2D\u4E70\u56DE\u6267\u4E0D\u5B8C\u6574\u3002");
-  }
-  return { purchasedGb, capacityBytes, cost };
-}
-async function fetchPriceGuide(base, apiKey, options = {}) {
-  try {
-    const key = requireKey(apiKey);
-    const body = await requestJson(base, "/mentorship/price-guide", { method: "GET", apiKey: key }, options, "\u4EF7\u76EE\u53C2\u8003");
-    const root = asObject(body, "\u4EF7\u76EE\u53C2\u8003");
-    const tiers = [];
-    const rawTiers = Array.isArray(root.tiers) ? root.tiers : [];
-    for (const raw of rawTiers) {
-      const t = asObject(raw, "\u4EF7\u76EE\u6863\u4F4D");
-      const tokens = asNumber(t.tokens, 0);
-      const label = asString2(t.label);
-      if (!Number.isInteger(tokens) || tokens < 1 || !label)
-        continue;
-      tiers.push({
-        jcrLevel: Math.trunc(asNumber(t.jcr_level, 0)),
-        ccfLevel: asString2(t.ccf_level) || null,
-        label,
-        tokens
-      });
-    }
-    return {
-      // 硬下限由服务器给（当前 1），这里不写死：平台若调整，界面跟着走
-      minAllowed: Math.max(1, Math.trunc(asNumber(root.min_allowed, 1))),
-      recommendedMin: Math.trunc(asNumber(root.recommended_min, 0)),
-      recommendedMax: Math.trunc(asNumber(root.recommended_max, 0)),
-      tokenValueFen: Math.trunc(asNumber(root.token_value_fen, 0)),
-      tiers
-    };
-  } catch {
-    return null;
-  }
-}
-async function postProjectFiles(base, apiKey, projectId, files, options, timeoutMessage) {
-  const { stateVersion, fetchImpl: fetchOption, timeoutMs, workspaceId } = options;
-  const key = requireKey(apiKey);
-  const id = (projectId ?? "").trim();
-  if (!id)
-    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
-  if (files.length === 0)
-    return [];
-  const fetchImpl = fetchOption ?? globalThis.fetch;
-  if (typeof fetchImpl !== "function")
-    throw new ServerError("unreachable", "\u5F53\u524D\u8FD0\u884C\u73AF\u5883\u6CA1\u6709\u53EF\u7528\u7684 fetch\u3002");
-  const form = new FormData();
-  for (const f of files) {
-    const name = f.relPath.slice(f.relPath.lastIndexOf("/") + 1);
-    const view2 = f.bytes;
-    const buf = view2.buffer.slice(view2.byteOffset, view2.byteOffset + view2.byteLength);
-    form.append("files", new Blob([buf]), name);
-    form.append("relative_paths", f.relPath);
-  }
-  if (stateVersion !== void 0)
-    form.append("state_version", String(stateVersion));
-  const timeout = timeoutMs ?? SERVER_TIMEOUT_MS;
-  const controller = new AbortController();
-  let timer;
-  const timeoutPromise = new Promise((_resolve, reject) => {
-    timer = setTimeout(() => {
-      controller.abort();
-      reject(new ServerError("unreachable", `${timeoutMessage}\u5230 ${base} \u8D85\u65F6\uFF08${Math.round(timeout / 1e3)} \u79D2\uFF09\u3002`));
-    }, timeout);
-  });
-  let res;
-  try {
-    res = await Promise.race([
-      fetchImpl(`${apiBase(base)}/projects/${encodeURIComponent(id)}/files`, {
-        method: "POST",
-        // ⚠️ 不设 content-type：multipart 的 boundary 由运行时生成
-        headers: {
-          authorization: `Bearer ${key}`,
-          // 这项工作是谁：与 JSON 写请求同一个头（服务器据此拒绝"往别人的项目里写"）
-          ...workspaceId ? { "x-workspace-id": workspaceId } : {}
-        },
-        body: form,
-        signal: controller.signal
-      }),
-      timeoutPromise
-    ]);
-  } catch (e) {
-    if (e instanceof ServerError)
-      throw e;
-    throw new ServerError("unreachable", `${timeoutMessage}\u5931\u8D25\uFF1A${e instanceof Error ? e.message : String(e)}`);
-  } finally {
-    if (timer !== void 0)
-      clearTimeout(timer);
-  }
-  let body;
-  try {
-    body = await res.json();
-  } catch {
-    body = void 0;
-  }
-  if (!res.ok)
-    throw mapHttpError(res.status, body);
-  if (!Array.isArray(body))
-    throw new ServerError("bad-response", "\u9644\u4EF6\u4E0A\u4F20\u7684\u54CD\u5E94\u4E0D\u662F\u6570\u7EC4\u3002");
-  return body.map((raw) => {
-    const b = asObject(raw, "\u9644\u4EF6\u5143\u6570\u636E");
-    return {
-      id: asString2(b.id),
-      relativePath: asString2(b.relative_path),
-      size: asNumber(b.size, 0),
-      sha256: asString2(b.sha256)
-    };
-  });
-}
-async function uploadProjectFiles(base, apiKey, projectId, files, options = {}) {
-  return await postProjectFiles(base, apiKey, projectId, files, options, "\u4E0A\u4F20\u9644\u4EF6");
-}
-var MENTOR_REVIEW_PREFIX = "review";
-async function uploadWorkspaceFiles(base, apiKey, projectId, files, options = {}) {
-  for (const f of files) {
-    const rel = (f.relPath ?? "").trim();
-    if (!rel || rel.startsWith("/") || rel.split("/").includes("..")) {
-      throw new ServerError("bad-request", `\u56DE\u4F20\u8DEF\u5F84\u4E0D\u5408\u6CD5\uFF1A${f.relPath}`);
-    }
-  }
-  return await postProjectFiles(base, apiKey, projectId, files, options, "\u56DE\u4F20\u7814\u7A76\u8FDB\u5C55");
-}
-async function fetchProjectFiles(base, apiKey, projectId, options = {}) {
-  return (await fetchProjectFilesWithIdentity(base, apiKey, projectId, options)).files;
-}
-async function fetchProjectFilesWithIdentity(base, apiKey, projectId, options = {}) {
-  const key = requireKey(apiKey);
-  const id = (projectId ?? "").trim();
-  if (!id)
-    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
-  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/files${sourceQuery(options.source)}`, { method: "GET", apiKey: key }, options, "\u9879\u76EE\u6587\u4EF6\u5217\u8868");
-  const record = asRecord2(body);
-  const items = record?.items;
-  if (!Array.isArray(items)) {
-    throw new ServerError("bad-response", "\u9879\u76EE\u6587\u4EF6\u5217\u8868\u7F3A\u5C11 items \u5B57\u6BB5\u3002");
-  }
-  const workspaceId = normalizeWorkspaceId(record?.workspace_id);
-  const files = items.map((raw) => {
-    const b = asRecord2(raw) ?? {};
-    const fileId = asString2(b.id);
-    const relativePath = asString2(b.relative_path);
-    if (!fileId || !relativePath) {
-      throw new ServerError("bad-response", "\u9879\u76EE\u6587\u4EF6\u6761\u76EE\u7F3A\u5C11 id / relative_path\u3002");
-    }
-    return { id: fileId, relativePath, size: asNumber(b.size), sha256: asString2(b.sha256) };
-  });
-  return { files, workspaceId };
-}
-async function waitForAbort(promise, signal) {
-  if (!signal)
-    return promise;
-  if (signal.aborted) {
-    promise.catch(() => {
-    });
-    signal.throwIfAborted();
-  }
-  let abort = () => {
-  };
-  const cancelled = new Promise((_resolve, reject) => {
-    abort = () => reject(signal.reason ?? new Error("Cancelled"));
-    signal.addEventListener("abort", abort, { once: true });
-  });
-  try {
-    return await Promise.race([promise, cancelled]);
-  } finally {
-    signal.removeEventListener("abort", abort);
-  }
-}
-async function fetchBinary(base, path, apiKey, options, label) {
-  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
-  if (typeof fetchImpl !== "function")
-    throw new ServerError("unreachable", "\u5F53\u524D\u8FD0\u884C\u73AF\u5883\u6CA1\u6709\u53EF\u7528\u7684 fetch\u3002");
-  const timeoutMs = options.timeoutMs ?? SERVER_TIMEOUT_MS;
-  const controller = new AbortController();
-  const abort = () => controller.abort(options.signal?.reason);
-  options.signal?.addEventListener("abort", abort, { once: true });
-  try {
-    options.signal?.throwIfAborted();
-    let timer;
-    const timeout = new Promise((_resolve, reject) => {
-      timer = setTimeout(() => {
-        controller.abort();
-        reject(new ServerError("unreachable", `${label}\u8D85\u65F6\uFF08${Math.round(timeoutMs / 1e3)} \u79D2\uFF09\u3002`));
-      }, timeoutMs);
-    });
-    let res;
-    try {
-      res = await waitForAbort(Promise.race([
-        fetchImpl(apiUrl(base, path), {
-          method: "GET",
-          headers: { authorization: `Bearer ${apiKey}` },
-          signal: controller.signal
-        }),
-        timeout
-      ]), options.signal);
-    } catch (e) {
-      if (e instanceof ServerError)
-        throw e;
-      throw new ServerError("unreachable", `${label}\u5931\u8D25\uFF1A${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      if (timer !== void 0)
-        clearTimeout(timer);
-    }
-    if (!res.ok) {
-      let body;
-      try {
-        body = await waitForAbort(res.json(), options.signal);
-      } catch {
-        body = void 0;
-      }
-      throw mapHttpError(res.status, body);
-    }
-    const rawLength = res.headers?.get("content-length");
-    const length = rawLength ? Number(rawLength) : NaN;
-    options.onHeaders?.(Number.isSafeInteger(length) && length >= 0 ? length : null);
-    const contentDisposition = res.headers?.get("content-disposition") ?? null;
-    const fileCount = asNumberOrNull(res.headers?.get("x-file-count"));
-    const sourceUpdatedAt = res.headers?.get("x-source-updated-at") ?? null;
-    const workspaceId = normalizeWorkspaceId(res.headers?.get("x-workspace-id"));
-    const sourceSideRaw = (res.headers?.get("x-source") ?? "").trim().toLowerCase();
-    const sourceSide = sourceSideRaw === "owner" || sourceSideRaw === "mentor" ? sourceSideRaw : null;
-    const received = await readBody(res, options, label, controller);
-    return {
-      bytes: received.bytes,
-      contentDisposition,
-      fileCount,
-      sourceUpdatedAt,
-      workspaceId,
-      sourceSide,
-      received: received.total
-    };
-  } finally {
-    options.signal?.removeEventListener("abort", abort);
-  }
-}
-function asNumberOrNull(raw) {
-  if (raw === null || raw === void 0)
-    return null;
-  const n = Number.parseInt(raw.trim(), 10);
-  return Number.isFinite(n) && n >= 0 ? n : null;
-}
-function humanBytes(n) {
-  if (n >= 1024 * 1024)
-    return `${(n / 1024 / 1024).toFixed(1)} MB`;
-  if (n >= 1024)
-    return `${Math.round(n / 1024)} KB`;
-  return `${n} B`;
-}
-async function readBody(res, options, label, controller) {
-  const stallMs = options.stallTimeoutMs ?? STALL_TIMEOUT_MS;
-  const onChunk = options.onChunk;
-  const onProgress = options.onProgress;
-  const chunks = [];
-  let total = 0;
-  let stalled = false;
-  const withStall = async (p) => {
-    let timer;
-    const stall = new Promise((_resolve, reject) => {
-      timer = setTimeout(() => {
-        stalled = true;
-        controller.abort();
-        reject(new ServerError("unreachable", `${label}\u4E2D\u65AD\uFF1A${Math.round(stallMs / 1e3)} \u79D2\u6CA1\u6709\u6536\u5230\u6570\u636E\uFF08\u5DF2\u6536 ${humanBytes(total)}\uFF09\u2014\u2014 \u7F51\u7EDC\u4E0D\u7A33\u6216\u670D\u52A1\u5668\u4E2D\u65AD\uFF0C\u8BF7\u91CD\u8BD5\u3002`));
-      }, stallMs);
-    });
-    stall.catch(() => {
-    });
-    try {
-      return await waitForAbort(Promise.race([p, stall]), options.signal);
-    } finally {
-      if (timer !== void 0)
-        clearTimeout(timer);
-    }
-  };
-  const take = (chunk) => {
-    options.signal?.throwIfAborted();
-    options.check?.();
-    total += chunk.byteLength;
-    if (onChunk)
-      onChunk(chunk);
-    else
-      chunks.push(chunk);
-    onProgress?.(total);
-  };
-  try {
-    const reader = res.body?.getReader?.();
-    if (reader) {
-      for (; ; ) {
-        const { done, value } = await withStall(reader.read());
-        if (done)
-          break;
-        if (value && value.byteLength > 0)
-          take(value);
-      }
-    } else {
-      const buf = new Uint8Array(await withStall(res.arrayBuffer()));
-      if (buf.byteLength > 0)
-        take(buf);
-    }
-  } catch (e) {
-    controller.abort();
-    if (stalled) {
-      throw new ServerError("unreachable", `${label}\u4E2D\u65AD\uFF1A${Math.round(stallMs / 1e3)} \u79D2\u6CA1\u6709\u6536\u5230\u6570\u636E\uFF08\u5DF2\u6536 ${humanBytes(total)}\uFF09\u2014\u2014 \u7F51\u7EDC\u4E0D\u7A33\u6216\u670D\u52A1\u5668\u4E2D\u65AD\uFF0C\u8BF7\u91CD\u8BD5\u3002`);
-    }
-    throw new ServerError("unreachable", `${label}\u5931\u8D25\uFF1A${e instanceof Error ? e.message : String(e)}`);
-  }
-  if (onChunk)
-    return { bytes: new Uint8Array(0), total };
-  const merged = new Uint8Array(total);
-  let at = 0;
-  for (const c of chunks) {
-    merged.set(c, at);
-    at += c.byteLength;
-  }
-  return { bytes: merged, total };
-}
-function filenameFromDisposition(value) {
-  if (!value)
-    return null;
-  const star = /filename\*=UTF-8''([^;]+)/i.exec(value);
-  if (star?.[1]) {
-    try {
-      return decodeURIComponent(star[1].trim());
-    } catch {
-    }
-  }
-  const plain = /filename="?([^";]+)"?/i.exec(value);
-  return plain?.[1]?.trim() || null;
-}
-async function fetchProjectArchive(base, apiKey, projectId, sink, options = {}) {
-  const key = requireKey(apiKey);
-  const id = (projectId ?? "").trim();
-  if (!id)
-    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
-  const { contentDisposition, fileCount, sourceUpdatedAt, workspaceId, sourceSide, received } = await fetchBinary(base, `/projects/${encodeURIComponent(id)}/files/archive${sourceQuery(options.source)}`, key, { ...options, timeoutMs: options.timeoutMs ?? 12e4, onChunk: (chunk) => sink.write(chunk) }, "\u4E0B\u8F7D\u5DE5\u4F5C\u533A\u5FEB\u7167");
-  return {
-    received,
-    filename: filenameFromDisposition(contentDisposition),
-    fileCount,
-    sourceUpdatedAt,
-    workspaceId,
-    sourceSide
-  };
-}
-function parseProject(raw) {
-  const b = asObject(raw, "\u7814\u7A76\u9879\u76EE");
-  const id = asString2(b.id);
-  if (!id)
-    throw new ServerError("bad-response", "\u7814\u7A76\u9879\u76EE\u7F3A\u5C11 id \u5B57\u6BB5\u3002");
-  return {
-    id,
-    title: asString2(b.title),
-    description: asString2(b.description) || null,
-    status: asString2(b.status) || "ACTIVE",
-    visibility: asString2(b.visibility) || "PRIVATE",
-    direction: parseDirection(b.direction),
-    workName: parseTriText(b.work_name),
-    ...b.workspace_id === void 0 ? {} : { workspaceId: normalizeWorkspaceId(b.workspace_id) },
-    // 挂牌价三态：缺字段（旧服务器）→ undefined；显式 null → null（没挂牌价）
-    ...b.asking_fee === void 0 ? {} : { askingFee: parseTriFee(b.asking_fee) },
-    updatedAt: asString2(b.updated_at)
-  };
-}
-async function createProject(base, apiKey, input, options = {}) {
-  const key = requireKey(apiKey);
-  const title = (input.title ?? "").trim();
-  if (!title)
-    throw new ServerError("bad-request", "\u9879\u76EE\u6807\u9898\u4E0D\u80FD\u4E3A\u7A7A\u3002");
-  const body = await requestJson(base, "/projects", {
-    method: "POST",
-    apiKey: key,
-    body: {
-      title,
-      ...input.description ? { description: input.description } : {},
-      // ⚠️ 只在明确给了方向时才发这个字段：默认方向由服务器拥有，
-      // 客户端抄一份默认值只会在平台改默认时悄悄漂移。
-      ...input.direction ? { direction: input.direction } : {},
-      /*
-       * 本机已经知道这项研究的身份（之前发布过 / 下载时记下过）→ 沿用，
-       * 否则同一项研究重新发布会被服务器当成**另一项研究**（新 id），
-       * 而"另一项研究"在下一次下载判定里意味着"禁止写进这个工作区"。
-       */
-      ...input.workspaceId ? { workspace_id: input.workspaceId } : {},
-      // 与方向同理：没标价就不发这个字段（服务器侧 `NULL` = 没挂牌价）
-      ...typeof input.askingFee === "number" ? { asking_fee: input.askingFee } : {}
-    }
-  }, options, "\u5EFA\u9879\u76EE");
-  return parseProject(body);
-}
-async function updateProject(base, apiKey, projectId, input, options = {}) {
-  const key = requireKey(apiKey);
-  const id = (projectId ?? "").trim();
-  if (!id)
-    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
-  const title = (input.title ?? "").trim();
-  if (!title)
-    throw new ServerError("bad-request", "\u6807\u9898\u4E0D\u80FD\u4E3A\u7A7A\u3002");
-  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}`, {
-    method: "PUT",
-    apiKey: key,
-    body: {
-      title,
-      /*
-       * 挂牌价：只在明确给了数字时才发。
-       *
-       * ⚠️ 传 `null` **不会清空**（服务层跳过 `None`，与 title/description/status 的既有语义
-       * 一致，见 `payment-system.md` §3.2.5 的"改价的限制"）——所以这里根本不发 null，
-       * 免得界面上出现"以为能撤掉挂牌价"的假象。
-       */
-      ...typeof input.askingFee === "number" ? { asking_fee: input.askingFee } : {}
-    }
-  }, options, "\u6539\u9879\u76EE");
-  return parseProject(body);
-}
-async function fetchProjects(base, apiKey, options = {}) {
-  const key = requireKey(apiKey);
-  const body = await requestJson(base, "/projects", { method: "GET", apiKey: key }, options, "\u8BFB\u53D6\u6211\u7684\u9879\u76EE");
-  const list = Array.isArray(body) ? body : Array.isArray(body?.items) ? body.items : [];
-  const out = [];
-  for (const raw of list) {
-    try {
-      out.push(parseProject(raw));
-    } catch {
-    }
-  }
-  return out;
-}
-async function fetchProject(base, apiKey, projectId, options = {}) {
-  const key = requireKey(apiKey);
-  const id = (projectId ?? "").trim();
-  if (!id)
-    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
-  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}`, { method: "GET", apiKey: key }, options, "\u8BFB\u53D6\u9879\u76EE");
-  return parseProject(body);
-}
-async function readStateVersion(base, apiKey, projectId, options = {}) {
-  const key = requireKey(apiKey);
-  const id = (projectId ?? "").trim();
-  if (!id)
-    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
-  try {
-    const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/state`, { method: "GET", apiKey: key }, options, "\u8BFB\u53D6\u7814\u7A76\u72B6\u6001");
-    const version2 = asObject(body, "\u7814\u7A76\u72B6\u6001").version;
-    return typeof version2 === "number" ? version2 : null;
-  } catch (e) {
-    if (e instanceof ServerError && e.code === "not-found")
-      return null;
-    throw e;
-  }
-}
-async function uploadResearchState(base, apiKey, projectId, input, options = {}) {
-  const key = requireKey(apiKey);
-  const id = (projectId ?? "").trim();
-  if (!id)
-    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
-  const intentKey = (input.intentKey ?? "").trim();
-  if (!intentKey)
-    throw new ServerError("bad-request", "\u7F3A\u5C11\u5E42\u7B49\u952E\uFF08intentKey\uFF09\u3002");
-  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/state`, {
-    method: "POST",
-    apiKey: key,
-    idempotencyKey: intentKey,
-    body: { base_version: input.baseVersion, content: input.content }
-  }, options, "\u4E0A\u4F20\u7814\u7A76\u72B6\u6001");
-  const b = asObject(body, "\u7814\u7A76\u72B6\u6001");
-  const version2 = typeof b.version === "number" ? b.version : null;
-  if (version2 === null)
-    throw new ServerError("bad-response", "\u4E0A\u4F20\u7814\u7A76\u72B6\u6001\u540E\u6CA1\u6709\u8FD4\u56DE\u7248\u672C\u53F7\u3002");
-  return { version: version2, contentHash: asString2(b.content_hash) };
-}
-async function publishProject(base, apiKey, projectId, options = {}) {
-  const { intentKey, ...net } = options;
-  const key = requireKey(apiKey);
-  const id = (projectId ?? "").trim();
-  if (!id)
-    throw new ServerError("bad-request", "\u7F3A\u5C11 projectId\u3002");
-  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/publish`, { method: "POST", apiKey: key, ...intentKey ? { idempotencyKey: intentKey } : {} }, net, "\u53D1\u5E03\u9879\u76EE");
-  const parsed = asObject(body, "\u53D1\u5E03\u7ED3\u679C");
-  return {
-    visibility: asString2(parsed.visibility) || "PUBLISHED",
-    chargedTokens: typeof parsed.charged_tokens === "number" ? parsed.charged_tokens : 0
-  };
-}
-function asNumber(v, fallback = 0) {
-  return typeof v === "number" && Number.isFinite(v) ? v : fallback;
-}
-function optionalNumber(v) {
-  return typeof v === "number" && Number.isFinite(v) ? v : null;
-}
-function asStringArray(v) {
-  return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
-}
-function asObject(v, label) {
-  if (!v || typeof v !== "object") {
-    throw new ServerError("bad-response", `${label}\u7684\u54CD\u5E94\u683C\u5F0F\u4E0D\u6B63\u786E\uFF08\u4E0D\u662F\u5BF9\u8C61\uFF09\u3002`);
-  }
-  return v;
-}
-function parseWorkItem(raw) {
-  const b = asObject(raw, "\u7814\u7A76\u5DE5\u4F5C");
-  const projectId = asString2(b.project_id) || asString2(b.id);
-  const title = asString2(b.title);
-  if (!projectId || !title) {
-    throw new ServerError("bad-response", "\u7814\u7A76\u5DE5\u4F5C\u7F3A\u5C11 project_id / title \u5B57\u6BB5\u3002");
-  }
-  const stage = asString2(b.stage);
-  return {
-    projectId,
-    title,
-    researchFields: asStringArray(b.research_fields),
-    stage: stage || null,
-    progress: asNumber(b.progress),
-    researchQuestion: asString2(b.research_question) || null,
-    summary: asString2(b.summary) || null,
-    updatedAt: asString2(b.updated_at),
-    direction: parseDirection(b.direction),
-    workName: parseTriText(b.work_name),
-    // `brief_paid`：打开这项简报还会不会再扣 Token（服务器按支付记录 / owner 判定）。
-    // 只有真的是布尔才采信；字段缺失或类型不对 → null（= 不知道，界面会照常提醒）。
-    briefPaid: typeof b.brief_paid === "boolean" ? b.brief_paid : null,
-    owner: parseWorkOwner(b.owner),
-    // 挂牌价三态：缺字段（旧服务器）→ 不带这个键；显式 null → null（没挂牌价）
-    ...b.asking_fee === void 0 ? {} : { askingFee: parseTriFee(b.asking_fee) }
-  };
-}
-function parseWorkOwner(raw) {
-  const b = asRecord2(raw);
-  const id = b ? asString2(b.id) : "";
-  if (!id)
-    return null;
-  const displayName = b ? asString2(b.display_name) : "";
-  return { id, displayName: displayName || id.slice(0, 8) };
-}
-function parseWorkBrief(raw) {
-  const b = asObject(raw, "\u7B80\u62A5");
-  const base = parseWorkItem(raw);
-  return {
-    ...base,
-    motivation: asString2(b.motivation) || null,
-    coreIdea: asString2(b.core_idea) || null,
-    hypothesis: asString2(b.hypothesis) || null,
-    methodOverview: asString2(b.method_overview) || null,
-    keyEvidence: asStringArray(b.key_evidence),
-    openProblems: asStringArray(b.open_problems),
-    // `charged_tokens`：本次调用花掉的 Token（0 = 自己的项目 / 已经买过）。
-    // 字段缺失/不是数字 → null（界面据此退回"按余额差值"），不谎报 0。
-    chargedTokens: typeof b.charged_tokens === "number" && Number.isFinite(b.charged_tokens) && b.charged_tokens >= 0 ? b.charged_tokens : null
-  };
-}
-function requireKey(apiKey) {
-  const key = normalizeApiKey(apiKey);
-  if (!key)
-    throw new ServerError("bad-request", "API Key \u4E0D\u80FD\u4E3A\u7A7A\u3002");
-  return key;
-}
-async function fetchWorkList(base, apiKey, options = {}, direction) {
-  const key = requireKey(apiKey);
-  const query = direction ? `?direction=${encodeURIComponent(direction)}` : "";
-  const body = await requestJson(base, `/discovery/random${query}`, { method: "GET", apiKey: key }, options, "\u7814\u7A76\u5DE5\u4F5C\u5217\u8868");
-  const items = asObject(body, "\u7814\u7A76\u5DE5\u4F5C\u5217\u8868").items;
-  if (!Array.isArray(items)) {
-    throw new ServerError("bad-response", "\u7814\u7A76\u5DE5\u4F5C\u5217\u8868\u7F3A\u5C11 items \u5B57\u6BB5\u3002");
-  }
-  return items.map(parseWorkItem);
-}
-async function fetchWorkSummary(base, apiKey, projectId, options = {}) {
-  const key = requireKey(apiKey);
-  const id = (projectId ?? "").trim();
-  if (!id)
-    throw new ServerError("bad-request", "\u7F3A\u5C11\u7814\u7A76\u5DE5\u4F5C id\u3002");
-  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/summary`, { method: "GET", apiKey: key }, options, "\u7814\u7A76\u5DE5\u4F5C\u6458\u8981");
-  return parseWorkItem(body);
-}
-async function fetchWorkBrief(base, apiKey, projectId, intentKey, options = {}) {
-  const key = requireKey(apiKey);
-  const id = (projectId ?? "").trim();
-  if (!id)
-    throw new ServerError("bad-request", "\u7F3A\u5C11\u7814\u7A76\u5DE5\u4F5C id\u3002");
-  const intent = (intentKey ?? "").trim();
-  if (!intent)
-    throw new ServerError("bad-request", "\u7F3A\u5C11\u5E42\u7B49\u952E\uFF08intentKey\uFF09\u3002");
-  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/brief`, { method: "GET", apiKey: key, idempotencyKey: intent }, options, "\u7814\u7A76\u5DE5\u4F5C\u7B80\u62A5");
-  return parseWorkBrief(body);
-}
-var CCF_LEVELS = ["A", "B", "C"];
-function asJcrLevel(v) {
-  const n = typeof v === "number" ? v : Number.NaN;
-  return Number.isInteger(n) && n >= 1 && n <= 4 ? n : null;
-}
-function asCcfLevel(v) {
-  if (typeof v !== "string")
-    return null;
-  const s = v.trim().toUpperCase();
-  return CCF_LEVELS.includes(s) ? s : null;
-}
-function asRecord2(v) {
-  return v !== null && typeof v === "object" && !Array.isArray(v) ? v : null;
-}
-function parseProfile(raw) {
-  const b = asRecord2(raw);
-  if (!b)
-    return null;
-  return {
-    institution: asString2(b.institution) || null,
-    department: asString2(b.department) || null,
-    bio: asString2(b.bio) || null,
-    researchFields: asStringArray(b.research_fields),
-    researchInterests: asStringArray(b.research_interests),
-    researchExpertise: asStringArray(b.research_expertise)
-  };
-}
-function parseParty(raw, fallbackId) {
-  const b = asRecord2(raw);
-  const id = (b ? asString2(b.id) : "") || asString2(fallbackId);
-  if (!id)
-    return null;
-  const displayName = b ? asString2(b.display_name) : "";
-  return {
-    id,
-    // 后端还没 enrich 身份字段时回退成短 id，界面仍然有东西可显示、可区分
-    displayName: displayName || id.slice(0, 8),
-    /*
-     * ⚠️ 只在**键存在**时才给 `profile`：`undefined`（键不在）= 服务器不给你看这一方的
-     * 资料；`null` = 投影了但对方没填。合并成 `null` 会让界面在"不该有入口"的那一侧
-     * 也显示【导师】/【学生】按钮（点开只能说"尚未填写"）。
-     */
-    ...b && "profile" in b ? { profile: parseProfile(b.profile) } : {}
-  };
-}
-function parseSuccessCondition(raw) {
-  const b = asRecord2(raw);
-  return {
-    type: asString2(b?.type) || "MUTUAL_COMPLETION",
-    description: asString2(b?.description) || null,
-    jcrLevel: asJcrLevel(b?.jcr_level),
-    ccfLevel: asCcfLevel(b?.ccf_level)
-  };
-}
-function parseTriCount(raw) {
-  if (raw === null)
-    return null;
-  if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0)
-    return Math.trunc(raw);
-  return void 0;
-}
-function parseTriText(raw) {
-  if (raw === null)
-    return null;
-  const text = asString2(raw);
-  return text ? text : void 0;
-}
-function parseTriFee(raw) {
-  if (raw === null)
-    return null;
-  const n = asNumber(raw, 0);
-  return Number.isInteger(n) && n >= 1 ? n : null;
-}
-function parseTriIso(raw) {
-  if (raw === null)
-    return null;
-  if (typeof raw === "string" && raw.trim())
-    return raw.trim();
-  return void 0;
-}
-function parseProposal(raw) {
-  const b = asRecord2(raw);
-  if (!b)
-    throw new ServerError("bad-response", "\u6307\u5BFC\u63D0\u6848\uFF1A\u54CD\u5E94\u683C\u5F0F\u4E0D\u5BF9\u3002");
-  const id = asString2(b.id);
-  if (!id)
-    throw new ServerError("bad-response", "\u6307\u5BFC\u63D0\u6848\u7F3A\u5C11 id\u3002");
-  return {
-    id,
-    projectId: asString2(b.project_id),
-    direction: parseDirection(b.direction),
-    // `proposed_by_id`：谁发起的。缺失（旧服务器）→ null，界面按方向推断。
-    proposedById: asString2(b.proposed_by_id) || null,
-    projectTitle: asString2(b.project_title) || null,
-    workName: parseTriText(b.work_name),
-    ...b.asking_fee === void 0 ? {} : { askingFee: parseTriFee(b.asking_fee) },
-    // 后端 enrich 之后 `mentor` / `researcher` 是内嵌对象；没 enrich 时退回顶层
-    // `mentor_id` / `researcher_id`（UUID），界面用短 id 显示 —— 至少能分出"哪边是我"。
-    mentor: parseParty(b.mentor, b.mentor_id),
-    researcher: parseParty(b.researcher, b.researcher_id),
-    guidanceScope: asString2(b.guidance_scope),
-    totalFee: asNumber(b.total_fee),
-    depositAmount: asNumber(b.deposit_amount),
-    successPaymentAmount: asNumber(b.success_payment_amount),
-    successCondition: parseSuccessCondition(b.success_condition),
-    status: asString2(b.status) || "PROPOSED",
-    reviewFiles: parseTriCount(b.review_files),
-    workspaceFiles: parseTriCount(b.workspace_files),
-    workspaceUpdatedAt: parseTriIso(b.workspace_updated_at),
-    counterpartUpdatedAt: parseTriIso(b.counterpart_updated_at),
-    expiresAt: asString2(b.expires_at),
-    createdAt: asString2(b.created_at)
-  };
-}
-function parseContract(raw) {
-  const b = asRecord2(raw);
-  if (!b)
-    throw new ServerError("bad-response", "\u6307\u5BFC\u5408\u540C\uFF1A\u54CD\u5E94\u683C\u5F0F\u4E0D\u5BF9\u3002");
-  const id = asString2(b.id);
-  if (!id)
-    throw new ServerError("bad-response", "\u6307\u5BFC\u5408\u540C\u7F3A\u5C11 id\u3002");
-  return {
-    id,
-    researcherId: asString2(b.researcher_id),
-    mentorId: asString2(b.mentor_id),
-    projectId: asString2(b.project_id),
-    direction: parseDirection(b.direction),
-    totalFee: asNumber(b.total_fee),
-    depositAmount: asNumber(b.deposit_amount),
-    successPaymentAmount: asNumber(b.success_payment_amount),
-    guidanceScope: asString2(b.guidance_scope),
-    successCondition: parseSuccessCondition(b.success_condition),
-    status: asString2(b.status) || "ACCEPTED",
-    createdAt: asString2(b.created_at),
-    acceptedAt: asString2(b.accepted_at) || null,
-    startedAt: asString2(b.started_at) || null,
-    completedAt: asString2(b.completed_at) || null,
-    settledAt: asString2(b.settled_at) || null
-  };
-}
-async function fetchFeeSuggestion(base, apiKey, options = {}, level) {
-  const key = requireKey(apiKey);
-  const jcr = asJcrLevel(level?.system === "JCR" ? level.level : null);
-  const ccf = asCcfLevel(level?.system === "CCF" ? level.level : null);
-  if (level && jcr === null && ccf === null) {
-    throw new ServerError("bad-request", "\u8BBA\u6587\u7B49\u7EA7\u4E0D\u5408\u6CD5\uFF1AJCR \u53EA\u80FD\u586B 1\u20134\uFF0CCCF \u53EA\u80FD\u586B A/B/C\u3002");
-  }
-  const query = jcr !== null ? `?jcr_level=${jcr}` : ccf !== null ? `?ccf_level=${ccf}` : "";
-  const body = await requestJson(base, `/mentorship-proposals/fee-suggestion${query}`, { method: "GET", apiKey: key }, options, "\u6307\u5BFC\u8D39\u7528\u5EFA\u8BAE");
-  const b = asRecord2(body);
-  if (!b)
-    throw new ServerError("bad-response", "\u6307\u5BFC\u8D39\u7528\u5EFA\u8BAE\uFF1A\u54CD\u5E94\u683C\u5F0F\u4E0D\u5BF9\u3002");
-  return {
-    suggestedFee: asNumber(b.suggested_fee),
-    suggestedDeposit: asNumber(b.suggested_deposit),
-    suggestedSuccessPayment: asNumber(b.suggested_success_payment)
-  };
-}
-async function fetchPropose(base, apiKey, projectId, input, options = {}) {
-  const key = requireKey(apiKey);
-  const id = (projectId ?? "").trim();
-  if (!id)
-    throw new ServerError("bad-request", "\u7F3A\u5C11\u7814\u7A76\u5DE5\u4F5C id\u3002");
-  const scope = (input.guidanceScope ?? "").trim();
-  if (!scope)
-    throw new ServerError("bad-request", "\u6307\u5BFC\u8303\u56F4\u4E0D\u80FD\u4E3A\u7A7A\u3002");
-  const jcr = asJcrLevel(input.successCondition.jcrLevel);
-  const ccf = asCcfLevel(input.successCondition.ccfLevel);
-  const body = await requestJson(base, `/projects/${encodeURIComponent(id)}/mentorship-proposals`, {
-    method: "POST",
-    apiKey: key,
-    body: {
-      guidance_scope: scope,
-      total_fee: input.totalFee,
-      deposit_amount: input.depositAmount,
-      success_payment_amount: input.successPaymentAmount,
-      success_condition: {
-        type: input.successCondition.type,
-        description: input.successCondition.description ?? null,
-        ...jcr !== null ? { jcr_level: jcr } : ccf !== null ? { ccf_level: ccf } : {}
-      }
-    }
-  }, options, "\u6307\u5BFC\u63D0\u6848");
-  return parseProposal(body);
-}
-async function fetchProposals(base, apiKey, options = {}) {
-  const key = requireKey(apiKey);
-  const body = await requestJson(base, "/mentorship-proposals", { method: "GET", apiKey: key }, options, "\u6307\u5BFC\u63D0\u6848\u5217\u8868");
-  if (!Array.isArray(body)) {
-    throw new ServerError("bad-response", "\u6307\u5BFC\u63D0\u6848\u5217\u8868\uFF1A\u54CD\u5E94\u5E94\u4E3A\u6570\u7EC4\u3002");
-  }
-  return body.map(parseProposal);
-}
-async function fetchAcceptProposal(base, apiKey, proposalId, intentKey, options = {}) {
-  const key = requireKey(apiKey);
-  const id = (proposalId ?? "").trim();
-  if (!id)
-    throw new ServerError("bad-request", "\u7F3A\u5C11\u63D0\u6848 id\u3002");
-  const intent = (intentKey ?? "").trim();
-  if (!intent)
-    throw new ServerError("bad-request", "\u7F3A\u5C11\u5E42\u7B49\u952E\uFF08\u63A5\u53D7\u6307\u5BFC\u7684\u4E00\u6B21\u6027\u610F\u56FE\uFF09\u3002");
-  const body = await requestJson(base, `/mentorship-proposals/${encodeURIComponent(id)}/accept`, { method: "POST", apiKey: key, idempotencyKey: intent }, options, "\u63A5\u53D7\u6307\u5BFC");
-  return parseContract(body);
-}
-async function fetchRejectProposal(base, apiKey, proposalId, options = {}) {
-  const key = requireKey(apiKey);
-  const id = (proposalId ?? "").trim();
-  if (!id)
-    throw new ServerError("bad-request", "\u7F3A\u5C11\u63D0\u6848 id\u3002");
-  const body = await requestJson(base, `/mentorship-proposals/${encodeURIComponent(id)}/reject`, { method: "POST", apiKey: key }, options, "\u62D2\u7EDD\u6307\u5BFC");
-  return parseProposal(body);
-}
-
 // lib/research/workspace.js
-import { existsSync as existsSync7, readFileSync as readFileSync8, statSync as statSync2 } from "node:fs";
-import { isAbsolute as isAbsolute4, join as join8, resolve as resolve4 } from "node:path";
+import { existsSync as existsSync7, readFileSync as readFileSync8, statSync as statSync3 } from "node:fs";
+import { isAbsolute as isAbsolute4, join as join9, resolve as resolve4 } from "node:path";
 
 // lib/research/research-data.js
 var ID_PREFIX = {
@@ -3909,9 +4404,9 @@ function normalizeSectionName(title) {
 
 // lib/research/project.js
 import { existsSync as existsSync6, mkdirSync as mkdirSync5, readFileSync as readFileSync7, writeFileSync as writeFileSync4 } from "node:fs";
-import { dirname as dirname6, join as join7 } from "node:path";
+import { dirname as dirname6, join as join8 } from "node:path";
 function projectPath(workspace) {
-  return join7(workspace, PROJECT_FILE);
+  return join8(workspace, PROJECT_FILE);
 }
 function loadProjectFile(workspace) {
   const file = projectPath(workspace);
@@ -3987,7 +4482,7 @@ function saveProjectFile(workspace, input) {
 var TOPIC_HISTORY_FILE = "research/topic-history.json";
 function listTopicChanges(workspace) {
   try {
-    const raw = JSON.parse(readFileSync7(join7(workspace, TOPIC_HISTORY_FILE), "utf8"));
+    const raw = JSON.parse(readFileSync7(join8(workspace, TOPIC_HISTORY_FILE), "utf8"));
     return Array.isArray(raw) ? raw : [];
   } catch {
     return [];
@@ -4057,7 +4552,7 @@ function updateProjectTopic(workspace, input) {
   };
   const history = listTopicChanges(workspace);
   history.push(change);
-  const historyFile2 = join7(workspace, TOPIC_HISTORY_FILE);
+  const historyFile2 = join8(workspace, TOPIC_HISTORY_FILE);
   mkdirSync5(dirname6(historyFile2), { recursive: true });
   writeFileSync4(historyFile2, JSON.stringify(history, null, 2) + "\n", "utf8");
   return { changed: true, previous: current, current: next, initial };
@@ -4166,7 +4661,7 @@ ${block}`;
   };
   const history = listTopicChanges(workspace);
   history.push(change);
-  const historyFile2 = join7(workspace, TOPIC_HISTORY_FILE);
+  const historyFile2 = join8(workspace, TOPIC_HISTORY_FILE);
   mkdirSync5(dirname6(historyFile2), { recursive: true });
   writeFileSync4(historyFile2, JSON.stringify(history, null, 2) + "\n", "utf8");
   return { changed: true, field, previous, current: text.trim() };
@@ -4188,17 +4683,17 @@ function stripFrontmatter2(source) {
 }
 function isResearchWorkspace(dir) {
   try {
-    if (!statSync2(dir).isDirectory())
+    if (!statSync3(dir).isDirectory())
       return false;
   } catch {
     return false;
   }
-  return existsSync7(join8(dir, PROJECT_FILE)) || existsSync7(join8(dir, RESEARCH_STATE_FILE));
+  return existsSync7(join9(dir, PROJECT_FILE)) || existsSync7(join9(dir, RESEARCH_STATE_FILE));
 }
 var RESEARCH_ROOT_DIR = "workspace";
 function researchWorkspaceOf(sessionWorkspace) {
   const base = resolve4(sessionWorkspace);
-  const nested = join8(base, RESEARCH_ROOT_DIR);
+  const nested = join9(base, RESEARCH_ROOT_DIR);
   if (isResearchWorkspace(nested))
     return nested;
   if (isResearchWorkspace(base))
@@ -4206,7 +4701,7 @@ function researchWorkspaceOf(sessionWorkspace) {
   return nested;
 }
 function loadPaper(workspace, paperId = DEFAULT_PAPER_ID, excerptChars = 4e3) {
-  const source = readText(join8(workspace, "papers", paperId, "paper.md"));
+  const source = readText(join9(workspace, "papers", paperId, "paper.md"));
   if (source === null)
     return { title: null, excerpt: null };
   const body = stripFrontmatter2(source);
@@ -6250,7 +6745,7 @@ function deepFreeze(value) {
 }
 
 // node_modules/@deepseek-ai/dsh-util-crypto/lib/index.js
-function randomUUID() {
+function randomUUID2() {
   const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
   const hex = Array.from(bytes, (byte, index) => {
     return (index === 6 ? byte & 15 | 64 : index === 8 ? byte & 63 | 128 : byte).toString(16).padStart(2, "0");
@@ -6273,7 +6768,7 @@ function freezeMessage(message) {
 function createMessage(input) {
   return deepFreeze(structuredClone({
     ...input,
-    id: brandString(randomUUID())
+    id: brandString(randomUUID2())
   }));
 }
 function createUserMessage(input) {
@@ -7316,12 +7811,12 @@ var CONVFUSION_MESSAGE_SOURCE = Object.freeze({
 });
 
 // lib/research/claims.js
-import { existsSync as existsSync9, mkdirSync as mkdirSync7, readFileSync as readFileSync10, readdirSync as readdirSync5, rmSync as rmSync3, writeFileSync as writeFileSync6 } from "node:fs";
-import { join as join10 } from "node:path";
+import { existsSync as existsSync9, mkdirSync as mkdirSync7, readFileSync as readFileSync10, readdirSync as readdirSync6, rmSync as rmSync3, writeFileSync as writeFileSync6 } from "node:fs";
+import { join as join11 } from "node:path";
 
 // lib/research/evidence.js
-import { existsSync as existsSync8, mkdirSync as mkdirSync6, readFileSync as readFileSync9, readdirSync as readdirSync4, rmSync as rmSync2, writeFileSync as writeFileSync5 } from "node:fs";
-import { join as join9 } from "node:path";
+import { existsSync as existsSync8, mkdirSync as mkdirSync6, readFileSync as readFileSync9, readdirSync as readdirSync5, rmSync as rmSync2, writeFileSync as writeFileSync5 } from "node:fs";
+import { join as join10 } from "node:path";
 var EVIDENCE_HISTORY = `${EVIDENCE_DIR}/.history`;
 function normalizeSource(raw) {
   const v = (raw ?? "").trim().toLowerCase();
@@ -7422,16 +7917,16 @@ ${renderSections(`Evidence: ${input.name}`, input.sections)}`;
 }
 function listMarkdown(dir) {
   try {
-    return readdirSync4(dir, { withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith(".md") && !e.name.startsWith(".")).map((e) => e.name).sort();
+    return readdirSync5(dir, { withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith(".md") && !e.name.startsWith(".")).map((e) => e.name).sort();
   } catch {
     return [];
   }
 }
 function listEvidence(workspace) {
-  const dir = join9(workspace, EVIDENCE_DIR);
+  const dir = join10(workspace, EVIDENCE_DIR);
   const out = [];
   for (const file of listMarkdown(dir)) {
-    const doc = parseEvidenceDocument(join9(dir, file), `${EVIDENCE_DIR}/${file}`);
+    const doc = parseEvidenceDocument(join10(dir, file), `${EVIDENCE_DIR}/${file}`);
     if (doc)
       out.push(doc);
   }
@@ -7450,9 +7945,9 @@ function isEvidenceWriteError(v) {
   return typeof v === "object" && v !== null && "error" in v;
 }
 function ensureDir(workspace) {
-  const dir = join9(workspace, EVIDENCE_DIR);
+  const dir = join10(workspace, EVIDENCE_DIR);
   mkdirSync6(dir, { recursive: true });
-  mkdirSync6(join9(workspace, RESEARCH_DIR), { recursive: true });
+  mkdirSync6(join10(workspace, RESEARCH_DIR), { recursive: true });
   return dir;
 }
 function evidenceSectionsTemplate(input) {
@@ -7488,7 +7983,7 @@ function createEvidence(workspace, input) {
     return { error: `\u975E\u6CD5 Evidence id\uFF1A${id}\uFF08\u5E94\u4E3A E001 \u5F62\u5F0F\uFF09` };
   }
   const dir = ensureDir(workspace);
-  const file = join9(dir, `${id}.md`);
+  const file = join10(dir, `${id}.md`);
   if (existsSync8(file))
     return { error: `Evidence \`${id}\` \u5DF2\u5B58\u5728\u3002` };
   const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -7517,12 +8012,12 @@ function createEvidence(workspace, input) {
   return parseEvidenceDocument(file, `${EVIDENCE_DIR}/${id}.md`) ?? { error: "\u521B\u5EFA\u540E\u89E3\u6790\u5931\u8D25\u3002" };
 }
 function snapshot2(workspace, doc, note) {
-  const dir = join9(workspace, EVIDENCE_HISTORY.replace(`${EVIDENCE_DIR}/`, `${EVIDENCE_DIR}/`));
+  const dir = join10(workspace, EVIDENCE_HISTORY.replace(`${EVIDENCE_DIR}/`, `${EVIDENCE_DIR}/`));
   mkdirSync6(dir, { recursive: true });
   const stamp2 = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
   try {
     const current = readFileSync9(doc.path, "utf8");
-    writeFileSync5(join9(dir, `${doc.id}.${stamp2}.md`), `<!-- snapshot: ${note} -->
+    writeFileSync5(join10(dir, `${doc.id}.${stamp2}.md`), `<!-- snapshot: ${note} -->
 ${current}`, "utf8");
   } catch {
   }
@@ -7599,13 +8094,13 @@ function isIdWriteError(v) {
 }
 function listMarkdown2(dir) {
   try {
-    return readdirSync5(dir, { withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith(".md") && !e.name.startsWith(".")).map((e) => e.name).sort();
+    return readdirSync6(dir, { withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith(".md") && !e.name.startsWith(".")).map((e) => e.name).sort();
   } catch {
     return [];
   }
 }
 function nextIdIn(workspace, dir, kind) {
-  const nums = listMarkdown2(join10(workspace, dir)).map((f) => parseResearchId(f.replace(/\.md$/, ""))?.n ?? 0).filter((n) => n > 0);
+  const nums = listMarkdown2(join11(workspace, dir)).map((f) => parseResearchId(f.replace(/\.md$/, ""))?.n ?? 0).filter((n) => n > 0);
   return makeResearchId(kind, (nums.length ? Math.max(...nums) : 0) + 1);
 }
 function normalizeClaimStatus(raw) {
@@ -7665,10 +8160,10 @@ function serializeClaimDocument(input) {
 ${renderSections(`Claim: ${input.id}`, sections)}`;
 }
 function listClaims(workspace) {
-  const dir = join10(workspace, CLAIMS_DIR);
+  const dir = join11(workspace, CLAIMS_DIR);
   const out = [];
   for (const file of listMarkdown2(dir)) {
-    const doc = parseClaimDocument(join10(dir, file), `${CLAIMS_DIR}/${file}`);
+    const doc = parseClaimDocument(join11(dir, file), `${CLAIMS_DIR}/${file}`);
     if (doc)
       out.push(doc);
   }
@@ -7686,9 +8181,9 @@ function createClaim(workspace, input) {
   const parsed = parseResearchId(id);
   if (!parsed || parsed.kind !== "claim")
     return { error: `\u975E\u6CD5 Claim id\uFF1A${id}\uFF08\u5E94\u4E3A C001 \u5F62\u5F0F\uFF09` };
-  const dir = join10(workspace, CLAIMS_DIR);
+  const dir = join11(workspace, CLAIMS_DIR);
   mkdirSync7(dir, { recursive: true });
-  const file = join10(dir, `${id}.md`);
+  const file = join11(dir, `${id}.md`);
   if (existsSync9(file))
     return { error: `Claim \`${id}\` \u5DF2\u5B58\u5728\u3002` };
   const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -7793,10 +8288,10 @@ function serializeDecisionDocument(input) {
 ${renderSections(`Decision: ${input.id}`, sections)}`;
 }
 function listDecisions(workspace) {
-  const dir = join10(workspace, DECISIONS_DIR);
+  const dir = join11(workspace, DECISIONS_DIR);
   const out = [];
   for (const file of listMarkdown2(dir)) {
-    const doc = parseDecisionDocument(join10(dir, file), `${DECISIONS_DIR}/${file}`);
+    const doc = parseDecisionDocument(join11(dir, file), `${DECISIONS_DIR}/${file}`);
     if (doc)
       out.push(doc);
   }
@@ -7814,9 +8309,9 @@ function createDecision(workspace, input) {
   const parsed = parseResearchId(id);
   if (!parsed || parsed.kind !== "decision")
     return { error: `\u975E\u6CD5 Decision id\uFF1A${id}\uFF08\u5E94\u4E3A D001 \u5F62\u5F0F\uFF09` };
-  const dir = join10(workspace, DECISIONS_DIR);
+  const dir = join11(workspace, DECISIONS_DIR);
   mkdirSync7(dir, { recursive: true });
-  const file = join10(dir, `${id}.md`);
+  const file = join11(dir, `${id}.md`);
   if (existsSync9(file))
     return { error: `Decision \`${id}\` \u5DF2\u5B58\u5728\u3002` };
   const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -7835,8 +8330,8 @@ function createDecision(workspace, input) {
 }
 
 // lib/research/plans.js
-import { readFileSync as readFileSync11, readdirSync as readdirSync6 } from "node:fs";
-import { join as join11 } from "node:path";
+import { readFileSync as readFileSync11, readdirSync as readdirSync7 } from "node:fs";
+import { join as join12 } from "node:path";
 var PLAN_STATUSES = [
   "draft",
   "reviewed",
@@ -7981,16 +8476,16 @@ function planCompletionCriteria(doc) {
 }
 function listMarkdown3(dir) {
   try {
-    return readdirSync6(dir).filter((f) => f.endsWith(".md") && !f.startsWith(".")).sort();
+    return readdirSync7(dir).filter((f) => f.endsWith(".md") && !f.startsWith(".")).sort();
   } catch {
     return [];
   }
 }
 function listPlanDocuments(workspace) {
-  const dir = join11(workspace, PLANS_DIR);
+  const dir = join12(workspace, PLANS_DIR);
   const out = [];
   for (const file of listMarkdown3(dir)) {
-    const doc = parsePlanDocument(join11(dir, file), `${PLANS_DIR}/${file}`);
+    const doc = parsePlanDocument(join12(dir, file), `${PLANS_DIR}/${file}`);
     if (doc)
       out.push(doc);
   }
@@ -8025,8 +8520,8 @@ function isLegacyStylePlanId(id) {
 }
 
 // lib/research/research-state.js
-import { existsSync as existsSync10, mkdirSync as mkdirSync8, readFileSync as readFileSync12, readdirSync as readdirSync7, rmSync as rmSync4, writeFileSync as writeFileSync7 } from "node:fs";
-import { join as join12 } from "node:path";
+import { existsSync as existsSync10, mkdirSync as mkdirSync8, readFileSync as readFileSync12, readdirSync as readdirSync8, rmSync as rmSync4, writeFileSync as writeFileSync7 } from "node:fs";
+import { join as join13 } from "node:path";
 function normalizeMaturity(raw) {
   const v = (raw ?? "").trim();
   const hit = MATURITY_LEVELS.find((l) => l.toLowerCase() === v.toLowerCase());
@@ -8096,7 +8591,7 @@ function isStateWriteError(v) {
   return typeof v === "object" && v !== null && "error" in v;
 }
 function statePath(workspace) {
-  return join12(workspace, RESEARCH_STATE_FILE);
+  return join13(workspace, RESEARCH_STATE_FILE);
 }
 function loadResearchState(workspace) {
   return parseResearchState(statePath(workspace), RESEARCH_STATE_FILE);
@@ -8129,9 +8624,9 @@ function archiveStateVersion(workspace, doc, note) {
   } catch {
     return void 0;
   }
-  const dir = join12(workspace, STATE_HISTORY_DIR);
+  const dir = join13(workspace, STATE_HISTORY_DIR);
   mkdirSync8(dir, { recursive: true });
-  const file = join12(dir, `v${doc.version.replace(/^v/i, "")}.md`);
+  const file = join13(dir, `v${doc.version.replace(/^v/i, "")}.md`);
   if (existsSync10(file)) {
     const existing = readFileSync12(file, "utf8").replace(/^<!--\s*snapshot:[\s\S]*?-->\r?\n/, "");
     if (existing.trim() === current.trim())
@@ -8143,10 +8638,10 @@ function archiveStateVersion(workspace, doc, note) {
   return `${STATE_HISTORY_DIR}/v${doc.version.replace(/^v/i, "")}.md`;
 }
 function nextProposalId(workspace) {
-  const dir = join12(workspace, PROPOSALS_DIR);
+  const dir = join13(workspace, PROPOSALS_DIR);
   let max = 0;
   try {
-    for (const f of readdirSync7(dir)) {
+    for (const f of readdirSync8(dir)) {
       const m = f.match(/^S(\d+)\.json$/);
       if (m)
         max = Math.max(max, Number(m[1]));
@@ -8171,24 +8666,24 @@ function proposeStateUpdate(workspace, input) {
     confidence: input.confidence ?? "Emerging",
     at: (/* @__PURE__ */ new Date()).toISOString()
   };
-  const dir = join12(workspace, PROPOSALS_DIR);
+  const dir = join13(workspace, PROPOSALS_DIR);
   mkdirSync8(dir, { recursive: true });
-  writeFileSync7(join12(dir, `${proposal.id}.json`), JSON.stringify(proposal, null, 2) + "\n", "utf8");
+  writeFileSync7(join13(dir, `${proposal.id}.json`), JSON.stringify(proposal, null, 2) + "\n", "utf8");
   return proposal;
 }
 var APPLIED_LOG_FILE = "applied.json";
 function listStateProposals(workspace) {
-  const dir = join12(workspace, PROPOSALS_DIR);
+  const dir = join13(workspace, PROPOSALS_DIR);
   let files;
   try {
-    files = readdirSync7(dir).filter((f) => f.endsWith(".json") && f !== APPLIED_LOG_FILE).sort();
+    files = readdirSync8(dir).filter((f) => f.endsWith(".json") && f !== APPLIED_LOG_FILE).sort();
   } catch {
     return [];
   }
   const out = [];
   for (const f of files) {
     try {
-      out.push(JSON.parse(readFileSync12(join12(dir, f), "utf8")));
+      out.push(JSON.parse(readFileSync12(join13(dir, f), "utf8")));
     } catch {
     }
   }
@@ -8200,7 +8695,7 @@ function readStateProposal(workspace, id) {
 var UPDATE_LOG = `${PROPOSALS_DIR}/${APPLIED_LOG_FILE}`;
 function listStateUpdateLog(workspace) {
   try {
-    const raw = JSON.parse(readFileSync12(join12(workspace, UPDATE_LOG), "utf8"));
+    const raw = JSON.parse(readFileSync12(join13(workspace, UPDATE_LOG), "utf8"));
     return Array.isArray(raw) ? raw : [];
   } catch {
     return [];
@@ -8212,8 +8707,8 @@ function appendStateUpdateRecord(workspace, record) {
 function appendUpdateLog(workspace, record) {
   const log = listStateUpdateLog(workspace);
   log.push(record);
-  mkdirSync8(join12(workspace, PROPOSALS_DIR), { recursive: true });
-  writeFileSync7(join12(workspace, UPDATE_LOG), JSON.stringify(log, null, 2) + "\n", "utf8");
+  mkdirSync8(join13(workspace, PROPOSALS_DIR), { recursive: true });
+  writeFileSync7(join13(workspace, UPDATE_LOG), JSON.stringify(log, null, 2) + "\n", "utf8");
 }
 function bumpStateVersion(version2) {
   const n = Number(version2.replace(/^v/i, ""));
@@ -8221,7 +8716,7 @@ function bumpStateVersion(version2) {
 }
 function discardProposalFile(workspace, id) {
   try {
-    rmSync4(join12(workspace, PROPOSALS_DIR, `${id}.json`));
+    rmSync4(join13(workspace, PROPOSALS_DIR, `${id}.json`));
   } catch {
   }
 }
@@ -8380,16 +8875,16 @@ function buildResearchIndex(workspace) {
 }
 
 // lib/research/stage-signals.js
-import { existsSync as existsSync15, readFileSync as readFileSync16, readdirSync as readdirSync10, statSync as statSync4 } from "node:fs";
-import { join as join17, relative as relative3, sep as sep2 } from "node:path";
+import { existsSync as existsSync15, readFileSync as readFileSync16, readdirSync as readdirSync11, statSync as statSync5 } from "node:fs";
+import { join as join18, relative as relative4, sep as sep3 } from "node:path";
 
 // lib/research/paper.js
-import { existsSync as existsSync12, mkdirSync as mkdirSync10, readFileSync as readFileSync13, readdirSync as readdirSync9, rmSync as rmSync5, writeFileSync as writeFileSync8 } from "node:fs";
-import { join as join14 } from "node:path";
+import { existsSync as existsSync12, mkdirSync as mkdirSync10, readFileSync as readFileSync13, readdirSync as readdirSync10, rmSync as rmSync5, writeFileSync as writeFileSync8 } from "node:fs";
+import { join as join15 } from "node:path";
 
 // lib/research/workspace-layout.js
-import { existsSync as existsSync11, mkdirSync as mkdirSync9, readdirSync as readdirSync8, statSync as statSync3 } from "node:fs";
-import { join as join13 } from "node:path";
+import { existsSync as existsSync11, mkdirSync as mkdirSync9, readdirSync as readdirSync9, statSync as statSync4 } from "node:fs";
+import { join as join14 } from "node:path";
 
 // lib/research/output-data.js
 var OUTPUT_TYPES = ["paper", "patent", "technical-report", "slides"];
@@ -8463,7 +8958,7 @@ function coreDirs() {
 function ensureWorkspaceLayout(workspace) {
   const created = [];
   for (const rel of coreDirs()) {
-    const abs = join13(workspace, rel);
+    const abs = join14(workspace, rel);
     if (!existsSync11(abs)) {
       mkdirSync9(abs, { recursive: true });
       created.push(rel);
@@ -8476,7 +8971,7 @@ function ensurePaperLayout(workspace, paperId) {
   const created = [];
   for (const sub of PAPER_SUBDIRS) {
     const rel = `papers/${paperId}/${sub}`;
-    const abs = join13(workspace, rel);
+    const abs = join14(workspace, rel);
     if (!existsSync11(abs)) {
       mkdirSync9(abs, { recursive: true });
       created.push(rel);
@@ -8508,18 +9003,18 @@ var ALLOWED_TOP_LEVEL = /* @__PURE__ */ new Set([
 function inspectWorkspace(workspace) {
   let topLevel = [];
   try {
-    topLevel = readdirSync8(workspace);
+    topLevel = readdirSync9(workspace);
   } catch {
     topLevel = [];
   }
   const present = new Set(topLevel);
   const entries = WORKSPACE_LAYOUT.filter((e) => !e.path.includes("/")).map((e) => {
-    const abs = join13(workspace, e.path);
+    const abs = join14(workspace, e.path);
     const exists = existsSync11(abs);
     let empty = false;
     if (exists) {
       try {
-        empty = statSync3(abs).isDirectory() && readdirSync8(abs).length === 0;
+        empty = statSync4(abs).isDirectory() && readdirSync9(abs).length === 0;
       } catch {
         empty = false;
       }
@@ -8528,10 +9023,10 @@ function inspectWorkspace(workspace) {
   });
   const unexpectedTopLevel = topLevel.filter((t) => !ALLOWED_TOP_LEVEL.has(t) && !t.startsWith("."));
   let unexpectedOutputDirs = [];
-  const outputsPath = join13(workspace, OUTPUTS_DIR);
+  const outputsPath = join14(workspace, OUTPUTS_DIR);
   if (existsSync11(outputsPath)) {
     try {
-      unexpectedOutputDirs = readdirSync8(outputsPath, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith(".")).map((e) => e.name).filter((n) => !["patents", "reports", "slides"].includes(n));
+      unexpectedOutputDirs = readdirSync9(outputsPath, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith(".")).map((e) => e.name).filter((n) => !["patents", "reports", "slides"].includes(n));
     } catch {
       unexpectedOutputDirs = [];
     }
@@ -8547,13 +9042,13 @@ function inspectWorkspace(workspace) {
 
 // lib/research/paper.js
 function paperDir(workspace, paperId = DEFAULT_PAPER_ID) {
-  return join14(workspace, PAPERS_DIR, paperId);
+  return join15(workspace, PAPERS_DIR, paperId);
 }
 function paperRelDir(paperId = DEFAULT_PAPER_ID) {
   return `${PAPERS_DIR}/${paperId}`;
 }
 function filePath(workspace, paperId, name) {
-  return join14(paperDir(workspace, paperId), name);
+  return join15(paperDir(workspace, paperId), name);
 }
 function readTextOrNull(p) {
   try {
@@ -8629,13 +9124,13 @@ ${lines.join("\n")}
 }
 function hasManuscript(workspace) {
   const active2 = getActivePaperId(workspace);
-  if (existsSync12(join14(paperDir(workspace, active2), "paper.md")))
+  if (existsSync12(join15(paperDir(workspace, active2), "paper.md")))
     return true;
-  return listPaperIds(workspace).some((id) => existsSync12(join14(paperDir(workspace, id), "paper.md")));
+  return listPaperIds(workspace).some((id) => existsSync12(join15(paperDir(workspace, id), "paper.md")));
 }
 function listPaperIds(workspace) {
   try {
-    return readdirSync9(join14(workspace, PAPERS_DIR), { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith(".")).map((e) => e.name).sort();
+    return readdirSync10(join15(workspace, PAPERS_DIR), { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith(".")).map((e) => e.name).sort();
   } catch {
     return [];
   }
@@ -8687,7 +9182,7 @@ function resolvePaperId(workspace, input) {
   return void 0;
 }
 function getActivePaperId(workspace) {
-  const activeFile = join14(workspace, ACTIVE_PAPER_FILE);
+  const activeFile = join15(workspace, ACTIVE_PAPER_FILE);
   try {
     const id = readFileSync13(activeFile, "utf8").trim();
     if (readPaper(workspace, id))
@@ -8703,7 +9198,7 @@ function setActivePaperId(workspace, paperId) {
   const paper = readPaper(workspace, paperId);
   if (!paper)
     return false;
-  writeFileSync8(join14(workspace, ACTIVE_PAPER_FILE), paperId, "utf8");
+  writeFileSync8(join15(workspace, ACTIVE_PAPER_FILE), paperId, "utf8");
   return true;
 }
 function resolvePaperParameter(workspace, paperParam) {
@@ -8924,7 +9419,7 @@ function listEvolutionEvents(workspace, paperId = DEFAULT_PAPER_ID) {
 
 // lib/research/paper-download.js
 import { existsSync as existsSync13, mkdirSync as mkdirSync11, readFileSync as readFileSync14, writeFileSync as writeFileSync9 } from "node:fs";
-import { join as join15 } from "node:path";
+import { join as join16 } from "node:path";
 var FULLTEXT_DIR = "research/literature/fulltext";
 var FULLTEXT_MANIFEST = `${FULLTEXT_DIR}/manifest.json`;
 var DOWNLOAD_TIMEOUT_MS = 12e4;
@@ -9015,7 +9510,7 @@ function buildPlaceholderContent(meta) {
 }
 var MANIFEST_VERSION = 1;
 function readManifest(workspace) {
-  const abs = join15(workspace, FULLTEXT_MANIFEST);
+  const abs = join16(workspace, FULLTEXT_MANIFEST);
   try {
     const raw = readFileSync14(abs, "utf8");
     const parsed = JSON.parse(raw);
@@ -9029,10 +9524,10 @@ function readManifest(workspace) {
   }
 }
 function writeManifest(workspace, manifest) {
-  const abs = join15(workspace, FULLTEXT_DIR);
+  const abs = join16(workspace, FULLTEXT_DIR);
   if (!existsSync13(abs))
     mkdirSync11(abs, { recursive: true });
-  writeFileSync9(join15(workspace, FULLTEXT_MANIFEST), `${JSON.stringify(manifest, null, 2)}
+  writeFileSync9(join16(workspace, FULLTEXT_MANIFEST), `${JSON.stringify(manifest, null, 2)}
 `, "utf8");
 }
 function writeManifestEntry(workspace, manifest, entry) {
@@ -9116,7 +9611,7 @@ async function downloadFromCandidates(candidates, deps) {
 async function downloadPaper(workspace, input, deps) {
   const candidates = resolveDownloadCandidates(input.links);
   const slug = slugifyTitle(input.title);
-  const dirAbs = join15(workspace, FULLTEXT_DIR);
+  const dirAbs = join16(workspace, FULLTEXT_DIR);
   if (!existsSync13(dirAbs))
     mkdirSync11(dirAbs, { recursive: true });
   const outcome = await downloadFromCandidates(candidates, deps);
@@ -9126,7 +9621,7 @@ async function downloadPaper(workspace, input, deps) {
   if (outcome.ok && outcome.bytes) {
     const ext2 = outcome.kind;
     const filename = buildFilename(seq, slug, ext2);
-    writeFileSync9(join15(dirAbs, filename), outcome.bytes);
+    writeFileSync9(join16(dirAbs, filename), outcome.bytes);
     writeManifestEntry(workspace, manifest, {
       seq,
       title: input.title,
@@ -9157,7 +9652,7 @@ async function downloadPaper(workspace, input, deps) {
     candidates,
     reason: outcome.reason ?? "\u672A\u77E5\u539F\u56E0"
   });
-  writeFileSync9(join15(dirAbs, placeholderName), placeholderContent, "utf8");
+  writeFileSync9(join16(dirAbs, placeholderName), placeholderContent, "utf8");
   writeManifestEntry(workspace, manifest, {
     seq,
     title: input.title,
@@ -10111,7 +10606,7 @@ function normaliseState(input) {
 
 // lib/research/action-construction/workspace.js
 import { appendFileSync, existsSync as existsSync14, mkdirSync as mkdirSync12, readFileSync as readFileSync15, writeFileSync as writeFileSync10 } from "node:fs";
-import { dirname as dirname7, join as join16 } from "node:path";
+import { dirname as dirname7, join as join17 } from "node:path";
 var ACTION_STATE_FILE = "research/action-state.json";
 var ACTION_LOG_FILE = "research/action-construction.jsonl";
 function ensureDir2(path) {
@@ -10120,10 +10615,10 @@ function ensureDir2(path) {
     mkdirSync12(dir, { recursive: true });
 }
 function actionStatePath(workspace) {
-  return join16(workspace, ACTION_STATE_FILE);
+  return join17(workspace, ACTION_STATE_FILE);
 }
 function actionLogPath(workspace) {
-  return join16(workspace, ACTION_LOG_FILE);
+  return join17(workspace, ACTION_LOG_FILE);
 }
 function readActionState(workspace) {
   const path = actionStatePath(workspace);
@@ -10240,28 +10735,28 @@ function buildSignalContext(workspace) {
   const plans = listPlanDocuments(workspace);
   const literatureEvidence = evidence.filter((e) => e.sourceKind === "literature");
   const settledEvidence = evidence.filter((e) => e.status === "supported" || e.status === "verified");
-  const hasExperiments = existsSync15(join17(workspace, "experiments"));
+  const hasExperiments = existsSync15(join18(workspace, "experiments"));
   const hasManuscript2 = hasManuscript(workspace);
   let topicCount = 0;
   try {
-    topicCount = readFileSync16(join17(workspace, "research", "topics.md"), "utf8").split(/\r?\n/).filter((line) => /^(?:[-*+]|\d+[.)])\s+\S/.test(line)).length;
+    topicCount = readFileSync16(join18(workspace, "research", "topics.md"), "utf8").split(/\r?\n/).filter((line) => /^(?:[-*+]|\d+[.)])\s+\S/.test(line)).length;
   } catch {
     topicCount = 0;
   }
   let fulltextCount = 0;
   try {
-    fulltextCount = readdirSync10(join17(workspace, FULLTEXT_DIR)).filter((f) => /\.(pdf|html|txt)$/i.test(f)).length;
+    fulltextCount = readdirSync11(join18(workspace, FULLTEXT_DIR)).filter((f) => /\.(pdf|html|txt)$/i.test(f)).length;
   } catch {
     fulltextCount = 0;
   }
   let budgetPlan = null;
   let latestRunArtifactMs = 0;
   try {
-    const plansDir = join17(workspace, "plans");
-    for (const f of readdirSync10(plansDir)) {
+    const plansDir = join18(workspace, "plans");
+    for (const f of readdirSync11(plansDir)) {
       if (!/budget/i.test(f) || /template/i.test(f) || !/\.md$/i.test(f))
         continue;
-      const st = statSync4(join17(plansDir, f));
+      const st = statSync5(join18(plansDir, f));
       if (!budgetPlan || st.mtimeMs > budgetPlan.mtimeMs)
         budgetPlan = { path: `plans/${f}`, mtimeMs: st.mtimeMs };
     }
@@ -10269,18 +10764,18 @@ function buildSignalContext(workspace) {
     budgetPlan = null;
   }
   try {
-    const expDir = join17(workspace, "experiments");
+    const expDir = join18(workspace, "experiments");
     const stack = [expDir];
     while (stack.length) {
       const dir = stack.pop();
-      for (const f of readdirSync10(dir)) {
-        const full = join17(dir, f);
-        const st = statSync4(full);
+      for (const f of readdirSync11(dir)) {
+        const full = join18(dir, f);
+        const st = statSync5(full);
         if (st.isDirectory()) {
           stack.push(full);
           continue;
         }
-        const rel = relative3(workspace, full).split(sep2).join("/");
+        const rel = relative4(workspace, full).split(sep3).join("/");
         if (!/\.(json|jsonl)$/i.test(f) || !/(cache|results?)/i.test(rel))
           continue;
         if (st.mtimeMs > latestRunArtifactMs)
@@ -10293,23 +10788,23 @@ function buildSignalContext(workspace) {
   let paperOutline = null;
   let latestManuscriptMs = 0;
   try {
-    const papersDir = join17(workspace, "papers");
-    for (const d of readdirSync10(papersDir)) {
-      const dir = join17(papersDir, d);
-      if (!statSync4(dir).isDirectory())
+    const papersDir = join18(workspace, "papers");
+    for (const d of readdirSync11(papersDir)) {
+      const dir = join18(papersDir, d);
+      if (!statSync5(dir).isDirectory())
         continue;
-      const outline = join17(dir, "paper-outlines.md");
+      const outline = join18(dir, "paper-outlines.md");
       if (existsSync15(outline)) {
-        const st = statSync4(outline);
+        const st = statSync5(outline);
         if (!paperOutline || st.mtimeMs > paperOutline.mtimeMs) {
           paperOutline = { path: `papers/${d}/paper-outlines.md`, mtimeMs: st.mtimeMs };
         }
       }
-      for (const rel of [join17("latex", "main.tex"), "paper.md"]) {
-        const f = join17(dir, rel);
+      for (const rel of [join18("latex", "main.tex"), "paper.md"]) {
+        const f = join18(dir, rel);
         if (!existsSync15(f))
           continue;
-        const st = statSync4(f);
+        const st = statSync5(f);
         if (st.mtimeMs > latestManuscriptMs)
           latestManuscriptMs = st.mtimeMs;
       }
@@ -10318,7 +10813,7 @@ function buildSignalContext(workspace) {
     paperOutline = null;
     latestManuscriptMs = 0;
   }
-  const hasActionState = existsSync15(join17(workspace, ACTION_STATE_FILE));
+  const hasActionState = existsSync15(join18(workspace, ACTION_STATE_FILE));
   const actionConstruction = summariseActionRecords(workspace);
   return { project, evidence, claims, decisions, plans, literatureEvidence, settledEvidence, hasExperiments, hasManuscript: hasManuscript2, topicCount, fulltextCount, budgetPlan, latestRunArtifactMs, hasActionState, actionConstruction, paperOutline, latestManuscriptMs };
 }
@@ -10573,8 +11068,8 @@ function assessAdvance(input) {
 var DEFAULT_AUTO_CONTINUE = { enabled: true, maxRounds: 3 };
 
 // lib/research/output.js
-import { existsSync as existsSync16, mkdirSync as mkdirSync13, readFileSync as readFileSync17, readdirSync as readdirSync11, rmSync as rmSync6, writeFileSync as writeFileSync11 } from "node:fs";
-import { join as join18 } from "node:path";
+import { existsSync as existsSync16, mkdirSync as mkdirSync13, readFileSync as readFileSync17, readdirSync as readdirSync12, rmSync as rmSync6, writeFileSync as writeFileSync11 } from "node:fs";
+import { join as join19 } from "node:path";
 
 // lib/research/output-profiles.js
 var PAPER = {
@@ -10857,8 +11352,8 @@ var PATENT_CLAIM_NOTE = [
 // lib/research/output.js
 function outputDir(workspace, type, id) {
   if (type === "paper")
-    return join18(workspace, "papers", id);
-  return join18(workspace, OUTPUTS_DIR, OUTPUT_DIRS[type], id);
+    return join19(workspace, "papers", id);
+  return join19(workspace, OUTPUTS_DIR, OUTPUT_DIRS[type], id);
 }
 function outputRelDir(type, id) {
   if (type === "paper")
@@ -10867,8 +11362,8 @@ function outputRelDir(type, id) {
 }
 function outputTypeDir(workspace, type) {
   if (type === "paper")
-    return join18(workspace, "papers");
-  return join18(workspace, OUTPUTS_DIR, OUTPUT_DIRS[type]);
+    return join19(workspace, "papers");
+  return join19(workspace, OUTPUTS_DIR, OUTPUT_DIRS[type]);
 }
 function outputTypeRelDir(type) {
   if (type === "paper")
@@ -10876,10 +11371,10 @@ function outputTypeRelDir(type) {
   return `${OUTPUTS_DIR}/${OUTPUT_DIRS[type]}`;
 }
 function outputPath(workspace, type, id) {
-  return join18(outputDir(workspace, type, id), OUTPUT_MAIN_FILE[type]);
+  return join19(outputDir(workspace, type, id), OUTPUT_MAIN_FILE[type]);
 }
 function outputAuxPath(workspace, type, id, name) {
-  return join18(outputDir(workspace, type, id), name);
+  return join19(outputDir(workspace, type, id), name);
 }
 function readTextOrNull2(p) {
   try {
@@ -10982,13 +11477,13 @@ function listOutputs(workspace, type) {
   const out = [];
   let dirs;
   try {
-    dirs = readdirSync11(outputTypeDir(workspace, type), { withFileTypes: true });
+    dirs = readdirSync12(outputTypeDir(workspace, type), { withFileTypes: true });
   } catch {
     return out;
   }
   for (const d of dirs.filter((e) => e.isDirectory() && !e.name.startsWith(".")).sort((a, b) => a.name.localeCompare(b.name))) {
     const file = OUTPUT_MAIN_FILE[type];
-    const abs = join18(outputTypeDir(workspace, type), d.name, file);
+    const abs = join19(outputTypeDir(workspace, type), d.name, file);
     if (!existsSync16(abs))
       continue;
     const doc = parseOutputArtifact(abs, `${outputTypeRelDir(type)}/${d.name}/${file}`, type);
@@ -11033,7 +11528,7 @@ function createOutput(workspace, input) {
   const dir = outputDir(workspace, input.type, id);
   mkdirSync13(dir, { recursive: true });
   for (const sub of OUTPUT_AUX_DIRS[input.type])
-    mkdirSync13(join18(dir, sub), { recursive: true });
+    mkdirSync13(join19(dir, sub), { recursive: true });
   writeFileSync11(file, serializeOutputArtifact({
     id,
     title,
@@ -11219,7 +11714,7 @@ function writeOutputProvenance(workspace, id) {
   const dir = outputDir(workspace, doc.type, id);
   mkdirSync13(dir, { recursive: true });
   const rel = `${outputRelDir(doc.type, id)}/provenance.md`;
-  writeFileSync11(join18(dir, "provenance.md"), lines.join("\n"), "utf8");
+  writeFileSync11(join19(dir, "provenance.md"), lines.join("\n"), "utf8");
   return rel;
 }
 function buildOutputDependencyMap(workspace) {
@@ -11273,14 +11768,14 @@ function outputImpactSummary(workspace) {
 }
 
 // lib/research/paper-evolution.js
-import { existsSync as existsSync18, mkdirSync as mkdirSync15, readFileSync as readFileSync19, readdirSync as readdirSync12, rmSync as rmSync7, writeFileSync as writeFileSync13 } from "node:fs";
-import { join as join20 } from "node:path";
+import { existsSync as existsSync18, mkdirSync as mkdirSync15, readFileSync as readFileSync19, readdirSync as readdirSync13, rmSync as rmSync7, writeFileSync as writeFileSync13 } from "node:fs";
+import { join as join21 } from "node:path";
 
 // lib/research/paper-gaps.js
 import { existsSync as existsSync17, mkdirSync as mkdirSync14, readFileSync as readFileSync18, writeFileSync as writeFileSync12 } from "node:fs";
-import { join as join19 } from "node:path";
+import { join as join20 } from "node:path";
 function gapsPath(workspace, paperId) {
-  return join19(paperDir(workspace, paperId), PAPER_FILES.gaps);
+  return join20(paperDir(workspace, paperId), PAPER_FILES.gaps);
 }
 function listPaperGaps(workspace, paperId) {
   let source;
@@ -11451,7 +11946,7 @@ function detectPaperGaps(workspace, paperId) {
     }
   }
   const map = buildEvidenceMap(workspace, paperId);
-  const claimsFile = join19(paperDir(workspace, paperId), PAPER_FILES.claims);
+  const claimsFile = join20(paperDir(workspace, paperId), PAPER_FILES.claims);
   const mappedClaims = claims.filter((c) => c.sections.length > 0);
   if (!existsSync17(claimsFile) && mappedClaims.length === 0 && listEvidence(workspace).length > 0) {
     out.push({
@@ -11579,7 +12074,7 @@ function paperTitle(paper) {
 
 // lib/research/paper-evolution.js
 function proposalsDir(workspace, paperId) {
-  return join20(paperDir(workspace, paperId), PAPER_FILES.proposalsDir);
+  return join21(paperDir(workspace, paperId), PAPER_FILES.proposalsDir);
 }
 function serializeProposal(p) {
   const front = renderFrontmatter({
@@ -11659,14 +12154,14 @@ function listProposals(workspace, paperId) {
   const dir = proposalsDir(workspace, paperId);
   let files;
   try {
-    files = readdirSync12(dir).filter((f) => f.endsWith(".md")).sort();
+    files = readdirSync13(dir).filter((f) => f.endsWith(".md")).sort();
   } catch {
     return [];
   }
   const out = [];
   for (const f of files) {
     try {
-      const p = parseProposal2(readFileSync19(join20(dir, f), "utf8"), f.replace(/\.md$/, ""));
+      const p = parseProposal2(readFileSync19(join21(dir, f), "utf8"), f.replace(/\.md$/, ""));
       if (p)
         out.push(p);
     } catch {
@@ -11680,7 +12175,7 @@ function nextProposalId2(existing) {
 }
 function writeProposal(workspace, paperId, p) {
   mkdirSync15(proposalsDir(workspace, paperId), { recursive: true });
-  const file = join20(proposalsDir(workspace, paperId), `${p.id}.md`);
+  const file = join21(proposalsDir(workspace, paperId), `${p.id}.md`);
   writeFileSync13(file, serializeProposal(p), "utf8");
   return `${paperRelDir(paperId)}/${PAPER_FILES.proposalsDir}/${p.id}.md`;
 }
@@ -11710,7 +12205,7 @@ function proposeRevision(workspace, paperId, input) {
 }
 var MATURITY_FILE = "maturity.md";
 function maturityPath(workspace, paperId) {
-  return join20(paperDir(workspace, paperId), MATURITY_FILE);
+  return join21(paperDir(workspace, paperId), MATURITY_FILE);
 }
 function readPaperMaturity(workspace, paperId) {
   let source = null;
@@ -12123,8 +12618,8 @@ function latestTurnReport(sessionId) {
 }
 
 // lib/research/work-name.js
-import { existsSync as existsSync19, readdirSync as readdirSync13, readFileSync as readFileSync20, statSync as statSync5 } from "node:fs";
-import { join as join21 } from "node:path";
+import { existsSync as existsSync19, readdirSync as readdirSync14, readFileSync as readFileSync20, statSync as statSync6 } from "node:fs";
+import { join as join22 } from "node:path";
 var WORK_NAME_LIMIT = 200;
 var PLACEHOLDER_TITLES = /* @__PURE__ */ new Set(["title", "untitled", "paper", "manuscript", "\u672A\u547D\u540D", "\u65E0\u9898"]);
 function unescapeLatex(input) {
@@ -12138,7 +12633,7 @@ function clip(input, limit) {
   return chars.length <= limit ? input : `${chars.slice(0, limit - 1).join("")}\u2026`;
 }
 function titleFromLatex(root, paperId) {
-  const main = join21(paperDir(root, paperId), "latex", "main.tex");
+  const main = join22(paperDir(root, paperId), "latex", "main.tex");
   let text;
   try {
     if (!existsSync19(main))
@@ -12183,7 +12678,7 @@ function paperTitleOf(root) {
       return -1;
     if (b.id === active2)
       return 1;
-    return mtimeOf(join21(paperDir(root, b.id))) - mtimeOf(join21(paperDir(root, a.id)));
+    return mtimeOf(join22(paperDir(root, b.id))) - mtimeOf(join22(paperDir(root, a.id)));
   });
   for (const doc of ordered) {
     const fromLatex = titleFromLatex(root, doc.id);
@@ -12198,7 +12693,7 @@ function paperTitleOf(root) {
 }
 function mtimeOf(path) {
   try {
-    return statSync5(path).mtimeMs;
+    return statSync6(path).mtimeMs;
   } catch {
     return 0;
   }
@@ -12326,345 +12821,6 @@ function buildPublishContent(input) {
   if (!fields.length)
     missing.push("research_fields");
   return { content, missing, workName: work.name, workNameSource: work.source };
-}
-
-// lib/research/upload-selection.js
-import { readdirSync as readdirSync14, statSync as statSync6 } from "node:fs";
-import { join as join22, relative as relative4, sep as sep3 } from "node:path";
-var UPLOAD_LIMITS = {
-  /** 单文件上限（`MAX_FILE_SIZE`）。 */
-  maxFileBytes: 100 * 1024 * 1024,
-  /** 单次请求文件数（`MAX_FILES_PER_REQUEST`）。 */
-  maxFilesPerRequest: 20,
-  /** 单次请求总量（`MAX_UPLOAD_SIZE`）。 */
-  maxRequestBytes: 200 * 1024 * 1024
-};
-var LARGE_FILE_BYTES = 10 * 1024 * 1024;
-function norm(relPath) {
-  return relPath.split(sep3).join("/");
-}
-function under(relPath, dir) {
-  return relPath === dir || relPath.startsWith(`${dir}/`);
-}
-function ext(relPath) {
-  const base = relPath.slice(relPath.lastIndexOf("/") + 1);
-  const dot = base.lastIndexOf(".");
-  return dot > 0 ? base.slice(dot).toLowerCase() : "";
-}
-var WEIGHT_EXTS = /* @__PURE__ */ new Set([
-  ".safetensors",
-  ".bin",
-  ".pt",
-  ".pth",
-  ".ckpt",
-  ".gguf",
-  ".onnx",
-  ".h5",
-  ".pb",
-  ".mlmodel",
-  ".npy",
-  ".npz",
-  ".parquet",
-  ".feather",
-  ".arrow",
-  ".pkl",
-  ".joblib",
-  ".zip",
-  ".tar",
-  ".gz"
-]);
-var BUILD_EXTS = /* @__PURE__ */ new Set([".fmt", ".index", ".tfm", ".pfb", ".afm", ".otf", ".ttf", ".map", ".pat"]);
-var JUNK_DIRS = /* @__PURE__ */ new Set([
-  ".git",
-  "node_modules",
-  "__pycache__",
-  ".tectonic-cache",
-  ".venv",
-  "venv",
-  /*
-   * 插件自己的元数据目录（研究根下的 `.convfusion/`，放 `work.json` = "这项研究是谁"）。
-   *
-   * 为什么必须在这里：它是**插件**的本机记忆，不是研究事实 —— 传上去只会让导师那一侧
-   * 多出一个与他的研究无关的文件；而它又必须留在工作区里（换机器/被复制后要能自证身份，
-   * 见 `work-identity.ts`）。所以"留在工作区、但不参与上传"。
-   */
-  ".convfusion",
-  ".mypy_cache",
-  ".pytest_cache",
-  ".ruff_cache",
-  ".ipynb_checkpoints",
-  // Node/npm 系缓存（`.npmcache` 是 npm 在自定义 cache 目录下自建的）
-  ".npmcache",
-  "_cacache",
-  ".cache",
-  ".parcel-cache",
-  ".turbo",
-  ".eslintcache",
-  ".pnpm-store",
-  ".yarn",
-  ".next",
-  ".nuxt",
-  ".svelte-kit",
-  ".output"
-]);
-var JUNK_NAME = /^(\.DS_Store|Thumbs\.db|\.gitignore|\.gitattributes)$/i;
-var BACKUP_NAME = /(^|[._-])bak([._-]|$)|\.(orig|rej|swp|swo|tmp|temp)$|~$|^#.*#$/i;
-function assetCategory(relPath) {
-  if (relPath === "project.md" || relPath === "research-state.md")
-    return "state";
-  if (under(relPath, "review"))
-    return "review";
-  if (under(relPath, "plans"))
-    return "plans";
-  if (under(relPath, "papers"))
-    return "papers";
-  if (under(relPath, "experiments"))
-    return "experiments";
-  if (under(relPath, "outputs"))
-    return "outputs";
-  if (under(relPath, "research"))
-    return "research-assets";
-  return null;
-}
-function classify(relPath, size, purpose = "publish") {
-  const p = norm(relPath);
-  const parts = p.split("/");
-  if (parts.some((seg) => JUNK_DIRS.has(seg)))
-    return { categoryId: "build-artifacts", decision: "excluded" };
-  if (JUNK_NAME.test(parts[parts.length - 1] ?? ""))
-    return { categoryId: "build-artifacts", decision: "excluded" };
-  if (BACKUP_NAME.test(parts[parts.length - 1] ?? ""))
-    return { categoryId: "build-artifacts", decision: "excluded" };
-  if (BUILD_EXTS.has(ext(p)))
-    return { categoryId: "build-artifacts", decision: "excluded" };
-  if (WEIGHT_EXTS.has(ext(p)))
-    return { categoryId: "models-data", decision: "excluded" };
-  if (under(p, "harness"))
-    return { categoryId: "runtime-artifacts", decision: "excluded" };
-  if (under(p, "research/literature/fulltext"))
-    return { categoryId: "literature-fulltext", decision: "optional" };
-  if (under(p, "research/literature") && [".pdf", ".ps", ".djvu", ".epub"].includes(ext(p))) {
-    return { categoryId: "literature-fulltext", decision: "optional" };
-  }
-  if (under(p, "research/literature") && [".txt", ".json", ".html", ".xml"].includes(ext(p))) {
-    return { categoryId: "literature-raw", decision: "optional" };
-  }
-  if (purpose === "mentor") {
-    const asset2 = assetCategory(p);
-    if (asset2)
-      return { categoryId: asset2, decision: "recommended" };
-    if (size >= LARGE_FILE_BYTES)
-      return { categoryId: "large-files", decision: "optional" };
-    return { categoryId: "others", decision: "optional" };
-  }
-  if (size >= LARGE_FILE_BYTES)
-    return { categoryId: "large-files", decision: "optional" };
-  const asset = assetCategory(p);
-  if (asset) {
-    if (asset === "review")
-      return { categoryId: "review", decision: "excluded" };
-    return { categoryId: asset, decision: "recommended" };
-  }
-  return { categoryId: "others", decision: "optional" };
-}
-var CATEGORY_ORDER = [
-  "state",
-  "plans",
-  "papers",
-  "experiments",
-  "research-assets",
-  "review",
-  "outputs",
-  "literature-raw",
-  "literature-fulltext",
-  "large-files",
-  "others",
-  "runtime-artifacts",
-  "build-artifacts",
-  "models-data"
-];
-function measureDir(dir, budget = 2e4) {
-  let bytes = 0;
-  let files = 0;
-  const walk = (d) => {
-    let entries;
-    try {
-      entries = readdirSync14(d, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const e of entries) {
-      if (files >= budget)
-        return;
-      const abs = join22(d, e.name);
-      if (e.isSymbolicLink())
-        continue;
-      if (e.isDirectory()) {
-        walk(abs);
-        continue;
-      }
-      if (!e.isFile())
-        continue;
-      try {
-        bytes += statSync6(abs).size;
-        files += 1;
-      } catch {
-      }
-    }
-  };
-  walk(dir);
-  return { bytes, files };
-}
-var SCAN_MAX_FILES = 2e4;
-function buildUploadPlan(root, purpose = "publish") {
-  const files = [];
-  const skipped2 = /* @__PURE__ */ new Map();
-  const walk = (dir) => {
-    let entries;
-    try {
-      entries = readdirSync14(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (files.length >= SCAN_MAX_FILES)
-        return;
-      const abs = join22(dir, entry.name);
-      const relPath = norm(relative4(root, abs));
-      if (entry.isSymbolicLink())
-        continue;
-      if (entry.isDirectory()) {
-        if (JUNK_DIRS.has(entry.name) || relPath === "harness") {
-          const stat = measureDir(abs);
-          const { categoryId: categoryId2, decision: decision2 } = classify(relPath, 0, purpose);
-          files.push({ relPath: `${relPath}/`, size: 0, categoryId: categoryId2, decision: decision2 });
-          skipped2.set(categoryId2, {
-            bytes: (skipped2.get(categoryId2)?.bytes ?? 0) + stat.bytes,
-            files: (skipped2.get(categoryId2)?.files ?? 0) + stat.files
-          });
-          continue;
-        }
-        walk(abs);
-        continue;
-      }
-      if (!entry.isFile())
-        continue;
-      let size = 0;
-      try {
-        size = statSync6(abs).size;
-      } catch {
-        continue;
-      }
-      const { categoryId, decision } = classify(relPath, size, purpose);
-      files.push({ relPath, size, categoryId, decision });
-    }
-  };
-  walk(root);
-  const byCategory = /* @__PURE__ */ new Map();
-  for (const f of files) {
-    const isPlaceholder = f.relPath.endsWith("/");
-    const cat = byCategory.get(f.categoryId) ?? {
-      id: f.categoryId,
-      decision: f.decision,
-      files: [],
-      bytes: 0
-    };
-    if (!isPlaceholder) {
-      cat.files.push({ relPath: f.relPath, size: f.size });
-      cat.bytes += f.size;
-    } else {
-      cat.files.push({ relPath: f.relPath, size: 0 });
-      const extra2 = skipped2.get(f.categoryId);
-      if (extra2)
-        cat.bytes += extra2.bytes;
-    }
-    byCategory.set(f.categoryId, cat);
-  }
-  const categories = [...byCategory.values()].sort((a, b) => CATEGORY_ORDER.indexOf(a.id) - CATEGORY_ORDER.indexOf(b.id));
-  for (const c of categories)
-    c.files.sort((a, b) => a.relPath.localeCompare(b.relPath));
-  const sum = (d) => {
-    let bytes = 0;
-    let files2 = 0;
-    for (const c of categories) {
-      if (c.decision !== d)
-        continue;
-      bytes += c.bytes;
-      files2 += c.files.filter((f) => !f.relPath.endsWith("/")).length;
-      files2 += skipped2.get(c.id)?.files ?? 0;
-    }
-    return { bytes, files: files2 };
-  };
-  const all = sum("recommended");
-  const optional = sum("optional");
-  const excluded = sum("excluded");
-  const defaultSelection = [];
-  const oversize = [];
-  for (const c of categories) {
-    if (c.decision !== "recommended")
-      continue;
-    for (const f of c.files) {
-      if (f.relPath.endsWith("/"))
-        continue;
-      if (f.size > UPLOAD_LIMITS.maxFileBytes) {
-        oversize.push({ relPath: f.relPath, size: f.size });
-        continue;
-      }
-      defaultSelection.push(f.relPath);
-    }
-  }
-  return {
-    root,
-    categories,
-    totals: {
-      // ⚠️ 分类的 bytes 已包含"整枝跳过的机器产物目录"的实测体积（见上面 cat.bytes +=），
-      // 所以这里**不能**再加一次，否则总账会翻倍（第一版就是这样）。
-      allBytes: all.bytes + optional.bytes + excluded.bytes,
-      allFiles: all.files + optional.files + excluded.files,
-      recommendedBytes: all.bytes,
-      recommendedFiles: all.files,
-      optionalBytes: optional.bytes,
-      optionalFiles: optional.files,
-      excludedBytes: excluded.bytes,
-      excludedFiles: excluded.files
-    },
-    limits: UPLOAD_LIMITS,
-    defaultSelection,
-    oversize,
-    requestCount: Math.max(1, Math.ceil(defaultSelection.length / UPLOAD_LIMITS.maxFilesPerRequest))
-  };
-}
-function planUploadBatches(root, selection) {
-  const skipped2 = [];
-  const batches = [];
-  let current = [];
-  let currentBytes = 0;
-  let total = 0;
-  for (const relPath of [...selection].sort()) {
-    const abs = join22(root, relPath);
-    let size = 0;
-    try {
-      size = statSync6(abs).size;
-    } catch {
-      continue;
-    }
-    total += size;
-    if (size > UPLOAD_LIMITS.maxFileBytes) {
-      skipped2.push({ relPath, size });
-      continue;
-    }
-    if (current.length >= UPLOAD_LIMITS.maxFilesPerRequest || currentBytes + size > UPLOAD_LIMITS.maxRequestBytes) {
-      if (current.length)
-        batches.push(current);
-      current = [];
-      currentBytes = 0;
-    }
-    current.push(relPath);
-    currentBytes += size;
-  }
-  if (current.length)
-    batches.push(current);
-  return { batches, skipped: skipped2, bytes: total };
 }
 
 // lib/research/published-store.js
@@ -13502,10 +13658,10 @@ function buildSettingsState(config, store, resolvePath = resolveCustomizationPat
   };
 }
 async function fileDigest(absPath) {
-  const { createHash: createHash6 } = await import("node:crypto");
-  const { readFile } = await import("node:fs/promises");
-  const buf = await readFile(absPath);
-  return `sha256:${createHash6("sha256").update(buf).digest("hex")}`;
+  const { createHash: createHash7 } = await import("node:crypto");
+  const { readFile: readFile2 } = await import("node:fs/promises");
+  const buf = await readFile2(absPath);
+  return `sha256:${createHash7("sha256").update(buf).digest("hex")}`;
 }
 var MIN_UPLOAD_BYTES_PER_SEC = 50 * 1024;
 var UPLOAD_TIMEOUT_MAX_MS = 30 * 60 * 1e3;
@@ -13923,7 +14079,7 @@ function createSettingsRpcHandler(deps) {
       publishedStore.updateByProject(record.projectId, { serverVisibility: "PUBLISHED", checkedAt });
     }
   };
-  return async (endpoint, payload, downloadControl) => {
+  const dispatch = async (endpoint, payload, downloadControl, upload) => {
     const p = payload ?? {};
     try {
       switch (endpoint) {
@@ -14558,7 +14714,7 @@ function createSettingsRpcHandler(deps) {
           };
         }
         case "work/publish": {
-          const config = deps.getConfig();
+          const config = upload?.config ?? deps.getConfig();
           const apiKey = resolveConvFusionApiKey(config, env());
           if (!apiKey)
             return fail("not-configured", "\u5C1A\u672A\u767B\u5F55 ConvFusion.com\u3002");
@@ -14601,6 +14757,7 @@ function createSettingsRpcHandler(deps) {
             }
             const reusable = previous && previous.serverUrl === base && previous.accountId === me.id;
             let projectId = reusable ? previous.projectId : "";
+            let retiredProjectId;
             let created = false;
             let renameFailed = null;
             const localIdentity = readLocalIdentity(source.root, deps.workIdentity);
@@ -14626,10 +14783,19 @@ function createSettingsRpcHandler(deps) {
               writeWorkMarker(source.root, identity);
             };
             const create = async () => {
+              upload?.signal.throwIfAborted();
+              const creationId = upload ? createHash2("sha256").update(JSON.stringify([
+                base,
+                me.id,
+                direction,
+                researchRootFingerprint(source.root) ?? source.root,
+                retiredProjectId
+              ])).digest("hex").slice(0, 32) : void 0;
               const project = await createProject(base, apiKey, {
                 // **这项研究工作自己的名字**（有论文用论文标题）——不是本机工作区名：
                 // 网络里的列表都显示它，而看列表的人本机不一定有这份 workspace。
                 title: workName,
+                ...creationId ? { creationId } : {},
                 description: content.summary ? content.summary : void 0,
                 // 只在非默认方向时显式发：默认方向归服务器所有（见 createProject 注释）
                 ...direction === "SEEK_STUDENT" ? { direction } : {},
@@ -14653,82 +14819,116 @@ function createSettingsRpcHandler(deps) {
               } catch {
               }
             }
-            const saveState = async (baseVersion) => uploadResearchState(base, apiKey, projectId, {
-              baseVersion,
-              content,
-              intentKey: crypto.randomUUID()
-            }, netOptions(workIdForWrite));
-            const saveStateWithRebase = async (version2) => {
-              try {
-                return await saveState(version2);
-              } catch (e) {
-                if (!(e instanceof ServerError) || e.code !== "version-conflict")
-                  throw e;
-                const latest = e.currentVersion ?? await readStateVersion(base, apiKey, projectId, netOptions());
-                return await saveState(latest);
-              }
-            };
             let uploaded;
-            try {
-              uploaded = await saveStateWithRebase(await readStateVersion(base, apiKey, projectId, netOptions()));
-            } catch (e) {
-              if (!reusable || !(e instanceof ServerError) || e.code !== "not-found")
-                throw e;
-              publishedStore.remove(source.root, direction);
-              projectId = await create();
-              uploaded = await saveStateWithRebase(await readStateVersion(base, apiKey, projectId, netOptions()));
-            }
+            let digests;
+            let skipped2;
+            let skippedExisting;
+            let uploadedFiles = 0;
+            let uploadedBytes = 0;
             const plan = buildUploadPlan(source.root);
             const recommendedFiles = plan.categories.filter((c) => c.decision === "recommended").flatMap((c) => c.files.filter((f) => !f.relPath.endsWith("/")).map((f) => f.relPath));
             const optionalFiles = plan.categories.filter((c) => c.decision === "optional").flatMap((c) => c.files.map((f) => f.relPath));
             const selectable = /* @__PURE__ */ new Set([...recommendedFiles, ...optionalFiles]);
             const selected = selectionProvided ? p.selection.filter((x) => typeof x === "string") : (previous?.selection ?? []).length > 0 ? [.../* @__PURE__ */ new Set([...(previous?.selection ?? []).filter((r) => selectable.has(r)), ...recommendedFiles])] : recommendedFiles;
-            const previousFiles = previous?.files ?? {};
-            const toUpload = [];
-            const digests = { ...previousFiles };
-            for (const relPath of selected) {
-              const abs = resolve5(source.root, relPath);
-              let digest;
-              try {
-                digest = await fileDigest(abs);
-              } catch {
-                continue;
-              }
-              digests[relPath] = digest;
-              if (previousFiles[relPath] !== digest)
-                toUpload.push(relPath);
-            }
-            const { batches, skipped: skipped2 } = planUploadBatches(source.root, toUpload);
-            const sizes = /* @__PURE__ */ new Map();
-            for (const c of plan.categories)
-              for (const f of c.files)
-                sizes.set(f.relPath, f.size);
-            const skippedSet = new Set(skipped2.map((x) => x.relPath));
-            const sending = toUpload.filter((rel) => !skippedSet.has(rel));
-            const progress = beginUploadProgress([projectId, id], sending.length, sending.reduce((n, rel) => n + (sizes.get(rel) ?? 0), 0));
-            let uploadedFiles = 0;
-            let uploadedBytes = 0;
-            for (const batch of batches) {
-              const payload2 = [];
-              for (const relPath of batch) {
+            if (upload) {
+              upload.signal.throwIfAborted();
+              if (reusable && !created) {
                 try {
-                  const { readFile } = await import("node:fs/promises");
-                  payload2.push({ relPath, bytes: await readFile(resolve5(source.root, relPath)) });
-                } catch {
+                  await fetchProject(base, apiKey, projectId, netOptions());
+                } catch (error2) {
+                  if (!(error2 instanceof ServerError) || error2.code !== "not-found")
+                    throw error2;
+                  retiredProjectId = projectId;
+                  projectId = await create();
                 }
               }
-              if (payload2.length === 0)
-                continue;
-              const results = await uploadProjectFiles(base, apiKey, projectId, payload2, {
-                stateVersion: uploaded.version,
-                ...netOptions(workIdForWrite)
-              });
-              uploadedFiles += results.length;
-              uploadedBytes += results.reduce((n, r) => n + r.size, 0);
-              progress.doneFiles = uploadedFiles;
-              progress.sentBytes = uploadedBytes;
+              const baseVersion = await readStateVersion(base, apiKey, projectId, netOptions());
+              if (selected.some((path) => !selectable.has(path))) {
+                return fail("bad-request", "\u6240\u9009\u6587\u4EF6\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u4E0A\u4F20\u6E05\u5355\u3002");
+              }
+              const result = await transferWorkspace(base, apiKey, projectId, source.root, selected, netOptions(workIdForWrite) ?? {}, upload, uploadTimeoutForBytes, { content, baseVersion });
+              const receipt = result.receipt;
+              if (receipt.version === null || receipt.content_hash === null) {
+                return fail("bad-response", "\u670D\u52A1\u5668\u672A\u8FD4\u56DE\u7814\u7A76\u72B6\u6001\u7248\u672C\u3002");
+              }
+              uploaded = { version: receipt.version, contentHash: receipt.content_hash };
+              uploadedFiles = receipt.uploaded;
+              uploadedBytes = receipt.uploaded_bytes;
+              skippedExisting = receipt.skipped_existing;
+              skipped2 = result.skipped;
+              digests = Object.fromEntries(result.manifest.map((file) => [file.path, file.sha256]));
+            } else {
+              const saveState = async (baseVersion) => uploadResearchState(base, apiKey, projectId, {
+                baseVersion,
+                content,
+                intentKey: crypto.randomUUID()
+              }, netOptions(workIdForWrite));
+              const saveStateWithRebase = async (version2) => {
+                try {
+                  return await saveState(version2);
+                } catch (e) {
+                  if (!(e instanceof ServerError) || e.code !== "version-conflict")
+                    throw e;
+                  const latest = e.currentVersion ?? await readStateVersion(base, apiKey, projectId, netOptions());
+                  return await saveState(latest);
+                }
+              };
+              try {
+                uploaded = await saveStateWithRebase(await readStateVersion(base, apiKey, projectId, netOptions()));
+              } catch (e) {
+                if (!reusable || !(e instanceof ServerError) || e.code !== "not-found")
+                  throw e;
+                publishedStore.remove(source.root, direction);
+                projectId = await create();
+                uploaded = await saveStateWithRebase(await readStateVersion(base, apiKey, projectId, netOptions()));
+              }
+              const previousFiles = previous?.files ?? {};
+              const toUpload = [];
+              digests = { ...previousFiles };
+              for (const relPath of selected) {
+                const abs = resolve5(source.root, relPath);
+                let digest;
+                try {
+                  digest = await fileDigest(abs);
+                } catch {
+                  continue;
+                }
+                digests[relPath] = digest;
+                if (previousFiles[relPath] !== digest)
+                  toUpload.push(relPath);
+              }
+              const { batches, skipped: oversize } = planUploadBatches(source.root, toUpload);
+              skipped2 = oversize;
+              skippedExisting = selected.length - toUpload.length;
+              const sizes = /* @__PURE__ */ new Map();
+              for (const c of plan.categories)
+                for (const f of c.files)
+                  sizes.set(f.relPath, f.size);
+              const skippedSet = new Set(skipped2.map((x) => x.relPath));
+              const sending = toUpload.filter((rel) => !skippedSet.has(rel));
+              const progress = beginUploadProgress([projectId, id], sending.length, sending.reduce((n, rel) => n + (sizes.get(rel) ?? 0), 0));
+              for (const batch of batches) {
+                const payload2 = [];
+                for (const relPath of batch) {
+                  try {
+                    const { readFile: readFile2 } = await import("node:fs/promises");
+                    payload2.push({ relPath, bytes: await readFile2(resolve5(source.root, relPath)) });
+                  } catch {
+                  }
+                }
+                if (payload2.length === 0)
+                  continue;
+                const results = await uploadProjectFiles(base, apiKey, projectId, payload2, {
+                  stateVersion: uploaded.version,
+                  ...netOptions(workIdForWrite)
+                });
+                uploadedFiles += results.length;
+                uploadedBytes += results.reduce((n, r) => n + r.size, 0);
+                progress.doneFiles = uploadedFiles;
+                progress.sentBytes = uploadedBytes;
+              }
+              progress.running = false;
             }
-            progress.running = false;
             const { visibility, chargedTokens } = await publishProject(base, apiKey, projectId, {
               intentKey: `convfusion-dsh-publish-${projectId}-v${uploaded.version}`,
               ...netOptions(workIdForWrite)
@@ -14792,7 +14992,7 @@ function createSettingsRpcHandler(deps) {
                   selected: selected.length,
                   uploaded: uploadedFiles,
                   uploadedBytes,
-                  skippedExisting: selected.length - toUpload.length,
+                  skippedExisting,
                   /** 超过服务器单文件上限（100 MB）而没能上传的。 */
                   oversize: skipped2
                 },
@@ -15069,7 +15269,7 @@ function createSettingsRpcHandler(deps) {
           }
         }
         case "mentor/upload": {
-          const config = deps.getConfig();
+          const config = upload?.config ?? deps.getConfig();
           const apiKey = resolveConvFusionApiKey(config, env());
           if (!apiKey)
             return fail("not-configured", "\u5C1A\u672A\u767B\u5F55 ConvFusion.com\u3002");
@@ -15104,6 +15304,19 @@ function createSettingsRpcHandler(deps) {
               return fail("bad-request", "\u9009\u62E9\u7684\u6587\u4EF6\u4E0D\u5728\u8FD9\u4E2A\u5DE5\u4F5C\u533A\u7684\u7814\u7A76\u76EE\u5F55\u91CC\uFF08\u6216\u5C5E\u4E8E\u673A\u5668\u4EA7\u7269\uFF09\u3002");
             }
             const base = resolveServerUrl(config, env()).url;
+            if (upload) {
+              if (picked.length !== wanted.length) {
+                return fail("bad-request", "\u6240\u9009\u6587\u4EF6\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u4E0A\u4F20\u6E05\u5355\u3002");
+              }
+              const result = await transferWorkspace(base, apiKey, projectId, root, picked, netOptions(readLocalIdentity(root, deps.workIdentity).workspaceId) ?? {}, upload, uploadTimeoutForBytes);
+              return { ok: true, value: {
+                selected: picked.length,
+                uploaded: result.receipt.uploaded,
+                uploadedBytes: result.receipt.uploaded_bytes,
+                skippedExisting: result.receipt.skipped_existing,
+                oversize: result.skipped
+              } };
+            }
             const source = asSource(p.source);
             const remote = await fetchProjectFiles(base, apiKey, projectId, { source, ...netOptions() });
             const onServer = /* @__PURE__ */ new Map();
@@ -15209,7 +15422,7 @@ function createSettingsRpcHandler(deps) {
             const latest = /* @__PURE__ */ new Map();
             for (const f of files)
               latest.set(f.relativePath, f);
-            const downloadRevision = createHash("sha256").update(JSON.stringify([
+            const downloadRevision = createHash2("sha256").update(JSON.stringify([
               remoteWorkspaceId,
               [...latest.values()].sort((a, b) => a.relativePath.localeCompare(b.relativePath))
             ])).digest("hex");
@@ -15381,6 +15594,107 @@ function createSettingsRpcHandler(deps) {
     } catch (e) {
       return fail("internal", e instanceof Error ? e.message : String(e));
     }
+  };
+  const jobs = /* @__PURE__ */ new Map();
+  return async (endpoint, payload, downloadControl) => {
+    if (!deps.workspaceUploads || !endpoint.startsWith("upload/")) {
+      return dispatch(endpoint, payload, downloadControl);
+    }
+    const p = payload ?? {};
+    const kind = asString3(p.kind);
+    if (kind !== "mentor" && kind !== "publish")
+      return fail("bad-request", "\u672A\u77E5\u7684\u4E0A\u4F20\u7C7B\u578B\u3002");
+    const id = asString3(kind === "mentor" ? p.projectId : p.id);
+    if (!id)
+      return fail("bad-request", "\u7F3A\u5C11\u7814\u7A76\u5DE5\u4F5C\u6807\u8BC6\u3002");
+    const config = deps.getConfig();
+    const key = resolveConvFusionApiKey(config, env());
+    if (!key)
+      return fail("not-configured", "\u5C1A\u672A\u767B\u5F55 ConvFusion.com\u3002");
+    const scope = JSON.stringify([resolveServerUrl(config, env()).url, createHash2("sha256").update(key).digest("hex"), kind, id]);
+    let job = jobs.get(scope);
+    const intent = asString3(p.intent);
+    if (endpoint === "upload/start" && !intent)
+      return fail("bad-request", "\u7F3A\u5C11\u4E0A\u4F20\u8BF7\u6C42\u6807\u8BC6\u3002");
+    if (endpoint === "upload/start" && (!job || job.intent !== intent && job.result && !job.control.cancelRemote && !job.cancellation)) {
+      const abort = new AbortController();
+      const control = {
+        config,
+        signal: abort.signal,
+        finishing: false,
+        progress: { doneFiles: 0, totalFiles: 0, sentBytes: 0, totalBytes: 0, running: true }
+      };
+      const current = { intent, abort, control };
+      jobs.set(scope, current);
+      job = current;
+      void dispatch(kind === "mentor" ? "mentor/upload" : "work/publish", payload, void 0, control).then((result) => {
+        current.result = result;
+        if (result.ok)
+          control.cancelRemote = void 0;
+        control.finishing = false;
+      }).finally(() => {
+        control.progress.running = false;
+      });
+    }
+    if (!job && kind === "mentor" && (endpoint === "upload/status" || endpoint === "upload/cancel")) {
+      try {
+        const base = resolveServerUrl(config, env()).url;
+        const remote = await workspaceUploadRequest(base, key, id, "GET", "/active", void 0, netOptions());
+        if (remote) {
+          if (endpoint === "upload/cancel") {
+            const cancelled = await workspaceUploadRequest(base, key, id, "DELETE", `/${remote.id}`, void 0, netOptions());
+            if (cancelled.status === "completed")
+              return fail("upload-completed", "\u670D\u52A1\u5668\u5DF2\u63D0\u4EA4\u672C\u6B21\u4E0A\u4F20\u3002");
+            return { ok: true, value: null };
+          }
+          return { ok: true, value: {
+            progress: { doneFiles: remote.received.length, totalFiles: remote.needed.length, sentBytes: remote.received_bytes, totalBytes: remote.total_bytes, running: false },
+            result: null,
+            cancelling: false,
+            canCancel: true,
+            canResume: true
+          } };
+        }
+      } catch (error2) {
+        if (!(error2 instanceof ServerError && error2.httpStatus === 404))
+          return serverFail(error2);
+      }
+    }
+    if (!job)
+      return { ok: true, value: null };
+    if (endpoint === "upload/cancel" && !job.control.finishing && (!job.result || job.control.cancelRemote)) {
+      const current = job;
+      current.abort.abort();
+      if (!current.cancellation) {
+        const cleanup = async () => {
+          while (!current.result)
+            await new Promise((resolve12) => setTimeout(resolve12, 50));
+          if (current.control.cancelRemote) {
+            try {
+              const remote = await current.control.cancelRemote();
+              if (remote.status === "completed")
+                throw new Error("\u670D\u52A1\u5668\u5DF2\u63D0\u4EA4\u672C\u6B21\u4E0A\u4F20\u3002");
+            } catch (error2) {
+              if (!(error2 instanceof ServerError && error2.httpStatus === 404))
+                throw error2;
+            }
+          }
+          current.control.cancelRemote = void 0;
+          current.result = fail("upload-cancelled", "\u4E0A\u4F20\u5DF2\u53D6\u6D88\u3002");
+        };
+        current.cancellation = cleanup().catch((error2) => {
+          current.result = serverFail(error2);
+        }).finally(() => {
+          current.cancellation = void 0;
+        });
+      }
+    }
+    return { ok: true, value: {
+      progress: job.control.progress,
+      result: job.result ?? null,
+      cancelling: Boolean(job.cancellation),
+      canCancel: !job.control.finishing && (!job.result || Boolean(job.control.cancelRemote))
+    } };
   };
 }
 
@@ -16223,7 +16537,7 @@ ${decisionAssistGuidance(config.decisionAssistEnabled !== false)}`;
 }
 
 // lib/codex/storage.js
-import { createHash as createHash2, randomBytes as randomBytes2 } from "node:crypto";
+import { createHash as createHash3, randomBytes as randomBytes2 } from "node:crypto";
 import { existsSync as existsSync26, readFileSync as readFileSync26, mkdirSync as mkdirSync20, writeFileSync as writeFileSync18, renameSync as renameSync6, chmodSync, realpathSync as realpathSync3, statSync as statSync8, openSync as openSync2, closeSync as closeSync2, unlinkSync as unlinkSync2 } from "node:fs";
 import { homedir as homedir3 } from "node:os";
 import { basename as basename2, dirname as dirname12, isAbsolute as isAbsolute6, join as join25 } from "node:path";
@@ -16231,7 +16545,7 @@ function codexHome(env = process.env) {
   return env.CONVFUSION_CODEX_HOME || join25(env.CODEX_HOME || join25(homedir3(), ".codex"), "convfusion");
 }
 function stateKey(value) {
-  return createHash2("sha256").update(value).digest("hex").slice(0, 24);
+  return createHash3("sha256").update(value).digest("hex").slice(0, 24);
 }
 function readPrivateJson(path, fallback) {
   return existsSync26(path) ? JSON.parse(readFileSync26(path, "utf8")) : fallback;
@@ -16623,7 +16937,7 @@ function buildSyncText(facts, rootPrefix) {
 }
 
 // lib/codex/downloads.js
-import { createHash as createHash3, randomBytes as randomBytes3 } from "node:crypto";
+import { createHash as createHash4, randomBytes as randomBytes3 } from "node:crypto";
 import { existsSync as existsSync30, statSync as statSync10, unlinkSync as unlinkSync3 } from "node:fs";
 import { dirname as dirname14, join as join29, basename as basename4 } from "node:path";
 var active = (job) => ["running", "finalizing", "cancelling"].includes(job.state);
@@ -16641,10 +16955,10 @@ var resultStamp = (result) => stamp(result?.value?.path);
 var view = ({ id, state, phase, received, totalBytes, result }) => ({ id, state, phase, received, totalBytes, ...result ? { result } : {} });
 function createDownloadJobs(home) {
   const workers = /* @__PURE__ */ new Map();
-  const fileOf = (scope) => join29(home, "download-jobs", `${createHash3("sha256").update(scope).digest("hex")}.json`);
-  const cancellationFile = (scope, intent) => join29(home, "download-cancellations", `${createHash3("sha256").update(JSON.stringify([scope, intent])).digest("hex")}.json`);
+  const fileOf = (scope) => join29(home, "download-jobs", `${createHash4("sha256").update(scope).digest("hex")}.json`);
+  const cancellationFile = (scope, intent) => join29(home, "download-cancellations", `${createHash4("sha256").update(JSON.stringify([scope, intent])).digest("hex")}.json`);
   const cancelledIntent = (scope, intent) => intent && existsSync30(cancellationFile(scope, intent)) ? {
-    id: `cancelled-${createHash3("sha256").update(intent).digest("hex").slice(0, 32)}`,
+    id: `cancelled-${createHash4("sha256").update(intent).digest("hex").slice(0, 32)}`,
     state: "cancelled",
     phase: "preparing",
     received: 0,
@@ -16883,7 +17197,7 @@ function createCodexUiHost(options = {}) {
   const workIdentity = createFileWorkIdentityStore(() => path("work-identities.json"));
   let server;
   let launch;
-  const sessionPath = (token) => typeof token === "string" && /^[a-f0-9]{64}$/.test(token) ? path(join30("ui-sessions", `${createHash4("sha256").update(token).digest("hex")}.json`)) : null;
+  const sessionPath = (token) => typeof token === "string" && /^[a-f0-9]{64}$/.test(token) ? path(join30("ui-sessions", `${createHash5("sha256").update(token).digest("hex")}.json`)) : null;
   const readSession = (token) => {
     const file = sessionPath(token);
     if (!file) return null;
@@ -16936,6 +17250,7 @@ function createCodexUiHost(options = {}) {
     store,
     version: pkg.version,
     env,
+    workspaceUploads: true,
     ...options.fetchImpl ? { fetchImpl: options.fetchImpl } : {},
     resolvePath: () => path("skill-customizations.json"),
     resolveSessionWorkspace: (id) => workspaces.get(id)?.path,
@@ -16971,7 +17286,7 @@ function createCodexUiHost(options = {}) {
       research = Boolean(row && isResearchWorkspace(researchWorkspaceOf(row.path)));
     } catch {
     }
-    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? "\u7814\u7A76\u5DE5\u4F5C\u53F0", version: pkg.version, downloadTasks: true, initialTab: research ? "progress" : "community" };
+    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? "\u7814\u7A76\u5DE5\u4F5C\u53F0", version: pkg.version, downloadTasks: true, uploadTasks: true, initialTab: research ? "progress" : "community" };
   };
   const dispatch = async (root, endpoint, payload) => {
     if (root) registerWorkspace(root);
@@ -16994,7 +17309,7 @@ function createCodexUiHost(options = {}) {
       const directory = realpathSync5(target.path);
       const source = payload.source === "mentor" || payload.source === "counterpart" ? payload.source : "owner";
       const intent = typeof payload.intent === "string" && /^[a-zA-Z0-9-]{1,128}$/.test(payload.intent) ? payload.intent : void 0;
-      const scope = JSON.stringify([resolveServerUrl(config, env).url, createHash4("sha256").update(apiKey).digest("hex"), payload.projectId, source, directory]);
+      const scope = JSON.stringify([resolveServerUrl(config, env).url, createHash5("sha256").update(apiKey).digest("hex"), payload.projectId, source, directory]);
       if (endpoint === "mentor/downloadCancel") {
         if (typeof payload.jobId !== "string" && !intent) return failure("bad-request", "\u7F3A\u5C11\u4E0B\u8F7D\u4EFB\u52A1\u6807\u8BC6\u3002");
         return { ok: true, value: { job: downloads.cancel(scope, payload.jobId, intent) } };
@@ -28135,7 +28450,7 @@ function buildComposeInput(source, template, meta = {}) {
 }
 
 // lib/research/decision-assist.js
-import { createHash as createHash5 } from "node:crypto";
+import { createHash as createHash6 } from "node:crypto";
 import { existsSync as existsSync38 } from "node:fs";
 import { join as join38 } from "node:path";
 var DECISION_TYPES2 = [
@@ -28144,7 +28459,7 @@ var DECISION_TYPES2 = [
   "B2_claim_evidence_consistency",
   "D1_direction_decision"
 ];
-var hash = (value) => createHash5("sha256").update(value).digest("hex");
+var hash = (value) => createHash6("sha256").update(value).digest("hex");
 var skipped = (reason) => ({ ok: true, status: "skipped", reason, instruction: "Continue the existing workflow without decision assistance." });
 function decisionState(workspace) {
   const state = loadResearchState(workspace);

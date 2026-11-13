@@ -263,6 +263,9 @@ function mapHttpError(status, body) {
         });
     }
     if (status === 409) {
+        if (serverCode === 'UPLOAD_IN_PROGRESS') {
+            return new ServerError('bad-request', '这项研究已有上传任务，请等待完成或取消后再上传。', withCode);
+        }
         if (serverCode === 'INVITATION_USED') {
             return new ServerError('invitation-used', '这个邀请码已经被使用过了；如果你已经注册，请改用 API Key 登录。', {
                 ...withCode,
@@ -311,7 +314,10 @@ async function requestJson(base, path, init, options, label) {
     if (typeof fetchImpl !== 'function') {
         throw new ServerError('unreachable', '当前运行环境没有可用的 fetch。');
     }
+    options.signal?.throwIfAborted();
     const controller = new AbortController();
+    const abort = () => controller.abort(options.signal?.reason);
+    options.signal?.addEventListener('abort', abort, { once: true });
     const timeoutMs = options.timeoutMs ?? SERVER_TIMEOUT_MS;
     const url = apiUrl(base, path);
     // ⚠️ 只 `abort()` 是不够的：abort 依赖传输层**真的**尊重 signal。所以同时 **race**
@@ -333,25 +339,27 @@ async function requestJson(base, path, init, options, label) {
                 method: init.method,
                 headers: {
                     accept: 'application/json',
-                    ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
+                    ...(init.body === undefined || init.body instanceof FormData ? {} : { 'content-type': 'application/json' }),
                     ...(init.apiKey ? { authorization: `Bearer ${init.apiKey}` } : {}),
                     // 幂等键：**同一次业务意图**重试必须复用（402 后充值再试就靠它不重复扣费）
                     ...(init.idempotencyKey ? { 'idempotency-key': init.idempotencyKey } : {}),
                     // 这项工作是谁：服务器据此拒绝"往别人的项目里写"（老服务器忽略该头）
                     ...(options.workspaceId ? { 'x-workspace-id': options.workspaceId } : {}),
                 },
-                ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
+                ...(init.body === undefined ? {} : { body: init.body instanceof FormData ? init.body : JSON.stringify(init.body) }),
                 signal: controller.signal,
             }),
             timeout,
         ]);
     }
     catch (e) {
+        options.signal?.throwIfAborted();
         if (e instanceof ServerError)
             throw e; // 超时（上面那个 race 的拒绝）
         throw new ServerError('unreachable', `无法连接 ${base}：${e instanceof Error ? e.message : String(e)}。请确认服务器已启动。`);
     }
     finally {
+        options.signal?.removeEventListener('abort', abort);
         if (timer !== undefined)
             clearTimeout(timer);
     }
@@ -648,6 +656,19 @@ export async function fetchPriceGuide(base, apiKey, options = {}) {
     catch {
         return null;
     }
+}
+export async function workspaceUploadRequest(base, apiKey, projectId, method, suffix, body, options = {}) {
+    return await requestJson(base, `/projects/${encodeURIComponent(projectId)}/uploads${suffix}`, { method, apiKey, body }, options, '工作区上传');
+}
+export async function stageWorkspaceFiles(base, apiKey, projectId, taskId, files, options) {
+    const body = new FormData();
+    for (const file of files) {
+        const bytes = file.bytes;
+        const data = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+        body.append('files', new Blob([data]), file.path.split('/').at(-1));
+        body.append('indexes', String(file.index));
+    }
+    await workspaceUploadRequest(base, apiKey, projectId, 'PUT', `/${taskId}/files`, body, options);
 }
 /** 把一个相对路径规范化成"服务器将来会原样存下来"的形状（仅用于拼上传路径）。 */
 function joinRelativePath(prefix, name) {
@@ -1157,6 +1178,7 @@ export async function createProject(base, apiKey, input, options = {}) {
         apiKey: key,
         body: {
             title,
+            ...(input.creationId ? { creation_id: input.creationId } : {}),
             ...(input.description ? { description: input.description } : {}),
             // ⚠️ 只在明确给了方向时才发这个字段：默认方向由服务器拥有，
             // 客户端抄一份默认值只会在平台改默认时悄悄漂移。

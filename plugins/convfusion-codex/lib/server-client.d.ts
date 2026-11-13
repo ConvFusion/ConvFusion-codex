@@ -346,6 +346,7 @@ export declare function apiUrl(base: string, path: string): string;
  */
 export declare function normalizeApiKey(raw: string): string;
 export interface ServerRequestOptions {
+    signal?: AbortSignal;
     /** 网络实现（测试注入；缺省 = 全局 `fetch`）。 */
     fetchImpl?: FetchLike;
     /** 超时（毫秒）；缺省 {@link SERVER_TIMEOUT_MS}。 */
@@ -560,6 +561,32 @@ export declare function fetchPriceGuide(base: string, apiKey: string, options?: 
  *
  * @returns 服务器为每个文件返回的元数据（含 `size` 与 `sha256`，可用于更新本地指纹）
  */
+export interface UploadManifestFile {
+    path: string;
+    size: number;
+    sha256: string;
+}
+export interface WorkspaceUploadStatus {
+    id: string;
+    status: 'pending' | 'completed' | 'cancelled';
+    received: number[];
+    received_bytes: number;
+    total_bytes: number;
+    needed: number[];
+    receipt: {
+        uploaded: number;
+        uploaded_bytes: number;
+        skipped_existing: number;
+        version: number | null;
+        content_hash: string | null;
+    } | null;
+}
+export declare function workspaceUploadRequest(base: string, apiKey: string, projectId: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', suffix: string, body: unknown, options?: ServerRequestOptions): Promise<WorkspaceUploadStatus>;
+export declare function stageWorkspaceFiles(base: string, apiKey: string, projectId: string, taskId: string, files: ReadonlyArray<{
+    index: number;
+    path: string;
+    bytes: Uint8Array;
+}>, options: ServerRequestOptions): Promise<void>;
 export interface UploadedFile {
     id: string;
     relativePath: string;
@@ -772,6 +799,7 @@ export declare function createProject(base: string, apiKey: string, input: {
     description?: string;
     direction?: ProjectDirection;
     workspaceId?: string;
+    creationId?: string;
     /**
      * **挂牌价**（Token）。只在明确给了数字时才发 —— 服务器把它做成"信息"而非成交价，
      * 且 `null` 在服务层会被跳过（改价时传 null **不会**清空，见 `payment-system.md` §3.2.5）。

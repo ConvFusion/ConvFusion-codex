@@ -28,6 +28,8 @@ export declare const en: {
     readonly 'community.download.validating': "Validating and saving ZIP…";
     readonly 'community.download.cancelling': "Cancelling download…";
     readonly 'community.download.cancelled': "Download cancelled. You can download again.";
+    readonly 'community.upload.resume': "An unfinished upload exists. Use the original file selection to resume, or cancel it.";
+    readonly 'community.upload.cancel': "Cancel upload";
     readonly 'community.download.cancel': "Cancel download";
     readonly 'community.download.close': "Close and continue in background";
     readonly 'community.download.reconnecting': "Download status is unavailable. Reconnecting; the background task may still be running.";

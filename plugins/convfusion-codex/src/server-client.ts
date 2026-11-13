@@ -430,6 +430,7 @@ export function normalizeApiKey(raw: string): string {
  * ════════════════════════════════════════════════════════════════════════ */
 
 export interface ServerRequestOptions {
+  signal?: AbortSignal
   /** 网络实现（测试注入；缺省 = 全局 `fetch`）。 */
   fetchImpl?: FetchLike
   /** 超时（毫秒）；缺省 {@link SERVER_TIMEOUT_MS}。 */
@@ -636,6 +637,9 @@ function mapHttpError(status: number, body: unknown): ServerError {
     })
   }
   if (status === 409) {
+    if (serverCode === 'UPLOAD_IN_PROGRESS') {
+      return new ServerError('bad-request', '这项研究已有上传任务，请等待完成或取消后再上传。', withCode)
+    }
     if (serverCode === 'INVITATION_USED') {
       return new ServerError('invitation-used', '这个邀请码已经被使用过了；如果你已经注册，请改用 API Key 登录。', {
         ...withCode,
@@ -711,7 +715,10 @@ async function requestJson(
   if (typeof fetchImpl !== 'function') {
     throw new ServerError('unreachable', '当前运行环境没有可用的 fetch。')
   }
+  options.signal?.throwIfAborted()
   const controller = new AbortController()
+  const abort = () => controller.abort(options.signal?.reason)
+  options.signal?.addEventListener('abort', abort, { once: true })
   const timeoutMs = options.timeoutMs ?? SERVER_TIMEOUT_MS
   const url = apiUrl(base, path)
 
@@ -738,25 +745,27 @@ async function requestJson(
         method: init.method,
         headers: {
           accept: 'application/json',
-          ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
+          ...(init.body === undefined || init.body instanceof FormData ? {} : { 'content-type': 'application/json' }),
           ...(init.apiKey ? { authorization: `Bearer ${init.apiKey}` } : {}),
           // 幂等键：**同一次业务意图**重试必须复用（402 后充值再试就靠它不重复扣费）
           ...(init.idempotencyKey ? { 'idempotency-key': init.idempotencyKey } : {}),
           // 这项工作是谁：服务器据此拒绝"往别人的项目里写"（老服务器忽略该头）
           ...(options.workspaceId ? { 'x-workspace-id': options.workspaceId } : {}),
         },
-        ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
+        ...(init.body === undefined ? {} : { body: init.body instanceof FormData ? init.body : JSON.stringify(init.body) }),
         signal: controller.signal,
       }),
       timeout,
     ])
   } catch (e) {
+    options.signal?.throwIfAborted()
     if (e instanceof ServerError) throw e // 超时（上面那个 race 的拒绝）
     throw new ServerError(
       'unreachable',
       `无法连接 ${base}：${e instanceof Error ? e.message : String(e)}。请确认服务器已启动。`,
     )
   } finally {
+    options.signal?.removeEventListener('abort', abort)
     if (timer !== undefined) clearTimeout(timer)
   }
 
@@ -1209,6 +1218,52 @@ export async function fetchPriceGuide(
  *
  * @returns 服务器为每个文件返回的元数据（含 `size` 与 `sha256`，可用于更新本地指纹）
  */
+export interface UploadManifestFile {
+  path: string
+  size: number
+  sha256: string
+}
+
+export interface WorkspaceUploadStatus {
+  id: string
+  status: 'pending' | 'completed' | 'cancelled'
+  received: number[]
+  received_bytes: number
+  total_bytes: number
+  needed: number[]
+  receipt: {
+    uploaded: number
+    uploaded_bytes: number
+    skipped_existing: number
+    version: number | null
+    content_hash: string | null
+  } | null
+}
+
+export async function workspaceUploadRequest(
+  base: string, apiKey: string, projectId: string,
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE', suffix: string, body: unknown,
+  options: ServerRequestOptions = {},
+): Promise<WorkspaceUploadStatus> {
+  return await requestJson(base, `/projects/${encodeURIComponent(projectId)}/uploads${suffix}`,
+    { method, apiKey, body }, options, '工作区上传') as WorkspaceUploadStatus
+}
+
+export async function stageWorkspaceFiles(
+  base: string, apiKey: string, projectId: string, taskId: string,
+  files: ReadonlyArray<{ index: number; path: string; bytes: Uint8Array }>,
+  options: ServerRequestOptions,
+): Promise<void> {
+  const body = new FormData()
+  for (const file of files) {
+    const bytes = file.bytes
+    const data = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
+    body.append('files', new Blob([data]), file.path.split('/').at(-1))
+    body.append('indexes', String(file.index))
+  }
+  await workspaceUploadRequest(base, apiKey, projectId, 'PUT', `/${taskId}/files`, body, options)
+}
+
 export interface UploadedFile {
   id: string
   relativePath: string
@@ -1904,6 +1959,7 @@ export async function createProject(
     description?: string
     direction?: ProjectDirection
     workspaceId?: string
+    creationId?: string
     /**
      * **挂牌价**（Token）。只在明确给了数字时才发 —— 服务器把它做成"信息"而非成交价，
      * 且 `null` 在服务层会被跳过（改价时传 null **不会**清空，见 `payment-system.md` §3.2.5）。
@@ -1923,6 +1979,7 @@ export async function createProject(
       apiKey: key,
       body: {
         title,
+        ...(input.creationId ? { creation_id: input.creationId } : {}),
         ...(input.description ? { description: input.description } : {}),
         // ⚠️ 只在明确给了方向时才发这个字段：默认方向由服务器拥有，
         // 客户端抄一份默认值只会在平台改默认时悄悄漂移。
