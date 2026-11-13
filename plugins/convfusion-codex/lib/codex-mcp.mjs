@@ -2941,6 +2941,16 @@ async function fetchUsage(base, apiKey, options = {}) {
     return null;
   }
 }
+async function purchaseStorage(base, apiKey, gb, intentKey, options = {}) {
+  const body = asObject(await requestJson(base, "/tokens/storage/purchase", { method: "POST", apiKey: requireKey(apiKey), body: { gb }, idempotencyKey: intentKey }, options, "\u8D2D\u4E70\u5B58\u50A8\u7A7A\u95F4"), "\u5B58\u50A8\u8D2D\u4E70\u7ED3\u679C");
+  const purchasedGb = asNumber(body.purchased_gb, -1);
+  const capacityBytes = asNumber(body.capacity_bytes, -1);
+  const cost = asNumber(body.cost, -1);
+  if (purchasedGb !== gb || !Number.isSafeInteger(capacityBytes) || capacityBytes <= 0 || !Number.isSafeInteger(cost) || cost <= 0) {
+    throw new ServerError("bad-response", "\u670D\u52A1\u5668\u8FD4\u56DE\u7684\u5B58\u50A8\u8D2D\u4E70\u56DE\u6267\u4E0D\u5B8C\u6574\u3002");
+  }
+  return { purchasedGb, capacityBytes, cost };
+}
 async function fetchPriceGuide(base, apiKey, options = {}) {
   try {
     const key = requireKey(apiKey);
@@ -14235,6 +14245,45 @@ function createSettingsRpcHandler(deps) {
           const base = resolveServerUrl(config, env()).url;
           const usage = await fetchUsage(base, apiKey, netOptions());
           return { ok: true, value: { usage } };
+        }
+        case "account/storage-purchase": {
+          const config = deps.getConfig();
+          const apiKey = resolveConvFusionApiKey(config, env());
+          if (!apiKey)
+            return fail("not-configured", "\u5C1A\u672A\u767B\u5F55 ConvFusion.com\u3002");
+          const base = resolveServerUrl(config, env()).url;
+          const { gb, bytesPerToken } = p;
+          const accountId = asString3(p.accountId);
+          const intentKey = asString3(p.intentKey);
+          if (typeof gb !== "number" || !Number.isInteger(gb) || gb < 1 || gb > 1e4 || typeof bytesPerToken !== "number" || !Number.isSafeInteger(bytesPerToken) || bytesPerToken <= 0 || !accountId || !/^[a-zA-Z0-9-]{1,128}$/.test(intentKey)) {
+            return fail("bad-request", "\u5B58\u50A8\u8D2D\u4E70\u53C2\u6570\u6709\u8BEF\u3002");
+          }
+          if (p.serverUrl !== base)
+            return fail("storage-account-changed", "\u670D\u52A1\u5668\u5DF2\u5207\u6362\uFF0C\u8BF7\u91CD\u65B0\u786E\u8BA4\u8D2D\u4E70\u3002");
+          try {
+            const account = await fetchAccount(base, apiKey, netOptions());
+            if (account.id !== accountId)
+              return fail("storage-account-changed", "\u767B\u5F55\u8D26\u53F7\u5DF2\u5207\u6362\uFF0C\u8BF7\u91CD\u65B0\u786E\u8BA4\u8D2D\u4E70\u3002");
+          } catch (e) {
+            return serverFail(e);
+          }
+          const usage = await fetchUsage(base, apiKey, netOptions());
+          if (!usage)
+            return fail("storage-price-unavailable", "\u6682\u65F6\u65E0\u6CD5\u8BFB\u53D6\u5B58\u50A8\u4EF7\u683C\u3002");
+          if (usage.storage.bytesPerToken !== bytesPerToken) {
+            return fail("storage-price-changed", "\u5B58\u50A8\u5355\u4EF7\u5DF2\u66F4\u65B0\uFF0C\u8BF7\u6838\u5BF9\u8D39\u7528\u540E\u518D\u8D2D\u4E70\u3002");
+          }
+          try {
+            const receipt = await purchaseStorage(base, apiKey, gb, intentKey, netOptions());
+            return { ok: true, value: receipt };
+          } catch (e) {
+            if (e instanceof ServerError && e.httpStatus === 404) {
+              return fail("storage-purchase-unavailable", "\u5F53\u524D\u670D\u52A1\u5668\u6682\u4E0D\u652F\u6301\u8D2D\u4E70\u5B58\u50A8\u7A7A\u95F4\u3002");
+            }
+            if (e instanceof ServerError && e.httpStatus && e.httpStatus < 500)
+              return serverFail(e);
+            return fail("storage-purchase-unconfirmed", "\u6682\u65F6\u65E0\u6CD5\u786E\u8BA4\u8D2D\u4E70\u7ED3\u679C\u3002");
+          }
         }
         case "account/logout": {
           const config = deps.getConfig();

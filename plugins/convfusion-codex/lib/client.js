@@ -280,6 +280,24 @@ window.__ModuleLoader__.load({
 		  "community.dash.tokenPoolsFrozen": "Funded {funded} · grant {grant} · {frozen} frozen",
 		  "community.dash.storage": "Storage",
 		  "community.dash.storageSub": "Used {used} / {total}",
+		  "community.storagePurchase.open": "Buy storage",
+		  "community.storagePurchase.title": "Buy storage",
+		  "community.storagePurchase.amount": "Extra storage (GB)",
+		  "community.storagePurchase.quote": "New total {total} · One-time cost {cost} Token",
+		  "community.storagePurchase.balance": "{balance} Token available",
+		  "community.storagePurchase.confirm": "Confirm purchase",
+		  "community.storagePurchase.buying": "Purchasing…",
+		  "community.storagePurchase.retry": "Retry this purchase",
+		  "community.storagePurchase.retryCost": "If the purchase is still pending, the estimated charge is {cost} Token.",
+		  "community.storagePurchase.receipt": "Added {gb} GB for a total of {total}. Charged {cost} Token.",
+		  "community.storagePurchase.insufficient": "Insufficient Token balance. You can request a top-up from Token balance.",
+		  "community.storagePurchase.priceChanged": "The storage rate has changed. Review the updated cost and confirm again.",
+		  "community.storagePurchase.priceUnavailable": "The storage rate is unavailable. Refresh your account and try again.",
+		  "community.storagePurchase.unavailable": "This server does not support storage purchases.",
+		  "community.storagePurchase.accountChanged": "The account or server has changed. Reopen the purchase dialog.",
+		  "community.storagePurchase.unconfirmed": "The result is unconfirmed. Retry this purchase to reuse the same request.",
+		  "community.storagePurchase.retryExpired": "The retry window has expired. Check your storage and Token balance before starting a new purchase.",
+		  "community.storagePurchase.startNew": "Start a new purchase",
 		  "community.dash.projects": "Published projects",
 		  "community.dash.projectsSub": "Tier {tier} · next publish {cost} Token",
 		  // Unavailable is stated as "unknown": 0 asserts "indeed none", which is not the same thing
@@ -1049,6 +1067,24 @@ window.__ModuleLoader__.load({
 		  "community.dash.tokenPoolsFrozen": "资金池 {funded} · 赠送 {grant} · 冻 {frozen}",
 		  "community.dash.storage": "存储空间",
 		  "community.dash.storageSub": "已用 {used} / {total}",
+		  "community.storagePurchase.open": "购买空间",
+		  "community.storagePurchase.title": "购买存储空间",
+		  "community.storagePurchase.amount": "增加容量（GB）",
+		  "community.storagePurchase.quote": "扩容后 {total} · 一次性扣 {cost} Token",
+		  "community.storagePurchase.balance": "可用 {balance} Token",
+		  "community.storagePurchase.confirm": "确认购买",
+		  "community.storagePurchase.buying": "购买中…",
+		  "community.storagePurchase.retry": "重试此笔购买",
+		  "community.storagePurchase.retryCost": "若订单尚未完成，重试预计扣 {cost} Token。",
+		  "community.storagePurchase.receipt": "已增加 {gb} GB，总容量 {total}。本次扣除 {cost} Token。",
+		  "community.storagePurchase.insufficient": "可用 Token 不足。可在「Token 余额」中申请续费。",
+		  "community.storagePurchase.priceChanged": "存储单价已变动，请核对更新后的费用再确认。",
+		  "community.storagePurchase.priceUnavailable": "暂时无法读取存储价格，请刷新账号后重试。",
+		  "community.storagePurchase.unavailable": "当前服务器暂不支持购买存储空间。",
+		  "community.storagePurchase.accountChanged": "账号或服务器已切换，请重新打开购买窗口。",
+		  "community.storagePurchase.unconfirmed": "暂时无法确认结果。可重试此笔购买，服务器会识别同一笔请求。",
+		  "community.storagePurchase.retryExpired": "重试期限已过。请核对存储额度和 Token 余额，再决定是否发起新购买。",
+		  "community.storagePurchase.startNew": "发起新购买",
 		  "community.dash.projects": "已发布项目",
 		  "community.dash.projectsSub": "等级 {tier} · 下次发布 {cost} Token",
 		  // 读不到就照实说"未知"：0 是断言"确实没有"，与"还没读到 / 服务器没答"不是一回事
@@ -4276,7 +4312,8 @@ window.__ModuleLoader__.load({
 		  chart,
 		  value,
 		  unit,
-		  sub
+		  sub,
+		  action
 		}) {
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.dashTile, children: [
 		    chart,
@@ -4286,9 +4323,183 @@ window.__ModuleLoader__.load({
 		        value,
 		        unit ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.dashUnit, children: unit }) : null
 		      ] }) : null,
-		      sub ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.dashSub, children: sub }) : null
+		      sub ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.dashSub, children: sub }) : null,
+		      action
 		    ] })
 		  ] });
+		}
+		var storagePurchases = /* @__PURE__ */ new Map();
+		var storagePurchaseRetryMs = 24 * 60 * 60 * 1e3;
+		function readStoragePurchase(key) {
+		  if (storagePurchases.has(key)) return storagePurchases.get(key) ?? null;
+		  try {
+		    const value = JSON.parse(sessionStorage.getItem(key) ?? "null");
+		    if (value && Number.isInteger(value.gb) && value.gb >= 1 && value.gb <= 1e4 && typeof value.intentKey === "string" && /^[a-zA-Z0-9-]{1,128}$/.test(value.intentKey) && Number.isFinite(value.startedAt)) return value;
+		  } catch {
+		  }
+		  return null;
+		}
+		function saveStoragePurchase(key, purchase) {
+		  if (purchase) storagePurchases.set(key, purchase);
+		  else storagePurchases.delete(key);
+		  try {
+		    if (purchase) sessionStorage.setItem(key, JSON.stringify(purchase));
+		    else sessionStorage.removeItem(key);
+		  } catch {
+		  }
+		}
+		function StoragePurchaseDialog({
+		  t,
+		  account,
+		  serverUrl,
+		  storage,
+		  balance,
+		  post,
+		  onPurchased,
+		  onRefresh,
+		  onClose
+		}) {
+		  const key = `convfusion.storage-purchase:${JSON.stringify([serverUrl, account.id])}`;
+		  const [pending, setPending] = import_react.default.useState(() => readStoragePurchase(key));
+		  const [amount, setAmount] = import_react.default.useState(() => pending ? String(pending.gb) : "");
+		  const [submitting, setSubmitting] = import_react.default.useState(false);
+		  const [error, setError] = import_react.default.useState(null);
+		  const [receipt, setReceipt] = import_react.default.useState(null);
+		  const inFlight = import_react.default.useRef(false);
+		  const titleId = import_react.default.useId();
+		  const gb = Number(amount);
+		  const validAmount = Number.isInteger(gb) && gb >= 1 && gb <= 1e4;
+		  const bytesPerToken = storage?.bytesPerToken ?? 0;
+		  const extraBytes = gb * 1024 ** 3;
+		  const cost = validAmount && bytesPerToken > 0 ? Math.ceil(extraBytes / bytesPerToken) : null;
+		  const insufficient = !pending && cost !== null && balance !== null && balance < cost;
+		  const expired = pending !== null && Date.now() - pending.startedAt >= storagePurchaseRetryMs;
+		  const canSubmit = cost !== null && !insufficient && !expired && !submitting && !receipt;
+		  const submit = async () => {
+		    if (!canSubmit || inFlight.current) return;
+		    const previous = readStoragePurchase(key) ?? pending;
+		    if (previous && Date.now() - previous.startedAt >= storagePurchaseRetryMs) {
+		      setPending(previous);
+		      return;
+		    }
+		    if (previous && previous.gb !== gb) {
+		      setAmount(String(previous.gb));
+		      setPending(previous);
+		      return;
+		    }
+		    const purchase = previous ?? { gb, intentKey: crypto.randomUUID(), startedAt: Date.now() };
+		    saveStoragePurchase(key, purchase);
+		    inFlight.current = true;
+		    setSubmitting(true);
+		    setError(null);
+		    const result = await post("account/storage-purchase", {
+		      gb,
+		      bytesPerToken,
+		      intentKey: purchase.intentKey,
+		      accountId: account.id,
+		      serverUrl
+		    });
+		    inFlight.current = false;
+		    setSubmitting(false);
+		    if (result.ok) {
+		      saveStoragePurchase(key, null);
+		      const bought = result.value;
+		      setReceipt(bought);
+		      onPurchased(bought);
+		      return;
+		    }
+		    const code = result.error?.code;
+		    const uncertain = !code || ["storage-purchase-unconfirmed", "transport", "internal", "unknown"].includes(code);
+		    const unresolved = uncertain || previous !== null && code !== "insufficient-tokens";
+		    saveStoragePurchase(key, unresolved ? purchase : null);
+		    setPending(unresolved ? purchase : null);
+		    if (code === "storage-price-changed" || code === "storage-price-unavailable" || code === "insufficient-tokens") onRefresh();
+		    if (uncertain) setError(t("community.storagePurchase.unconfirmed"));
+		    else if (code === "insufficient-tokens") setError(t("community.storagePurchase.insufficient"));
+		    else if (code === "storage-price-changed") setError(t("community.storagePurchase.priceChanged"));
+		    else if (code === "storage-price-unavailable") setError(t("community.storagePurchase.priceUnavailable"));
+		    else if (code === "storage-purchase-unavailable") setError(t("community.storagePurchase.unavailable"));
+		    else if (code === "storage-account-changed") setError(t("community.storagePurchase.accountChanged"));
+		    else setError(result.error?.message ?? t("community.error.unknown"));
+		  };
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+		    "dialog",
+		    {
+		      ref: (node) => {
+		        if (node && !node.open) node.showModal();
+		      },
+		      "aria-labelledby": titleId,
+		      onCancel: (event) => {
+		        event.preventDefault();
+		        if (!inFlight.current) onClose();
+		      },
+		      style: {
+		        ...S.card,
+		        width: "min(420px, 92vw)",
+		        maxHeight: "90vh",
+		        overflowY: "auto",
+		        padding: 0,
+		        color: "var(--dsw-alias-label-primary)"
+		      },
+		      children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { id: titleId, style: S.cardHead, children: t("community.storagePurchase.title") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
+		          receipt ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { role: "status", children: t("community.storagePurchase.receipt", {
+		            gb: receipt.purchasedGb,
+		            total: formatBytes(receipt.capacityBytes),
+		            cost: receipt.cost
+		          }) }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: account.email }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { style: S.inlineRow, children: [
+		              t("community.storagePurchase.amount"),
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		                "input",
+		                {
+		                  type: "number",
+		                  min: 1,
+		                  max: 1e4,
+		                  step: 1,
+		                  value: amount,
+		                  disabled: submitting || pending !== null,
+		                  onChange: (event) => {
+		                    setAmount(event.currentTarget.value);
+		                    setError(null);
+		                  },
+		                  style: { ...S.compactInput, width: 96, flex: "0 0 auto" }
+		                }
+		              )
+		            ] }),
+		            cost !== null && storage && !pending ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hint, "aria-live": "polite", children: [
+		              t("community.storagePurchase.quote", { total: formatBytes(storage.capacityBytes + extraBytes), cost }),
+		              balance === null ? "" : ` · ${t("community.storagePurchase.balance", { balance })}`
+		            ] }) : null,
+		            cost !== null && pending && !expired ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.storagePurchase.retryCost", { cost }) }) : null,
+		            bytesPerToken <= 0 && !error ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.storagePurchase.priceUnavailable") }) : null,
+		            expired || error || pending || insufficient ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { role: "alert", style: { color: "var(--dsw-alias-state-error-primary)" }, children: expired ? t("community.storagePurchase.retryExpired") : error ?? t(pending ? "community.storagePurchase.unconfirmed" : "community.storagePurchase.insufficient") }) : null
+		          ] }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, disabled: submitting, onClick: onClose, children: t(receipt ? "community.action.close" : "community.action.cancel") }),
+		            expired ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => {
+		              saveStoragePurchase(key, null);
+		              setPending(null);
+		              setAmount("");
+		              setError(null);
+		              onRefresh();
+		            }, children: t("community.storagePurchase.startNew") }) : !receipt && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		              "button",
+		              {
+		                type: "button",
+		                style: { ...S.primaryBtn, opacity: canSubmit ? 1 : 0.55 },
+		                disabled: !canSubmit,
+		                onClick: () => void submit(),
+		                children: t(submitting ? "community.storagePurchase.buying" : pending ? "community.storagePurchase.retry" : "community.storagePurchase.confirm")
+		              }
+		            )
+		          ] })
+		        ] })
+		      ]
+		    }
+		  );
 		}
 		function TokenDialog({
 		  t,
@@ -5088,6 +5299,7 @@ window.__ModuleLoader__.load({
 		  const [phase, setPhase] = import_react.default.useState("loading");
 		  const [busy, setBusy] = import_react.default.useState(false);
 		  const [refreshingBalance, setRefreshingBalance] = import_react.default.useState(false);
+		  const balanceRequest = import_react.default.useRef(0);
 		  const [tokenDialog, setTokenDialog] = import_react.default.useState(false);
 		  const [rechargeRequests, setRechargeRequests] = import_react.default.useState(null);
 		  const [rechargeLoading, setRechargeLoading] = import_react.default.useState(false);
@@ -5101,6 +5313,8 @@ window.__ModuleLoader__.load({
 		  const [userOpen, setUserOpen] = import_react.default.useState(false);
 		  const [usage, setUsage] = import_react.default.useState(null);
 		  const [usagePhase, setUsagePhase] = import_react.default.useState("idle");
+		  const usageRequest = import_react.default.useRef(0);
+		  const [storagePurchaseScope, setStoragePurchaseScope] = import_react.default.useState(null);
 		  const [usageStaleHost, setUsageStaleHost] = import_react.default.useState(false);
 		  const [serverDraft, setServerDraft] = import_react.default.useState(initial?.serverUrl ?? "");
 		  const [serverProbes, setServerProbes] = import_react.default.useState({});
@@ -5249,6 +5463,9 @@ window.__ModuleLoader__.load({
 		  const listScope = JSON.stringify([activeServer, account?.id, configured, session?.sessionId]);
 		  const currentListScope = import_react.default.useRef(listScope);
 		  currentListScope.current = listScope;
+		  const accountScope = JSON.stringify([activeServer, account?.id]);
+		  const currentAccountScope = import_react.default.useRef(accountScope);
+		  currentAccountScope.current = accountScope;
 		  const downloadKey = download ? JSON.stringify([listScope, download.proposal.projectId, download.source, download.selection]) : "";
 		  const downloadKeyRef = import_react.default.useRef(downloadKey);
 		  downloadKeyRef.current = downloadKey;
@@ -6023,20 +6240,24 @@ window.__ModuleLoader__.load({
 		    setBusy(false);
 		    if (userOpen) void loadUsage();
 		  };
-		  const loadUsage = import_react.default.useCallback(async () => {
+		  const loadUsage = import_react.default.useCallback(async (keepLast = false) => {
+		    const scope = currentAccountScope.current;
+		    const request = ++usageRequest.current;
 		    setUsagePhase("loading");
 		    setUsageStaleHost(false);
 		    const res = await post("account/usage", {});
+		    if (scope !== currentAccountScope.current || request !== usageRequest.current) return;
 		    if (!res.ok) {
 		      setUsagePhase("unavailable");
 		      setUsageStaleHost(res.error?.code === "unknown-endpoint");
 		      return;
 		    }
 		    const next = res.value.usage ?? null;
-		    setUsage(next);
+		    if (next || !keepLast) setUsage(next);
 		    setUsagePhase(next ? "ready" : "unavailable");
 		  }, [post]);
 		  import_react.default.useEffect(() => {
+		    setStoragePurchaseScope(null);
 		    setUsage(null);
 		    setUsagePhase("idle");
 		    setUsageStaleHost(false);
@@ -6046,10 +6267,13 @@ window.__ModuleLoader__.load({
 		    void loadUsage();
 		  }, [userOpen, account?.id, activeServer, loadUsage]);
 		  const refreshBalance = async () => {
+		    const scope = currentAccountScope.current;
+		    const request = ++balanceRequest.current;
 		    setRefreshingBalance(true);
 		    const res = await post("account/tokens", {});
+		    if (request !== balanceRequest.current) return null;
 		    setRefreshingBalance(false);
-		    if (!res.ok) return null;
+		    if (!res.ok || scope !== currentAccountScope.current) return null;
 		    const tokens2 = res.value.tokens;
 		    if (!tokens2) return null;
 		    setState((prev) => prev ? { ...prev, tokens: tokens2 } : prev);
@@ -6330,7 +6554,21 @@ window.__ModuleLoader__.load({
 		                  sub: storage ? t("community.dash.storageSub", {
 		                    used: formatBytes(storage.usedBytes),
 		                    total: formatBytes(storage.capacityBytes)
-		                  }) : t("community.dash.unknown")
+		                  }) : t("community.dash.unknown"),
+		                  action: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		                    "button",
+		                    {
+		                      type: "button",
+		                      style: { ...S.linkBtn, alignSelf: "flex-start", paddingLeft: 0 },
+		                      disabled: busy,
+		                      onClick: () => {
+		                        setStoragePurchaseScope(accountScope);
+		                        if (!storage) void loadUsage();
+		                        void refreshBalance();
+		                      },
+		                      children: t("community.storagePurchase.open")
+		                    }
+		                  )
 		                }
 		              ),
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
@@ -6784,6 +7022,38 @@ window.__ModuleLoader__.load({
 		        onCancel: () => setAcceptConfirm(null),
 		        onConfirm: () => void confirmAccept()
 		      }
+		    ) : null,
+		    account && storagePurchaseScope === accountScope ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		      StoragePurchaseDialog,
+		      {
+		        t,
+		        account,
+		        serverUrl: activeServer,
+		        storage,
+		        balance: tokens?.available ?? null,
+		        post,
+		        onPurchased: (receipt) => {
+		          if (currentAccountScope.current !== accountScope) return;
+		          setUsage((prev) => prev ? {
+		            ...prev,
+		            storage: {
+		              ...prev.storage,
+		              capacityBytes: receipt.capacityBytes,
+		              availableBytes: Math.max(0, receipt.capacityBytes - prev.storage.usedBytes)
+		            }
+		          } : prev);
+		          setState((prev) => prev ? { ...prev, tokens: null } : prev);
+		          void loadUsage(true);
+		          void refreshBalance();
+		        },
+		        onRefresh: () => {
+		          if (currentAccountScope.current !== accountScope) return;
+		          void loadUsage();
+		          void refreshBalance();
+		        },
+		        onClose: () => setStoragePurchaseScope(null)
+		      },
+		      accountScope
 		    ) : null,
 		    tokenDialog ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      TokenDialog,

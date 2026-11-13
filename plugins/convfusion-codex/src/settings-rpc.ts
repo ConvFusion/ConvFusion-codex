@@ -151,6 +151,7 @@ import {
   fetchProjects,
   probeServerHealth,
   publishProject,
+  purchaseStorage,
   readStateVersion,
   fetchPriceGuide,
   updateProject,
@@ -2137,6 +2138,45 @@ export function createSettingsRpcHandler(
           const base = resolveServerUrl(config, env()).url
           const usage = await fetchUsage(base, apiKey, netOptions())
           return { ok: true, value: { usage } }
+        }
+
+        case 'account/storage-purchase': {
+          const config = deps.getConfig()
+          const apiKey = resolveConvFusionApiKey(config, env())
+          if (!apiKey) return fail('not-configured', '尚未登录 ConvFusion.com。')
+          const base = resolveServerUrl(config, env()).url
+          const { gb, bytesPerToken } = p
+          const accountId = asString(p.accountId)
+          const intentKey = asString(p.intentKey)
+          if (typeof gb !== 'number' || !Number.isInteger(gb) || gb < 1 || gb > 10_000
+            || typeof bytesPerToken !== 'number' || !Number.isSafeInteger(bytesPerToken) || bytesPerToken <= 0
+            || !accountId || !/^[a-zA-Z0-9-]{1,128}$/.test(intentKey)) {
+            return fail('bad-request', '存储购买参数有误。')
+          }
+          if (p.serverUrl !== base) return fail('storage-account-changed', '服务器已切换，请重新确认购买。')
+
+          try {
+            const account = await fetchAccount(base, apiKey, netOptions())
+            if (account.id !== accountId) return fail('storage-account-changed', '登录账号已切换，请重新确认购买。')
+          } catch (e) {
+            return serverFail(e)
+          }
+          const usage = await fetchUsage(base, apiKey, netOptions())
+          if (!usage) return fail('storage-price-unavailable', '暂时无法读取存储价格。')
+          if (usage.storage.bytesPerToken !== bytesPerToken) {
+            return fail('storage-price-changed', '存储单价已更新，请核对费用后再购买。')
+          }
+
+          try {
+            const receipt = await purchaseStorage(base, apiKey, gb, intentKey, netOptions())
+            return { ok: true, value: receipt }
+          } catch (e) {
+            if (e instanceof ServerError && e.httpStatus === 404) {
+              return fail('storage-purchase-unavailable', '当前服务器暂不支持购买存储空间。')
+            }
+            if (e instanceof ServerError && e.httpStatus && e.httpStatus < 500) return serverFail(e)
+            return fail('storage-purchase-unconfirmed', '暂时无法确认购买结果。')
+          }
         }
 
         case 'account/logout': {

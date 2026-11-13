@@ -15,11 +15,43 @@ const key = 'cf_live_codex_offline_fixture_secret'
 const calls = []
 let emailPreferences = { email_research_updates: true, email_new_work: false }
 let notificationsSupported = true
+const gbBytes = 1024 ** 3
+let capacityBytes = gbBytes
+let available = 100
+let bytesPerToken = gbBytes
+let losePurchaseResponse = true
+const purchases = new Map()
 const host = createCodexUiHost({ home, env: { CONVFUSION_ENV: 'production' }, fetchImpl: async (url, options) => {
   calls.push({ url, method: options.method })
   assert.equal(options.headers.authorization, `Bearer ${key}`)
   if (url.endsWith('/auth/me')) return new Response(JSON.stringify({ id: 'offline-account', email: 'fixture@example.com', display_name: 'Offline fixture', status: 'ACTIVE', roles: ['RESEARCHER'] }), { status: 200 })
-  if (url.endsWith('/tokens')) return new Response(JSON.stringify({ available_balance: 100, frozen_balance: 0, total_balance: 100 }), { status: 200 })
+  if (url.endsWith('/tokens')) return Response.json({ available_balance: available, frozen_balance: 0, total_balance: available })
+  if (url.endsWith('/usage')) {
+    return Response.json({
+      projects: { next_publish_cost: 1, paid_alive: 0, tier: 1 },
+      storage: { used_bytes: 512, capacity_bytes: capacityBytes, available_bytes: capacityBytes - 512, bytes_per_token: bytesPerToken },
+    })
+  }
+  if (url.endsWith('/tokens/storage/purchase')) {
+    assert.equal(options.method, 'POST')
+    const { gb } = JSON.parse(options.body)
+    const intent = options.headers['idempotency-key']
+    assert.ok(intent)
+    if (purchases.has(intent)) return Response.json(purchases.get(intent))
+    const cost = Math.ceil(gb * gbBytes / bytesPerToken)
+    if (cost > available) {
+      return Response.json({ error: { code: 'INSUFFICIENT_TOKENS', details: { required: cost, available } } }, { status: 402 })
+    }
+    capacityBytes += gb * gbBytes
+    available -= cost
+    const receipt = { purchased_gb: gb, capacity_bytes: capacityBytes, cost }
+    purchases.set(intent, receipt)
+    if (losePurchaseResponse) {
+      losePurchaseResponse = false
+      throw new Error('Fixture disconnected after the purchase committed')
+    }
+    return Response.json(receipt)
+  }
   if (url.endsWith('/notifications/preferences')) {
     if (!notificationsSupported) return Response.json({ error: { code: 'NOT_FOUND' } }, { status: 404 })
     if (options.method === 'PATCH') {
@@ -98,6 +130,27 @@ try {
   assert.ok(!JSON.stringify(login).includes(key), 'account response must not disclose a credential')
   assert.ok((await readFile(join(home, 'config.json'), 'utf8')).includes(key))
   assert.equal((await stat(join(home, 'config.json'))).mode & 0o777, 0o600)
+  const purchase = {
+    gb: 3, bytesPerToken: gbBytes, intentKey: 'fixture-purchase',
+    accountId: 'offline-account', serverUrl: login.value.serverUrl,
+  }
+  const buyStorage = (overrides = {}) => globalCall('account/storage-purchase', { ...purchase, ...overrides })
+  const apiPurchases = () => calls.filter(({ url }) => url.endsWith('/tokens/storage/purchase')).length
+  assert.equal((await buyStorage({ gb: 1.5 })).error.code, 'bad-request')
+  assert.equal((await buyStorage({ accountId: 'another-account' })).error.code, 'storage-account-changed')
+  assert.equal((await buyStorage({ serverUrl: 'https://wrong.example.com' })).error.code, 'storage-account-changed')
+  bytesPerToken = gbBytes / 2
+  assert.equal((await buyStorage()).error.code, 'storage-price-changed')
+  assert.equal(apiPurchases(), 0, 'invalid or stale confirmations must not reach the purchase API')
+  bytesPerToken = gbBytes
+  assert.equal((await buyStorage({ gb: 101, intentKey: 'fixture-insufficient' })).error.code, 'insufficient-tokens')
+  assert.equal((await buyStorage()).error.code, 'storage-purchase-unconfirmed')
+  assert.deepEqual((await buyStorage()).value, { purchasedGb: 3, capacityBytes: 4 * gbBytes, cost: 3 })
+  assert.equal((await globalCall('account/usage')).value.usage.storage.capacityBytes, 4 * gbBytes)
+  assert.equal((await globalCall('account/tokens')).value.tokens.available, 97, 'retry must reuse the purchase key')
+  assert.equal(purchases.size, 1)
+  console.log('Storage purchase passed: stale account/server/price rejection, insufficient Tokens, lost acknowledgement recovery and refreshed usage/balance (offline fixtures).')
+
   const preferences = await globalCall('account/email-notifications')
   assert.deepEqual(preferences.value, { email_research_updates: true, email_new_work: false })
   const patch = { accountId: 'offline-account', preference: 'email_research_updates', enabled: false }

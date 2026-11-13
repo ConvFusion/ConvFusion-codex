@@ -1127,6 +1127,30 @@ export async function fetchUsage(
   }
 }
 
+export async function purchaseStorage(
+  base: string,
+  apiKey: string,
+  gb: number,
+  intentKey: string,
+  options: ServerRequestOptions = {},
+): Promise<{ purchasedGb: number; capacityBytes: number; cost: number }> {
+  const body = asObject(await requestJson(
+    base,
+    '/tokens/storage/purchase',
+    { method: 'POST', apiKey: requireKey(apiKey), body: { gb }, idempotencyKey: intentKey },
+    options,
+    '购买存储空间',
+  ), '存储购买结果')
+  const purchasedGb = asNumber(body.purchased_gb, -1)
+  const capacityBytes = asNumber(body.capacity_bytes, -1)
+  const cost = asNumber(body.cost, -1)
+  if (purchasedGb !== gb || !Number.isSafeInteger(capacityBytes) || capacityBytes <= 0
+    || !Number.isSafeInteger(cost) || cost <= 0) {
+    throw new ServerError('bad-response', '服务器返回的存储购买回执不完整。')
+  }
+  return { purchasedGb, capacityBytes, cost }
+}
+
 /**
  * **挂牌价参考**（`GET /mentorship/price-guide`）。
  *

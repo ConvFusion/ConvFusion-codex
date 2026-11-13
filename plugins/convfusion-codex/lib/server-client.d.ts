@@ -532,6 +532,11 @@ export interface ServerUsage {
 }
 /** 读用量与配额。**失败时返回 null**（调用方按"未知"展示，不阻塞发布）。 */
 export declare function fetchUsage(base: string, apiKey: string, options?: ServerRequestOptions): Promise<ServerUsage | null>;
+export declare function purchaseStorage(base: string, apiKey: string, gb: number, intentKey: string, options?: ServerRequestOptions): Promise<{
+    purchasedGb: number;
+    capacityBytes: number;
+    cost: number;
+}>;
 /**
  * **挂牌价参考**（`GET /mentorship/price-guide`）。
  *

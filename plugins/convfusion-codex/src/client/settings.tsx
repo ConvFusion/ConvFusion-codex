@@ -3833,12 +3833,14 @@ function DashTile({
   value,
   unit,
   sub,
+  action,
 }: {
   title: string
   chart: React.ReactNode
   value?: string | null
   unit?: string | null
   sub?: string | null
+  action?: React.ReactNode
 }): JSX.Element {
   return (
     <div style={S.dashTile}>
@@ -3852,8 +3854,208 @@ function DashTile({
           </span>
         ) : null}
         {sub ? <span style={S.dashSub}>{sub}</span> : null}
+        {action}
       </div>
     </div>
+  )
+}
+
+interface StoragePurchaseReceipt {
+  purchasedGb: number
+  capacityBytes: number
+  cost: number
+}
+
+interface PendingStoragePurchase {
+  gb: number
+  intentKey: string
+  startedAt: number
+}
+
+const storagePurchases = new Map<string, PendingStoragePurchase>()
+const storagePurchaseRetryMs = 24 * 60 * 60 * 1000
+
+function readStoragePurchase(key: string): PendingStoragePurchase | null {
+  if (storagePurchases.has(key)) return storagePurchases.get(key) ?? null
+  try {
+    const value = JSON.parse(sessionStorage.getItem(key) ?? 'null') as PendingStoragePurchase | null
+    if (value && Number.isInteger(value.gb) && value.gb >= 1 && value.gb <= 10_000
+      && typeof value.intentKey === 'string' && /^[a-zA-Z0-9-]{1,128}$/.test(value.intentKey)
+      && Number.isFinite(value.startedAt)) return value
+  } catch { /* An embedded app may lack session storage. */ }
+  return null
+}
+
+function saveStoragePurchase(key: string, purchase: PendingStoragePurchase | null): void {
+  if (purchase) storagePurchases.set(key, purchase)
+  else storagePurchases.delete(key)
+  try {
+    if (purchase) sessionStorage.setItem(key, JSON.stringify(purchase))
+    else sessionStorage.removeItem(key)
+  } catch { /* The current app can still retry using its in-memory request. */ }
+}
+
+function StoragePurchaseDialog({
+  t, account, serverUrl, storage, balance, post, onPurchased, onRefresh, onClose,
+}: {
+  t: Translate
+  account: HostAccount
+  serverUrl: string
+  storage: HostUsage['storage'] | null
+  balance: number | null
+  post: (endpoint: string, payload: unknown) => Promise<{
+    ok: boolean
+    value?: unknown
+    error?: { code: string; message: string }
+  }>
+  onPurchased: (receipt: StoragePurchaseReceipt) => void
+  onRefresh: () => void
+  onClose: () => void
+}): JSX.Element {
+  const key = `convfusion.storage-purchase:${JSON.stringify([serverUrl, account.id])}`
+  const [pending, setPending] = React.useState(() => readStoragePurchase(key))
+  const [amount, setAmount] = React.useState(() => pending ? String(pending.gb) : '')
+  const [submitting, setSubmitting] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const [receipt, setReceipt] = React.useState<StoragePurchaseReceipt | null>(null)
+  const inFlight = React.useRef(false)
+  const titleId = React.useId()
+  const gb = Number(amount)
+  const validAmount = Number.isInteger(gb) && gb >= 1 && gb <= 10_000
+  const bytesPerToken = storage?.bytesPerToken ?? 0
+  const extraBytes = gb * 1024 ** 3
+  const cost = validAmount && bytesPerToken > 0 ? Math.ceil(extraBytes / bytesPerToken) : null
+  const insufficient = !pending && cost !== null && balance !== null && balance < cost
+  const expired = pending !== null && Date.now() - pending.startedAt >= storagePurchaseRetryMs
+  const canSubmit = cost !== null && !insufficient && !expired && !submitting && !receipt
+
+  const submit = async (): Promise<void> => {
+    if (!canSubmit || inFlight.current) return
+    const previous = readStoragePurchase(key) ?? pending
+    if (previous && Date.now() - previous.startedAt >= storagePurchaseRetryMs) {
+      setPending(previous)
+      return
+    }
+    if (previous && previous.gb !== gb) {
+      setAmount(String(previous.gb))
+      setPending(previous)
+      return
+    }
+    const purchase = previous ?? { gb, intentKey: crypto.randomUUID(), startedAt: Date.now() }
+    saveStoragePurchase(key, purchase)
+    inFlight.current = true
+    setSubmitting(true)
+    setError(null)
+    const result = await post('account/storage-purchase', {
+      gb, bytesPerToken, intentKey: purchase.intentKey, accountId: account.id, serverUrl,
+    })
+    inFlight.current = false
+    setSubmitting(false)
+
+    if (result.ok) {
+      saveStoragePurchase(key, null)
+      const bought = result.value as StoragePurchaseReceipt
+      setReceipt(bought)
+      onPurchased(bought)
+      return
+    }
+
+    const code = result.error?.code
+    const uncertain = !code || ['storage-purchase-unconfirmed', 'transport', 'internal', 'unknown'].includes(code)
+    const unresolved = uncertain || (previous !== null && code !== 'insufficient-tokens')
+    saveStoragePurchase(key, unresolved ? purchase : null)
+    setPending(unresolved ? purchase : null)
+    if (code === 'storage-price-changed' || code === 'storage-price-unavailable' || code === 'insufficient-tokens') onRefresh()
+    if (uncertain) setError(t('community.storagePurchase.unconfirmed'))
+    else if (code === 'insufficient-tokens') setError(t('community.storagePurchase.insufficient'))
+    else if (code === 'storage-price-changed') setError(t('community.storagePurchase.priceChanged'))
+    else if (code === 'storage-price-unavailable') setError(t('community.storagePurchase.priceUnavailable'))
+    else if (code === 'storage-purchase-unavailable') setError(t('community.storagePurchase.unavailable'))
+    else if (code === 'storage-account-changed') setError(t('community.storagePurchase.accountChanged'))
+    else setError(result.error?.message ?? t('community.error.unknown'))
+  }
+
+  return (
+    <dialog
+      ref={(node) => { if (node && !node.open) node.showModal() }}
+      aria-labelledby={titleId}
+      onCancel={(event) => {
+        event.preventDefault()
+        if (!inFlight.current) onClose()
+      }}
+      style={{
+        ...S.card, width: 'min(420px, 92vw)', maxHeight: '90vh', overflowY: 'auto', padding: 0,
+        color: 'var(--dsw-alias-label-primary)',
+      }}
+    >
+      <div id={titleId} style={S.cardHead}>{t('community.storagePurchase.title')}</div>
+      <div style={S.cardBody}>
+        {receipt ? (
+          <div role="status">
+            {t('community.storagePurchase.receipt', {
+              gb: receipt.purchasedGb, total: formatBytes(receipt.capacityBytes), cost: receipt.cost,
+            })}
+          </div>
+        ) : (
+          <>
+            <div style={S.hint}>{account.email}</div>
+            <label style={S.inlineRow}>
+              {t('community.storagePurchase.amount')}
+              <input
+                type="number"
+                min={1}
+                max={10_000}
+                step={1}
+                value={amount}
+                disabled={submitting || pending !== null}
+                onChange={(event) => { setAmount(event.currentTarget.value); setError(null) }}
+                style={{ ...S.compactInput, width: 96, flex: '0 0 auto' }}
+              />
+            </label>
+            {cost !== null && storage && !pending ? (
+              <div style={S.hint} aria-live="polite">
+                {t('community.storagePurchase.quote', { total: formatBytes(storage.capacityBytes + extraBytes), cost })}
+                {balance === null ? '' : ` · ${t('community.storagePurchase.balance', { balance })}`}
+              </div>
+            ) : null}
+            {cost !== null && pending && !expired ? (
+              <div style={S.hint}>{t('community.storagePurchase.retryCost', { cost })}</div>
+            ) : null}
+            {bytesPerToken <= 0 && !error ? (
+              <div style={S.hint}>{t('community.storagePurchase.priceUnavailable')}</div>
+            ) : null}
+            {expired || error || pending || insufficient ? (
+              <div role="alert" style={{ color: 'var(--dsw-alias-state-error-primary)' }}>
+                {expired ? t('community.storagePurchase.retryExpired')
+                  : error ?? t(pending ? 'community.storagePurchase.unconfirmed' : 'community.storagePurchase.insufficient')}
+              </div>
+            ) : null}
+          </>
+        )}
+        <div style={S.footer}>
+          <button type="button" style={S.ghostBtn} disabled={submitting} onClick={onClose}>
+            {t(receipt ? 'community.action.close' : 'community.action.cancel')}
+          </button>
+          {expired ? (
+            <button type="button" style={S.ghostBtn} onClick={() => {
+              saveStoragePurchase(key, null)
+              setPending(null)
+              setAmount('')
+              setError(null)
+              onRefresh()
+            }}>
+              {t('community.storagePurchase.startNew')}
+            </button>
+          ) : !receipt && (
+            <button type="button" style={{ ...S.primaryBtn, opacity: canSubmit ? 1 : 0.55 }}
+              disabled={!canSubmit} onClick={() => void submit()}>
+              {t(submitting ? 'community.storagePurchase.buying'
+                : pending ? 'community.storagePurchase.retry' : 'community.storagePurchase.confirm')}
+            </button>
+          )}
+        </div>
+      </div>
+    </dialog>
   )
 }
 
@@ -5289,6 +5491,7 @@ export function CommunityTab({
   const [busy, setBusy] = React.useState(false)
   /** 正在单独刷新 Token 余额。 */
   const [refreshingBalance, setRefreshingBalance] = React.useState(false)
+  const balanceRequest = React.useRef(0)
 
   /* ── Token 余额弹窗（点余额徽章打开）+ 续费申请 ─────────────────────────
    *
@@ -5326,6 +5529,8 @@ export function CommunityTab({
    */
   const [usage, setUsage] = React.useState<HostUsage | null>(null)
   const [usagePhase, setUsagePhase] = React.useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
+  const usageRequest = React.useRef(0)
+  const [storagePurchaseScope, setStoragePurchaseScope] = React.useState<string | null>(null)
   /** 宿主是旧的（没有 `account/usage` → unknown-endpoint）：要把"需重启"说出来。 */
   const [usageStaleHost, setUsageStaleHost] = React.useState(false)
   const [serverDraft, setServerDraft] = React.useState(initial?.serverUrl ?? '')
@@ -5725,6 +5930,9 @@ export function CommunityTab({
   const listScope = JSON.stringify([activeServer, account?.id, configured, session?.sessionId])
   const currentListScope = React.useRef(listScope)
   currentListScope.current = listScope
+  const accountScope = JSON.stringify([activeServer, account?.id])
+  const currentAccountScope = React.useRef(accountScope)
+  currentAccountScope.current = accountScope
   const downloadKey = download ? JSON.stringify([listScope, download.proposal.projectId, download.source, download.selection]) : ''
   const downloadKeyRef = React.useRef(downloadKey)
   downloadKeyRef.current = downloadKey
@@ -6960,10 +7168,13 @@ export function CommunityTab({
    * （2026-09 余额那次的口径）。`usagePhase` 只用来区分"还在读"与"读不到"，
    * 数字本身保持原样 —— 而 `null`（服务器真的没给）则如实显示"未知"。
    */
-  const loadUsage = React.useCallback(async (): Promise<void> => {
+  const loadUsage = React.useCallback(async (keepLast = false): Promise<void> => {
+    const scope = currentAccountScope.current
+    const request = ++usageRequest.current
     setUsagePhase('loading')
     setUsageStaleHost(false)
     const res = await post('account/usage', {})
+    if (scope !== currentAccountScope.current || request !== usageRequest.current) return
     if (!res.ok) {
       setUsagePhase('unavailable')
       // 旧宿主没有这个端点 → 说清"需重启"，而不是让这一块永远空着（协议 v27）
@@ -6971,7 +7182,7 @@ export function CommunityTab({
       return
     }
     const next = (res.value as { usage: HostUsage | null }).usage ?? null
-    setUsage(next)
+    if (next || !keepLast) setUsage(next)
     setUsagePhase(next ? 'ready' : 'unavailable')
   }, [post])
 
@@ -6982,6 +7193,7 @@ export function CommunityTab({
    * 显示**上一个账号**的配额 —— 那是最难发现的一类假信息。
    */
   React.useEffect(() => {
+    setStoragePurchaseScope(null)
     setUsage(null)
     setUsagePhase('idle')
     setUsageStaleHost(false)
@@ -7001,10 +7213,13 @@ export function CommunityTab({
    * 刷新失败**不清空**已有数字（拿不到 ≠ 变 0）。
    */
   const refreshBalance = async (): Promise<number | null> => {
+    const scope = currentAccountScope.current
+    const request = ++balanceRequest.current
     setRefreshingBalance(true)
     const res = await post('account/tokens', {})
+    if (request !== balanceRequest.current) return null
     setRefreshingBalance(false)
-    if (!res.ok) return null
+    if (!res.ok || scope !== currentAccountScope.current) return null
     const tokens = (res.value as { tokens: HostAccountState['tokens'] }).tokens
     if (!tokens) return null
     setState((prev) => (prev ? { ...prev, tokens } : prev))
@@ -7399,6 +7614,20 @@ export function CommunityTab({
                             total: formatBytes(storage.capacityBytes),
                           })
                         : t('community.dash.unknown')
+                    }
+                    action={
+                      <button
+                        type="button"
+                        style={{ ...S.linkBtn, alignSelf: 'flex-start', paddingLeft: 0 }}
+                        disabled={busy}
+                        onClick={() => {
+                          setStoragePurchaseScope(accountScope)
+                          if (!storage) void loadUsage()
+                          void refreshBalance()
+                        }}
+                      >
+                        {t('community.storagePurchase.open')}
+                      </button>
                     }
                   />
                   <DashTile
@@ -7885,6 +8114,38 @@ export function CommunityTab({
           grant={state?.tokens?.grant ?? null}
           onCancel={() => setAcceptConfirm(null)}
           onConfirm={() => void confirmAccept()}
+        />
+      ) : null}
+
+      {account && storagePurchaseScope === accountScope ? (
+        <StoragePurchaseDialog
+          key={accountScope}
+          t={t}
+          account={account}
+          serverUrl={activeServer}
+          storage={storage}
+          balance={tokens?.available ?? null}
+          post={post}
+          onPurchased={(receipt) => {
+            if (currentAccountScope.current !== accountScope) return
+            setUsage((prev) => prev ? {
+              ...prev,
+              storage: {
+                ...prev.storage,
+                capacityBytes: receipt.capacityBytes,
+                availableBytes: Math.max(0, receipt.capacityBytes - prev.storage.usedBytes),
+              },
+            } : prev)
+            setState((prev) => prev ? { ...prev, tokens: null } : prev)
+            void loadUsage(true)
+            void refreshBalance()
+          }}
+          onRefresh={() => {
+            if (currentAccountScope.current !== accountScope) return
+            void loadUsage()
+            void refreshBalance()
+          }}
+          onClose={() => setStoragePurchaseScope(null)}
         />
       ) : null}
 
