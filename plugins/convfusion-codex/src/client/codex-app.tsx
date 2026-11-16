@@ -4,11 +4,11 @@ import { createRoot } from 'react-dom/client'
 import { App } from '@modelcontextprotocol/ext-apps'
 import { CommunityTab, ConvFusionProjectSettings, copyText, type SettingsSend } from './settings.js'
 import { ResearchProgressPanel } from './progress-panel.js'
-import { WorkbenchSettings, type WorkbenchLanguage } from './workbench-settings.js'
+import { WorkbenchSettings, type UpdateCheckResult, type WorkbenchLanguage } from './workbench-settings.js'
 import { dictionaries, type Translate } from './i18n/index.js'
 import logo from '../../assets/favicon.svg'
 
-type Session = { workspaceRoot: string | null; sessionId: string | null; title: string; version: string; uiScope: 'global' | 'workspace'; uiSession: string; downloadTasks?: boolean; uploadTasks?: boolean; url?: string; initialTab?: 'community' | 'progress' }
+type Session = { workspaceRoot: string | null; sessionId: string | null; title: string; version: string; autoCheckUpdates?: boolean; uiScope: 'global' | 'workspace'; uiSession: string; downloadTasks?: boolean; uploadTasks?: boolean; url?: string; initialTab?: 'community' | 'progress' }
 let session: Session | undefined
 let app: App | undefined
 const inHost = window.parent !== window
@@ -38,6 +38,38 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
   const [syncDraft, setSyncDraft] = React.useState<string | null>(null)
   const [sending, setSending] = React.useState(false)
   const [sendError, setSendError] = React.useState('')
+  const [autoCheckUpdates, setAutoCheckUpdates] = React.useState(current.autoCheckUpdates !== false)
+  const [availableVersion, setAvailableVersion] = React.useState<string | null>(null)
+  const [updateCheck, setUpdateCheck] = React.useState<UpdateCheckResult>(null)
+  const checkForUpdates = React.useCallback(async (manual: boolean, signal?: AbortSignal) => {
+    if (manual) setUpdateCheck({ status: 'checking' })
+    try {
+      const result = await transport('version/check', { manual }, signal)
+      if (signal?.aborted) return
+      const version = result.ok ? result.value as { latest?: unknown; outdated?: boolean } : null
+      if (typeof version?.latest !== 'string') {
+        if (manual) setUpdateCheck({ status: 'unavailable' })
+        return
+      }
+      setAvailableVersion(version.outdated ? version.latest : null)
+      if (manual) setUpdateCheck(version.outdated
+        ? { status: 'available', version: version.latest }
+        : { status: 'current' })
+    } catch {
+      if (manual) setUpdateCheck({ status: 'unavailable' })
+    }
+  }, [])
+  React.useEffect(() => {
+    if (!autoCheckUpdates) return
+    const controller = new AbortController()
+    void checkForUpdates(false, controller.signal)
+    return () => controller.abort()
+  }, [autoCheckUpdates, checkForUpdates])
+  const changeAutoCheckUpdates = async (enabled: boolean) => {
+    const result = await transport('codex/settings', { field: 'autoCheckUpdates', value: enabled })
+    if (!result.ok) throw new Error(result.error?.message)
+    setAutoCheckUpdates(enabled)
+  }
   React.useEffect(() => {
     // Supply the task workspace as app data for the next turn, without sending a chat message.
     void app?.updateModelContext({ structuredContent: { plugin: 'ConvFusion', workspace_root: current.workspaceRoot, scope: current.uiScope } }).catch(() => {})
@@ -67,6 +99,9 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
   return <>
     <header className="header"><img src={logo} alt="" /><div><h1>ConvFusion</h1><small>{current.title} · {current.version}</small></div>
     </header>
+    <div role="status" className="plugin-update-notice">
+      {availableVersion && <p><strong>{t('workbench.updates.available', { version: availableVersion })}</strong> {t('workbench.updates.instructions')}</p>}
+    </div>
     <nav className="workbench-nav" aria-label={zh ? '功能' : 'Features'}>
       <button aria-current={tab === 'community' ? 'page' : undefined} onClick={() => setTab('community')}>{zh ? '研究网络' : 'Research network'}</button>
       <button aria-current={tab === 'progress' ? 'page' : undefined} onClick={() => setTab('progress')}>{zh ? '研究进展' : 'Research progress'}</button>
@@ -77,7 +112,8 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
       {tab === 'community' && <CommunityTab send={transport} initial={null} t={t} session={bridge} view="network" />}
       {tab === 'progress' && (current.sessionId ? <ResearchProgressPanel sessionId={current.sessionId} t={t} send={transport} /> : <p role="status">{zh ? '在项目聊天中 @ 使用 ConvFusion 并打开工作台，即可查看该项目的研究进展。' : 'Use @ to invoke ConvFusion in a project chat and open the workbench to view its research progress.'}</p>)}
       {tab === 'methods' && <><MethodsExport zh={zh} enabled={Boolean(current.workspaceRoot)} /><ConvFusionProjectSettings send={transport} t={t} session={bridge} view="methods" /></>}
-      {tab === 'settings' && <WorkbenchSettings send={transport} t={t} language={language} onLanguageChange={setLanguage} />}
+      {tab === 'settings' && <WorkbenchSettings send={transport} t={t} language={language} onLanguageChange={setLanguage}
+        updates={{ version: current.version, automatic: autoCheckUpdates, result: updateCheck, onChange: changeAutoCheckUpdates, onCheck: () => { void checkForUpdates(true) } }} />}
     </main>
     {syncDraft !== null && <dialog ref={(node) => { if (node && !node.open) node.showModal() }} onCancel={() => setSyncDraft(null)} aria-label={zh ? '同步请求' : 'Sync request'} className="sync-request">
       <h2>{zh ? '同步请求' : 'Sync request'}</h2>

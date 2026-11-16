@@ -34,6 +34,10 @@ const controlsCss = `
 .preferences-row select,.preferences-row input{padding:6px 8px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:inherit;font:inherit}
 .preferences-row input[type=number]{width:76px}
 .preferences-check input,.preferences-card input[type=checkbox]{margin:4px 3px;flex:none}
+.plugin-update-notice p{margin:12px 0 0;padding:8px 12px;border-radius:8px;background:var(--dsw-alias-state-business-tertiary);color:var(--dsw-alias-state-business-primary)}
+.plugin-update-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.plugin-update-actions button{padding:5px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-2);color:inherit;font:inherit;cursor:pointer}
+.plugin-update-actions button[aria-disabled=true]{opacity:.65;cursor:wait}
 @media(max-width:600px){.preferences-layout{grid-template-columns:minmax(0,1fr);gap:12px}.preferences-nav{display:flex;flex-wrap:wrap}.preferences-nav button{padding:6px 9px}.preferences-content{gap:9px}}
 .sync-request{width:min(640px,92vw);max-height:85vh;overflow:auto;padding:24px;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}.sync-request::backdrop{background:#0008}.sync-request textarea{width:100%;padding:12px;color:inherit;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:8px}.sync-request button{margin-right:8px}`
 

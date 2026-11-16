@@ -360,6 +360,7 @@ async function callTool(name, rawArgs, requestMeta, sendNotification) {
 export async function handleRequest(message, sendNotification) {
   const { id, method, params = {} } = message
   if (method === 'initialize') {
+    void uiHost.checkForUpdates().catch(() => {})
     return {
       jsonrpc: '2.0',
       id,

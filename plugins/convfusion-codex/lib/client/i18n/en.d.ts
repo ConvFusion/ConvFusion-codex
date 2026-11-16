@@ -7,6 +7,16 @@ export declare const en: {
     readonly 'workbench.settings.category.research': "Research behavior";
     readonly 'workbench.settings.category.system': "System settings";
     readonly 'workbench.settings.language': "Display language";
+    readonly 'workbench.updates.title': "Plugin updates";
+    readonly 'workbench.updates.installed': "Installed version {version}";
+    readonly 'workbench.updates.automatic': "Automatically check for updates";
+    readonly 'workbench.updates.check': "Check for updates";
+    readonly 'workbench.updates.checking': "Checking…";
+    readonly 'workbench.updates.available': "New version {version} available";
+    readonly 'workbench.updates.current': "You’re up to date.";
+    readonly 'workbench.updates.unavailable': "Couldn’t check for updates. Try again later.";
+    readonly 'workbench.updates.saveFailed': "Couldn’t save the automatic update setting. Try again.";
+    readonly 'workbench.updates.instructions': "To update, go to Codex Settings → Plugins → Marketplaces → ConvFusion and select Upgrade.";
     readonly 'workbench.settings.notificationsSignIn': "Sign in to ConvFusion.com to manage email notifications.";
     readonly 'workbench.settings.decision': "Decision assistance";
     readonly 'workbench.settings.continuation': "Automatic continuation";

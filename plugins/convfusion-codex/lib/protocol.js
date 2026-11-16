@@ -75,7 +75,7 @@
  *   （界面按"拿不到就不显示"处理，不假装有），升号以便旧宿主提示重启。
  *
  * - `16`：`/dsh-convfusion/state` 增加 **`version`**（插件版本，package.json 单一来源），
- *   并新增 **`version/check`** 端点（GitHub Releases 更新检查）。旧宿主不返回 `version`
+ *   并新增 **`version/check`** 端点（检查插件市场的版本）。旧宿主不返回 `version`
  *   时界面只显示"没有版本号"、没有更新提醒 —— 升号让旧宿主提示重启。
  *
  * - `17`：`mentor/list` 的指导进展（`reviewFiles`）**改由服务器直接给出**

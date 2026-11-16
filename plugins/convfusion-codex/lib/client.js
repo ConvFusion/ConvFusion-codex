@@ -96,6 +96,16 @@ window.__ModuleLoader__.load({
 		  "workbench.settings.category.research": "Research behavior",
 		  "workbench.settings.category.system": "System settings",
 		  "workbench.settings.language": "Display language",
+		  "workbench.updates.title": "Plugin updates",
+		  "workbench.updates.installed": "Installed version {version}",
+		  "workbench.updates.automatic": "Automatically check for updates",
+		  "workbench.updates.check": "Check for updates",
+		  "workbench.updates.checking": "Checking…",
+		  "workbench.updates.available": "New version {version} available",
+		  "workbench.updates.current": "You’re up to date.",
+		  "workbench.updates.unavailable": "Couldn’t check for updates. Try again later.",
+		  "workbench.updates.saveFailed": "Couldn’t save the automatic update setting. Try again.",
+		  "workbench.updates.instructions": "To update, go to Codex Settings → Plugins → Marketplaces → ConvFusion and select Upgrade.",
 		  "workbench.settings.notificationsSignIn": "Sign in to ConvFusion.com to manage email notifications.",
 		  "workbench.settings.decision": "Decision assistance",
 		  "workbench.settings.continuation": "Automatic continuation",
@@ -899,6 +909,16 @@ window.__ModuleLoader__.load({
 		  "workbench.settings.category.research": "研究行为",
 		  "workbench.settings.category.system": "系统设置",
 		  "workbench.settings.language": "界面语言",
+		  "workbench.updates.title": "插件更新",
+		  "workbench.updates.installed": "当前版本 {version}",
+		  "workbench.updates.automatic": "自动检查更新",
+		  "workbench.updates.check": "检查更新",
+		  "workbench.updates.checking": "正在检查…",
+		  "workbench.updates.available": "有新版本 {version}",
+		  "workbench.updates.current": "当前已是最新版本。",
+		  "workbench.updates.unavailable": "暂时无法检查更新，请稍后重试。",
+		  "workbench.updates.saveFailed": "无法保存自动检查设置，请重试。",
+		  "workbench.updates.instructions": "在 Codex 设置 → 插件 → 市场 → ConvFusion 中选择升级。",
 		  "workbench.settings.notificationsSignIn": "登录 ConvFusion.com 后即可管理邮件通知。",
 		  "workbench.settings.decision": "决策辅助",
 		  "workbench.settings.continuation": "自动推进",
@@ -2963,7 +2983,7 @@ window.__ModuleLoader__.load({
 		    [send, t]
 		  );
 		  import_react.default.useEffect(() => {
-		    if (view === "system") return;
+		    if (view) return;
 		    let alive = true;
 		    void (async () => {
 		      try {

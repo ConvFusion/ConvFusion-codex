@@ -1095,11 +1095,11 @@ export function ConvFusionProjectSettings({
   )
 
   /**
-   * 更新检查：**尽力而为**。GitHub 不可达 / 尚无 release / 已是最新 → 静默（不显示）。
+   * 独立设置页检查版本。Codex 工作台在顶部统一显示更新。
    * 绝不打扰：这条请求失败不会让设置页有任何报错。
    */
   React.useEffect(() => {
-    if (view === 'system') return
+    if (view) return
     let alive = true
     void (async () => {
       try {

@@ -5,12 +5,22 @@ import type { Translate } from './i18n/index.js'
 const categories = ['user', 'server', 'research', 'system'] as const
 type Category = (typeof categories)[number]
 export type WorkbenchLanguage = 'zh' | 'en'
+export type UpdateCheckResult = { status: 'checking' | 'current' | 'unavailable' } | { status: 'available'; version: string } | null
 
-export function WorkbenchSettings({ send, t, language, onLanguageChange }: {
+type UpdateSettings = {
+  version: string
+  automatic: boolean
+  result: UpdateCheckResult
+  onChange: (enabled: boolean) => Promise<void>
+  onCheck: () => void
+}
+
+export function WorkbenchSettings({ send, t, language, onLanguageChange, updates }: {
   send: SettingsSend
   t: Translate
   language: WorkbenchLanguage
   onLanguageChange: (language: WorkbenchLanguage) => void
+  updates: UpdateSettings
 }): JSX.Element {
   const [category, setCategory] = React.useState<Category>('user')
 
@@ -25,6 +35,7 @@ export function WorkbenchSettings({ send, t, language, onLanguageChange }: {
           </select>
         </label>
       </div>
+      <PluginUpdateSettings updates={updates} t={t} />
       <CommunityTab send={send} initial={null} t={t} view="user-settings" />
     </>,
     server: () => <CommunityTab send={send} initial={null} t={t} view="server-settings" />,
@@ -47,6 +58,43 @@ export function WorkbenchSettings({ send, t, language, onLanguageChange }: {
       </section>
     </div>
   </section>
+}
+
+function PluginUpdateSettings({ updates, t }: { updates: UpdateSettings; t: Translate }): JSX.Element {
+  const [saving, setSaving] = React.useState(false)
+  const [saveFailed, setSaveFailed] = React.useState(false)
+  const checkboxId = React.useId()
+  const checking = updates.result?.status === 'checking'
+  const setAutomatic = async (enabled: boolean) => {
+    setSaveFailed(false)
+    setSaving(true)
+    try {
+      await updates.onChange(enabled)
+    } catch {
+      setSaveFailed(true)
+    } finally {
+      setSaving(false)
+    }
+  }
+  const result = updates.result
+  return <div className="preferences-card">
+    <h4>{t('workbench.updates.title')}</h4>
+    <p>{t('workbench.updates.installed', { version: updates.version })}</p>
+    <label className="preferences-check" htmlFor={checkboxId}>
+      <input id={checkboxId} type="checkbox" checked={updates.automatic} disabled={saving}
+        onChange={(event) => { void setAutomatic(event.target.checked) }} />
+      {t('workbench.updates.automatic')}
+    </label>
+    {saveFailed && <p role="alert">{t('workbench.updates.saveFailed')}</p>}
+    <div className="plugin-update-actions">
+      <button type="button" aria-disabled={checking || undefined} onClick={() => { if (!checking) updates.onCheck() }}>
+        {t(checking ? 'workbench.updates.checking' : 'workbench.updates.check')}
+      </button>
+      <p role="status">{result && result.status !== 'checking' && (
+        result.status === 'available' ? t('workbench.updates.available', { version: result.version }) : t(`workbench.updates.${result.status}`)
+      )}</p>
+    </div>
+  </div>
 }
 
 type ContinuationPolicy = { enabled: boolean; maxRounds: number }

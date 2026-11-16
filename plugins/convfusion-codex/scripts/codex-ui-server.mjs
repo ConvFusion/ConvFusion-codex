@@ -72,6 +72,7 @@ export function createCodexUiHost(options = {}) {
     ...readJson(path('config.json'), {}),
     customizationDir: home,
   })
+  const autoCheckUpdates = () => getConfig().autoCheckUpdates !== false
   const setConfig = (patch) => {
     const update = persistQueue.then(() => writePrivateJson(path('config.json'), { ...getConfig(), ...patch, customizationDir: home }))
     persistQueue = update.catch(() => {})
@@ -90,7 +91,7 @@ export function createCodexUiHost(options = {}) {
   }
   const handler = createSettingsRpcHandler({
     getConfig, setConfig, store, version: pkg.version, env, workspaceUploads: true,
-    ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
+    fetchImpl: options.fetchImpl ?? globalThis.fetch,
     resolvePath: () => path('skill-customizations.json'),
     resolveSessionWorkspace: (id) => workspaces.get(id)?.path,
     listLocalWorkspaces: async () => ({ available: true, items: workspaceRows() }),
@@ -102,6 +103,10 @@ export function createCodexUiHost(options = {}) {
     syncStore: createFileSyncWatermarkStore(() => path('sync-watermarks.json')),
     syncNotes, workIdentity,
   })
+  const checkForUpdates = async (manual = false) => {
+    if (manual || autoCheckUpdates()) return handler('version/check', { refresh: true })
+    return { ok: true, value: { current: pkg.version, latest: null, outdated: false, url: null, checkedAt: null } }
+  }
   const workspaceRows = () => {
     for (const row of readCodexWorkspaces(home)) workspaces.set(row.id, row)
     return [...workspaces.values()].filter((row) => { try { return statSync(row.path).isDirectory() } catch { return false } })
@@ -115,14 +120,16 @@ export function createCodexUiHost(options = {}) {
     const row = root ? registerWorkspace(root) : null
     let research = false
     try { research = Boolean(row && isResearchWorkspace(researchWorkspaceOf(row.path))) } catch { /* Keep the default view available. */ }
-    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? '研究工作台', version: pkg.version, downloadTasks: true, uploadTasks: true, initialTab: research ? 'progress' : 'community' }
+    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? '研究工作台', version: pkg.version, autoCheckUpdates: autoCheckUpdates(), downloadTasks: true, uploadTasks: true, initialTab: research ? 'progress' : 'community' }
   }
   const dispatch = async (root, endpoint, payload) => {
     if (root) registerWorkspace(root)
     if (endpoint === 'codex/bootstrap') return { ok: true, value: bootstrap(root) }
+    if (endpoint === 'version/check') return checkForUpdates(payload?.manual === true)
     if (endpoint === 'codex/settings') {
       if (payload?.field === 'autoContinue' && typeof payload.value === 'boolean') await setConfig({ autoContinue: payload.value })
       else if (payload?.field === 'autoContinueMaxRounds' && Number.isInteger(payload.value) && payload.value >= 0 && payload.value <= 100) await setConfig({ autoContinueMaxRounds: payload.value })
+      else if (payload?.field === 'autoCheckUpdates' && typeof payload.value === 'boolean') await setConfig({ autoCheckUpdates: payload.value })
       else return failure('field', 'Unsupported setting')
       return { ok: true, value: { configured: Boolean(getConfig().openalexApiKey) } }
     }
@@ -229,7 +236,7 @@ export function createCodexUiHost(options = {}) {
     return { ...sessionInfo(token, state), url: `${origin}/#${token}` }
   }
   return {
-    home, store, getConfig, registerWorkspace, bootstrap, dispatch, dispatchSession, open, uiHtml, prepareSync, exportMethods,
+    home, store, getConfig, registerWorkspace, bootstrap, dispatch, dispatchSession, open, uiHtml, prepareSync, exportMethods, checkForUpdates,
     context(root, input = '') { return codexResearchContext(root, input, store, getConfig()) },
     methods(id) { return id ? { id, content: effectiveSkillContentById(id, store) ?? null } : listSystemSkills().map(({ id, name, category, kind, code, label }) => ({ id, name, category, kind, code, label })) },
     async close() { await downloads.close(); if (server) await new Promise((resolve) => server.close(resolve)); server = undefined; launch = undefined },

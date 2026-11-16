@@ -101,8 +101,9 @@ import { findTectonic, tectonicVersion, TECTONIC_ENV } from './research/latex-co
 export const SETTINGS_ROUTE_PREFIX = '/dsh-convfusion';
 /** 请求体上限（状态是只读的，写请求也很小；4 MiB 足够且能挡住误用）。 */
 export const SETTINGS_MAX_BODY_BYTES = 4 * 1024 * 1024;
-/** 更新检查：GitHub Releases API（`releases/latest`；尚无任何 release 时返回 404）。 */
-const GITHUB_LATEST_RELEASE_URL = 'https://api.github.com/repos/ConvFusion/ConvFusion-codex/releases/latest';
+const PLUGIN_MANIFEST_URL = 'https://raw.githubusercontent.com/ConvFusion/ConvFusion-codex/main/plugins/convfusion-codex/.codex-plugin/plugin.json';
+const PLUGIN_UPDATE_GUIDE_URL = 'https://github.com/ConvFusion/ConvFusion-codex#更新';
+const CODEX_PLUGIN_VERSION = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)-codex\.[1-9]\d*$/;
 /** 更新检查结果缓存时长（进一次设置页就打一次 GitHub 没必要）。 */
 const VERSION_CHECK_TTL_MS = 10 * 60 * 1000;
 /** 更新检查单次请求超时（GitHub 不可达时静默降级，绝不阻塞设置页）。 */
@@ -433,13 +434,8 @@ export function compareVersions(a, b) {
     }
     return 0;
 }
-/**
- * 查 GitHub 上最新的 Release（`releases/latest`）。
- *
- * ⚠️ 失败（离线 / 超时 / 尚无任何 release → 404）一律返回 null：
- * 更新检查是**增值**能力，绝不能因 GitHub 不可达而让设置页报错或变慢。
- */
-async function fetchLatestRelease(fetchImpl, timeoutMs) {
+/** Read the manifest from the same Git branch students install in Codex. */
+async function fetchMarketplaceVersion(fetchImpl, timeoutMs) {
     if (typeof fetchImpl !== 'function')
         return null;
     const controller = new AbortController();
@@ -451,23 +447,14 @@ async function fetchLatestRelease(fetchImpl, timeoutMs) {
         }, timeoutMs);
     });
     try {
-        const res = (await Promise.race([
-            fetchImpl(GITHUB_LATEST_RELEASE_URL, {
-                headers: { accept: 'application/vnd.github+json', 'user-agent': 'dsh-convfusion' },
-                signal: controller.signal,
-            }),
-            timeout,
-        ]));
-        if (!res || !res.ok || res.status === 404)
+        const manifest = fetchImpl(PLUGIN_MANIFEST_URL, {
+            headers: { accept: 'application/json', 'cache-control': 'no-cache' },
+            signal: controller.signal,
+        }).then((response) => response.ok ? response.json() : null);
+        const body = (await Promise.race([manifest, timeout]));
+        if (body?.name !== 'convfusion-codex' || typeof body.version !== 'string')
             return null;
-        const body = (await res.json());
-        if (typeof body?.tag_name !== 'string' || !body.tag_name)
-            return null;
-        return {
-            // 统一去掉 `v` 前缀：客户端渲染时自己加 `v`，两边口径一致
-            latest: body.tag_name.replace(/^[vV]/, ''),
-            url: typeof body.html_url === 'string' ? body.html_url : '',
-        };
+        return CODEX_PLUGIN_VERSION.test(body.version) ? body.version : null;
     }
     catch {
         return null;
@@ -488,7 +475,7 @@ async function fetchLatestRelease(fetchImpl, timeoutMs) {
  * | `dependencies/check` | `{}` | 重新探测本地外部依赖（tectonic），供【系统设置】的"重新检查" |
  * | `retrieval/saveKey` | `{ apiKey }` | 保存 OpenAlex API Key（**宿主侧落盘**，见端点实现里的理由）；回检索状态 |
  * | `retrieval/clearKey` | `{}` | 清除 OpenAlex API Key（回到"跟随环境变量"）；回检索状态 |
- * | `version/check` | `{}` | 插件更新检查（GitHub Releases `latest`；离线/无 release 时 `latest:null`） |
+ * | `version/check` | `{ refresh? }` | 插件市场版本检查，失败时 `latest: null` |
  * | `customization/save` | `{ skillId, section, text }` | 写入覆盖（空文本 = 清除） |
  * | `customization/reset` | `{ skillId, section }` | 清除一个章节的覆盖 |
  * | `customization/resetSkill` | `{ skillId }` | 清除一个 Skill 的全部覆盖 |
@@ -596,32 +583,23 @@ export function createSettingsRpcHandler(deps) {
         uploadProgress = record;
         return record;
     };
-    /**
-     * 更新检查：进程内缓存 + 静默降级（见 {@link fetchLatestRelease}）。
-     * 缓存失败结果同样防抖 —— 不可达时也不能每次进设置页都重试。
-     */
-    let versionCheckCache = null;
-    const checkGitHubVersion = async () => {
-        const current = deps.version ?? '0.0.0';
-        const now = Date.now();
-        const cached = versionCheckCache && now - versionCheckCache.at < VERSION_CHECK_TTL_MS ? versionCheckCache : null;
-        if (cached) {
-            return {
-                current,
-                latest: cached.latest,
-                outdated: cached.latest !== null && compareVersions(cached.latest, current) > 0,
-                url: cached.url,
-                checkedAt: new Date(cached.at).toISOString(),
-            };
+    let versionCheckCache;
+    let versionCheckPending;
+    const checkGitHubVersion = async (refresh) => {
+        if (refresh || !versionCheckCache || Date.now() - versionCheckCache.at >= VERSION_CHECK_TTL_MS) {
+            versionCheckPending ??= fetchMarketplaceVersion(deps.fetchImpl, VERSION_CHECK_TIMEOUT_MS)
+                .then((latest) => { versionCheckCache = { at: Date.now(), latest }; })
+                .finally(() => { versionCheckPending = undefined; });
+            await versionCheckPending;
         }
-        const found = await fetchLatestRelease(deps.fetchImpl, VERSION_CHECK_TIMEOUT_MS);
-        versionCheckCache = { at: now, latest: found?.latest ?? null, url: found?.url ?? null };
+        const current = deps.version ?? '0.0.0';
+        const latest = versionCheckCache?.latest ?? null;
         return {
             current,
-            latest: versionCheckCache.latest,
-            outdated: versionCheckCache.latest !== null && compareVersions(versionCheckCache.latest, current) > 0,
-            url: versionCheckCache.url,
-            checkedAt: new Date(now).toISOString(),
+            latest,
+            outdated: latest !== null && compareVersions(latest, current) > 0,
+            url: latest === null ? null : PLUGIN_UPDATE_GUIDE_URL,
+            checkedAt: versionCheckCache ? new Date(versionCheckCache.at).toISOString() : null,
         };
     };
     /**
@@ -1221,14 +1199,8 @@ export function createSettingsRpcHandler(deps) {
                         return cleared;
                     return { ok: true, value: { retrieval: retrievalStatus({ ...deps.getConfig(), openalexApiKey: '' }) } };
                 }
-                /**
-                 * 插件更新检查：比较当前版本与 GitHub 最新 Release。
-                 *
-                 * 离线 / 超时 / 尚无任何 release → `latest: null`（界面不显示更新提醒），
-                 * 这是**增值**能力，GitHub 不可达绝不能让设置页报错或变慢。
-                 */
                 case 'version/check':
-                    return { ok: true, value: await checkGitHubVersion() };
+                    return { ok: true, value: await checkGitHubVersion(p.refresh === true) };
                 /* ── 研究进展（顶部「研究进展」按钮的面板）─────────────────────────
                  *
                  * `v2-Progress.md` 的三段式，但改由**顶部按钮**承载（2026-09 用户拍板）：

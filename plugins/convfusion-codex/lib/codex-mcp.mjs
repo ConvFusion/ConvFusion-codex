@@ -13507,7 +13507,9 @@ function scanUnsafeTokens(latex) {
 
 // lib/settings-rpc.js
 var SETTINGS_MAX_BODY_BYTES = 4 * 1024 * 1024;
-var GITHUB_LATEST_RELEASE_URL = "https://api.github.com/repos/ConvFusion/ConvFusion-codex/releases/latest";
+var PLUGIN_MANIFEST_URL = "https://raw.githubusercontent.com/ConvFusion/ConvFusion-codex/main/plugins/convfusion-codex/.codex-plugin/plugin.json";
+var PLUGIN_UPDATE_GUIDE_URL = "https://github.com/ConvFusion/ConvFusion-codex#\u66F4\u65B0";
+var CODEX_PLUGIN_VERSION = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)-codex\.[1-9]\d*$/;
 var VERSION_CHECK_TTL_MS = 10 * 60 * 1e3;
 var VERSION_CHECK_TIMEOUT_MS = 5e3;
 function fail(code, message) {
@@ -13703,7 +13705,7 @@ function compareVersions(a, b) {
   }
   return 0;
 }
-async function fetchLatestRelease(fetchImpl, timeoutMs) {
+async function fetchMarketplaceVersion(fetchImpl, timeoutMs) {
   if (typeof fetchImpl !== "function")
     return null;
   const controller = new AbortController();
@@ -13715,23 +13717,14 @@ async function fetchLatestRelease(fetchImpl, timeoutMs) {
     }, timeoutMs);
   });
   try {
-    const res = await Promise.race([
-      fetchImpl(GITHUB_LATEST_RELEASE_URL, {
-        headers: { accept: "application/vnd.github+json", "user-agent": "dsh-convfusion" },
-        signal: controller.signal
-      }),
-      timeout
-    ]);
-    if (!res || !res.ok || res.status === 404)
+    const manifest = fetchImpl(PLUGIN_MANIFEST_URL, {
+      headers: { accept: "application/json", "cache-control": "no-cache" },
+      signal: controller.signal
+    }).then((response) => response.ok ? response.json() : null);
+    const body = await Promise.race([manifest, timeout]);
+    if (body?.name !== "convfusion-codex" || typeof body.version !== "string")
       return null;
-    const body = await res.json();
-    if (typeof body?.tag_name !== "string" || !body.tag_name)
-      return null;
-    return {
-      // 统一去掉 `v` 前缀：客户端渲染时自己加 `v`，两边口径一致
-      latest: body.tag_name.replace(/^[vV]/, ""),
-      url: typeof body.html_url === "string" ? body.html_url : ""
-    };
+    return CODEX_PLUGIN_VERSION.test(body.version) ? body.version : null;
   } catch {
     return null;
   } finally {
@@ -13754,28 +13747,25 @@ function createSettingsRpcHandler(deps) {
     uploadProgress = record;
     return record;
   };
-  let versionCheckCache = null;
-  const checkGitHubVersion = async () => {
-    const current = deps.version ?? "0.0.0";
-    const now = Date.now();
-    const cached = versionCheckCache && now - versionCheckCache.at < VERSION_CHECK_TTL_MS ? versionCheckCache : null;
-    if (cached) {
-      return {
-        current,
-        latest: cached.latest,
-        outdated: cached.latest !== null && compareVersions(cached.latest, current) > 0,
-        url: cached.url,
-        checkedAt: new Date(cached.at).toISOString()
-      };
+  let versionCheckCache;
+  let versionCheckPending;
+  const checkGitHubVersion = async (refresh) => {
+    if (refresh || !versionCheckCache || Date.now() - versionCheckCache.at >= VERSION_CHECK_TTL_MS) {
+      versionCheckPending ??= fetchMarketplaceVersion(deps.fetchImpl, VERSION_CHECK_TIMEOUT_MS).then((latest2) => {
+        versionCheckCache = { at: Date.now(), latest: latest2 };
+      }).finally(() => {
+        versionCheckPending = void 0;
+      });
+      await versionCheckPending;
     }
-    const found = await fetchLatestRelease(deps.fetchImpl, VERSION_CHECK_TIMEOUT_MS);
-    versionCheckCache = { at: now, latest: found?.latest ?? null, url: found?.url ?? null };
+    const current = deps.version ?? "0.0.0";
+    const latest = versionCheckCache?.latest ?? null;
     return {
       current,
-      latest: versionCheckCache.latest,
-      outdated: versionCheckCache.latest !== null && compareVersions(versionCheckCache.latest, current) > 0,
-      url: versionCheckCache.url,
-      checkedAt: new Date(now).toISOString()
+      latest,
+      outdated: latest !== null && compareVersions(latest, current) > 0,
+      url: latest === null ? null : PLUGIN_UPDATE_GUIDE_URL,
+      checkedAt: versionCheckCache ? new Date(versionCheckCache.at).toISOString() : null
     };
   };
   const accountIdCache = /* @__PURE__ */ new Map();
@@ -14132,14 +14122,8 @@ function createSettingsRpcHandler(deps) {
             return cleared;
           return { ok: true, value: { retrieval: retrievalStatus({ ...deps.getConfig(), openalexApiKey: "" }) } };
         }
-        /**
-         * 插件更新检查：比较当前版本与 GitHub 最新 Release。
-         *
-         * 离线 / 超时 / 尚无任何 release → `latest: null`（界面不显示更新提醒），
-         * 这是**增值**能力，GitHub 不可达绝不能让设置页报错或变慢。
-         */
         case "version/check":
-          return { ok: true, value: await checkGitHubVersion() };
+          return { ok: true, value: await checkGitHubVersion(p.refresh === true) };
         /* ── 研究进展（顶部「研究进展」按钮的面板）─────────────────────────
          *
          * `v2-Progress.md` 的三段式，但改由**顶部按钮**承载（2026-09 用户拍板）：
@@ -17227,6 +17211,7 @@ function createCodexUiHost(options = {}) {
     ...readPrivateJson(path("config.json"), {}),
     customizationDir: home
   });
+  const autoCheckUpdates = () => getConfig().autoCheckUpdates !== false;
   const setConfig = (patch) => {
     const update = persistQueue.then(() => writePrivateJson(path("config.json"), { ...getConfig(), ...patch, customizationDir: home }));
     persistQueue = update.catch(() => {
@@ -17251,7 +17236,7 @@ function createCodexUiHost(options = {}) {
     version: pkg.version,
     env,
     workspaceUploads: true,
-    ...options.fetchImpl ? { fetchImpl: options.fetchImpl } : {},
+    fetchImpl: options.fetchImpl ?? globalThis.fetch,
     resolvePath: () => path("skill-customizations.json"),
     resolveSessionWorkspace: (id) => workspaces.get(id)?.path,
     listLocalWorkspaces: async () => ({ available: true, items: workspaceRows() }),
@@ -17264,6 +17249,10 @@ function createCodexUiHost(options = {}) {
     syncNotes,
     workIdentity
   });
+  const checkForUpdates = async (manual = false) => {
+    if (manual || autoCheckUpdates()) return handler("version/check", { refresh: true });
+    return { ok: true, value: { current: pkg.version, latest: null, outdated: false, url: null, checkedAt: null } };
+  };
   const workspaceRows = () => {
     for (const row of readCodexWorkspaces(home)) workspaces.set(row.id, row);
     return [...workspaces.values()].filter((row) => {
@@ -17286,14 +17275,16 @@ function createCodexUiHost(options = {}) {
       research = Boolean(row && isResearchWorkspace(researchWorkspaceOf(row.path)));
     } catch {
     }
-    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? "\u7814\u7A76\u5DE5\u4F5C\u53F0", version: pkg.version, downloadTasks: true, uploadTasks: true, initialTab: research ? "progress" : "community" };
+    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? "\u7814\u7A76\u5DE5\u4F5C\u53F0", version: pkg.version, autoCheckUpdates: autoCheckUpdates(), downloadTasks: true, uploadTasks: true, initialTab: research ? "progress" : "community" };
   };
   const dispatch = async (root, endpoint, payload) => {
     if (root) registerWorkspace(root);
     if (endpoint === "codex/bootstrap") return { ok: true, value: bootstrap(root) };
+    if (endpoint === "version/check") return checkForUpdates(payload?.manual === true);
     if (endpoint === "codex/settings") {
       if (payload?.field === "autoContinue" && typeof payload.value === "boolean") await setConfig({ autoContinue: payload.value });
       else if (payload?.field === "autoContinueMaxRounds" && Number.isInteger(payload.value) && payload.value >= 0 && payload.value <= 100) await setConfig({ autoContinueMaxRounds: payload.value });
+      else if (payload?.field === "autoCheckUpdates" && typeof payload.value === "boolean") await setConfig({ autoCheckUpdates: payload.value });
       else return failure("field", "Unsupported setting");
       return { ok: true, value: { configured: Boolean(getConfig().openalexApiKey) } };
     }
@@ -17425,6 +17416,7 @@ function createCodexUiHost(options = {}) {
     uiHtml,
     prepareSync,
     exportMethods,
+    checkForUpdates,
     context(root, input = "") {
       return codexResearchContext(root, input, store, getConfig());
     },
@@ -28958,6 +28950,8 @@ async function callTool(name, rawArgs, requestMeta, sendNotification) {
 async function handleRequest(message, sendNotification) {
   const { id, method, params = {} } = message;
   if (method === "initialize") {
+    void uiHost.checkForUpdates().catch(() => {
+    });
     return {
       jsonrpc: "2.0",
       id,

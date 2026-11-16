@@ -7,6 +7,16 @@ export declare const zh: {
     'workbench.settings.category.research': string;
     'workbench.settings.category.system': string;
     'workbench.settings.language': string;
+    'workbench.updates.title': string;
+    'workbench.updates.installed': string;
+    'workbench.updates.automatic': string;
+    'workbench.updates.check': string;
+    'workbench.updates.checking': string;
+    'workbench.updates.available': string;
+    'workbench.updates.current': string;
+    'workbench.updates.unavailable': string;
+    'workbench.updates.saveFailed': string;
+    'workbench.updates.instructions': string;
     'workbench.settings.notificationsSignIn': string;
     'workbench.settings.decision': string;
     'workbench.settings.continuation': string;

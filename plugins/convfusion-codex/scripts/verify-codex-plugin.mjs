@@ -7,10 +7,24 @@ import { join } from 'node:path'
 
 const temp = await realpath(await mkdtemp(join(tmpdir(), 'convfusion-codex-')))
 process.env.CONVFUSION_CODEX_HOME = join(temp, 'plugin-home')
+const packageInfo = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+const originalFetch = globalThis.fetch
+const newerVersion = packageInfo.version.replace(/\d+$/, (number) => String(Number(number) + 1))
+let versionRequests = 0
+let respondToStartup
+const startupManifest = new Promise((resolve) => { respondToStartup = resolve })
+let manifestVersion = packageInfo.version
+globalThis.fetch = async (url, options) => {
+  if (url !== 'https://raw.githubusercontent.com/ConvFusion/ConvFusion-codex/main/plugins/convfusion-codex/.codex-plugin/plugin.json') return originalFetch(url, options)
+  assert.equal(options.headers.authorization, undefined)
+  versionRequests += 1
+  if (versionRequests === 1) return startupManifest
+  if (manifestVersion === null) throw new Error('Offline fixture')
+  return Response.json({ name: packageInfo.name, version: manifestVersion })
+}
 const { handleRequest, closeUiHost } = await import('./convfusion-mcp.mjs')
 const { handleLifecycle } = await import('../lib/codex/lifecycle.js')
 const { stateKey } = await import('../lib/codex/storage.js')
-const packageInfo = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
 
 try {
   const initialized = await handleRequest({
@@ -21,6 +35,7 @@ try {
   })
   assert.equal(initialized.result.serverInfo.name, 'convfusion-codex')
   assert.equal(initialized.result.serverInfo.version, packageInfo.version)
+  assert.equal(versionRequests, 1, 'MCP initialization starts the default update check without awaiting GitHub')
 
   const listed = await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
   const names = listed.result.tools.map((tool) => tool.name)
@@ -81,6 +96,28 @@ try {
   assert.equal(global.structuredContent.initialTab, 'community')
   assert.equal(global.structuredContent.workspaceRoot, null, 'global launch must not use process cwd')
   const uiCall = async (payload) => (await handleRequest({ jsonrpc: '2.0', id: 25, method: 'tools/call', params: { name: 'research_ui_action', arguments: { ui_session: global.structuredContent.uiSession, ...payload } } })).result
+  assert.equal(global.structuredContent.autoCheckUpdates, true)
+  const check = async (manual = false) => (await uiCall({ endpoint: 'version/check', payload: { manual } })).structuredContent.value
+  const firstCheck = check()
+  respondToStartup(Response.json({ name: packageInfo.name, version: newerVersion }))
+  assert.equal((await firstCheck).outdated, true)
+  assert.equal(versionRequests, 1, 'the workbench joins a startup check already in flight')
+  assert.equal((await check()).latest, packageInfo.version, 'each subsequent workbench opening refreshes the remote version')
+  assert.equal(versionRequests, 2)
+  const disable = await uiCall({ endpoint: 'codex/settings', payload: { field: 'autoCheckUpdates', value: false } })
+  assert.equal(disable.isError, false)
+  assert.equal((await uiCall({ endpoint: 'codex/bootstrap' })).structuredContent.value.autoCheckUpdates, false)
+  const preferences = JSON.parse(await readFile(join(process.env.CONVFUSION_CODEX_HOME, 'config.json'), 'utf8'))
+  assert.equal(preferences.autoCheckUpdates, false)
+  await handleRequest({ jsonrpc: '2.0', id: 26, method: 'initialize' })
+  assert.equal((await check()).checkedAt, null)
+  assert.equal(versionRequests, 2, 'disabling auto-check skips both triggers')
+  manifestVersion = newerVersion
+  assert.equal((await check(true)).latest, newerVersion, 'manual checks refresh even when automatic checks are off')
+  manifestVersion = 'invalid-version'
+  assert.equal((await check(true)).latest, null, 'reject malformed manifests')
+  manifestVersion = null
+  assert.equal((await check(true)).latest, null, 'a network failure does not masquerade as the latest version')
   const selected = await uiCall({ endpoint: 'codex/select-workspace', payload: { path: temp } })
   assert.equal(selected.isError, true, "global workbench cannot select a directory manually")
   assert.equal((await uiCall({ endpoint: "codex/bootstrap" })).structuredContent.value.workspaceRoot, null)
@@ -240,6 +277,7 @@ try {
 
   console.log(`Codex adapter verification passed (${names.length} MCP tools).`)
 } finally {
+  globalThis.fetch = originalFetch
   await closeUiHost()
   await rm(temp, { recursive: true, force: true })
 }
