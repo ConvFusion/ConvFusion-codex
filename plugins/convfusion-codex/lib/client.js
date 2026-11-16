@@ -673,9 +673,8 @@ window.__ModuleLoader__.load({
 		  "system.retrieval.title": "Literature search",
 		  "system.status.configured": "Configured",
 		  "system.status.notConfigured": "Not configured",
-		  "system.retrieval.placeholderReplace": "A key is set; enter a new value to replace it",
 		  "system.retrieval.placeholderPaste": "Paste API Key",
-		  "system.retrieval.secretHint": "Leave blank to keep the current value. The key is stored locally and is never returned to the browser.",
+		  "system.retrieval.secretHint": "Paste and save a new value to replace the key. Leave blank to keep it. The saved key is stored locally and is never returned to the browser.",
 		  "system.retrieval.clear": "Clear",
 		  "system.retrieval.clearing": "Clearing…",
 		  "system.retrieval.saved": "OpenAlex API Key saved",
@@ -1500,9 +1499,8 @@ window.__ModuleLoader__.load({
 		  "system.retrieval.title": "文献检索",
 		  "system.status.configured": "已配置",
 		  "system.status.notConfigured": "未配置",
-		  "system.retrieval.placeholderReplace": "已设置，输入新值可覆盖",
 		  "system.retrieval.placeholderPaste": "粘贴 API Key",
-		  "system.retrieval.secretHint": "留空则不修改。密钥仅保存在本机，不会发送到浏览器。",
+		  "system.retrieval.secretHint": "粘贴新值并保存可替换，留空则保留当前值。已保存的密钥仅保存在本机，不会回填到输入框。",
 		  "system.retrieval.clear": "清除",
 		  "system.retrieval.clearing": "清除中…",
 		  "system.retrieval.saved": "已保存 OpenAlex API Key",
@@ -7756,6 +7754,7 @@ window.__ModuleLoader__.load({
 		  t
 		}) {
 		  const { configured, source, envVar } = retrieval;
+		  const keyInputId = import_react.default.useId();
 		  const [draft, setDraft] = import_react.default.useState("");
 		  const [busy, setBusy] = import_react.default.useState(null);
 		  const [notice, setNotice] = import_react.default.useState(null);
@@ -7871,18 +7870,18 @@ window.__ModuleLoader__.load({
 		      ] }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.field, flex: "initial" }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: "OpenAlex API Key" }),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("label", { htmlFor: keyInputId, style: S.label, children: "OpenAlex API Key" }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "input",
 		            {
+		              id: keyInputId,
 		              style: S.input,
 		              type: "password",
 		              autoComplete: "off",
 		              spellCheck: false,
 		              value: draft,
-		              "aria-label": "OpenAlex API Key",
 		              disabled: busy !== null,
-		              placeholder: configured ? t("system.retrieval.placeholderReplace") : t("system.retrieval.placeholderPaste"),
+		              placeholder: configured ? "••••••••" : t("system.retrieval.placeholderPaste"),
 		              title: t("system.retrieval.secretHint"),
 		              onChange: (e) => {
 		                setDraft(e.target.value);

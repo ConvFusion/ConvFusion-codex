@@ -528,7 +528,6 @@ export declare const dictionaries: {
         'system.retrieval.title': string;
         'system.status.configured': string;
         'system.status.notConfigured': string;
-        'system.retrieval.placeholderReplace': string;
         'system.retrieval.placeholderPaste': string;
         'system.retrieval.secretHint': string;
         'system.retrieval.clear': string;
@@ -1274,9 +1273,8 @@ export declare const dictionaries: {
         readonly 'system.retrieval.title': "Literature search";
         readonly 'system.status.configured': "Configured";
         readonly 'system.status.notConfigured': "Not configured";
-        readonly 'system.retrieval.placeholderReplace': "A key is set; enter a new value to replace it";
         readonly 'system.retrieval.placeholderPaste': "Paste API Key";
-        readonly 'system.retrieval.secretHint': "Leave blank to keep the current value. The key is stored locally and is never returned to the browser.";
+        readonly 'system.retrieval.secretHint': "Paste and save a new value to replace the key. Leave blank to keep it. The saved key is stored locally and is never returned to the browser.";
         readonly 'system.retrieval.clear': "Clear";
         readonly 'system.retrieval.clearing': "Clearing…";
         readonly 'system.retrieval.saved': "OpenAlex API Key saved";

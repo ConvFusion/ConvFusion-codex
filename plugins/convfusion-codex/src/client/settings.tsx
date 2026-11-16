@@ -9154,6 +9154,7 @@ function SystemTab({
   t: Translate
 }): JSX.Element {
   const { configured, source, envVar } = retrieval
+  const keyInputId = React.useId()
   const [draft, setDraft] = React.useState('')
   const [busy, setBusy] = React.useState<'save' | 'clear' | null>(null)
   const [notice, setNotice] = React.useState<{ tone: 'success' | 'error'; text: string } | null>(null)
@@ -9293,16 +9294,16 @@ function SystemTab({
         </div>
         <div style={S.cardBody}>
           <div style={{ ...S.field, flex: 'initial' }}>
-            <div style={S.label}>OpenAlex API Key</div>
+            <label htmlFor={keyInputId} style={S.label}>OpenAlex API Key</label>
             <input
+              id={keyInputId}
               style={S.input}
               type="password"
               autoComplete="off"
               spellCheck={false}
               value={draft}
-              aria-label="OpenAlex API Key"
               disabled={busy !== null}
-              placeholder={configured ? t('system.retrieval.placeholderReplace') : t('system.retrieval.placeholderPaste')}
+              placeholder={configured ? '••••••••' : t('system.retrieval.placeholderPaste')}
               // 凭据纪律与"留空 = 不修改"收进悬浮提示，不占版面
               title={t('system.retrieval.secretHint')}
               onChange={(e) => { setDraft(e.target.value); setNotice(null) }}

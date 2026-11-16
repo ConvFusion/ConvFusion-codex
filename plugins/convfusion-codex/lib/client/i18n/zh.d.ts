@@ -523,7 +523,6 @@ export declare const zh: {
     'system.retrieval.title': string;
     'system.status.configured': string;
     'system.status.notConfigured': string;
-    'system.retrieval.placeholderReplace': string;
     'system.retrieval.placeholderPaste': string;
     'system.retrieval.secretHint': string;
     'system.retrieval.clear': string;
