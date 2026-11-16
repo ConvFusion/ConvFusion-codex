@@ -1500,7 +1500,7 @@ window.__ModuleLoader__.load({
 		  "system.status.configured": "已配置",
 		  "system.status.notConfigured": "未配置",
 		  "system.retrieval.placeholderPaste": "粘贴 API Key",
-		  "system.retrieval.secretHint": "粘贴新值并保存可替换，留空则保留当前值。已保存的密钥仅保存在本机，不会回填到输入框。",
+		  "system.retrieval.secretHint": "粘贴新值并保存可替换，留空则保留当前值。",
 		  "system.retrieval.clear": "清除",
 		  "system.retrieval.clearing": "清除中…",
 		  "system.retrieval.saved": "已保存 OpenAlex API Key",
@@ -4871,8 +4871,8 @@ window.__ModuleLoader__.load({
 		  return url.replace(/\/+$/, "");
 		}
 		function downloadPrefix(p) {
-		  const owner = p.researcher?.displayName ?? p.mentor?.displayName ?? "";
-		  const parts = [owner, p.projectTitle ?? ""].filter((s) => s.trim() !== "");
+		  const owner = p.direction === "SEEK_STUDENT" ? p.mentor : p.researcher;
+		  const parts = [owner?.displayName, proposalWorkLabel(p)].filter((s) => s?.trim());
 		  return parts.join("-");
 		}
 		function mergeStateOf(status) {
@@ -5887,14 +5887,17 @@ window.__ModuleLoader__.load({
 		    });
 		    await loadProposals();
 		  };
+		  const downloadNaming = (p) => ({
+		    prefix: downloadPrefix(p),
+		    ...session?.downloadTasks ? { archiveSide: viewOf(p).otherSide } : {}
+		  });
 		  const requestDownload = async (p) => {
 		    const request = ++downloadRequest.current;
 		    const scope = listScope;
-		    const prefix = downloadPrefix(p);
 		    const source = "counterpart";
 		    const res = await post("mentor/downloadState", {
 		      projectId: p.projectId,
-		      prefix,
+		      ...downloadNaming(p),
 		      source,
 		      // v23：宿主按它算"当前会话的工作区"（预选 + 决定提示词能不能填）
 		      ...session?.sessionId ? { sessionId: session.sessionId } : {}
@@ -5934,8 +5937,8 @@ window.__ModuleLoader__.load({
 		  const downloadPayload = (target) => ({
 		    projectId: target.proposal.projectId,
 		    workspaceId: target.selection,
-		    prefix: downloadPrefix(target.proposal),
-		    projectTitle: target.proposal.projectTitle ?? "",
+		    ...downloadNaming(target.proposal),
+		    projectTitle: proposalWorkLabel(target.proposal),
 		    source: target.source,
 		    revision: target.revision,
 		    intent: target.intent,
@@ -7021,7 +7024,7 @@ window.__ModuleLoader__.load({
 		      BriefConfirmDialog,
 		      {
 		        t,
-		        title: briefConfirm.title,
+		        title: workLabelOf(briefConfirm),
 		        balance: state?.tokens?.available ?? null,
 		        onCancel: () => setBriefConfirm(null),
 		        onConfirm: () => {
@@ -7035,7 +7038,7 @@ window.__ModuleLoader__.load({
 		      ProposeDialog,
 		      {
 		        t,
-		        title: proposeTarget.title,
+		        title: workLabelOf(proposeTarget),
 		        fee: proposeFee,
 		        feeLoading: proposeFeeLoading,
 		        busy: proposeBusy,

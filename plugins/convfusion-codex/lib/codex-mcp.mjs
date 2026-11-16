@@ -13678,6 +13678,20 @@ function asSource(v) {
   const s = asString3(v);
   return s === "mentor" || s === "counterpart" ? s : "owner";
 }
+function localArchiveName(prefix, archiveSide, servedSide) {
+  if (archiveSide !== "owner" && archiveSide !== "mentor")
+    return null;
+  let stem = "";
+  let bytes = 0;
+  for (const character of safeDirName(asString3(prefix), "workspace")) {
+    bytes += Buffer.byteLength(character);
+    if (bytes > 200)
+      break;
+    stem += character;
+  }
+  const suffix = (servedSide ?? archiveSide) === "mentor" ? "-mentor" : "";
+  return `${safeDirName(stem, "workspace")}${suffix}.zip`;
+}
 function asDirection(v) {
   return asString3(v) === "SEEK_STUDENT" ? "SEEK_STUDENT" : "SEEK_MENTOR";
 }
@@ -15406,9 +15420,11 @@ function createSettingsRpcHandler(deps) {
             const latest = /* @__PURE__ */ new Map();
             for (const f of files)
               latest.set(f.relativePath, f);
+            const archiveName = localArchiveName(p.prefix, p.archiveSide);
             const downloadRevision = createHash2("sha256").update(JSON.stringify([
               remoteWorkspaceId,
-              [...latest.values()].sort((a, b) => a.relativePath.localeCompare(b.relativePath))
+              [...latest.values()].sort((a, b) => a.relativePath.localeCompare(b.relativePath)),
+              ...archiveName ? [archiveName] : []
             ])).digest("hex");
             const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : null;
             const built = (listed?.items ?? []).map((it) => buildDownloadTarget(it, remoteWorkspaceId, deps.workIdentity));
@@ -15424,12 +15440,8 @@ function createSettingsRpcHandler(deps) {
                 downloadRevision,
                 available: listed?.available ?? false,
                 reason: listed?.reason ?? null,
-                /*
-                 * 文件名只有**预检**能提前看到；真正的名字以服务器响应头为准。
-                 * 导师那一侧加 `-mentor` 后缀（与学生自己那份区分开）—— 与服务器
-                 * `archive_download_name` 同一规则。
-                 */
-                expectedName: `${safeDirName(asString3(p.prefix), "workspace")}${source === "mentor" ? "-mentor" : ""}.zip`,
+                // 有侧别时使用 Codex 的本地归档名，其余请求仍按前缀估算。
+                expectedName: archiveName ?? `${safeDirName(asString3(p.prefix), "workspace")}${source === "mentor" ? "-mentor" : ""}.zip`,
                 items: built.map(toWireTarget),
                 /** 本次下载项在服务器上的身份；`null` = 服务器没给（界面按"无法校验"处理）。 */
                 remoteWorkspaceId,
@@ -15489,7 +15501,9 @@ function createSettingsRpcHandler(deps) {
             const settled = archivedId && remoteClaimed && archivedId !== remoteClaimed ? buildDownloadTarget({ id: target.id, title: target.title, path: target.path }, archivedId, deps.workIdentity) : inspected;
             downloadControl?.validating();
             downloadControl?.check();
-            const saved = part.commit(filename ?? fallback, { fileCount });
+            const servedSide = sourceSide ?? (source === "counterpart" ? null : source);
+            const archiveName = localArchiveName(p.prefix, p.archiveSide, servedSide);
+            const saved = part.commit(archiveName ?? filename ?? fallback, { fileCount });
             downloadControl?.onSaved({
               dir: target.path,
               ...saved,
@@ -15498,7 +15512,6 @@ function createSettingsRpcHandler(deps) {
               workspaceLayout: settled.layout,
               workspaceId: authoritative
             });
-            const servedSide = sourceSide ?? (source === "counterpart" ? null : source);
             if (sourceUpdatedAt && servedSide !== null) {
               try {
                 deps.syncStore?.set(base, projectId, servedSide, {

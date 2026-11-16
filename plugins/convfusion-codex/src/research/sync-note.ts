@@ -37,7 +37,7 @@ export interface SyncNote {
   remoteWorkspaceId: string | null
   /** 服务器上的项目 id（排查用）。 */
   projectId: string | null
-  /** 项目标题（只用于展示与备份名建议）。 */
+  /** 下载时的研究工作显示名（只用于展示与备份名建议）。 */
   projectTitle: string | null
   /** 服务器地址（写进身份文件时用）。 */
   serverUrl: string | null

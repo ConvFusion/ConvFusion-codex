@@ -48,6 +48,11 @@ let account = {
 }
 const calls = []
 let mineWait
+let briefPaid = true
+const joinableWorks = [
+  { projectId: 'renamed-work', title: 'Original publication title', workName: 'Current research work name' },
+  { projectId: 'legacy-work', title: 'Legacy publication title' },
+].map((work) => ({ ...work, direction: 'SEEK_STUDENT', researchFields: [] }))
 const send = async (endpoint, payload) => {
   calls.push({ endpoint, payload, server: account.serverUrl })
   if (endpoint === 'account/state' || endpoint === 'account/verify') return { ok: true, value: { ...account, account: { ...account.account } } }
@@ -56,7 +61,13 @@ const send = async (endpoint, payload) => {
     return { ok: true, value: { items: [], registry: { available: false, reason: 'fixture-registry-unavailable' } } }
   }
   if (endpoint === 'mentor/list') return { ok: true, value: { proposals: [] } }
-  if (endpoint === 'work/list') return { ok: true, value: { items: [] } }
+  if (endpoint === 'work/list') {
+    const items = payload.direction === 'SEEK_STUDENT' ? joinableWorks.map((work) => ({ ...work, briefPaid })) : []
+    return { ok: true, value: { items } }
+  }
+  if (endpoint === 'mentor/fee-suggestion') {
+    return { ok: true, value: { suggestedFee: 100, suggestedDeposit: 20 } }
+  }
   throw new Error(`Unexpected endpoint: ${endpoint}`)
 }
 const count = (endpoint) => calls.filter((x) => x.endpoint === endpoint).length
@@ -126,6 +137,36 @@ finish({ ok: true, value: { items: [], registry: { available: false, reason: 'st
 await settle(third)
 assert.ok(!text(third).includes('stale-response'), 'late response from previous scope is ignored')
 assert.ok(text(third).includes('fixture-registry-unavailable'))
+
+const joinableTab = [...walk(third.tree)].find((node) => node.props?.children === 'community.tab.joinable')
+joinableTab.props.onClick()
+await settle(third)
+const expectedTitles = ['Current research work name', 'Legacy publication title']
+for (const [index, expectedTitle] of expectedTitles.entries()) {
+  const row = [...walk(third.tree)].filter((node) => node.type?.name === 'WorkRow')[index]
+  assert.equal(row.props.title, expectedTitle)
+  const bid = [...walk(row.props.below)].find((node) => node.props?.children === 'community.action.bid')
+  bid.props.onClick()
+  await settle(third)
+  const dialog = [...walk(third.tree)].find((node) => node.type?.name === 'ProposeDialog')
+  assert.equal(dialog.props.title, expectedTitle, 'bid dialog uses the same name as the discovery row')
+  dialog.props.onCancel()
+  await settle(third)
+}
+briefPaid = false
+const joinableRefresh = [...walk(third.tree)].find((node) => node.type?.name === 'RefreshIconButton')
+joinableRefresh.props.onClick()
+await settle(third)
+for (const [index, expectedTitle] of expectedTitles.entries()) {
+  const row = [...walk(third.tree)].filter((node) => node.type?.name === 'WorkRow')[index]
+  row.props.onBrief()
+  await settle(third)
+  const dialog = [...walk(third.tree)].find((node) => node.type?.name === 'BriefConfirmDialog')
+  assert.equal(dialog.props.title, expectedTitle, 'paid detail confirmation uses the same name as the discovery row')
+  assert.equal(count('work/brief'), 0, 'opening the confirmation must not charge')
+  dialog.props.onCancel()
+  await settle(third)
+}
 unmount(third)
 
 // A placeholder and a real descendant can coexist in defensive/legacy input.
@@ -148,4 +189,4 @@ assert.equal(toggled.next, true)
 boxes[0].props.onChange({ target: { checked: false } })
 assert.equal(toggled.paths.length, 260)
 assert.equal(toggled.next, false)
-console.log('Community lists passed: remount cache, manual refresh, account/server/workspace isolation, registry failures, stale response rejection and placeholder recovery.')
+console.log('Community lists passed: remount cache, manual refresh, account/server/workspace isolation, registry failures, stale response rejection, bid and paid detail dialog names, and placeholder recovery.')

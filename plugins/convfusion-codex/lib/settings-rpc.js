@@ -386,6 +386,22 @@ function asSource(v) {
     const s = asString(v);
     return s === 'mentor' || s === 'counterpart' ? s : 'owner';
 }
+/** Codex 工作台传 archiveSide 时，按当前工作名生成本地 ZIP 名称。 */
+function localArchiveName(prefix, archiveSide, servedSide) {
+    if (archiveSide !== 'owner' && archiveSide !== 'mentor')
+        return null;
+    let stem = '';
+    let bytes = 0;
+    // 给侧别后缀、重名序号和扩展名留出空间，按字符截断 UTF-8。
+    for (const character of safeDirName(asString(prefix), 'workspace')) {
+        bytes += Buffer.byteLength(character);
+        if (bytes > 200)
+            break;
+        stem += character;
+    }
+    const suffix = (servedSide ?? archiveSide) === 'mentor' ? '-mentor' : '';
+    return `${safeDirName(stem, 'workspace')}${suffix}.zip`;
+}
 /**
  * 归一研究方向（`SEEK_MENTOR` / `SEEK_STUDENT`）。
  *
@@ -502,8 +518,8 @@ async function fetchMarketplaceVersion(fetchImpl, timeoutMs) {
  * | `mentor/list` | `{}` | 我涉及的指导提案（我发起的 + 我收到的）；ACCEPTED 的带 `reviewFiles`（导师已上传几份，服务器 `review_files`）与 **`sync`**（"学生更新了工作区吗"：与本地水位比对的结果，`null` = 无从判断） |
  * | `mentor/accept` | `{ proposalId, intentKey }` | 接受指导（研究者）→ **冻结押金**、建合同与关系 |
  * | `mentor/reject` | `{ proposalId }` | 拒绝指导（研究者） |
- * | `mentor/downloadState` | `{ projectId, prefix, source? }` | 【下载】对话框一次拿齐：预检（文件数 / 体积 / 预计文件名）+ **全部**可选工作区（`source` 选哪一侧，省略 = `owner`） |
- * | `mentor/download` | `{ projectId, workspaceId, prefix, source? }` | 只把 ZIP 存进所选工作区（**流式落盘、不解压、不覆盖**，同名加序号） |
+ * | `mentor/downloadState` | `{ projectId, prefix, source?, archiveSide? }` | 【下载】预检和可选工作区。Codex 用 `archiveSide` 指定本地文件名的侧别后缀 |
+ * | `mentor/download` | `{ projectId, workspaceId, prefix, source?, archiveSide? }` | 流式保存 ZIP，同名加序号。Codex 按工作名保存，侧别优先采用归档响应 |
  * | `mentor/downloadProgress` | `{ projectId }` | 下载期间的实时进度 `{ received, running }`（界面按秒问；本地读，不触网） |
  * | `mentor/uploadState` | `{}` | 【上传】对话框的工作区下拉：本机**含研究定义**的工作区（`<ws>/workspace/` 或旧布局 `<ws>`） |
  * | `mentor/uploadPlan` | `{ workspaceId }` | 所选工作区的**文件清单**（`mentor` 口径分类 + 默认勾选 + 体积 + 超限项） |
@@ -2842,7 +2858,7 @@ export function createSettingsRpcHandler(deps) {
                 case 'mentor/downloadState': {
                     /*
                      * 【下载】对话框要的三样：可选工作区列表、预检（多少文件/多大）、
-                     * 以及**预计保存成什么文件名**（服务器命名 `<owner>-<title>.zip`）。
+                     * 以及预计的 ZIP 文件名。
                      * 合成一次调用：少一次往返，也少一处不一致。
                      */
                     const config = deps.getConfig();
@@ -2884,9 +2900,11 @@ export function createSettingsRpcHandler(deps) {
                         const latest = new Map();
                         for (const f of files)
                             latest.set(f.relativePath, f);
+                        const archiveName = localArchiveName(p.prefix, p.archiveSide);
                         const downloadRevision = createHash('sha256').update(JSON.stringify([
                             remoteWorkspaceId,
                             [...latest.values()].sort((a, b) => a.relativePath.localeCompare(b.relativePath)),
+                            ...(archiveName ? [archiveName] : []),
                         ])).digest('hex');
                         const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : null;
                         /*
@@ -2919,12 +2937,8 @@ export function createSettingsRpcHandler(deps) {
                                 downloadRevision,
                                 available: listed?.available ?? false,
                                 reason: listed?.reason ?? null,
-                                /*
-                                 * 文件名只有**预检**能提前看到；真正的名字以服务器响应头为准。
-                                 * 导师那一侧加 `-mentor` 后缀（与学生自己那份区分开）—— 与服务器
-                                 * `archive_download_name` 同一规则。
-                                 */
-                                expectedName: `${safeDirName(asString(p.prefix), 'workspace')}${source === 'mentor' ? '-mentor' : ''}.zip`,
+                                // 有侧别时使用 Codex 的本地归档名，其余请求仍按前缀估算。
+                                expectedName: archiveName ?? `${safeDirName(asString(p.prefix), 'workspace')}${source === 'mentor' ? '-mentor' : ''}.zip`,
                                 items: built.map(toWireTarget),
                                 /** 本次下载项在服务器上的身份；`null` = 服务器没给（界面按"无法校验"处理）。 */
                                 remoteWorkspaceId,
@@ -2962,7 +2976,7 @@ export function createSettingsRpcHandler(deps) {
                      *   · 文件写在**工作区根目录**（用户材料，不进 `<工作区>/workspace/` 研究数据区）；
                      *   · 同名**不覆盖**，自动加序号 → 所选工作区里原有的东西一个都不动，
                      *     所以任何工作区都能选，不需要禁用。
-                     * 文件名用服务器给的（`<owner>-<title>.zip`）；服务器没给才用客户端传的前缀兜底。
+                     * Codex 用研究工作名生成本地文件名。其他调用使用服务器归档名，缺失时使用前缀。
                      */
                     const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : null;
                     const target = listed?.items.find((it) => it.id === workspaceId);
@@ -3021,7 +3035,9 @@ export function createSettingsRpcHandler(deps) {
                         // 校验（ZIP 完整性 + 条目数）在这一步：不合格会抛错，半成品同时被清掉
                         downloadControl?.validating();
                         downloadControl?.check();
-                        const saved = part.commit(filename ?? fallback, { fileCount });
+                        const servedSide = sourceSide ?? (source === 'counterpart' ? null : source);
+                        const archiveName = localArchiveName(p.prefix, p.archiveSide, servedSide);
+                        const saved = part.commit(archiveName ?? filename ?? fallback, { fileCount });
                         downloadControl?.onSaved({ dir: target.path, ...saved, researchRoot: settled.researchRoot,
                             workspaceStatus: settled.status, workspaceLayout: settled.layout, workspaceId: authoritative });
                         /*
@@ -3034,7 +3050,6 @@ export function createSettingsRpcHandler(deps) {
                          * 两个方向的水位不能互相顶掉（顶掉的结果是该提示时不提示、或误提示）。
                          * 老服务器没有 `X-Source-Updated-At` → 不写：保持"未知"比写一个错的水位强。
                          */
-                        const servedSide = sourceSide ?? (source === 'counterpart' ? null : source);
                         if (sourceUpdatedAt && servedSide !== null) {
                             try {
                                 deps.syncStore?.set(base, projectId, servedSide, {

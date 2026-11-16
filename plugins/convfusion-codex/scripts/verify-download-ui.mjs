@@ -48,8 +48,9 @@ const mod = captured.factory((id) => id === 'react' ? hooks : require(id))
 const t = (key, args = {}) => key + (Object.keys(args).length ? JSON.stringify(args) : '')
 const account = { serverUrl: 'https://download-ui.example', keyConfigured: true, keySource: 'file', account: { id: 'student', roles: ['RESEARCHER'] } }
 const proposal = { id: 'proposal', projectId: 'project', direction: 'SEEK_MENTOR', status: 'ACCEPTED', projectTitle: 'Test', mentor: { id: 'teacher', displayName: 'Teacher' }, researcher: { id: 'student', displayName: 'Student' }, guidanceScope: '', totalFee: 0, depositAmount: 0, successPaymentAmount: 0, successCondition: { type: 'RESEARCH_COMPLETED', description: null }, workspaceFiles: 1, reviewFiles: 1 }
+proposal.workName = 'Current research work name'
 let job = null, starts = 0, cancels = 0, statuses = 0, nextId = 0, prepared = null
-let holdStatus, resolveStatus, holdStart, resolveStart
+let holdStatus, resolveStatus, holdStart, resolveStart, startPayload
 const cancelledIntents = new Set()
 const cancelledJob = (intent) => ({ id: `cancelled-${intent}`, state: 'cancelled', phase: 'preparing', received: 0, totalBytes: null })
 const send = async (endpoint, payload) => {
@@ -60,6 +61,7 @@ const send = async (endpoint, payload) => {
   if (endpoint === 'mentor/list') return { ok: true, value: { proposals: [proposal] } }
   if (endpoint === 'mentor/downloadState') return { ok: true, value: { files: 1, bytes: 9999, expectedName: 'guessed.zip', available: true, reason: null, items: [{ id: 'target', title: 'Target', path: '/fixture/target' }], currentWorkspaceId: 'target', downloadRevision: 'revision' } }
   if (endpoint === 'mentor/downloadStart') {
+    startPayload = payload
     starts++
     if (holdStart) { holdStart = false; await new Promise((resolve) => { resolveStart = resolve }); if (cancelledIntents.has(payload.intent)) return { ok: true, value: { job: cancelledJob(payload.intent) } } }
     job = { id: `job-${++nextId}`, state: 'running', phase: 'downloading', received: 12, totalBytes: null, intent: payload.intent }
@@ -110,6 +112,9 @@ try {
   const start = dialog().props.onDownload
   start(); start(); await settle()
   assert.equal(starts, 1, 'double click is guarded before React rerenders')
+  assert.equal(startPayload.projectTitle, proposal.workName, 'sync notes receive the work name')
+  assert.equal(startPayload.prefix, `Student-${proposal.workName}`, 'fallback filename uses the work name')
+  assert.equal(startPayload.archiveSide, 'mentor', 'Codex uses the counterpart side for the local archive name')
   assert.equal(dialog().props.busy, true, 'lost start response reconnects to the same running task')
   assert.equal(dialog().props.done, null, 'no speculative sync command or saved receipt')
   assert.ok(!renderDialogText().includes('community.exchange.downloadDone'))

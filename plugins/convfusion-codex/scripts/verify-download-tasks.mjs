@@ -47,7 +47,8 @@ function fixture() {
         }
       } })
       transfers.push({ finish, signal: init.signal, url })
-      return new Response(body, { headers: { 'content-disposition': 'attachment; filename="teacher-final.zip"', 'x-file-count': '1', ...(mode === 'unknown-length' ? {} : { 'content-length': String(zip.length) }) } })
+      const source = u.searchParams.get('source')
+      return new Response(body, { headers: { 'content-disposition': 'attachment; filename="teacher-final.zip"', 'x-source': source ? 'mentor' : 'owner', 'x-file-count': '1', ...(mode === 'unknown-length' ? {} : { 'content-length': String(zip.length) }) } })
     }
     throw new Error(`Unexpected fixture route ${u.pathname}`)
   }
@@ -216,6 +217,26 @@ if (['--worker', '--saved-worker'].includes(process.argv[2])) {
     const countBeforeRecovery = server.transfers.length
     assert.equal((await call('Start', savedTask)).id, savedTask.jobId, 'recovering a saved ZIP must not redownload it')
     assert.equal(server.transfers.length, countBeforeRecovery)
+
+    const named = {
+      ...payload, projectId: 'renamed-project', intent: 'local-work-name',
+      archiveSide: 'mentor', prefix: '学生-当前研究工作名', projectTitle: '当前研究工作名',
+    }
+    const expectedName = '学生-当前研究工作名-mentor.zip'
+    const namedPreflight = await host.dispatch(root, 'mentor/downloadState', named)
+    assert.equal(namedPreflight.value.expectedName, expectedName)
+    const renamedPreflight = await host.dispatch(root, 'mentor/downloadState', { ...named, prefix: '学生-新名称' })
+    assert.notEqual(renamedPreflight.value.downloadRevision, namedPreflight.value.downloadRevision, 'a local name change invalidates reuse of the old receipt')
+    const longName = await host.dispatch(root, 'mentor/downloadState', { ...named, prefix: '研'.repeat(100) })
+    assert.equal(longName.value.expectedName, `${'研'.repeat(66)}-mentor.zip`, 'filenames are limited without splitting a UTF-8 character')
+    await writeFile(join(root, expectedName), 'existing download')
+    const task = await call('Start', named)
+    server.transfers.at(-1).finish()
+    const namedResult = (await terminal({ ...named, jobId: task.id })).result.value
+    assert.equal(namedResult.name, '学生-当前研究工作名-mentor-2.zip', 'saved name uses the work name and preserves the source suffix and collision numbering')
+    assert.equal(await readFile(join(root, expectedName), 'utf8'), 'existing download')
+    assert.deepEqual(await readFile(namedResult.path), zip)
+    assert.match(replacement.prepareSync(root, namedResult.path).instructions, /- 项目：当前研究工作名/)
 
     // Cancellation must work even for transports which ignore AbortSignal.
     const controller = new AbortController()

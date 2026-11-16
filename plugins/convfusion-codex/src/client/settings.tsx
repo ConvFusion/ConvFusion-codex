@@ -4584,15 +4584,12 @@ function stripSlash(url: string): string {
 }
 
 /**
- * 下载 ZIP 的**兜底文件名前缀**：`<项目所有者>-<项目标题>`，与服务器命名
- * `<owner>-<title>.zip` 对齐。
- *
- * ⚠️ 只在服务器没回 `Content-Disposition` 时才用到；真名一律以服务器给的为准
- * （客户端不自造命名规则）。宿主的 `safeDirName` 还会再做一次安全化。
+ * 下载 ZIP 的本地文件名前缀：`<项目所有者>-<研究工作名>`。
+ * 宿主负责清理文件名和处理重名。
  */
 function downloadPrefix(p: HostProposal): string {
-  const owner = p.researcher?.displayName ?? p.mentor?.displayName ?? ''
-  const parts = [owner, p.projectTitle ?? ''].filter((s) => s.trim() !== '')
+  const owner = p.direction === 'SEEK_STUDENT' ? p.mentor : p.researcher
+  const parts = [owner?.displayName, proposalWorkLabel(p)].filter((s) => s?.trim())
   return parts.join('-')
 }
 
@@ -5771,7 +5768,7 @@ export function CommunityTab({
     selection: string
     files: number | null
     bytes: number | null
-    /** 预计/实际保存成的文件名（服务器命名，落盘后由宿主回报真名）。 */
+    /** 预计保存的文件名，落盘后换成宿主返回的实际名称。 */
     fileName: string
     notice: { tone: 'success' | 'error'; text: string } | null
     /*
@@ -6533,6 +6530,10 @@ export function CommunityTab({
     await loadProposals()
   }
 
+  const downloadNaming = (p: HostProposal) => ({
+    prefix: downloadPrefix(p),
+    ...(session?.downloadTasks ? { archiveSide: viewOf(p).otherSide } : {}),
+  })
   /**
    * 点【下载】：让用户**选一个 DSH 工作区**，把 ZIP 存进去（2026-09 用户要求）。
    *
@@ -6543,13 +6544,12 @@ export function CommunityTab({
   const requestDownload = async (p: HostProposal): Promise<void> => {
     const request = ++downloadRequest.current
     const scope = listScope
-    const prefix = downloadPrefix(p)
     // 下载的是**对方那一侧**：方向 A 导师下学生的工作区（owner 侧）、学生取导师的交付
     // （mentor 侧）；方向 B 反过来（学生下导师的选题、导师取学生的进展）。
     const source = 'counterpart'
     const res = await post('mentor/downloadState', {
       projectId: p.projectId,
-      prefix,
+      ...downloadNaming(p),
       source,
       // v23：宿主按它算"当前会话的工作区"（预选 + 决定提示词能不能填）
       ...(session?.sessionId ? { sessionId: session.sessionId } : {}),
@@ -6625,7 +6625,8 @@ export function CommunityTab({
   type Job = { id: string; state: string; phase: string; received: number; totalBytes: number | null; result?: { ok: boolean; value?: Receipt; error?: { code: string; message: string } } }
   const downloadPayload = (target: DownloadTarget) => ({
     projectId: target.proposal.projectId, workspaceId: target.selection,
-    prefix: downloadPrefix(target.proposal), projectTitle: target.proposal.projectTitle ?? '',
+    ...downloadNaming(target.proposal),
+    projectTitle: proposalWorkLabel(target.proposal),
     source: target.source, revision: target.revision, intent: target.intent,
     ...(target.remoteWorkspaceId ? { remoteWorkspaceId: target.remoteWorkspaceId } : {}),
   })
@@ -8095,7 +8096,7 @@ export function CommunityTab({
       {briefConfirm ? (
         <BriefConfirmDialog
           t={t}
-          title={briefConfirm.title}
+          title={workLabelOf(briefConfirm)}
           balance={state?.tokens?.available ?? null}
           onCancel={() => setBriefConfirm(null)}
           onConfirm={() => {
@@ -8115,7 +8116,7 @@ export function CommunityTab({
       {proposeTarget ? (
         <ProposeDialog
           t={t}
-          title={proposeTarget.title}
+          title={workLabelOf(proposeTarget)}
           fee={proposeFee}
           feeLoading={proposeFeeLoading}
           busy={proposeBusy}

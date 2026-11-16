@@ -1759,8 +1759,7 @@ function filenameFromDisposition(value: string | null): string | null {
  * 下载项目工作区的 **ZIP 快照**（`GET /projects/{id}/files/archive`），
  * **边收边写进 `sink`**（不驻留内存、界面能看见进度）。
  *
- * ⚠️ 只把 ZIP 取回来落盘，**不解压**（2026-09 用户拍板）。文件名用服务器给的
- * （`<owner>-<title>[-mentor].zip`）—— 服务器才是命名的权威，插件不自造。
+ * 只接收 ZIP 数据和响应元数据。保存位置、文件名和重名处理由调用方决定。
  *
  * `options.source` 选**哪一侧**的快照（见 {@link FileSource}）：导师下学生的工作区走默认
  * `owner`；学生取导师回传的那份走 `mentor`（服务器给的文件名带 `-mentor` 后缀）。
