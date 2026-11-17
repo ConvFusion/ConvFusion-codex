@@ -138,9 +138,8 @@ export interface PublishedStoreScope {
 /**
  * 这条记录属于**现在住在这个路径上**的研究吗？
  *
- * 两个判据各自独立，缺一个就**不拦**（宁可按现状用，也不误伤）：
- *   - 双方都有身份且不同 → 不是我的；
- *   - 双方都有指纹且不同 → 不是我的（路径换过住户）。
+ * 记录有身份时，当前研究必须能证明是同一身份。
+ * 双方都有指纹时，也要核对指纹，以识别误带旧标记的目录。
  */
 export declare function occupantMatches(record: PublishedRecord, workId: string | null, fingerprint: string | null): boolean;
 /** 组装表键（落盘 / 遍历用）。 */

@@ -213,6 +213,7 @@ try {
       if (endpoint === 'work/list') return { ok: true, value: { items: [] } }
       if (endpoint === 'mentor/list') return { ok: true, value: { proposals: [] } }
       if (endpoint === 'work/uploadPlan') return { ok: true, value: { direction, title: 'Test', askingFee: 800, priceGuide: reference,
+        canPublishAsNew: true, publicationTarget: 'fixture-target',
         selection: ['project.md'], remembered: true, changed: [], plan: { categories: [], limits: { maxFilesPerRequest: 20, maxFileBytes: 100 } } } }
       if (endpoint === 'work/publish') { submissions.push(payload); return { ok: true, value: { published: { version: 2, created: false, chargedTokens: 0 } } } }
       throw new Error(`Unexpected UI test endpoint ${endpoint}`)
@@ -239,10 +240,18 @@ try {
     assert.equal(component('PublishDialog').props.priceTokens, 800, 'custom amount matches the visible retained text')
     component('PublishDialog').props.onPriceText('900')
     await settle()
+    assert.equal(component('PublishDialog').props.publishAsNew, false, 'updates remain the default')
+    if (direction === 'SEEK_STUDENT') {
+      component('PublishDialog').props.onPublishAsNew(true)
+      await settle()
+      assert.equal(submissions.length, 0, 'selecting the new publication mode does not submit')
+    }
     component('PublishDialog').props.onConfirm()
     await settle()
     assert.equal(submissions.at(-1).askingFee, 900)
     assert.equal(submissions.at(-1).direction, direction)
+    assert.equal(submissions.at(-1).publicationTarget, 'fixture-target')
+    assert.equal(submissions.at(-1).publishAsNew, direction === 'SEEK_STUDENT')
     h.cells.forEach((cell) => cell?.cleanup?.())
   }
   console.log('File exchange passed: both publishing directions, saved prices, validation, retry, optional price guide, price dialog rendering and interactions, counterpart requests and actual-side bookkeeping.')

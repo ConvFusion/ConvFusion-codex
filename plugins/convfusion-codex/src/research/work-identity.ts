@@ -39,7 +39,7 @@
  * 所以这个标记不会被当成项目文件传上去。
  */
 
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 /** 研究根下的插件元数据目录（研究根相对）。 */
@@ -71,6 +71,8 @@ export interface WorkIdentity {
    * 老记录没有这个字段 → 无从核对 → 也不采信（让发布记录自己的名字/文件证据去判）。
    */
   rootFingerprint?: string
+  /** 本机目录实例。仅用于验证按路径保存的注册表。 */
+  directoryIdentity?: string
 }
 
 /** 注册表（`$DSH_HOME/convfusion/work-identities.json`）。 */
@@ -131,6 +133,16 @@ export function researchRootFingerprint(researchRoot: string): string | null {
   }
 }
 
+/** 两项研究可能有相同的创建时间。用本机目录实例识别同路径换入的目录。 */
+export function researchDirectoryIdentity(researchRoot: string): string | null {
+  try {
+    const stat = statSync(researchRoot, { bigint: true })
+    return stat.isDirectory() ? `${stat.dev}:${stat.ino}:${stat.birthtimeNs}` : null
+  } catch {
+    return null
+  }
+}
+
 /** `workspace_id` 的规范形（小写、去空白）；非法 → `null`。 */
 export function normalizeWorkspaceId(value: unknown): string | null {
   if (!isWorkspaceId(value)) return null
@@ -152,6 +164,7 @@ function asRole(v: unknown): 'owner' | 'mentor' {
 /** 读到的标记（缺字段就是缺字段，不编造）。 */
 export interface WorkMarker {
   workspaceId: string
+  rootFingerprint?: string
   projectId?: string
   serverUrl?: string
   role?: 'owner' | 'mentor'
@@ -191,6 +204,7 @@ export function readWorkMarker(researchRoot: string): WorkMarker | undefined {
   }
   return {
     workspaceId: id,
+    ...(pick(raw.root_fingerprint, raw.rootFingerprint) ? { rootFingerprint: pick(raw.root_fingerprint, raw.rootFingerprint) } : {}),
     ...(pick(raw.project_id, raw.projectId) ? { projectId: pick(raw.project_id, raw.projectId) } : {}),
     ...(pick(raw.server_url, raw.serverUrl) ? { serverUrl: pick(raw.server_url, raw.serverUrl) } : {}),
     ...(typeof raw.role === 'string' && raw.role.trim() ? { role: asRole(raw.role) } : {}),
@@ -232,6 +246,7 @@ export function markerJson(
   if (identity.projectId) payload.project_id = identity.projectId
   if (identity.serverUrl) payload.server_url = identity.serverUrl
   if (identity.role) payload.role = identity.role
+  if (identity.rootFingerprint) payload.root_fingerprint = identity.rootFingerprint
   payload.synced_at = identity.updatedAt || new Date().toISOString()
   return `${JSON.stringify(payload, null, 2)}\n`
 }
@@ -251,6 +266,8 @@ function parseIdentity(raw: unknown): WorkIdentity | undefined {
     accountId: typeof raw.accountId === 'string' ? raw.accountId.trim() : '',
     role: asRole(raw.role),
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : '',
+    ...(typeof raw.rootFingerprint === 'string' && raw.rootFingerprint ? { rootFingerprint: raw.rootFingerprint } : {}),
+    ...(typeof raw.directoryIdentity === 'string' && raw.directoryIdentity ? { directoryIdentity: raw.directoryIdentity } : {}),
   }
 }
 
@@ -296,7 +313,8 @@ export function createFileWorkIdentityStore(resolvePath: () => string): WorkIden
     get: (researchRoot) => load()[researchRoot],
     set: (researchRoot, record) => {
       const table = load()
-      table[researchRoot] = record
+      const directoryIdentity = researchDirectoryIdentity(researchRoot)
+      table[researchRoot] = { ...record, directoryIdentity: directoryIdentity ?? undefined }
       save(table)
     },
     remove: (researchRoot) => {
@@ -320,7 +338,7 @@ export function createMemoryWorkIdentityStore(
   return {
     get: (root) => table[root],
     set: (root, record) => {
-      table[root] = record
+      table[root] = { ...record, directoryIdentity: researchDirectoryIdentity(root) ?? undefined }
     },
     remove: (root) => {
       delete table[root]
@@ -362,12 +380,16 @@ export function readLocalIdentity(
   const marker = readWorkMarker(researchRoot)
   const fingerprint = researchRootFingerprint(researchRoot)
   const entry = store?.get(researchRoot)
+  if (marker?.rootFingerprint && fingerprint && marker.rootFingerprint !== fingerprint) {
+    return { workspaceId: null, source: 'marker', conflict: true }
+  }
   /*
    * 注册表项的**指纹核对**：注册表按路径存、路径会换住户 ——
    * 只有"写这条记录时的研究根指纹"与当前一致才采信；老记录没有指纹 → 不采信。
    */
   const registryTrusted = Boolean(
-    entry && entry.rootFingerprint && fingerprint && entry.rootFingerprint === fingerprint,
+    entry?.rootFingerprint && entry.rootFingerprint === fingerprint &&
+      entry.directoryIdentity && entry.directoryIdentity === researchDirectoryIdentity(researchRoot),
   )
   const registry = registryTrusted ? normalizeWorkspaceId(entry?.workspaceId) : null
   if (marker && registry) {

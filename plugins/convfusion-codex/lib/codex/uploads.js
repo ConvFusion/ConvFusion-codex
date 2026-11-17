@@ -16,6 +16,7 @@ export async function transferWorkspace(base, key, projectId, root, paths, optio
     const canonicalRoot = await realpath(root);
     const read = async (path) => {
         signal.throwIfAborted();
+        state?.checkSource?.();
         const absolute = safeJoin(root, path);
         if (!absolute)
             throw new Error('所选文件路径无效，请重新扫描工作区。');
@@ -23,7 +24,9 @@ export async function transferWorkspace(base, key, projectId, root, paths, optio
         if (canonical !== safeJoin(canonicalRoot, path)) {
             throw new Error('选中的文件已变为符号链接，请重新选择。');
         }
-        return await readFile(canonical, { signal });
+        const bytes = await readFile(canonical, { signal });
+        state?.checkSource?.();
+        return bytes;
     };
     const manifest = [];
     for (const batch of batches) {
@@ -34,7 +37,11 @@ export async function transferWorkspace(base, key, projectId, root, paths, optio
     }
     signal.throwIfAborted();
     const id = randomUUID();
-    const request = (method, suffix, body, timeoutMs) => workspaceUploadRequest(base, key, projectId, method, suffix, body, { ...options, ...(timeoutMs === undefined ? {} : { timeoutMs }) });
+    const request = (method, suffix, body, timeoutMs) => {
+        if (method === 'POST')
+            state?.checkSource?.();
+        return workspaceUploadRequest(base, key, projectId, method, suffix, body, { ...options, ...(timeoutMs === undefined ? {} : { timeoutMs }) });
+    };
     const retry = async (send) => {
         for (let attempt = 0;; attempt++) {
             try {
@@ -96,6 +103,7 @@ export async function transferWorkspace(base, key, projectId, root, paths, optio
                 signal.throwIfAborted();
                 if (!remaining.length)
                     return;
+                state?.checkSource?.();
                 try {
                     await stageWorkspaceFiles(base, key, projectId, job.id, remaining, {
                         ...options, timeoutMs: timeoutForBytes(bytes), signal,

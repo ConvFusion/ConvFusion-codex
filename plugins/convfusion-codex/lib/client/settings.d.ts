@@ -350,6 +350,9 @@ export declare function askingFeeText(t: Translate, direction: HostProjectDirect
  * （2026-09 用户拍板：排除项直接不出现，不影响选择）。保留在数据里是为了对账。
  */
 interface HostUploadPlan {
+    publicationTarget?: string;
+    identityConflict?: boolean;
+    canPublishAsNew?: boolean;
     projectId: string;
     root: string;
     /** **要发布到网络的名字** = 这项研究工作自己的名字（有论文用论文标题）。 */
@@ -644,7 +647,7 @@ export declare function PriceGuideRow({ t, direction, guide, options, mode, toke
     onSelectCustom: () => void;
     onText: (next: string) => void;
 }): JSX.Element;
-export declare function PublishDialog({ t, data, selection, remember, expanded, busy, progress, onToggleFiles, onToggleExpand, onRemember, priceMode, priceTokens, priceText, onSelectPricePreset, onSelectPriceCustom, onPriceText, onCancel, onConfirm, onCancelUpload, canCloseWhileUploading, notice, }: {
+export declare function PublishDialog({ t, data, selection, remember, expanded, busy, progress, onToggleFiles, onToggleExpand, onRemember, priceMode, priceTokens, priceText, onSelectPricePreset, onSelectPriceCustom, onPriceText, publishAsNew, onPublishAsNew, onCancel, onConfirm, onCancelUpload, canCloseWhileUploading, notice, }: {
     t: Translate;
     data: HostUploadPlan;
     selection: ReadonlySet<string>;
@@ -664,6 +667,8 @@ export declare function PublishDialog({ t, data, selection, remember, expanded, 
     onSelectPriceCustom: () => void;
     onPriceText: (next: string) => void;
     onCancel: () => void;
+    publishAsNew?: boolean;
+    onPublishAsNew?: (enabled: boolean) => void;
     onConfirm: () => void;
     onCancelUpload?: (() => void) | undefined;
     canCloseWhileUploading?: boolean;

@@ -98,6 +98,7 @@ import {
   makeWorkIdentity,
   normalizeWorkspaceId,
   readLocalIdentity,
+  researchDirectoryIdentity,
   researchRootFingerprint,
   writeWorkMarker,
 } from './research/work-identity.js'
@@ -1493,18 +1494,29 @@ export function createSettingsRpcHandler(
     return nameAtPublish === workName.trim() ? 'mine' : 'unknown'
   }
 
+  const publicationIdentity = (root: string): ReturnType<typeof readLocalIdentity> => {
+    const identity = readLocalIdentity(root, deps.workIdentity)
+    const fingerprint = researchRootFingerprint(root)
+    if (!identity.workspaceId || !fingerprint) return identity
+    // 旧版标记没有指纹。用已落盘的发布凭据识别带着旧标记换入的研究目录。
+    const mismatched = Object.values(publishedStore.all()).some((record) =>
+      record.workId === identity.workspaceId && record.rootFingerprint && record.rootFingerprint !== fingerprint,
+    )
+    return mismatched ? { ...identity, workspaceId: null, conflict: true } : identity
+  }
+
   const collectLocalWorks = async (): Promise<{
     available: boolean
     reason?: string
     items: LocalWorkItem[]
-    sources: Map<string, { root: string; title: string; progress: WorkspaceProgress }>
+    sources: Map<string, { root: string; directory: string; title: string; progress: WorkspaceProgress }>
   }> => {
     const listed = deps.listLocalWorkspaces
       ? await deps.listLocalWorkspaces()
       : { available: false, reason: '宿主未提供工作区注册表读取接口', items: [] }
     const skillContent = (id: string): string | undefined => effectiveSkillContentById(id, deps.store)
     const items: LocalWorkItem[] = []
-    const sources = new Map<string, { root: string; title: string; progress: WorkspaceProgress }>()
+    const sources = new Map<string, { root: string; directory: string; title: string; progress: WorkspaceProgress }>()
     for (const w of listed.items) {
       /**
        * 目录真身 + 是否存在。
@@ -1525,6 +1537,7 @@ export function createSettingsRpcHandler(
       const root = researchWorkspaceOf(canonical)
       // 只列**有效**研究项目：目录不在、或没有 project.md / research-state.md 的都跳过
       if (missingDir || !isResearchWorkspace(root)) continue
+      const directory = researchDirectoryIdentity(root)
       let progress: WorkspaceProgress | null = null
       try {
         progress = buildWorkspaceProgress(captureProgress(root, skillContent))
@@ -1538,10 +1551,12 @@ export function createSettingsRpcHandler(
        * 界面据此把该按钮显示成「寻找…」而不是「更新…」。
        */
       const workNameForAttr = researchWorkName(root, title).name
-      const idForAttr = readLocalIdentity(root, deps.workIdentity).workspaceId
+      const identity = publicationIdentity(root)
+      const idForAttr = identity.workspaceId
       const fingerprintForAttr = researchRootFingerprint(root)
       const published = await (async () => {
         const rows: LocalWorkItem['published'] = []
+        if (identity.conflict) return rows
         for (const direction of PROJECT_DIRECTIONS) {
           const record = publishedStore.get(root, direction)
           if (!record) continue
@@ -1559,7 +1574,7 @@ export function createSettingsRpcHandler(
         }
         return rows
       })()
-      if (progress) sources.set(w.id, { root, title, progress })
+      if (progress && directory) sources.set(w.id, { root, directory, title, progress })
       /*
        * 研究工作自己的名字与身份。
        *
@@ -1569,7 +1584,7 @@ export function createSettingsRpcHandler(
        *   （发布之后由服务器返回并落盘）。
        */
       const workName = researchWorkName(root, title).name
-      const workId = readLocalIdentity(root, deps.workIdentity).workspaceId
+      const workId = identity.workspaceId
       items.push({
         id: w.id,
         // 缺省标题用**会话工作区**的目录名（`.../proj-b`），不是研究根
@@ -1658,7 +1673,7 @@ export function createSettingsRpcHandler(
     for (const c of checks) {
       if (c.visibility === null && !c.gone) continue
       const record = publishedStore.get(c.item.researchRoot, c.record.direction)
-      if (!record) continue
+      if (!record || record.projectId !== c.record.projectId || publicationIdentity(c.item.researchRoot).conflict) continue
       if (c.gone) publishedStore.remove(c.item.researchRoot, c.record.direction)
       else publishedStore.set(c.item.researchRoot, { ...record, serverVisibility: c.visibility!, checkedAt })
     }
@@ -1674,7 +1689,9 @@ export function createSettingsRpcHandler(
     for (const c of checks) {
       if (!c.workspaceId) continue
       try {
-        if (readLocalIdentity(c.item.researchRoot, deps.workIdentity).workspaceId) continue
+        const identityOnDisk = publicationIdentity(c.item.researchRoot)
+        if (identityOnDisk.workspaceId || identityOnDisk.conflict) continue
+        if (publishedStore.get(c.item.researchRoot, c.record.direction)?.projectId !== c.record.projectId) continue
         const identity = makeWorkIdentity({
           workspaceId: c.workspaceId,
           projectId: c.record.projectId,
@@ -1702,7 +1719,7 @@ export function createSettingsRpcHandler(
      */
     for (const it of scoped) {
       if (it.workId) continue
-      it.workId = readLocalIdentity(it.researchRoot, deps.workIdentity).workspaceId
+      it.workId = publicationIdentity(it.researchRoot).workspaceId
     }
     /*
      * ③ **有 id 才谈"更新"**（2026-10 用户拍板）：服务器支持身份、而这项工作本机拿不到 id
@@ -2451,7 +2468,13 @@ export function createSettingsRpcHandler(
           // ⚠️ 只认**当前服务器 + 当前方向**的记录：别的服务器、另一个方向的"已上传指纹"
           // 在这里都不成立（会漏传，或把两个项目的附件算在一起）
           const base = resolveServerUrl(deps.getConfig(), env()).url
-          const record = await recordOn(source, base, direction)
+          const directory = source.directory
+          const localIdentity = publicationIdentity(source.root)
+          const fingerprint = researchRootFingerprint(source.root)
+          const record = localIdentity.conflict ? undefined : await recordOn(source, base, direction)
+          const publicationTarget = createHash('sha256').update(JSON.stringify([
+            base, direction, directory, fingerprint, localIdentity.workspaceId, localIdentity.conflict, record?.projectId,
+          ])).digest('hex')
           // 记住的选择 ∪ 规则推荐（新文件自动并入，否则新增证据会静默漏传）
           const remembered = record?.selection ?? null
           const recommended = plan.categories
@@ -2485,6 +2508,9 @@ export function createSettingsRpcHandler(
               workNameSource: workName.source,
               /** 本次要发布到哪个方向（界面把它显示在标题上，免得两个按钮分不清）。 */
               direction,
+              publicationTarget,
+              identityConflict: localIdentity.conflict,
+              canPublishAsNew: Boolean(localIdentity.conflict || localIdentity.workspaceId || record),
               plan,
               /** 对话框的初始勾选。 */
               selection: effective,
@@ -2546,6 +2572,15 @@ export function createSettingsRpcHandler(
           const source = listed.sources.get(id)
           if (!source) return fail('not-found', '找不到这个本机研究项目（或其研究状态读不出来）。')
           const base = resolveServerUrl(config, env()).url
+          const directory = source.directory
+          const fingerprint = researchRootFingerprint(source.root)
+          const localIdentity = publicationIdentity(source.root)
+          const publishAsNew = p.publishAsNew === true
+          const target = asString(p.publicationTarget)
+          if (publishAsNew && !target) return fail('bad-request', '请打开发布确认窗口后选择「作为新研究发布」。')
+          if (localIdentity.conflict && !publishAsNew) {
+            return fail('work-identity-conflict', '当前目录与原发布记录的研究身份不符。确认是另一项研究后，请选择「作为新研究发布」。')
+          }
           /**
            * 附件选择：界面在对话框里确认后传进来。
            *
@@ -2564,7 +2599,19 @@ export function createSettingsRpcHandler(
               generatedAt: new Date().toISOString(),
             })
             // ⚠️ 同上：另一台服务器 / 另一个方向的记录不能当"上次传过"用
-            const previous = await recordOn(source, base, direction)
+            const savedRecord = localIdentity.conflict ? undefined : await recordOn(source, base, direction)
+            const expectedTarget = createHash('sha256').update(JSON.stringify([
+              base, direction, directory, fingerprint, localIdentity.workspaceId, localIdentity.conflict, savedRecord?.projectId,
+            ])).digest('hex')
+            const checkDirectory = (): void => {
+              if (directory !== researchDirectoryIdentity(source.root) || fingerprint !== researchRootFingerprint(source.root)) {
+                throw new ServerError('bad-request', '研究目录已变更，请重新打开发布确认窗口。')
+              }
+            }
+            if (target && target !== expectedTarget) {
+              return fail('publication-target-changed', '研究目录或发布记录已变更，请重新打开发布确认窗口。')
+            }
+            const previous = publishAsNew ? undefined : savedRecord
             /*
              * 一个研究工作**只属于一个方向**（2026-10 用户拍板）。
              *
@@ -2578,7 +2625,7 @@ export function createSettingsRpcHandler(
              * ⚠️ 判据按**服务器**分：换一台服务器是另一个网络，两边各自成立。
              */
             const otherDirection = PROJECT_DIRECTIONS.find((d) => d !== direction)
-            const otherRecord = otherDirection ? await recordOn(source, base, otherDirection) : undefined
+            const otherRecord = !publishAsNew && otherDirection ? await recordOn(source, base, otherDirection) : undefined
             if (otherRecord && !previous) {
               const otherLabel = otherDirection === 'SEEK_STUDENT' ? '导师出题（招学生）' : '学生发布工作（求指导）'
               return fail(
@@ -2604,19 +2651,19 @@ export function createSettingsRpcHandler(
              *   ③ 界面上用它区分"这是哪一项研究"（工作区名区分不了 —— 同一个会话工作区里
              *      可以有多项研究，见 2026-10 用户要求）。
              */
-            const localIdentity = readLocalIdentity(source.root, deps.workIdentity)
             /**
              * 本次发布认定的工作身份：本机已有的（沿用）或建项目时服务器新给的。
              *
              * ⚠️ 传状态 / 传附件 / 发布三个写请求都要带上它 —— 服务器只要有一个环节
              * 能校验，就能拦住"往别人的项目里写"（覆盖不可逆）。
              */
-            let workIdForWrite: string | null = localIdentity.workspaceId
+            let workIdForWrite: string | null = publishAsNew ? null : localIdentity.workspaceId
 
             /** 把服务器给的身份落到本机（标记 + 注册表）；没有值就**什么都不写**。 */
             const rememberIdentity = (workspaceId: string | null | undefined): void => {
               const id = normalizeWorkspaceId(workspaceId)
               if (!id) return
+              checkDirectory()
               const identity = makeWorkIdentity({
                 workspaceId: id,
                 projectId,
@@ -2625,9 +2672,7 @@ export function createSettingsRpcHandler(
                 // 发布方 = 这项研究的 owner（学生自己的工作是 owner；导师出题也是 owner）
                 role: 'owner',
                 // 注册表按路径存 → 记下"这条身份属于当时住在这里的那项研究"
-                ...(researchRootFingerprint(source.root)
-                  ? { rootFingerprint: researchRootFingerprint(source.root) as string }
-                  : {}),
+                ...(fingerprint ? { rootFingerprint: fingerprint } : {}),
               })
               try {
                 deps.workIdentity?.set(source.root, identity)
@@ -2639,9 +2684,10 @@ export function createSettingsRpcHandler(
 
             const create = async (): Promise<string> => {
               upload?.signal.throwIfAborted()
+              checkDirectory()
               // Keep first publication recoverable even if the server created it before the response was lost.
-              const creationId = upload ? createHash('sha256').update(JSON.stringify([
-                base, me.id, direction, researchRootFingerprint(source.root) ?? source.root, retiredProjectId,
+              const creationId = upload || publishAsNew ? createHash('sha256').update(JSON.stringify([
+                base, me.id, direction, directory, fingerprint, retiredProjectId, publishAsNew ? target : workIdForWrite,
               ])).digest('hex').slice(0, 32) : undefined
               const project = await createProject(
                 base,
@@ -2655,18 +2701,20 @@ export function createSettingsRpcHandler(
                   // 只在非默认方向时显式发：默认方向归服务器所有（见 createProject 注释）
                   ...(direction === 'SEEK_STUDENT' ? { direction } : {}),
                   // 已有身份 → 沿用（服务器保证同一 id 跨项目生命周期不变）
-                  ...(localIdentity.workspaceId ? { workspaceId: localIdentity.workspaceId } : {}),
+                  ...(workIdForWrite ? { workspaceId: workIdForWrite } : {}),
                   // 界面给了值才写入挂牌价或预算
                   ...(askingFee !== undefined ? { askingFee } : {}),
                 },
                 netOptions(),
               )
               created = true
-              // 服务器给的才是权威：本机没有就记下，本机有但不同则**以服务器为准**（同一次发布）
-              rememberIdentity(project.workspaceId)
               workIdForWrite = normalizeWorkspaceId(project.workspaceId) ?? workIdForWrite
+              if (publishAsNew && (!workIdForWrite || workIdForWrite === localIdentity.workspaceId)) {
+                throw new ServerError('bad-response', '服务器未返回新的研究身份。')
+              }
               return project.id
             }
+            checkDirectory()
             if (!projectId) projectId = await create()
             /*
              * 复用旧项目、但本机**没有**身份（老版本插件发的，或标记文件被删）→ 回查一次对齐。
@@ -2714,12 +2762,13 @@ export function createSettingsRpcHandler(
                 }
               }
               const baseVersion = await readStateVersion(base, apiKey, projectId, netOptions())
+              checkDirectory()
               if (selected.some((path) => !selectable.has(path))) {
                 return fail('bad-request', '所选文件已变更，请重新打开上传清单。')
               }
               const result = await transferWorkspace(
                 base, apiKey, projectId, source.root, selected, netOptions(workIdForWrite) ?? {},
-                upload, uploadTimeoutForBytes, { content, baseVersion },
+                upload, uploadTimeoutForBytes, { content, baseVersion, checkSource: checkDirectory },
               )
               const receipt = result.receipt
               if (receipt.version === null || receipt.content_hash === null) {
@@ -2733,8 +2782,9 @@ export function createSettingsRpcHandler(
               digests = Object.fromEntries(result.manifest.map((file) => [file.path, file.sha256]))
             } else {
               // 一次保存意图一个幂等键；因 409 重基后 payload 变了 → 换新键
-              const saveState = async (baseVersion: number | null) =>
-                uploadResearchState(
+              const saveState = async (baseVersion: number | null) => {
+                checkDirectory()
+                return uploadResearchState(
                   base,
                   apiKey,
                   projectId,
@@ -2745,6 +2795,7 @@ export function createSettingsRpcHandler(
                   },
                   netOptions(workIdForWrite),
                 )
+              }
               const saveStateWithRebase = async (version: number | null) => {
                 try {
                   return await saveState(version)
@@ -2765,6 +2816,7 @@ export function createSettingsRpcHandler(
               } catch (e) {
                 // 映射指向的项目已被服务器删除（本地记录不会自己知道）：忘掉它、新建项目重来一次
                 if (!reusable || !(e instanceof ServerError) || e.code !== 'not-found') throw e
+                checkDirectory()
                 publishedStore.remove(source.root, direction)
                 projectId = await create()
                 uploaded = await saveStateWithRebase(
@@ -2808,6 +2860,7 @@ export function createSettingsRpcHandler(
                 sending.reduce((n, rel) => n + (sizes.get(rel) ?? 0), 0),
               )
               for (const batch of batches) {
+                checkDirectory()
                 const payload: Array<{ relPath: string; bytes: Uint8Array }> = []
                 for (const relPath of batch) {
                   try {
@@ -2818,6 +2871,7 @@ export function createSettingsRpcHandler(
                   }
                 }
                 if (payload.length === 0) continue
+                checkDirectory()
                 const results = await uploadProjectFiles(base, apiKey, projectId, payload, {
                   stateVersion: uploaded.version,
                   ...netOptions(workIdForWrite),
@@ -2832,6 +2886,7 @@ export function createSettingsRpcHandler(
 
             }
 
+            checkDirectory()
             // 上传成功后才发布（顺序不能反：先发布会留下空卡片）。
             // 幂等键由 (项目, 版本) 决定：同一次发布的重试不会重复扣费。
             const { visibility, chargedTokens } = await publishProject(base, apiKey, projectId, {
@@ -2899,6 +2954,9 @@ export function createSettingsRpcHandler(
               // 「记住这次选择」：下次不弹窗时沿用它（新文件仍会按规则并入）
               ...(remember ? { selection: selected } : {}),
             }
+            checkDirectory()
+            // 发布完成再替换本机身份，上传失败时可以用同一创建标识重试。
+            if (created) rememberIdentity(workIdForWrite)
             publishedStore.set(source.root, record)
             return {
               ok: true,

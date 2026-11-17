@@ -144,6 +144,9 @@ export declare const zh: {
     'community.publish.summary': string;
     'community.publish.remember': string;
     'community.publish.confirm': string;
+    'community.publish.asNew': string;
+    'community.publish.asNewHint': string;
+    'community.publish.identityConflict': string;
     'community.action.cancel': string;
     'community.action.close': string;
     'community.action.viewMentor': string;

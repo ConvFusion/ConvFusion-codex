@@ -238,8 +238,9 @@ try {
     // 注册表那一半也生效（解压前只有注册表时）
     {
       const t = mk('f-registry', { localId: null })
+      writeFileSync(join(t.root, 'project.md'), '---\ncreated_at: 2026-01-02T03:04:05.000Z\ntopic: 分层记忆\n---\n')
       const store = WI.createMemoryWorkIdentityStore()
-      store.set(t.root, WI.makeWorkIdentity({ workspaceId: WS_A, projectId: 'p', serverUrl: 's', accountId: 'a', role: 'owner' }))
+      store.set(t.root, WI.makeWorkIdentity({ workspaceId: WS_A, projectId: 'p', serverUrl: 's', accountId: 'a', role: 'owner', rootFingerprint: WI.researchRootFingerprint(t.root) }))
       notes.put({
         zipPath: t.zip,
         remoteWorkspaceId: WS_A,

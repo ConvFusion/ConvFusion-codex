@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 // scripts/codex-ui-server.mjs
 import { createServer } from "node:http";
 import { createHash as createHash5, randomBytes as randomBytes4 } from "node:crypto";
-import { existsSync as existsSync31, readFileSync as readFileSync27, realpathSync as realpathSync5, statSync as statSync11 } from "node:fs";
+import { existsSync as existsSync31, readFileSync as readFileSync27, realpathSync as realpathSync5, statSync as statSync12 } from "node:fs";
 import { basename as basename5, dirname as dirname15, isAbsolute as isAbsolute9, join as join30, resolve as resolve10, relative as relative7, sep as sep5 } from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 
@@ -1687,7 +1687,7 @@ function describeOpenAlexKey(config, env = process.env) {
 }
 
 // lib/research/work-identity.js
-import { existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync as readFileSync3, renameSync, writeFileSync } from "node:fs";
+import { existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync as readFileSync3, renameSync, statSync as statSync3, writeFileSync } from "node:fs";
 import { dirname as dirname2, join as join5 } from "node:path";
 var WORK_META_DIR = ".convfusion";
 var WORK_MARKER_REL = `${WORK_META_DIR}/work.json`;
@@ -1700,6 +1700,14 @@ function researchRootFingerprint(researchRoot2) {
     const m = /^created_at:[ \t]*(.+)$/m.exec(text);
     const value = m?.[1]?.trim();
     return value ? value : null;
+  } catch {
+    return null;
+  }
+}
+function researchDirectoryIdentity(researchRoot2) {
+  try {
+    const stat = statSync3(researchRoot2, { bigint: true });
+    return stat.isDirectory() ? `${stat.dev}:${stat.ino}:${stat.birthtimeNs}` : null;
   } catch {
     return null;
   }
@@ -1739,6 +1747,7 @@ function readWorkMarker(researchRoot2) {
   };
   return {
     workspaceId: id,
+    ...pick2(raw.root_fingerprint, raw.rootFingerprint) ? { rootFingerprint: pick2(raw.root_fingerprint, raw.rootFingerprint) } : {},
     ...pick2(raw.project_id, raw.projectId) ? { projectId: pick2(raw.project_id, raw.projectId) } : {},
     ...pick2(raw.server_url, raw.serverUrl) ? { serverUrl: pick2(raw.server_url, raw.serverUrl) } : {},
     ...typeof raw.role === "string" && raw.role.trim() ? { role: asRole(raw.role) } : {},
@@ -1765,6 +1774,8 @@ function markerJson(identity) {
     payload.server_url = identity.serverUrl;
   if (identity.role)
     payload.role = identity.role;
+  if (identity.rootFingerprint)
+    payload.root_fingerprint = identity.rootFingerprint;
   payload.synced_at = identity.updatedAt || (/* @__PURE__ */ new Date()).toISOString();
   return `${JSON.stringify(payload, null, 2)}
 `;
@@ -1781,7 +1792,9 @@ function parseIdentity(raw) {
     serverUrl: typeof raw.serverUrl === "string" ? raw.serverUrl.trim() : "",
     accountId: typeof raw.accountId === "string" ? raw.accountId.trim() : "",
     role: asRole(raw.role),
-    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : ""
+    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : "",
+    ...typeof raw.rootFingerprint === "string" && raw.rootFingerprint ? { rootFingerprint: raw.rootFingerprint } : {},
+    ...typeof raw.directoryIdentity === "string" && raw.directoryIdentity ? { directoryIdentity: raw.directoryIdentity } : {}
   };
 }
 function parseTable(text) {
@@ -1824,7 +1837,8 @@ function createFileWorkIdentityStore(resolvePath) {
     get: (researchRoot2) => load()[researchRoot2],
     set: (researchRoot2, record) => {
       const table = load();
-      table[researchRoot2] = record;
+      const directoryIdentity = researchDirectoryIdentity(researchRoot2);
+      table[researchRoot2] = { ...record, directoryIdentity: directoryIdentity ?? void 0 };
       save(table);
     },
     remove: (researchRoot2) => {
@@ -1844,7 +1858,10 @@ function readLocalIdentity(researchRoot2, store) {
   const marker = readWorkMarker(researchRoot2);
   const fingerprint = researchRootFingerprint(researchRoot2);
   const entry = store?.get(researchRoot2);
-  const registryTrusted = Boolean(entry && entry.rootFingerprint && fingerprint && entry.rootFingerprint === fingerprint);
+  if (marker?.rootFingerprint && fingerprint && marker.rootFingerprint !== fingerprint) {
+    return { workspaceId: null, source: "marker", conflict: true };
+  }
+  const registryTrusted = Boolean(entry?.rootFingerprint && entry.rootFingerprint === fingerprint && entry.directoryIdentity && entry.directoryIdentity === researchDirectoryIdentity(researchRoot2));
   const registry = registryTrusted ? normalizeWorkspaceId(entry?.workspaceId) : null;
   if (marker && registry) {
     if (marker.workspaceId === registry) {
@@ -3134,6 +3151,7 @@ async function transferWorkspace(base, key, projectId, root, paths, options, con
   const canonicalRoot = await realpath(root);
   const read = async (path) => {
     signal.throwIfAborted();
+    state?.checkSource?.();
     const absolute = safeJoin(root, path);
     if (!absolute)
       throw new Error("\u6240\u9009\u6587\u4EF6\u8DEF\u5F84\u65E0\u6548\uFF0C\u8BF7\u91CD\u65B0\u626B\u63CF\u5DE5\u4F5C\u533A\u3002");
@@ -3141,7 +3159,9 @@ async function transferWorkspace(base, key, projectId, root, paths, options, con
     if (canonical !== safeJoin(canonicalRoot, path)) {
       throw new Error("\u9009\u4E2D\u7684\u6587\u4EF6\u5DF2\u53D8\u4E3A\u7B26\u53F7\u94FE\u63A5\uFF0C\u8BF7\u91CD\u65B0\u9009\u62E9\u3002");
     }
-    return await readFile(canonical, { signal });
+    const bytes = await readFile(canonical, { signal });
+    state?.checkSource?.();
+    return bytes;
   };
   const manifest = [];
   for (const batch of batches) {
@@ -3152,7 +3172,11 @@ async function transferWorkspace(base, key, projectId, root, paths, options, con
   }
   signal.throwIfAborted();
   const id = randomUUID();
-  const request = (method, suffix, body2, timeoutMs) => workspaceUploadRequest(base, key, projectId, method, suffix, body2, { ...options, ...timeoutMs === void 0 ? {} : { timeoutMs } });
+  const request = (method, suffix, body2, timeoutMs) => {
+    if (method === "POST")
+      state?.checkSource?.();
+    return workspaceUploadRequest(base, key, projectId, method, suffix, body2, { ...options, ...timeoutMs === void 0 ? {} : { timeoutMs } });
+  };
   const retry = async (send) => {
     for (let attempt = 0; ; attempt++) {
       try {
@@ -3211,6 +3235,7 @@ async function transferWorkspace(base, key, projectId, root, paths, options, con
         signal.throwIfAborted();
         if (!remaining.length)
           return;
+        state?.checkSource?.();
         try {
           await stageWorkspaceFiles(base, key, projectId, job.id, remaining, {
             ...options,
@@ -3251,7 +3276,7 @@ async function transferWorkspace(base, key, projectId, root, paths, options, con
 }
 
 // lib/settings-rpc.js
-import { existsSync as existsSync22, realpathSync, statSync as statSync7 } from "node:fs";
+import { existsSync as existsSync22, realpathSync, statSync as statSync8 } from "node:fs";
 import { basename, resolve as resolve5 } from "node:path";
 import { createHash as createHash2 } from "node:crypto";
 
@@ -4240,7 +4265,7 @@ function skillSummaries(_workspace) {
 }
 
 // lib/research/workspace.js
-import { existsSync as existsSync7, readFileSync as readFileSync8, statSync as statSync3 } from "node:fs";
+import { existsSync as existsSync7, readFileSync as readFileSync8, statSync as statSync4 } from "node:fs";
 import { isAbsolute as isAbsolute4, join as join9, resolve as resolve4 } from "node:path";
 
 // lib/research/research-data.js
@@ -4683,7 +4708,7 @@ function stripFrontmatter2(source) {
 }
 function isResearchWorkspace(dir) {
   try {
-    if (!statSync3(dir).isDirectory())
+    if (!statSync4(dir).isDirectory())
       return false;
   } catch {
     return false;
@@ -8875,7 +8900,7 @@ function buildResearchIndex(workspace) {
 }
 
 // lib/research/stage-signals.js
-import { existsSync as existsSync15, readFileSync as readFileSync16, readdirSync as readdirSync11, statSync as statSync5 } from "node:fs";
+import { existsSync as existsSync15, readFileSync as readFileSync16, readdirSync as readdirSync11, statSync as statSync6 } from "node:fs";
 import { join as join18, relative as relative4, sep as sep3 } from "node:path";
 
 // lib/research/paper.js
@@ -8883,7 +8908,7 @@ import { existsSync as existsSync12, mkdirSync as mkdirSync10, readFileSync as r
 import { join as join15 } from "node:path";
 
 // lib/research/workspace-layout.js
-import { existsSync as existsSync11, mkdirSync as mkdirSync9, readdirSync as readdirSync9, statSync as statSync4 } from "node:fs";
+import { existsSync as existsSync11, mkdirSync as mkdirSync9, readdirSync as readdirSync9, statSync as statSync5 } from "node:fs";
 import { join as join14 } from "node:path";
 
 // lib/research/output-data.js
@@ -9014,7 +9039,7 @@ function inspectWorkspace(workspace) {
     let empty = false;
     if (exists) {
       try {
-        empty = statSync4(abs).isDirectory() && readdirSync9(abs).length === 0;
+        empty = statSync5(abs).isDirectory() && readdirSync9(abs).length === 0;
       } catch {
         empty = false;
       }
@@ -10756,7 +10781,7 @@ function buildSignalContext(workspace) {
     for (const f of readdirSync11(plansDir)) {
       if (!/budget/i.test(f) || /template/i.test(f) || !/\.md$/i.test(f))
         continue;
-      const st = statSync5(join18(plansDir, f));
+      const st = statSync6(join18(plansDir, f));
       if (!budgetPlan || st.mtimeMs > budgetPlan.mtimeMs)
         budgetPlan = { path: `plans/${f}`, mtimeMs: st.mtimeMs };
     }
@@ -10770,7 +10795,7 @@ function buildSignalContext(workspace) {
       const dir = stack.pop();
       for (const f of readdirSync11(dir)) {
         const full = join18(dir, f);
-        const st = statSync5(full);
+        const st = statSync6(full);
         if (st.isDirectory()) {
           stack.push(full);
           continue;
@@ -10791,11 +10816,11 @@ function buildSignalContext(workspace) {
     const papersDir = join18(workspace, "papers");
     for (const d of readdirSync11(papersDir)) {
       const dir = join18(papersDir, d);
-      if (!statSync5(dir).isDirectory())
+      if (!statSync6(dir).isDirectory())
         continue;
       const outline = join18(dir, "paper-outlines.md");
       if (existsSync15(outline)) {
-        const st = statSync5(outline);
+        const st = statSync6(outline);
         if (!paperOutline || st.mtimeMs > paperOutline.mtimeMs) {
           paperOutline = { path: `papers/${d}/paper-outlines.md`, mtimeMs: st.mtimeMs };
         }
@@ -10804,7 +10829,7 @@ function buildSignalContext(workspace) {
         const f = join18(dir, rel);
         if (!existsSync15(f))
           continue;
-        const st = statSync5(f);
+        const st = statSync6(f);
         if (st.mtimeMs > latestManuscriptMs)
           latestManuscriptMs = st.mtimeMs;
       }
@@ -12618,7 +12643,7 @@ function latestTurnReport(sessionId) {
 }
 
 // lib/research/work-name.js
-import { existsSync as existsSync19, readdirSync as readdirSync14, readFileSync as readFileSync20, statSync as statSync6 } from "node:fs";
+import { existsSync as existsSync19, readdirSync as readdirSync14, readFileSync as readFileSync20, statSync as statSync7 } from "node:fs";
 import { join as join22 } from "node:path";
 var WORK_NAME_LIMIT = 200;
 var PLACEHOLDER_TITLES = /* @__PURE__ */ new Set(["title", "untitled", "paper", "manuscript", "\u672A\u547D\u540D", "\u65E0\u9898"]);
@@ -12693,7 +12718,7 @@ function paperTitleOf(root) {
 }
 function mtimeOf(path) {
   try {
-    return statSync6(path).mtimeMs;
+    return statSync7(path).mtimeMs;
   } catch {
     return 0;
   }
@@ -12828,7 +12853,7 @@ import { existsSync as existsSync20, mkdirSync as mkdirSync16, readFileSync as r
 import { dirname as dirname8 } from "node:path";
 var KEY_SEP = "\0";
 function occupantMatches(record, workId, fingerprint) {
-  if (record.workId && workId && record.workId !== workId)
+  if (record.workId && record.workId !== workId)
     return false;
   if (record.rootFingerprint && fingerprint && record.rootFingerprint !== fingerprint)
     return false;
@@ -12856,6 +12881,7 @@ function parseRecord2(raw) {
   const serverUrl = typeof raw.serverUrl === "string" ? raw.serverUrl.trim() : "";
   const accountId = typeof raw.accountId === "string" ? raw.accountId.trim() : "";
   const version2 = typeof raw.version === "number" && Number.isFinite(raw.version) ? raw.version : 0;
+  const workId = normalizeWorkspaceId(raw.workId);
   if (!projectId || !serverUrl)
     return void 0;
   return {
@@ -12865,6 +12891,8 @@ function parseRecord2(raw) {
     // 挂牌价：只认 >=1 的整数（与服务器 CHECK 一致）；旧记录没有这个字段 → 不读
     ...typeof raw.askingFee === "number" && Number.isInteger(raw.askingFee) && raw.askingFee >= 1 ? { askingFee: raw.askingFee } : {},
     projectId,
+    ...workId ? { workId } : {},
+    ...typeof raw.rootFingerprint === "string" && raw.rootFingerprint ? { rootFingerprint: raw.rootFingerprint } : {},
     serverUrl,
     accountId,
     version: version2,
@@ -13520,7 +13548,7 @@ function inspectDownloadTarget(path) {
   let isDir = false;
   try {
     canonical = realpathSync(path);
-    isDir = statSync7(canonical).isDirectory();
+    isDir = statSync8(canonical).isDirectory();
   } catch {
     isDir = false;
   }
@@ -13907,6 +13935,14 @@ function createSettingsRpcHandler(deps) {
       return "mine";
     return nameAtPublish === workName.trim() ? "mine" : "unknown";
   };
+  const publicationIdentity = (root) => {
+    const identity = readLocalIdentity(root, deps.workIdentity);
+    const fingerprint = researchRootFingerprint(root);
+    if (!identity.workspaceId || !fingerprint)
+      return identity;
+    const mismatched = Object.values(publishedStore.all()).some((record) => record.workId === identity.workspaceId && record.rootFingerprint && record.rootFingerprint !== fingerprint);
+    return mismatched ? { ...identity, workspaceId: null, conflict: true } : identity;
+  };
   const collectLocalWorks = async () => {
     const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : { available: false, reason: "\u5BBF\u4E3B\u672A\u63D0\u4F9B\u5DE5\u4F5C\u533A\u6CE8\u518C\u8868\u8BFB\u53D6\u63A5\u53E3", items: [] };
     const skillContent = (id) => effectiveSkillContentById(id, deps.store);
@@ -13917,7 +13953,7 @@ function createSettingsRpcHandler(deps) {
       let isDir = false;
       try {
         canonical = realpathSync(w.path);
-        isDir = statSync7(canonical).isDirectory();
+        isDir = statSync8(canonical).isDirectory();
       } catch {
         isDir = false;
       }
@@ -13925,6 +13961,7 @@ function createSettingsRpcHandler(deps) {
       const root = researchWorkspaceOf(canonical);
       if (missingDir || !isResearchWorkspace(root))
         continue;
+      const directory = researchDirectoryIdentity(root);
       let progress = null;
       try {
         progress = buildWorkspaceProgress(captureProgress(root, skillContent));
@@ -13932,10 +13969,13 @@ function createSettingsRpcHandler(deps) {
       }
       const title = w.title.trim() || basename(canonical);
       const workNameForAttr = researchWorkName(root, title).name;
-      const idForAttr = readLocalIdentity(root, deps.workIdentity).workspaceId;
+      const identity = publicationIdentity(root);
+      const idForAttr = identity.workspaceId;
       const fingerprintForAttr = researchRootFingerprint(root);
       const published = await (async () => {
         const rows = [];
+        if (identity.conflict)
+          return rows;
         for (const direction of PROJECT_DIRECTIONS) {
           const record = publishedStore.get(root, direction);
           if (!record)
@@ -13954,10 +13994,10 @@ function createSettingsRpcHandler(deps) {
         }
         return rows;
       })();
-      if (progress)
-        sources.set(w.id, { root, title, progress });
+      if (progress && directory)
+        sources.set(w.id, { root, directory, title, progress });
       const workName = researchWorkName(root, title).name;
-      const workId = readLocalIdentity(root, deps.workIdentity).workspaceId;
+      const workId = identity.workspaceId;
       items.push({
         id: w.id,
         // 缺省标题用**会话工作区**的目录名（`.../proj-b`），不是研究根
@@ -14015,7 +14055,7 @@ function createSettingsRpcHandler(deps) {
       if (c.visibility === null && !c.gone)
         continue;
       const record = publishedStore.get(c.item.researchRoot, c.record.direction);
-      if (!record)
+      if (!record || record.projectId !== c.record.projectId || publicationIdentity(c.item.researchRoot).conflict)
         continue;
       if (c.gone)
         publishedStore.remove(c.item.researchRoot, c.record.direction);
@@ -14026,7 +14066,10 @@ function createSettingsRpcHandler(deps) {
       if (!c.workspaceId)
         continue;
       try {
-        if (readLocalIdentity(c.item.researchRoot, deps.workIdentity).workspaceId)
+        const identityOnDisk = publicationIdentity(c.item.researchRoot);
+        if (identityOnDisk.workspaceId || identityOnDisk.conflict)
+          continue;
+        if (publishedStore.get(c.item.researchRoot, c.record.direction)?.projectId !== c.record.projectId)
           continue;
         const identity = makeWorkIdentity({
           workspaceId: c.workspaceId,
@@ -14049,7 +14092,7 @@ function createSettingsRpcHandler(deps) {
     for (const it of scoped) {
       if (it.workId)
         continue;
-      it.workId = readLocalIdentity(it.researchRoot, deps.workIdentity).workspaceId;
+      it.workId = publicationIdentity(it.researchRoot).workspaceId;
     }
     const serverHasIds = checks.some((c) => c.workspaceId !== void 0);
     if (serverHasIds) {
@@ -14658,7 +14701,19 @@ function createSettingsRpcHandler(deps) {
           const plan = buildUploadPlan(source.root);
           const workName = researchWorkName(source.root, source.title);
           const base = resolveServerUrl(deps.getConfig(), env()).url;
-          const record = await recordOn(source, base, direction);
+          const directory = source.directory;
+          const localIdentity = publicationIdentity(source.root);
+          const fingerprint = researchRootFingerprint(source.root);
+          const record = localIdentity.conflict ? void 0 : await recordOn(source, base, direction);
+          const publicationTarget = createHash2("sha256").update(JSON.stringify([
+            base,
+            direction,
+            directory,
+            fingerprint,
+            localIdentity.workspaceId,
+            localIdentity.conflict,
+            record?.projectId
+          ])).digest("hex");
           const remembered = record?.selection ?? null;
           const recommended = plan.categories.filter((c) => c.decision === "recommended").flatMap((c) => c.files.filter((f) => !f.relPath.endsWith("/")).map((f) => f.relPath));
           const exist = /* @__PURE__ */ new Set([...recommended, ...plan.categories.filter((c) => c.decision === "optional").flatMap((c) => c.files.map((f) => f.relPath))]);
@@ -14683,6 +14738,9 @@ function createSettingsRpcHandler(deps) {
               workNameSource: workName.source,
               /** 本次要发布到哪个方向（界面把它显示在标题上，免得两个按钮分不清）。 */
               direction,
+              publicationTarget,
+              identityConflict: localIdentity.conflict,
+              canPublishAsNew: Boolean(localIdentity.conflict || localIdentity.workspaceId || record),
               plan,
               /** 对话框的初始勾选。 */
               selection: effective,
@@ -14736,6 +14794,16 @@ function createSettingsRpcHandler(deps) {
           if (!source)
             return fail("not-found", "\u627E\u4E0D\u5230\u8FD9\u4E2A\u672C\u673A\u7814\u7A76\u9879\u76EE\uFF08\u6216\u5176\u7814\u7A76\u72B6\u6001\u8BFB\u4E0D\u51FA\u6765\uFF09\u3002");
           const base = resolveServerUrl(config, env()).url;
+          const directory = source.directory;
+          const fingerprint = researchRootFingerprint(source.root);
+          const localIdentity = publicationIdentity(source.root);
+          const publishAsNew = p.publishAsNew === true;
+          const target = asString3(p.publicationTarget);
+          if (publishAsNew && !target)
+            return fail("bad-request", "\u8BF7\u6253\u5F00\u53D1\u5E03\u786E\u8BA4\u7A97\u53E3\u540E\u9009\u62E9\u300C\u4F5C\u4E3A\u65B0\u7814\u7A76\u53D1\u5E03\u300D\u3002");
+          if (localIdentity.conflict && !publishAsNew) {
+            return fail("work-identity-conflict", "\u5F53\u524D\u76EE\u5F55\u4E0E\u539F\u53D1\u5E03\u8BB0\u5F55\u7684\u7814\u7A76\u8EAB\u4EFD\u4E0D\u7B26\u3002\u786E\u8BA4\u662F\u53E6\u4E00\u9879\u7814\u7A76\u540E\uFF0C\u8BF7\u9009\u62E9\u300C\u4F5C\u4E3A\u65B0\u7814\u7A76\u53D1\u5E03\u300D\u3002");
+          }
           const selectionProvided = Array.isArray(p.selection);
           const remember = p.remember !== false;
           try {
@@ -14746,9 +14814,27 @@ function createSettingsRpcHandler(deps) {
               progress: source.progress,
               generatedAt: (/* @__PURE__ */ new Date()).toISOString()
             });
-            const previous = await recordOn(source, base, direction);
+            const savedRecord = localIdentity.conflict ? void 0 : await recordOn(source, base, direction);
+            const expectedTarget = createHash2("sha256").update(JSON.stringify([
+              base,
+              direction,
+              directory,
+              fingerprint,
+              localIdentity.workspaceId,
+              localIdentity.conflict,
+              savedRecord?.projectId
+            ])).digest("hex");
+            const checkDirectory = () => {
+              if (directory !== researchDirectoryIdentity(source.root) || fingerprint !== researchRootFingerprint(source.root)) {
+                throw new ServerError("bad-request", "\u7814\u7A76\u76EE\u5F55\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u53D1\u5E03\u786E\u8BA4\u7A97\u53E3\u3002");
+              }
+            };
+            if (target && target !== expectedTarget) {
+              return fail("publication-target-changed", "\u7814\u7A76\u76EE\u5F55\u6216\u53D1\u5E03\u8BB0\u5F55\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u53D1\u5E03\u786E\u8BA4\u7A97\u53E3\u3002");
+            }
+            const previous = publishAsNew ? void 0 : savedRecord;
             const otherDirection = PROJECT_DIRECTIONS.find((d) => d !== direction);
-            const otherRecord = otherDirection ? await recordOn(source, base, otherDirection) : void 0;
+            const otherRecord = !publishAsNew && otherDirection ? await recordOn(source, base, otherDirection) : void 0;
             if (otherRecord && !previous) {
               const otherLabel = otherDirection === "SEEK_STUDENT" ? "\u5BFC\u5E08\u51FA\u9898\uFF08\u62DB\u5B66\u751F\uFF09" : "\u5B66\u751F\u53D1\u5E03\u5DE5\u4F5C\uFF08\u6C42\u6307\u5BFC\uFF09";
               return fail("already-published", `\u8FD9\u9879\u5DE5\u4F5C\u5DF2\u7ECF\u4EE5\u300C${otherLabel}\u300D\u53D1\u5E03\u8FC7\u4E86\u3002\u4E00\u4E2A\u7814\u7A76\u5DE5\u4F5C\u53EA\u80FD\u5C5E\u4E8E\u4E00\u4E2A\u65B9\u5411 \u2014\u2014 \u8981\u7EE7\u7EED\u66F4\u65B0\u8BF7\u70B9\u540C\u4E00\u4E2A\u6309\u94AE\uFF08\u3010\u66F4\u65B0\u3011\uFF09\uFF0C\u4E0D\u80FD\u6539\u53D1\u5230\u53E6\u4E00\u4E2A\u65B9\u5411\u3002`);
@@ -14758,12 +14844,12 @@ function createSettingsRpcHandler(deps) {
             let retiredProjectId;
             let created = false;
             let renameFailed = null;
-            const localIdentity = readLocalIdentity(source.root, deps.workIdentity);
-            let workIdForWrite = localIdentity.workspaceId;
+            let workIdForWrite = publishAsNew ? null : localIdentity.workspaceId;
             const rememberIdentity = (workspaceId) => {
               const id2 = normalizeWorkspaceId(workspaceId);
               if (!id2)
                 return;
+              checkDirectory();
               const identity = makeWorkIdentity({
                 workspaceId: id2,
                 projectId,
@@ -14772,7 +14858,7 @@ function createSettingsRpcHandler(deps) {
                 // 发布方 = 这项研究的 owner（学生自己的工作是 owner；导师出题也是 owner）
                 role: "owner",
                 // 注册表按路径存 → 记下"这条身份属于当时住在这里的那项研究"
-                ...researchRootFingerprint(source.root) ? { rootFingerprint: researchRootFingerprint(source.root) } : {}
+                ...fingerprint ? { rootFingerprint: fingerprint } : {}
               });
               try {
                 deps.workIdentity?.set(source.root, identity);
@@ -14782,12 +14868,15 @@ function createSettingsRpcHandler(deps) {
             };
             const create = async () => {
               upload?.signal.throwIfAborted();
-              const creationId = upload ? createHash2("sha256").update(JSON.stringify([
+              checkDirectory();
+              const creationId = upload || publishAsNew ? createHash2("sha256").update(JSON.stringify([
                 base,
                 me.id,
                 direction,
-                researchRootFingerprint(source.root) ?? source.root,
-                retiredProjectId
+                directory,
+                fingerprint,
+                retiredProjectId,
+                publishAsNew ? target : workIdForWrite
               ])).digest("hex").slice(0, 32) : void 0;
               const project = await createProject(base, apiKey, {
                 // **这项研究工作自己的名字**（有论文用论文标题）——不是本机工作区名：
@@ -14798,15 +14887,18 @@ function createSettingsRpcHandler(deps) {
                 // 只在非默认方向时显式发：默认方向归服务器所有（见 createProject 注释）
                 ...direction === "SEEK_STUDENT" ? { direction } : {},
                 // 已有身份 → 沿用（服务器保证同一 id 跨项目生命周期不变）
-                ...localIdentity.workspaceId ? { workspaceId: localIdentity.workspaceId } : {},
+                ...workIdForWrite ? { workspaceId: workIdForWrite } : {},
                 // 界面给了值才写入挂牌价或预算
                 ...askingFee !== void 0 ? { askingFee } : {}
               }, netOptions());
               created = true;
-              rememberIdentity(project.workspaceId);
               workIdForWrite = normalizeWorkspaceId(project.workspaceId) ?? workIdForWrite;
+              if (publishAsNew && (!workIdForWrite || workIdForWrite === localIdentity.workspaceId)) {
+                throw new ServerError("bad-response", "\u670D\u52A1\u5668\u672A\u8FD4\u56DE\u65B0\u7684\u7814\u7A76\u8EAB\u4EFD\u3002");
+              }
               return project.id;
             };
+            checkDirectory();
             if (!projectId)
               projectId = await create();
             if (!created && !localIdentity.workspaceId) {
@@ -14841,10 +14933,11 @@ function createSettingsRpcHandler(deps) {
                 }
               }
               const baseVersion = await readStateVersion(base, apiKey, projectId, netOptions());
+              checkDirectory();
               if (selected.some((path) => !selectable.has(path))) {
                 return fail("bad-request", "\u6240\u9009\u6587\u4EF6\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u4E0A\u4F20\u6E05\u5355\u3002");
               }
-              const result = await transferWorkspace(base, apiKey, projectId, source.root, selected, netOptions(workIdForWrite) ?? {}, upload, uploadTimeoutForBytes, { content, baseVersion });
+              const result = await transferWorkspace(base, apiKey, projectId, source.root, selected, netOptions(workIdForWrite) ?? {}, upload, uploadTimeoutForBytes, { content, baseVersion, checkSource: checkDirectory });
               const receipt = result.receipt;
               if (receipt.version === null || receipt.content_hash === null) {
                 return fail("bad-response", "\u670D\u52A1\u5668\u672A\u8FD4\u56DE\u7814\u7A76\u72B6\u6001\u7248\u672C\u3002");
@@ -14856,11 +14949,14 @@ function createSettingsRpcHandler(deps) {
               skipped2 = result.skipped;
               digests = Object.fromEntries(result.manifest.map((file) => [file.path, file.sha256]));
             } else {
-              const saveState = async (baseVersion) => uploadResearchState(base, apiKey, projectId, {
-                baseVersion,
-                content,
-                intentKey: crypto.randomUUID()
-              }, netOptions(workIdForWrite));
+              const saveState = async (baseVersion) => {
+                checkDirectory();
+                return uploadResearchState(base, apiKey, projectId, {
+                  baseVersion,
+                  content,
+                  intentKey: crypto.randomUUID()
+                }, netOptions(workIdForWrite));
+              };
               const saveStateWithRebase = async (version2) => {
                 try {
                   return await saveState(version2);
@@ -14876,6 +14972,7 @@ function createSettingsRpcHandler(deps) {
               } catch (e) {
                 if (!reusable || !(e instanceof ServerError) || e.code !== "not-found")
                   throw e;
+                checkDirectory();
                 publishedStore.remove(source.root, direction);
                 projectId = await create();
                 uploaded = await saveStateWithRebase(await readStateVersion(base, apiKey, projectId, netOptions()));
@@ -14906,6 +15003,7 @@ function createSettingsRpcHandler(deps) {
               const sending = toUpload.filter((rel) => !skippedSet.has(rel));
               const progress = beginUploadProgress([projectId, id], sending.length, sending.reduce((n, rel) => n + (sizes.get(rel) ?? 0), 0));
               for (const batch of batches) {
+                checkDirectory();
                 const payload2 = [];
                 for (const relPath of batch) {
                   try {
@@ -14916,6 +15014,7 @@ function createSettingsRpcHandler(deps) {
                 }
                 if (payload2.length === 0)
                   continue;
+                checkDirectory();
                 const results = await uploadProjectFiles(base, apiKey, projectId, payload2, {
                   stateVersion: uploaded.version,
                   ...netOptions(workIdForWrite)
@@ -14927,6 +15026,7 @@ function createSettingsRpcHandler(deps) {
               }
               progress.running = false;
             }
+            checkDirectory();
             const { visibility, chargedTokens } = await publishProject(base, apiKey, projectId, {
               intentKey: `convfusion-dsh-publish-${projectId}-v${uploaded.version}`,
               ...netOptions(workIdForWrite)
@@ -14962,6 +15062,9 @@ function createSettingsRpcHandler(deps) {
               // 「记住这次选择」：下次不弹窗时沿用它（新文件仍会按规则并入）
               ...remember ? { selection: selected } : {}
             };
+            checkDirectory();
+            if (created)
+              rememberIdentity(workIdForWrite);
             publishedStore.set(source.root, record);
             return {
               ok: true,
@@ -15205,7 +15308,7 @@ function createSettingsRpcHandler(deps) {
             let canonical = resolve5(w.path);
             try {
               canonical = realpathSync(w.path);
-              if (!statSync7(canonical).isDirectory())
+              if (!statSync8(canonical).isDirectory())
                 continue;
             } catch {
               continue;
@@ -16535,7 +16638,7 @@ ${decisionAssistGuidance(config.decisionAssistEnabled !== false)}`;
 
 // lib/codex/storage.js
 import { createHash as createHash3, randomBytes as randomBytes2 } from "node:crypto";
-import { existsSync as existsSync26, readFileSync as readFileSync26, mkdirSync as mkdirSync20, writeFileSync as writeFileSync18, renameSync as renameSync6, chmodSync, realpathSync as realpathSync3, statSync as statSync8, openSync as openSync2, closeSync as closeSync2, unlinkSync as unlinkSync2 } from "node:fs";
+import { existsSync as existsSync26, readFileSync as readFileSync26, mkdirSync as mkdirSync20, writeFileSync as writeFileSync18, renameSync as renameSync6, chmodSync, realpathSync as realpathSync3, statSync as statSync9, openSync as openSync2, closeSync as closeSync2, unlinkSync as unlinkSync2 } from "node:fs";
 import { homedir as homedir3 } from "node:os";
 import { basename as basename2, dirname as dirname12, isAbsolute as isAbsolute6, join as join25 } from "node:path";
 function codexHome(env = process.env) {
@@ -16596,7 +16699,7 @@ function readCodexWorkspaces(home) {
   const rows = readPrivateJson(join25(home, "workspaces.json"), []);
   return Array.isArray(rows) ? rows.filter((row) => {
     try {
-      return typeof row?.path === "string" && isAbsolute6(row.path) && typeof row.id === "string" && statSync8(row.path).isDirectory();
+      return typeof row?.path === "string" && isAbsolute6(row.path) && typeof row.id === "string" && statSync9(row.path).isDirectory();
     } catch {
       return false;
     }
@@ -16756,7 +16859,7 @@ function writeMethodsExport(workspace, opts = {}) {
 }
 
 // lib/research/sync-request.js
-import { closeSync as closeSync3, existsSync as existsSync29, openSync as openSync3, readdirSync as readdirSync16, readSync, statSync as statSync9 } from "node:fs";
+import { closeSync as closeSync3, existsSync as existsSync29, openSync as openSync3, readdirSync as readdirSync16, readSync, statSync as statSync10 } from "node:fs";
 import { basename as basename3, dirname as dirname13, isAbsolute as isAbsolute8, join as join28, resolve as resolve9 } from "node:path";
 function normalizeZipRef(ref, sessionWorkspace) {
   let s = ref.trim();
@@ -16776,7 +16879,7 @@ function resolveZipReference(ref, sessionWorkspace) {
   }
   if (existsSync29(path)) {
     try {
-      if (!statSync9(path).isFile()) {
+      if (!statSync10(path).isFile()) {
         return { ok: false, path, error: `${path} \u4E0D\u662F\u6587\u4EF6`, candidates: [] };
       }
     } catch {
@@ -16801,7 +16904,7 @@ var ZIP_MAGIC = Buffer.from([80, 75, 3, 4]);
 function inspectZip(path) {
   let bytes = 0;
   try {
-    bytes = statSync9(path).size;
+    bytes = statSync10(path).size;
   } catch {
     return { ok: false, bytes: 0, error: `\u8BFB\u4E0D\u5230\u8FD9\u4E2A\u6587\u4EF6\uFF1A${path}` };
   }
@@ -16839,7 +16942,7 @@ function newestPart(dir) {
     const parts = readdirSync16(dir).filter((name) => name.startsWith(".convfusion-") && name.endsWith(".part")).map((name) => join28(dir, name));
     if (parts.length === 0)
       return null;
-    return parts.sort((a, b) => statSync9(b).mtimeMs - statSync9(a).mtimeMs)[0] ?? null;
+    return parts.sort((a, b) => statSync10(b).mtimeMs - statSync10(a).mtimeMs)[0] ?? null;
   } catch {
     return null;
   }
@@ -16935,14 +17038,14 @@ function buildSyncText(facts, rootPrefix) {
 
 // lib/codex/downloads.js
 import { createHash as createHash4, randomBytes as randomBytes3 } from "node:crypto";
-import { existsSync as existsSync30, statSync as statSync10, unlinkSync as unlinkSync3 } from "node:fs";
+import { existsSync as existsSync30, statSync as statSync11, unlinkSync as unlinkSync3 } from "node:fs";
 import { dirname as dirname14, join as join29, basename as basename4 } from "node:path";
 var active = (job) => ["running", "finalizing", "cancelling"].includes(job.state);
 var stamp = (file) => {
   if (typeof file !== "string")
     return null;
   try {
-    const s = statSync10(file);
+    const s = statSync11(file);
     return s.isFile() ? [s.dev, s.ino, s.size, s.mtimeMs, s.ctimeMs].join(":") : null;
   } catch {
     return null;
@@ -17234,7 +17337,7 @@ function createCodexUiHost(options = {}) {
   const registerWorkspace = (root, persist = false) => {
     if (typeof root !== "string" || !isAbsolute9(root)) throw new Error("\u8BF7\u8F93\u5165\u9879\u76EE\u6587\u4EF6\u5939\u7684\u7EDD\u5BF9\u8DEF\u5F84");
     const canonical = realpathSync5(root);
-    if (!statSync11(canonical).isDirectory()) throw new Error("\u8BF7\u9009\u62E9\u73B0\u6709\u7684\u9879\u76EE\u6587\u4EF6\u5939");
+    if (!statSync12(canonical).isDirectory()) throw new Error("\u8BF7\u9009\u62E9\u73B0\u6709\u7684\u9879\u76EE\u6587\u4EF6\u5939");
     const fromPlugin = relative7(realpathSync5(pluginRoot), canonical);
     if (!fromPlugin || !fromPlugin.startsWith(`..${sep5}`) && fromPlugin !== ".." && !isAbsolute9(fromPlugin)) throw new Error("\u8BF7\u9009\u62E9\u7814\u7A76\u9879\u76EE\u76EE\u5F55\uFF0C\u4E0D\u80FD\u4F7F\u7528\u63D2\u4EF6\u5B89\u88C5\u76EE\u5F55");
     const id = stateKey(canonical);
@@ -17270,7 +17373,7 @@ function createCodexUiHost(options = {}) {
     for (const row of readCodexWorkspaces(home)) workspaces.set(row.id, row);
     return [...workspaces.values()].filter((row) => {
       try {
-        return statSync11(row.path).isDirectory();
+        return statSync12(row.path).isDirectory();
       } catch {
         return false;
       }
@@ -21640,11 +21743,11 @@ function escapeSectionTitle(title) {
 }
 
 // lib/research/research-tools.js
-import { existsSync as existsSync37, mkdirSync as mkdirSync25, readFileSync as readFileSync30, readdirSync as readdirSync20, renameSync as renameSync7, statSync as statSync16, writeFileSync as writeFileSync23 } from "node:fs";
+import { existsSync as existsSync37, mkdirSync as mkdirSync25, readFileSync as readFileSync30, readdirSync as readdirSync20, renameSync as renameSync7, statSync as statSync17, writeFileSync as writeFileSync23 } from "node:fs";
 import { isAbsolute as isAbsolute11, join as join37 } from "node:path";
 
 // lib/research/state-sync.js
-import { readdirSync as readdirSync17, statSync as statSync12, writeFileSync as writeFileSync20 } from "node:fs";
+import { readdirSync as readdirSync17, statSync as statSync13, writeFileSync as writeFileSync20 } from "node:fs";
 import { join as join31 } from "node:path";
 var STATE_AUTO_HEADING = "### Auto-synced artifacts";
 var AUTO_NOTE = "*Auto-maintained by ConvFusion: everything from this heading to the end of this section is rewritten on every sync. Keep hand-written content above this line.*";
@@ -21683,7 +21786,7 @@ function newestMtimeMs(paths) {
   let newest = 0;
   for (const p of paths) {
     try {
-      newest = Math.max(newest, statSync12(p).mtimeMs);
+      newest = Math.max(newest, statSync13(p).mtimeMs);
     } catch {
     }
   }
@@ -24558,7 +24661,7 @@ function renderEdgeLabel(text, pos, anchor) {
 }
 
 // lib/research/diagram/store.js
-import { existsSync as existsSync32, mkdirSync as mkdirSync23, readFileSync as readFileSync28, readdirSync as readdirSync18, statSync as statSync13, writeFileSync as writeFileSync21 } from "node:fs";
+import { existsSync as existsSync32, mkdirSync as mkdirSync23, readFileSync as readFileSync28, readdirSync as readdirSync18, statSync as statSync14, writeFileSync as writeFileSync21 } from "node:fs";
 import { join as join32 } from "node:path";
 var FIGURES_SUBDIR = "figures";
 var LAST_GOOD_SUBDIR = ".last-good";
@@ -24641,7 +24744,7 @@ function listDiagramArtifacts(ws, paperId) {
     const stat = (p) => {
       if (!existsSync32(p))
         return null;
-      const s = statSync13(p);
+      const s = statSync14(p);
       return { path: p.slice(p.indexOf(FIGURES_SUBDIR)), bytes: s.size, mtimeMs: s.mtimeMs };
     };
     const ir = stat(join32(dir, `${name}.json`));
@@ -24663,7 +24766,7 @@ function listDiagramArtifacts(ws, paperId) {
 
 // lib/research/diagram/export.js
 import { execFileSync } from "node:child_process";
-import { existsSync as existsSync33, statSync as statSync14 } from "node:fs";
+import { existsSync as existsSync33, statSync as statSync15 } from "node:fs";
 import { dirname as dirname16, join as join33 } from "node:path";
 import { fileURLToPath as fileURLToPath5 } from "node:url";
 var SVG2PDF_SCRIPT = join33("assets", "diagram", "svg2pdf.py");
@@ -24783,7 +24886,7 @@ function exportDiagramPdf(options) {
   if (!existsSync33(options.pdfPath)) {
     return { ok: false, error: `converter reported success but ${options.pdfPath} does not exist.`, ...base };
   }
-  const size = statSync14(options.pdfPath).size;
+  const size = statSync15(options.pdfPath).size;
   if (size <= 0) {
     return { ok: false, error: `converter wrote an empty ${options.pdfPath}.`, ...base };
   }
@@ -24916,7 +25019,7 @@ function formatDiagnostics(report, limit = 12) {
 
 // lib/research/schematic/index.js
 import { execFileSync as execFileSync2 } from "node:child_process";
-import { existsSync as existsSync34, statSync as statSync15 } from "node:fs";
+import { existsSync as existsSync34, statSync as statSync16 } from "node:fs";
 import { dirname as dirname17, join as join34 } from "node:path";
 import { fileURLToPath as fileURLToPath6 } from "node:url";
 var SCHEMATIC_SCRIPT = join34("assets", "figures_kit", "render_schematic.py");
@@ -27278,7 +27381,7 @@ ${e.path ?? ""}${e.downloadedFrom ? `
             });
           }
           const files = readdirSync20(latexDir).filter((f) => !f.startsWith(".")).map((f) => {
-            const st = statSync16(join37(latexDir, f));
+            const st = statSync17(join37(latexDir, f));
             return `${f} (${st.size} B, ${st.mtime.toISOString()})`;
           });
           return losslessJson({ ok: true, action: "status", files });
@@ -27596,7 +27699,7 @@ ${JSON.stringify(v.ir ?? null, null, 2)}` }];
           saveLastGood(paths, canonical, build.svg);
           svgWritten = true;
         } else if (existsSync37(paths.svgPath)) {
-          const st = statSync16(paths.svgPath);
+          const st = statSync17(paths.svgPath);
           keptPrevious = `${paths.relSvg} (from ${st.mtime.toISOString()})`;
         }
         return losslessJson({

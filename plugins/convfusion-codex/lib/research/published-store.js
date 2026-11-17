@@ -43,6 +43,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { normalizeWorkspaceId } from './work-identity.js';
 /**
  * 表键 = `<研究根目录>\u0000<方向>`。
  *
@@ -53,12 +54,11 @@ const KEY_SEP = '\u0000';
 /**
  * 这条记录属于**现在住在这个路径上**的研究吗？
  *
- * 两个判据各自独立，缺一个就**不拦**（宁可按现状用，也不误伤）：
- *   - 双方都有身份且不同 → 不是我的；
- *   - 双方都有指纹且不同 → 不是我的（路径换过住户）。
+ * 记录有身份时，当前研究必须能证明是同一身份。
+ * 双方都有指纹时，也要核对指纹，以识别误带旧标记的目录。
  */
 export function occupantMatches(record, workId, fingerprint) {
-    if (record.workId && workId && record.workId !== workId)
+    if (record.workId && record.workId !== workId)
         return false;
     if (record.rootFingerprint && fingerprint && record.rootFingerprint !== fingerprint)
         return false;
@@ -95,6 +95,7 @@ function parseRecord(raw) {
     const serverUrl = typeof raw.serverUrl === 'string' ? raw.serverUrl.trim() : '';
     const accountId = typeof raw.accountId === 'string' ? raw.accountId.trim() : '';
     const version = typeof raw.version === 'number' && Number.isFinite(raw.version) ? raw.version : 0;
+    const workId = normalizeWorkspaceId(raw.workId);
     if (!projectId || !serverUrl)
         return undefined;
     return {
@@ -106,6 +107,8 @@ function parseRecord(raw) {
             ? { askingFee: raw.askingFee }
             : {}),
         projectId,
+        ...(workId ? { workId } : {}),
+        ...(typeof raw.rootFingerprint === 'string' && raw.rootFingerprint ? { rootFingerprint: raw.rootFingerprint } : {}),
         serverUrl,
         accountId,
         version,

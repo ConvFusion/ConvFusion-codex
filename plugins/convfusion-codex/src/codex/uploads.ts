@@ -27,7 +27,7 @@ export interface UploadControl {
 export async function transferWorkspace(
   base: string, key: string, projectId: string, root: string, paths: readonly string[],
   options: ServerRequestOptions, control: UploadControl, timeoutForBytes: (bytes: number) => number,
-  state?: { content: unknown; baseVersion: number | null },
+  state?: { content: unknown; baseVersion: number | null; checkSource?: () => void },
 ) {
   const signal = control.signal
   const uniquePaths = [...new Set(paths)]
@@ -42,13 +42,16 @@ export async function transferWorkspace(
   const canonicalRoot = await realpath(root)
   const read = async (path: string): Promise<Uint8Array> => {
     signal.throwIfAborted()
+    state?.checkSource?.()
     const absolute = safeJoin(root, path)
     if (!absolute) throw new Error('所选文件路径无效，请重新扫描工作区。')
     const canonical = await realpath(absolute)
     if (canonical !== safeJoin(canonicalRoot, path)) {
       throw new Error('选中的文件已变为符号链接，请重新选择。')
     }
-    return await readFile(canonical, { signal })
+    const bytes = await readFile(canonical, { signal })
+    state?.checkSource?.()
+    return bytes
   }
 
   const manifest: UploadManifestFile[] = []
@@ -60,9 +63,11 @@ export async function transferWorkspace(
   }
   signal.throwIfAborted()
   const id = randomUUID()
-  const request = (method: 'GET' | 'POST' | 'DELETE', suffix: string, body?: unknown, timeoutMs?: number) =>
-    workspaceUploadRequest(base, key, projectId, method, suffix, body,
+  const request = (method: 'GET' | 'POST' | 'DELETE', suffix: string, body?: unknown, timeoutMs?: number) => {
+    if (method === 'POST') state?.checkSource?.()
+    return workspaceUploadRequest(base, key, projectId, method, suffix, body,
       { ...options, ...(timeoutMs === undefined ? {} : { timeoutMs }) })
+  }
   const retry = async <T>(send: () => Promise<T>): Promise<T> => {
     for (let attempt = 0; ; attempt++) {
       try {
@@ -118,6 +123,7 @@ export async function transferWorkspace(
       await retry(async () => {
         signal.throwIfAborted()
         if (!remaining.length) return
+        state?.checkSource?.()
         try {
           await stageWorkspaceFiles(base, key, projectId, job.id, remaining, {
             ...options, timeoutMs: timeoutForBytes(bytes), signal,

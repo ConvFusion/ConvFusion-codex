@@ -241,14 +241,18 @@ async function verifyResearchSwap(temp) {
   const live = join(root, 'workspace')
   const stashA = join(root, 'research-a')
   const stashB = join(root, 'research-b')
+  const stashC = join(root, 'research-c')
   await mkdir(live, { recursive: true })
   await mkdir(stashB)
-  for (const [dir, title, date] of [[live, 'Research A', '2026-01-01'], [stashB, 'Research B', '2026-02-01']]) {
+  await mkdir(stashC)
+  for (const [dir, title, date] of [[live, 'Research A', '2026-01-01'], [stashB, 'Research B', '2026-01-01'], [stashC, 'Research C', '2026-02-01']]) {
     await writeFile(join(dir, 'project.md'), `---\ncreated_at: ${date}\ntopic: ${title}\n---\n\n# ${title}\n`)
     await writeFile(join(dir, 'research-state.md'), `# ${title}\n\n- Version: v1\n`)
   }
   const projects = new Map()
+  const creations = new Map()
   const writes = []
+  let failPublish = false
   let listAvailable = true
   const swapHost = createCodexUiHost({ home, env: { CONVFUSION_ENV: 'production', CONVFUSION_ENV_FILE: '-' }, fetchImpl: async (url, init) => {
     const path = new URL(url).pathname.replace('/api/v1', '')
@@ -256,14 +260,19 @@ async function verifyResearchSwap(temp) {
     const json = (body, status = 200) => new Response(JSON.stringify(body), { status })
     if (path === '/auth/me') return json({ id: 'swap-owner', email: 'swap@example.com', status: 'ACTIVE', roles: ['RESEARCHER'] })
     if (path === '/tokens') return json({ available_balance: 100, frozen_balance: 0, total_balance: 100 })
+    if (path === '/usage' || path === '/mentorship/price-guide') return json({}, 404)
     if (path === '/projects' && method === 'GET') {
       if (!listAvailable) throw new Error('offline fixture')
       return json([...projects.values()])
     }
     if (path === '/projects' && method === 'POST') {
+      const { creation_id, workspace_id, title } = JSON.parse(init.body)
+      assert.ok(creation_id, 'Codex publishes through the background upload API')
+      if (creations.has(creation_id)) return json(creations.get(creation_id), 201)
       const n = projects.size + 1
-      const project = { id: `project-${n}`, workspace_id: `ws_${String(n).repeat(32)}`, title: JSON.parse(init.body).title, direction: 'SEEK_MENTOR', visibility: 'PRIVATE', status: 'ACTIVE', updated_at: '2026-10-20' }
+      const project = { id: `project-${n}`, workspace_id: workspace_id ?? `ws_${String(n).repeat(32)}`, title, direction: 'SEEK_MENTOR', visibility: 'PRIVATE', status: 'ACTIVE', updated_at: '2026-10-20' }
       projects.set(project.id, project)
+      creations.set(creation_id, project)
       return json(project, 201)
     }
     const [, id, action] = /^\/projects\/([^/]+)(?:\/(.*))?$/.exec(path) ?? []
@@ -276,32 +285,93 @@ async function verifyResearchSwap(temp) {
       writes.push({ id, action })
     }
     if (action === 'state' && method === 'GET') return json({ version: project.version ?? 0 })
-    if (action === 'state' && method === 'POST') return json({ project_id: id, version: project.version = (project.version ?? 0) + 1, content_hash: 'sha256:fixture', content: JSON.parse(init.body).content }, 201)
-    if (action === 'files') return json(init.body.getAll('relative_paths').map((relative_path, i) => ({ id: `file-${i}`, relative_path, size: 4, sha256: `sha256:${i}` })), 201)
-    if (action === 'publish') { project.visibility = 'PUBLISHED'; return json({ project_id: id, visibility: 'PUBLISHED', charged_tokens: 1 }) }
+    if (action === 'uploads' && method === 'POST') {
+      const body = JSON.parse(init.body)
+      assert.equal(body.files.length, 2)
+      project.version = (project.version ?? 0) + 1
+      return json({ id: body.id, status: 'completed', needed: [], received: [], receipt: {
+        version: project.version, content_hash: 'sha256:fixture', uploaded: 2, uploaded_bytes: 32, skipped_existing: 0,
+      } })
+    }
+    if (action === 'publish') {
+      if (failPublish) { failPublish = false; return json({}, 500) }
+      project.visibility = 'PUBLISHED'
+      return json({ project_id: id, visibility: 'PUBLISHED', charged_tokens: 1 })
+    }
     throw new Error(`unexpected fixture request ${method} ${path}`)
   } })
   const call = (endpoint, payload = {}) => swapHost.dispatch(root, endpoint, payload)
   const mine = async () => { const result = await call('work/mine'); assert.equal(result.ok, true); return result.value.items }
+  const plan = async (id) => {
+    const response = await call('work/uploadPlan', { id })
+    assert.equal(response.ok, true, JSON.stringify(response))
+    return response.value
+  }
+  let intent = 0
+  const publish = async (id, data, publishAsNew = false) => {
+    const task = { kind: 'publish', id, intent: `swap-${++intent}` }
+    const payload = { ...task, publicationTarget: data.publicationTarget, publishAsNew }
+    assert.equal((await call('upload/start', payload)).ok, true)
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const response = await call('upload/status', task)
+      if (response.value?.result) return response.value.result
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    throw new Error('publication did not finish')
+  }
   try {
     assert.equal((await call('account/login', { apiKey: 'cf_live_swap_fixture', serverUrl: 'https://fixture.example.com' })).ok, true)
     const rowA = (await mine()).find((item) => !item.detached)
-    const publishedA = await call('work/publish', { id: rowA.id }); assert.equal(publishedA.ok, true, JSON.stringify(publishedA))
+    const publishedA = await publish(rowA.id, await plan(rowA.id)); assert.equal(publishedA.ok, true, JSON.stringify(publishedA))
     const stored = JSON.parse(await readFile(join(home, 'published.json'), 'utf8'))
     assert.ok(Object.keys(stored).some((key) => key.includes('ws_11111111111111111111111111111111')), 'adapter must wire identity-keyed file storage')
+    const markerPath = join(live, '.convfusion', 'work.json')
+    const marker = await readFile(markerPath, 'utf8')
+    await rm(markerPath)
+    assert.equal((await mine()).find((item) => !item.detached).workId, projects.get('project-1').workspace_id, 'the on-disk registry can recover a missing marker in the same directory')
+    const oldPlan = await plan(rowA.id)
+    assert.equal(oldPlan.canPublishAsNew, true)
     await rename(live, stashA); await rename(stashB, live)
     const afterSwap = await mine()
     const rowB = afterSwap.find((item) => !item.detached)
     assert.equal(rowB.workId, null)
     assert.deepEqual(rowB.published, [])
     assert.ok(afterSwap.some((item) => item.detached && item.published.some((record) => record.projectId === 'project-1')))
-    const publishedB = await call('work/publish', { id: rowB.id }); assert.equal(publishedB.ok, true, JSON.stringify(publishedB))
+    assert.equal((await publish(rowB.id, oldPlan)).error.code, 'publication-target-changed')
+    assert.equal(projects.size, 1)
+    assert.equal(writes.length, 2)
+    const publishedB = await publish(rowB.id, await plan(rowB.id)); assert.equal(publishedB.ok, true, JSON.stringify(publishedB))
     assert.equal(projects.size, 2, 'new research must create a different server project')
-    assert.ok(writes.some((write) => write.id === 'project-2' && write.action === 'files'))
-    await rename(live, stashB); await rename(stashA, live)
+    assert.notEqual(projects.get('project-1').workspace_id, projects.get('project-2').workspace_id, 'equal created_at values must not share an identity')
+    assert.ok(writes.some((write) => write.id === 'project-2' && write.action === 'uploads'))
+    const copiedMarker = JSON.parse(marker)
+    delete copiedMarker.root_fingerprint
+    await mkdir(join(stashC, '.convfusion'))
+    await writeFile(join(stashC, '.convfusion', 'work.json'), JSON.stringify(copiedMarker))
+    await rename(live, stashB); await rename(stashC, live)
+    const rowC = (await mine()).find((item) => !item.detached)
+    assert.equal(rowC.workId, null)
+    assert.deepEqual(rowC.published, [])
+    const conflictPlan = await plan(rowC.id)
+    assert.equal(conflictPlan.identityConflict, true)
+    assert.equal((await publish(rowC.id, conflictPlan)).error.code, 'work-identity-conflict')
+    assert.equal(writes.length, 4, 'conflicting marker must not write to the original project')
+    failPublish = true
+    assert.equal((await publish(rowC.id, conflictPlan, true)).ok, false)
+    const publishedC = await publish(rowC.id, conflictPlan, true)
+    assert.equal(publishedC.ok, true, JSON.stringify(publishedC))
+    assert.equal(projects.size, 3, 'retry after failed publication must reuse the new project')
+    assert.equal(projects.get('project-3').workspace_id, 'ws_33333333333333333333333333333333')
+    await writeFile(join(stashA, '.convfusion', 'work.json'), marker)
+    await rename(live, stashC); await rename(stashA, live)
     const restored = await mine()
     assert.equal(restored.find((item) => !item.detached).workId, 'ws_11111111111111111111111111111111')
     assert.equal(restored.filter((item) => item.published.some((record) => record.projectId === 'project-1')).length, 1)
+    await writeFile(join(live, 'project.md'), '---\ncreated_at: 2026-01-01\ntopic: Renamed Research A\n---\n')
+    const updated = await publish(rowA.id, await plan(rowA.id))
+    assert.equal(updated.ok, true, JSON.stringify(updated))
+    assert.equal(updated.value.published.projectId, 'project-1')
+    assert.equal(updated.value.published.version, 2)
     listAvailable = false
     assert.equal((await mine()).find((item) => !item.detached).published[0].projectId, 'project-1', 'local records remain usable when server listing fails')
   } finally { await swapHost.close() }

@@ -17,6 +17,7 @@ export interface UploadControl {
 export declare function transferWorkspace(base: string, key: string, projectId: string, root: string, paths: readonly string[], options: ServerRequestOptions, control: UploadControl, timeoutForBytes: (bytes: number) => number, state?: {
     content: unknown;
     baseVersion: number | null;
+    checkSource?: () => void;
 }): Promise<{
     receipt: {
         uploaded: number;

@@ -1953,6 +1953,9 @@ function publishedIn(
  * （2026-09 用户拍板：排除项直接不出现，不影响选择）。保留在数据里是为了对账。
  */
 interface HostUploadPlan {
+  publicationTarget?: string
+  identityConflict?: boolean
+  canPublishAsNew?: boolean
   projectId: string
   root: string
   /** **要发布到网络的名字** = 这项研究工作自己的名字（有论文用论文标题）。 */
@@ -3264,6 +3267,8 @@ export function PublishDialog({
   onSelectPricePreset,
   onSelectPriceCustom,
   onPriceText,
+  publishAsNew = false,
+  onPublishAsNew,
   onCancel,
   onConfirm,
   onCancelUpload,
@@ -3289,6 +3294,8 @@ export function PublishDialog({
   onSelectPriceCustom: () => void
   onPriceText: (next: string) => void
   onCancel: () => void
+  publishAsNew?: boolean
+  onPublishAsNew?: (enabled: boolean) => void
   onConfirm: () => void
   onCancelUpload?: (() => void) | undefined
   canCloseWhileUploading?: boolean
@@ -3319,6 +3326,7 @@ export function PublishDialog({
    */
   const priceInvalid =
     (data.priceGuide != null || priceText.trim() !== '') && validatePrice(priceTokens, data.priceGuide) !== null
+  const publishDisabled = busy || priceInvalid || (data.identityConflict === true && !publishAsNew)
   const oversizeSelected = selectable.filter(
     (f) => selection.has(f.relPath) && f.size > data.plan.limits.maxFileBytes,
   )
@@ -3375,7 +3383,7 @@ export function PublishDialog({
               selected: formatBytes(selectedBytes),
               available: storage ? formatBytes(storage.availableBytes) : t('community.publish.unknown'),
             })}
-            {data.changed.length > 0
+            {publishAsNew ? '' : data.changed.length > 0
               ? ` · ${t('community.publish.changed', { count: data.changed.length })}`
               : data.remembered
                 ? ` · ${t('community.publish.unchanged')}`
@@ -3418,6 +3426,16 @@ export function PublishDialog({
             </div>
           ) : null}
 
+          {data.canPublishAsNew ? (
+            <div>
+              {data.identityConflict ? <p role="alert" style={S.hint}>{t('community.publish.identityConflict')}</p> : null}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input type="checkbox" checked={publishAsNew} disabled={busy} onChange={(e) => onPublishAsNew?.(e.target.checked)} />
+                {t('community.publish.asNew')}
+              </label>
+              <div style={S.hint}>{t('community.publish.asNewHint')}</div>
+            </div>
+          ) : null}
           <div style={S.footer}>
             <span style={{ ...S.hint, marginRight: 'auto' }}>
               {t('community.publish.summary', {
@@ -3439,11 +3457,11 @@ export function PublishDialog({
             </button>
             <button
               type="button"
-              style={{ ...S.primaryBtn, opacity: busy || priceInvalid ? 0.55 : 1 }}
-              disabled={busy || priceInvalid}
+              style={{ ...S.primaryBtn, opacity: publishDisabled ? 0.55 : 1 }}
+              disabled={publishDisabled}
               onClick={onConfirm}
             >
-              {busy ? t('community.action.publishing') : t('community.publish.confirm')}
+              {busy ? t('community.action.publishing') : publishAsNew ? t('community.publish.asNew') : t('community.publish.confirm')}
             </button>
             {/* 发布中：与导师回传同一根进度条（附件阶段是几十 MB 的一串请求） */}
             <div style={{ flexBasis: '100%' }}>
@@ -5632,6 +5650,7 @@ export function CommunityTab({
     data: HostUploadPlan
     selection: Set<string>
     remember: boolean
+    publishAsNew: boolean
     expanded: Set<string>
     /**
      * **挂牌价或预算**：`preset` = 选自价目档位；`custom` = 自己填。
@@ -6901,6 +6920,7 @@ export function CommunityTab({
       data,
       selection: new Set(data.selection),
       remember: true,
+      publishAsNew: false,
       expanded: new Set(),
       priceMode: presetHitsTier ? 'preset' : 'custom',
       priceTokens: initialPrice,
@@ -6921,7 +6941,9 @@ export function CommunityTab({
      * 不传这个字段，宿主就不会去 `PUT` 改价（服务器 `null` 也不会清空，所以"什么都不发"
      * 是唯一安全的"不动它"）。
      */
-    askingFee?: number,
+    askingFee: number | undefined,
+    publicationTarget: string | undefined,
+    publishAsNew: boolean,
   ): Promise<void> => {
     if (activeUploadWaits.current.has(`publish:${w.id}`)) return
     setPublishing({ id: w.id, direction })
@@ -6930,7 +6952,7 @@ export function CommunityTab({
     activeUploadWaits.current.add(scope)
     let res: Awaited<ReturnType<typeof post>>
     if (session?.uploadTasks) {
-      res = await waitForUpload('publish', w.id, { direction, selection, remember, askingFee }, setPublishProgress)
+      res = await waitForUpload('publish', w.id, { direction, selection, remember, askingFee, publicationTarget, publishAsNew }, setPublishProgress)
     } else {
       /*
        * 上传期间按秒问进度（与导师回传同一条端点、同一根进度条）。
@@ -6958,6 +6980,8 @@ export function CommunityTab({
           direction,
           selection,
           remember,
+          publicationTarget,
+          publishAsNew,
           ...(askingFee !== undefined ? { askingFee } : {}),
         })
       } finally {
@@ -6967,6 +6991,7 @@ export function CommunityTab({
     activeUploadWaits.current.delete(scope)
     setPublishing((current) => current?.id === w.id ? null : current)
     if (!res.ok) {
+      if (res.error?.code === 'publication-target-changed') setDialog(null)
       const staleHost = res.error?.code === 'unknown-endpoint'
       setPublishNotice({
         tone: 'error',
@@ -8078,6 +8103,8 @@ export function CommunityTab({
             setDialog((d) => (d ? { ...d, priceText: next, priceTokens: normalizePrice(next) } : d))
           }
           onCancel={() => setDialog(null)}
+          publishAsNew={dialog.publishAsNew}
+          onPublishAsNew={(enabled) => setDialog((d) => d ? { ...d, publishAsNew: enabled } : d)}
           onConfirm={() => {
             if (!dialog) return
             void doPublish(
@@ -8087,6 +8114,8 @@ export function CommunityTab({
               dialog.remember,
               // 挂牌价（两个方向都送：导师=开价，学生=预算）；价格不合法时不传（按钮已禁用）
               dialog.priceTokens !== null ? dialog.priceTokens : undefined,
+              dialog.data.publicationTarget,
+              dialog.publishAsNew,
             )
           }}
         />

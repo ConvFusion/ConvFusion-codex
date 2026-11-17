@@ -236,6 +236,9 @@ window.__ModuleLoader__.load({
 		  "community.publish.summary": "{files} file(s) selected · {size} · {batches} batch(es)",
 		  "community.publish.remember": "Remember this selection",
 		  "community.publish.confirm": "Publish",
+		  "community.publish.asNew": "Publish as new research",
+		  "community.publish.asNewHint": "Select this only if the current folder contains a separate study. This creates a new listing.",
+		  "community.publish.identityConflict": "The current folder and the previous publication identify different studies. Check which study is open before publishing.",
 		  "community.action.cancel": "Cancel",
 		  "community.action.close": "Close",
 		  "community.action.viewMentor": "Mentor",
@@ -1047,6 +1050,9 @@ window.__ModuleLoader__.load({
 		  "community.publish.summary": "已选 {files} 个文件 · {size} · {batches} 批上传",
 		  "community.publish.remember": "记住这次选择",
 		  "community.publish.confirm": "发布",
+		  "community.publish.asNew": "作为新研究发布",
+		  "community.publish.asNewHint": "仅当当前目录是另一项研究时勾选。该操作会新建一条发布。",
+		  "community.publish.identityConflict": "当前目录与原发布记录的研究身份不符。请先确认当前打开的是哪项研究。",
 		  "community.action.cancel": "取消",
 		  "community.action.close": "关闭",
 		  "community.action.viewMentor": "导师",
@@ -4051,6 +4057,8 @@ window.__ModuleLoader__.load({
 		  onSelectPricePreset,
 		  onSelectPriceCustom,
 		  onPriceText,
+		  publishAsNew = false,
+		  onPublishAsNew,
 		  onCancel,
 		  onConfirm,
 		  onCancelUpload,
@@ -4063,6 +4071,7 @@ window.__ModuleLoader__.load({
 		  const batches = Math.max(1, Math.ceil(selectedFiles.length / data.plan.limits.maxFilesPerRequest));
 		  const storage = data.usage?.storage;
 		  const priceInvalid = (data.priceGuide != null || priceText.trim() !== "") && validatePrice(priceTokens, data.priceGuide) !== null;
+		  const publishDisabled = busy || priceInvalid || data.identityConflict === true && !publishAsNew;
 		  const oversizeSelected = selectable.filter(
 		    (f) => selection.has(f.relPath) && f.size > data.plan.limits.maxFileBytes
 		  );
@@ -4096,7 +4105,7 @@ window.__ModuleLoader__.load({
 		                  selected: formatBytes(selectedBytes),
 		                  available: storage ? formatBytes(storage.availableBytes) : t("community.publish.unknown")
 		                }),
-		                data.changed.length > 0 ? ` · ${t("community.publish.changed", { count: data.changed.length })}` : data.remembered ? ` · ${t("community.publish.unchanged")}` : ""
+		                publishAsNew ? "" : data.changed.length > 0 ? ` · ${t("community.publish.changed", { count: data.changed.length })}` : data.remembered ? ` · ${t("community.publish.unchanged")}` : ""
 		              ] }),
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                PriceGuideRow,
@@ -4126,6 +4135,14 @@ window.__ModuleLoader__.load({
 		                }
 		              ),
 		              oversizeSelected.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 11.5, color: "var(--dsw-alias-state-warn-primary)", lineHeight: 1.6 }, children: t("community.publish.oversizeWarning", { count: oversizeSelected.length }) }) : null,
+		              data.canPublishAsNew ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
+		                data.identityConflict ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { role: "alert", style: S.hint, children: t("community.publish.identityConflict") }) : null,
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("input", { type: "checkbox", checked: publishAsNew, disabled: busy, onChange: (e) => onPublishAsNew?.(e.target.checked) }),
+		                  t("community.publish.asNew")
+		                ] }),
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.publish.asNewHint") })
+		              ] }) : null,
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
 		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, marginRight: "auto" }, children: t("community.publish.summary", {
 		                  files: selectedFiles.length,
@@ -4143,10 +4160,10 @@ window.__ModuleLoader__.load({
 		                  "button",
 		                  {
 		                    type: "button",
-		                    style: { ...S.primaryBtn, opacity: busy || priceInvalid ? 0.55 : 1 },
-		                    disabled: busy || priceInvalid,
+		                    style: { ...S.primaryBtn, opacity: publishDisabled ? 0.55 : 1 },
+		                    disabled: publishDisabled,
 		                    onClick: onConfirm,
-		                    children: busy ? t("community.action.publishing") : t("community.publish.confirm")
+		                    children: busy ? t("community.action.publishing") : publishAsNew ? t("community.publish.asNew") : t("community.publish.confirm")
 		                  }
 		                ),
 		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { flexBasis: "100%" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(TransferProgress, { t, busy, progress }) })
@@ -6158,13 +6175,14 @@ window.__ModuleLoader__.load({
 		      data,
 		      selection: new Set(data.selection),
 		      remember: true,
+		      publishAsNew: false,
 		      expanded: /* @__PURE__ */ new Set(),
 		      priceMode: presetHitsTier ? "preset" : "custom",
 		      priceTokens: initialPrice,
 		      priceText: initialPrice === null ? "" : String(initialPrice)
 		    });
 		  };
-		  const doPublish = async (w, direction, selection, remember, askingFee) => {
+		  const doPublish = async (w, direction, selection, remember, askingFee, publicationTarget, publishAsNew) => {
 		    if (activeUploadWaits.current.has(`publish:${w.id}`)) return;
 		    setPublishing({ id: w.id, direction });
 		    setPublishNotice(null);
@@ -6172,7 +6190,7 @@ window.__ModuleLoader__.load({
 		    activeUploadWaits.current.add(scope);
 		    let res;
 		    if (session?.uploadTasks) {
-		      res = await waitForUpload("publish", w.id, { direction, selection, remember, askingFee }, setPublishProgress);
+		      res = await waitForUpload("publish", w.id, { direction, selection, remember, askingFee, publicationTarget, publishAsNew }, setPublishProgress);
 		    } else {
 		      setPublishProgress(null);
 		      let publishTimer;
@@ -6193,6 +6211,8 @@ window.__ModuleLoader__.load({
 		          direction,
 		          selection,
 		          remember,
+		          publicationTarget,
+		          publishAsNew,
 		          ...askingFee !== void 0 ? { askingFee } : {}
 		        });
 		      } finally {
@@ -6202,6 +6222,7 @@ window.__ModuleLoader__.load({
 		    activeUploadWaits.current.delete(scope);
 		    setPublishing((current) => current?.id === w.id ? null : current);
 		    if (!res.ok) {
+		      if (res.error?.code === "publication-target-changed") setDialog(null);
 		      const staleHost = res.error?.code === "unknown-endpoint";
 		      setPublishNotice({
 		        tone: "error",
@@ -7007,6 +7028,8 @@ window.__ModuleLoader__.load({
 		        onSelectPriceCustom: () => setDialog((d) => d ? { ...d, priceMode: "custom", priceTokens: normalizePrice(d.priceText) } : d),
 		        onPriceText: (next) => setDialog((d) => d ? { ...d, priceText: next, priceTokens: normalizePrice(next) } : d),
 		        onCancel: () => setDialog(null),
+		        publishAsNew: dialog.publishAsNew,
+		        onPublishAsNew: (enabled) => setDialog((d) => d ? { ...d, publishAsNew: enabled } : d),
 		        onConfirm: () => {
 		          if (!dialog) return;
 		          void doPublish(
@@ -7015,7 +7038,9 @@ window.__ModuleLoader__.load({
 		            [...dialog.selection],
 		            dialog.remember,
 		            // 挂牌价（两个方向都送：导师=开价，学生=预算）；价格不合法时不传（按钮已禁用）
-		            dialog.priceTokens !== null ? dialog.priceTokens : void 0
+		            dialog.priceTokens !== null ? dialog.priceTokens : void 0,
+		            dialog.data.publicationTarget,
+		            dialog.publishAsNew
 		          );
 		        }
 		      }

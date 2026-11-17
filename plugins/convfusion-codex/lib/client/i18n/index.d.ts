@@ -149,6 +149,9 @@ export declare const dictionaries: {
         'community.publish.summary': string;
         'community.publish.remember': string;
         'community.publish.confirm': string;
+        'community.publish.asNew': string;
+        'community.publish.asNewHint': string;
+        'community.publish.identityConflict': string;
         'community.action.cancel': string;
         'community.action.close': string;
         'community.action.viewMentor': string;
@@ -894,6 +897,9 @@ export declare const dictionaries: {
         readonly 'community.publish.summary': "{files} file(s) selected · {size} · {batches} batch(es)";
         readonly 'community.publish.remember': "Remember this selection";
         readonly 'community.publish.confirm': "Publish";
+        readonly 'community.publish.asNew': "Publish as new research";
+        readonly 'community.publish.asNewHint': "Select this only if the current folder contains a separate study. This creates a new listing.";
+        readonly 'community.publish.identityConflict': "The current folder and the previous publication identify different studies. Check which study is open before publishing.";
         readonly 'community.action.cancel': "Cancel";
         readonly 'community.action.close': "Close";
         readonly 'community.action.viewMentor': "Mentor";

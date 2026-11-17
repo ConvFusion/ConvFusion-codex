@@ -65,6 +65,8 @@ export interface WorkIdentity {
      * 老记录没有这个字段 → 无从核对 → 也不采信（让发布记录自己的名字/文件证据去判）。
      */
     rootFingerprint?: string;
+    /** 本机目录实例。仅用于验证按路径保存的注册表。 */
+    directoryIdentity?: string;
 }
 /** 注册表（`$DSH_HOME/convfusion/work-identities.json`）。 */
 export interface WorkIdentityStore {
@@ -110,11 +112,14 @@ export declare function isWorkspaceId(value: unknown): value is string;
  * 读不到（没有 `project.md` / 没有该字段）→ `null` = **不知道**，调用方按"不拦"处理。
  */
 export declare function researchRootFingerprint(researchRoot: string): string | null;
+/** 两项研究可能有相同的创建时间。用本机目录实例识别同路径换入的目录。 */
+export declare function researchDirectoryIdentity(researchRoot: string): string | null;
 /** `workspace_id` 的规范形（小写、去空白）；非法 → `null`。 */
 export declare function normalizeWorkspaceId(value: unknown): string | null;
 /** 读到的标记（缺字段就是缺字段，不编造）。 */
 export interface WorkMarker {
     workspaceId: string;
+    rootFingerprint?: string;
     projectId?: string;
     serverUrl?: string;
     role?: 'owner' | 'mentor';
