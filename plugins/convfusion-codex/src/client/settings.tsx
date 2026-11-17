@@ -1221,6 +1221,7 @@ export function ConvFusionProjectSettings({
         <div style={{ flex: '1 1 auto', minWidth: 0 }}>
           <div style={S.heroSub}>{t('settings.hero.subtitle')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {!view && <small style={S.hint} title={t('settings.uiBuild.tip')}>ui {__CLIENT_BUILD__}</small>}
             {update ? (
               <a
                 href={update.url || undefined}
@@ -1652,13 +1653,7 @@ function proposalView(p: HostProposal, myAccountId: string | null): HostProposal
   }
 }
 
-/**
- * 「指导中」那一行的**进展文案**（`ACCEPTED` 之后）。
- *
- * `reviewFiles`（服务器口径）数的是**非 owner 那一侧**的去重文件数：
- * 方向 A 下那是导师的指导产物，方向 B 下那是**学生的交付**（项目 owner 是导师）。
- * 所以同一个数在两个方向下要换一套称呼 —— 而且按"是我传的还是对方传的"分。
- */
+/** 已接受的提案显示交付进展，其余提案显示当前状态。 */
 function progressLabelKey(p: HostProposal, view: HostProposalView): string {
   // 非 ACCEPTED → 显示状态名（那是另一套文案）；ACCEPTED 之后的规则见纯函数
   const accepted = acceptedProgressKey(p, view)
@@ -4526,7 +4521,7 @@ function ProposeDialog({
  * 对方的信息（Profile 介绍）。
  *
  * 数据来自提案响应里**内嵌的** `profile`（后端 enrich 之后才有）——
- * 为此不需要任何额外请求。对方没填过 profile 就如实说"尚未填写"，不编内容。
+ * 为此不需要任何额外请求。profile 为 null 表示尚未填写，缺省表示服务器未提供。
  *
  * 为什么要有它：接受指导要冻结一笔押金，决定跟谁合作之前应当能看清对方是谁。
  * 两个方向下"对方"不同：方向 A 是提出申请的**导师**，方向 B 是出价的**学生**
@@ -4547,7 +4542,8 @@ function PartyProfileDialog({
   status: HostProposalStatus
   onClose: () => void
 }): JSX.Element {
-  const profile = party.profile ?? null
+  const profile = party.profile
+  const title = t(isMentor ? 'community.mentor.profileTitle' : 'community.mentor.profileTitleResearcher')
   const affiliation = [profile?.institution, profile?.department].filter(Boolean).join(' · ')
   /** 一行：标签 + 值（值缺失就不渲染这一行）。 */
   const line = (label: string, value: string | null | undefined): JSX.Element | null =>
@@ -4559,10 +4555,10 @@ function PartyProfileDialog({
     ) : null
 
   return (
-    <div style={S.overlay} role="dialog" aria-modal="true">
+    <div style={S.overlay} role="dialog" aria-modal="true" aria-label={title}>
       <div style={{ ...S.card, width: 'min(430px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
         <div style={S.cardHead}>
-          {t(isMentor ? 'community.mentor.profileTitle' : 'community.mentor.profileTitleResearcher')}
+          {title}
           <span style={{ flex: '1 1 auto' }} />
           <Badge tone={proposalTone(status)}>{enumText(t, PROPOSAL_STATUS_KEYS, status)}</Badge>
         </div>
@@ -4578,7 +4574,9 @@ function PartyProfileDialog({
             </>
           ) : (
             <div style={S.hint}>
-              {t(isMentor ? 'community.mentor.profileEmpty' : 'community.mentor.profileEmptyResearcher')}
+              {profile === undefined
+                ? t(isMentor ? 'community.mentor.profileUnavailable' : 'community.mentor.profileUnavailableResearcher')
+                : t(isMentor ? 'community.mentor.profileEmpty' : 'community.mentor.profileEmptyResearcher')}
             </div>
           )}
           <div style={S.footer}>
@@ -8702,16 +8700,8 @@ export function CommunityTab({
                           {t('community.action.upload')}
                         </button>
                       ) : null}
-                      {/*
-                        对方的资料 —— 判据是"服务器**给没给**这一方的 profile 键"，
-                        不是"profile 是不是非空"：
-                          · 键在、值 `null`（投影了但对方没填）→ **显示**按钮，
-                            点开如实说"尚未填写"；
-                          · 键都不在（服务器不给看这一方的资料）→ **不显示**。
-                        服务器按"谁要判断谁"投影（方向 A 给 researcher 看 mentor 的，
-                        方向 B 给 mentor 看 researcher 的），所以这里不按角色判断。
-                      */}
-                      {view.counterparty?.profile !== undefined ? (
+                      {/* 有对方身份就显示入口；简介是否可用由弹窗说明。 */}
+                      {view.counterparty ? (
                         <button
                           type="button"
                           style={S.ghostBtn}
@@ -9146,6 +9136,9 @@ export function CommunityTab({
           )}
         </div>
       </div>
+      <small style={{ ...S.hint, display: 'block', marginTop: 10 }} title={t('settings.uiBuild.tip')}>
+        ui {__CLIENT_BUILD__}
+      </small>
     </>
   )
 }

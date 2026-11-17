@@ -303,6 +303,8 @@ export declare const zh: {
     'community.mentor.profileTitleResearcher': string;
     'community.mentor.profileEmpty': string;
     'community.mentor.profileEmptyResearcher': string;
+    'community.mentor.profileUnavailable': string;
+    'community.mentor.profileUnavailableResearcher': string;
     'community.mentor.profileBio': string;
     'community.mentor.profileFields': string;
     'community.mentor.profileInterests': string;
@@ -316,6 +318,7 @@ export declare const zh: {
     'community.work.budget': string;
     'community.mentor.askingVsOffer': string;
     'community.mentor.feeText': string;
+    'settings.uiBuild.tip': string;
     'community.mentor.progress.awaitingMentor': string;
     'community.mentor.progress.mentorGuided': string;
     'community.mentor.progress.iToGuide': string;

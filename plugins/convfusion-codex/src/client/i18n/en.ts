@@ -339,6 +339,8 @@ export const en = {
   'community.mentor.profileTitleResearcher': 'Student profile',
   'community.mentor.profileEmpty': 'This mentor has not filled in a research profile yet.',
   'community.mentor.profileEmptyResearcher': 'This student has not filled in a research profile yet.',
+  'community.mentor.profileUnavailable': "The server did not provide this mentor's research profile.",
+  'community.mentor.profileUnavailableResearcher': "The server did not provide this student's research profile.",
   'community.mentor.profileBio': 'About',
   'community.mentor.profileFields': 'Research fields',
   'community.mentor.profileInterests': 'Research interests',
@@ -353,14 +355,8 @@ export const en = {
   'community.work.budget': 'Budget {tokens}',
   'community.mentor.askingVsOffer': 'Asking {asking} / offer {offer} Tokens',
   'community.mentor.feeText': '{total} Token (deposit {deposit} · success {success})',
-  // Progress after the relationship exists. `review_files` counts the **non-owner**
-  // side: in direction A that is the mentor's guidance, in direction B the student's
-  // delivery — so all four phrasings are needed, not just mentor/student.
-  // Progress after ACCEPTED. ⚠️ Whose actions the wording describes is decided by the
-  // DIRECTION, not by the role: direction A (a work seeking a mentor) is owned by the
-  // student, so the mentor delivers; direction B (a topic recruiting students) is owned
-  // by the mentor, so the student delivers. `review_files` counts the NON-owner side.
-  // Rule: src/client/mentorship-labels.ts (pure, asserted for all four combinations).
+  'settings.uiBuild.tip': 'Local time when this interface was built (MMDD-HHmm).',
+  // After acceptance, mentors see their own guidance progress in both directions.
   'community.mentor.progress.awaitingMentor': 'Awaiting guidance',
   'community.mentor.progress.mentorGuided': 'Mentor has given guidance',
   'community.mentor.progress.iToGuide': 'Guidance pending',

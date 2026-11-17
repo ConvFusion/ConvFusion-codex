@@ -15,6 +15,7 @@ import { build } from 'esbuild'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { clientBuildStamp } from './lib/client-build-stamp.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
@@ -29,6 +30,7 @@ if (!protocol) {
   process.exit(1)
 }
 
+const stamp = clientBuildStamp()
 const result = await build({
   entryPoints: [join(root, 'src/client/index.tsx')],
   bundle: true,
@@ -39,7 +41,7 @@ const result = await build({
   // 官方客户端 bundle 就是原文 UTF-8。esbuild 默认 charset:'ascii' 会把中文转成
   // \uXXXX —— 功能一样，但产物不可读，也让"文案是否进入产物"这类断言没法写。
   charset: 'utf8',
-  define: { __HOST_PROTOCOL__: protocol },
+  define: { __HOST_PROTOCOL__: protocol, __CLIENT_BUILD__: JSON.stringify(stamp) },
   external: ['react', 'react/jsx-runtime', 'react-dom', '@deepseek-ai/*'],
   // 品牌图形内联成 data URI：bundle 必须自包含，不能有外部资源请求
   loader: { '.svg': 'dataurl' },
@@ -70,5 +72,5 @@ const bundle = [
 mkdirSync(join(root, 'lib'), { recursive: true })
 writeFileSync(join(root, 'lib/client.js'), bundle)
 console.log(
-  `client bundle -> lib/client.js (${(bundle.length / 1024).toFixed(1)} KiB, host protocol ${protocol})`,
+  `client bundle -> lib/client.js (${(bundle.length / 1024).toFixed(1)} KiB, host protocol ${protocol}, ui ${stamp})`,
 )

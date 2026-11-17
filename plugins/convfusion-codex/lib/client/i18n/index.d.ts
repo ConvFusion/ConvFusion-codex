@@ -308,6 +308,8 @@ export declare const dictionaries: {
         'community.mentor.profileTitleResearcher': string;
         'community.mentor.profileEmpty': string;
         'community.mentor.profileEmptyResearcher': string;
+        'community.mentor.profileUnavailable': string;
+        'community.mentor.profileUnavailableResearcher': string;
         'community.mentor.profileBio': string;
         'community.mentor.profileFields': string;
         'community.mentor.profileInterests': string;
@@ -321,6 +323,7 @@ export declare const dictionaries: {
         'community.work.budget': string;
         'community.mentor.askingVsOffer': string;
         'community.mentor.feeText': string;
+        'settings.uiBuild.tip': string;
         'community.mentor.progress.awaitingMentor': string;
         'community.mentor.progress.mentorGuided': string;
         'community.mentor.progress.iToGuide': string;
@@ -1056,6 +1059,8 @@ export declare const dictionaries: {
         readonly 'community.mentor.profileTitleResearcher': "Student profile";
         readonly 'community.mentor.profileEmpty': "This mentor has not filled in a research profile yet.";
         readonly 'community.mentor.profileEmptyResearcher': "This student has not filled in a research profile yet.";
+        readonly 'community.mentor.profileUnavailable': "The server did not provide this mentor's research profile.";
+        readonly 'community.mentor.profileUnavailableResearcher': "The server did not provide this student's research profile.";
         readonly 'community.mentor.profileBio': "About";
         readonly 'community.mentor.profileFields': "Research fields";
         readonly 'community.mentor.profileInterests': "Research interests";
@@ -1069,6 +1074,7 @@ export declare const dictionaries: {
         readonly 'community.work.budget': "Budget {tokens}";
         readonly 'community.mentor.askingVsOffer': "Asking {asking} / offer {offer} Tokens";
         readonly 'community.mentor.feeText': "{total} Token (deposit {deposit} · success {success})";
+        readonly 'settings.uiBuild.tip': "Local time when this interface was built (MMDD-HHmm).";
         readonly 'community.mentor.progress.awaitingMentor': "Awaiting guidance";
         readonly 'community.mentor.progress.mentorGuided': "Mentor has given guidance";
         readonly 'community.mentor.progress.iToGuide': "Guidance pending";

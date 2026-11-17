@@ -423,6 +423,8 @@ window.__ModuleLoader__.load({
 		  "community.mentor.profileTitleResearcher": "Student profile",
 		  "community.mentor.profileEmpty": "This mentor has not filled in a research profile yet.",
 		  "community.mentor.profileEmptyResearcher": "This student has not filled in a research profile yet.",
+		  "community.mentor.profileUnavailable": "The server did not provide this mentor's research profile.",
+		  "community.mentor.profileUnavailableResearcher": "The server did not provide this student's research profile.",
 		  "community.mentor.profileBio": "About",
 		  "community.mentor.profileFields": "Research fields",
 		  "community.mentor.profileInterests": "Research interests",
@@ -437,14 +439,8 @@ window.__ModuleLoader__.load({
 		  "community.work.budget": "Budget {tokens}",
 		  "community.mentor.askingVsOffer": "Asking {asking} / offer {offer} Tokens",
 		  "community.mentor.feeText": "{total} Token (deposit {deposit} · success {success})",
-		  // Progress after the relationship exists. `review_files` counts the **non-owner**
-		  // side: in direction A that is the mentor's guidance, in direction B the student's
-		  // delivery — so all four phrasings are needed, not just mentor/student.
-		  // Progress after ACCEPTED. ⚠️ Whose actions the wording describes is decided by the
-		  // DIRECTION, not by the role: direction A (a work seeking a mentor) is owned by the
-		  // student, so the mentor delivers; direction B (a topic recruiting students) is owned
-		  // by the mentor, so the student delivers. `review_files` counts the NON-owner side.
-		  // Rule: src/client/mentorship-labels.ts (pure, asserted for all four combinations).
+		  "settings.uiBuild.tip": "Local time when this interface was built (MMDD-HHmm).",
+		  // After acceptance, mentors see their own guidance progress in both directions.
 		  "community.mentor.progress.awaitingMentor": "Awaiting guidance",
 		  "community.mentor.progress.mentorGuided": "Mentor has given guidance",
 		  "community.mentor.progress.iToGuide": "Guidance pending",
@@ -1244,6 +1240,8 @@ window.__ModuleLoader__.load({
 		  "community.mentor.profileTitleResearcher": "学生信息",
 		  "community.mentor.profileEmpty": "该导师尚未填写研究简介。",
 		  "community.mentor.profileEmptyResearcher": "该学生尚未填写研究简介。",
+		  "community.mentor.profileUnavailable": "服务器未提供这位导师的研究简介。",
+		  "community.mentor.profileUnavailableResearcher": "服务器未提供这位学生的研究简介。",
 		  "community.mentor.profileBio": "简介",
 		  "community.mentor.profileFields": "研究领域",
 		  "community.mentor.profileInterests": "研究兴趣",
@@ -1259,14 +1257,8 @@ window.__ModuleLoader__.load({
 		  "community.work.budget": "预算 {tokens}",
 		  "community.mentor.askingVsOffer": "开价 {asking} / 出价 {offer} Token",
 		  "community.mentor.feeText": "{total} Token（押金 {deposit} · 成功 {success}）",
-		  // 关系建立之后的**进展**（提案状态接受后就不再变了，光看它永远是"已接受"）。
-		  //
-		  // ⚠️ 视角由**方向**决定，不是由角色决定（配反过一次，用户实测抓到）：
-		  //   · 方向 A（学生发布工作求指导）→ **学生是 owner**，非 owner 那一侧（导师）交付指导产物；
-		  //   · 方向 B（导师出题招学生）    → **导师是 owner**，非 owner 那一侧（学生）交付研究进展。
-		  // `review_files` 数的正是**非 owner 那一侧** → owner 侧说"对方"、非 owner 侧说"我"。
-		  // 命名取"谁在做这个动作"：`*Guided` = 导师的动作，`*Deliver*` = 学生的动作。
-		  // 规则在 src/client/mentorship-labels.ts（纯函数，自检逐一断言四种组合）。
+		  "settings.uiBuild.tip": "界面构建时的本地时间（MMDD-HHmm）。",
+		  // 关系建立后，两个方向的导师都看到自己的指导进展。
 		  "community.mentor.progress.awaitingMentor": "等待指导意见",
 		  "community.mentor.progress.mentorGuided": "导师已指导",
 		  "community.mentor.progress.iToGuide": "待我指导",
@@ -2226,26 +2218,20 @@ window.__ModuleLoader__.load({
 		}
 
 		// src/client/mentorship-labels.ts
+		function mentorUploadedAfterProposal({ workspaceUpdatedAt, createdAt }) {
+		  if (typeof workspaceUpdatedAt !== "string" || typeof createdAt !== "string") return false;
+		  return Date.parse(workspaceUpdatedAt) > Date.parse(createdAt);
+		}
 		function acceptedProgressKey(proposal, viewer) {
 		  if (proposal.status !== "ACCEPTED") return null;
-		  const delivered = typeof proposal.reviewFiles === "number" && proposal.reviewFiles > 0;
 		  const prefix = "community.mentor.progress.";
-		  if (proposal.direction === "SEEK_MENTOR") {
-		    return viewer.iAmOwner ? (
-		      // owner = 学生：说**对方**（导师）
-		      prefix + (delivered ? "mentorGuided" : "awaitingMentor")
-		    ) : (
-		      // 非 owner = 导师：说**我**
-		      prefix + (delivered ? "iGuided" : "iToGuide")
-		    );
+		  const nonOwnerDelivered = typeof proposal.reviewFiles === "number" && proposal.reviewFiles > 0;
+		  const seekingMentor = proposal.direction === "SEEK_MENTOR";
+		  if (viewer.myRole === "mentor") {
+		    const guided = seekingMentor ? nonOwnerDelivered : mentorUploadedAfterProposal(proposal);
+		    return prefix + (guided ? "iGuided" : "iToGuide");
 		  }
-		  return viewer.iAmOwner ? (
-		    // owner = 导师：说**对方**（学生）
-		    prefix + (delivered ? "studentDelivered" : "awaitingStudent")
-		  ) : (
-		    // 非 owner = 学生：说**我**
-		    prefix + (delivered ? "iDelivered" : "iToDeliver")
-		  );
+		  return prefix + (seekingMentor ? nonOwnerDelivered ? "mentorGuided" : "awaitingMentor" : nonOwnerDelivered ? "iDelivered" : "iToDeliver");
 		}
 
 		// src/client/mentorship-view.ts
@@ -3087,22 +3073,28 @@ window.__ModuleLoader__.load({
 		    view !== "system" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hero, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { flex: "1 1 auto", minWidth: 0 }, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.heroSub, children: t("settings.hero.subtitle") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: update ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		          "a",
-		          {
-		            href: update.url || void 0,
-		            target: "_blank",
-		            rel: "noreferrer",
-		            title: t("settings.version.updateHint"),
-		            style: {
-		              fontSize: 11,
-		              fontWeight: 600,
-		              color: "var(--dsw-alias-state-business-primary)",
-		              textDecoration: "none"
-		            },
-		            children: t("settings.version.updateAvailable", { version: update.latest })
-		          }
-		        ) : null })
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
+		          !view && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { style: S.hint, title: t("settings.uiBuild.tip"), children: [
+		            "ui ",
+		            "1117-1658"
+		          ] }),
+		          update ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		            "a",
+		            {
+		              href: update.url || void 0,
+		              target: "_blank",
+		              rel: "noreferrer",
+		              title: t("settings.version.updateHint"),
+		              style: {
+		                fontSize: 11,
+		                fontWeight: 600,
+		                color: "var(--dsw-alias-state-business-primary)",
+		                textDecoration: "none"
+		              },
+		              children: t("settings.version.updateAvailable", { version: update.latest })
+		            }
+		          ) : null
+		        ] })
 		      ] }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }, children: totalOverridden > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "brand", children: t("settings.badge.customized", { count: totalOverridden }) }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("settings.badge.systemDefaults") }) })
 		    ] }) : null,
@@ -4856,15 +4848,16 @@ window.__ModuleLoader__.load({
 		  status,
 		  onClose
 		}) {
-		  const profile = party.profile ?? null;
+		  const profile = party.profile;
+		  const title = t(isMentor ? "community.mentor.profileTitle" : "community.mentor.profileTitleResearcher");
 		  const affiliation = [profile?.institution, profile?.department].filter(Boolean).join(" · ");
 		  const line = (label, value) => value ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.label, flex: "0 0 64px" }, children: label }),
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, flex: "1 1 auto", minWidth: 0 }, children: value })
 		  ] }) : null;
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(430px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", "aria-label": title, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(430px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
-		      t(isMentor ? "community.mentor.profileTitle" : "community.mentor.profileTitleResearcher"),
+		      title,
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: proposalTone(status), children: enumText(t, PROPOSAL_STATUS_KEYS, status) })
 		    ] }),
@@ -4876,7 +4869,7 @@ window.__ModuleLoader__.load({
 		        line(t("community.mentor.profileFields"), profile.researchFields.join(" · ")),
 		        line(t("community.mentor.profileInterests"), profile.researchInterests.join(" · ")),
 		        line(t("community.mentor.profileExpertise"), profile.researchExpertise.join(" · "))
-		      ] }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t(isMentor ? "community.mentor.profileEmpty" : "community.mentor.profileEmptyResearcher") }),
+		      ] }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: profile === void 0 ? t(isMentor ? "community.mentor.profileUnavailable" : "community.mentor.profileUnavailableResearcher") : t(isMentor ? "community.mentor.profileEmpty" : "community.mentor.profileEmptyResearcher") }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") })
@@ -7451,7 +7444,7 @@ window.__ModuleLoader__.load({
 		                          children: t("community.action.upload")
 		                        }
 		                      ) : null,
-		                      view2.counterparty?.profile !== void 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		                      view2.counterparty ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                        "button",
 		                        {
 		                          type: "button",
@@ -7770,6 +7763,10 @@ window.__ModuleLoader__.load({
 		          );
 		        }) })
 		      ] })
+		    ] }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { style: { ...S.hint, display: "block", marginTop: 10 }, title: t("settings.uiBuild.tip"), children: [
+		      "ui ",
+		      "1117-1658"
 		    ] })
 		  ] });
 		}

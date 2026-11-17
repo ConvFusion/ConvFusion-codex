@@ -49,6 +49,7 @@ let account = {
 const calls = []
 let mineWait
 let briefPaid = true
+let proposals = []
 const joinableWorks = [
   { projectId: 'renamed-work', title: 'Original publication title', workName: 'Current research work name' },
   { projectId: 'legacy-work', title: 'Legacy publication title' },
@@ -60,7 +61,7 @@ const send = async (endpoint, payload) => {
     if (mineWait) return mineWait
     return { ok: true, value: { items: [], registry: { available: false, reason: 'fixture-registry-unavailable' } } }
   }
-  if (endpoint === 'mentor/list') return { ok: true, value: { proposals: [] } }
+  if (endpoint === 'mentor/list') return { ok: true, value: { proposals } }
   if (endpoint === 'work/list') {
     const items = payload.direction === 'SEEK_STUDENT' ? joinableWorks.map((work) => ({ ...work, briefPaid })) : []
     return { ok: true, value: { items } }
@@ -168,6 +169,53 @@ for (const [index, expectedTitle] of expectedTitles.entries()) {
   await settle(third)
 }
 unmount(third)
+
+// A missing profile in the response must leave the counterpart button usable for either role.
+for (const viewer of ['mentor', 'student']) {
+  const ownParty = viewer === 'mentor' ? 'mentor' : 'researcher'
+  const otherParty = viewer === 'mentor' ? 'researcher' : 'mentor'
+  const projectedDirection = viewer === 'mentor' ? 'SEEK_STUDENT' : 'SEEK_MENTOR'
+  const omittedDirection = viewer === 'mentor' ? 'SEEK_MENTOR' : 'SEEK_STUDENT'
+  account = { ...account, account: { ...account.account, id: viewer, roles: viewer === 'mentor' ? ['MENTOR'] : ['RESEARCHER'] } }
+  const profile = { bio: 'Fixture research bio', institution: null, department: null,
+    researchFields: [], researchInterests: [], researchExpertise: [] }
+  proposals = ['omitted', 'empty', 'filled'].map((kind) => ({
+    id: kind, projectId: kind, direction: kind === 'omitted' ? omittedDirection : projectedDirection,
+    status: 'ACCEPTED', projectTitle: kind, totalFee: 0, depositAmount: 0, successPaymentAmount: 0,
+    createdAt: '2026-11-10T00:00:00Z',
+    [ownParty]: { id: viewer, displayName: viewer },
+    [otherParty]: { id: `other-${kind}`, displayName: kind,
+      ...(kind === 'omitted' ? {} : { profile: kind === 'empty' ? null : profile }) },
+  }))
+  const page = mount(`mentorship-profile-${viewer}`)
+  await settle(page)
+  const mentorshipTab = [...walk(page.tree)].find((node) => node.props?.children === 'community.tab.mentorship')
+  mentorshipTab.props.onClick()
+  await settle(page)
+  const roleLabel = viewer === 'mentor' ? 'community.action.viewStudent' : 'community.action.viewMentor'
+  const buttons = [...walk(page.tree)].filter((node) => node.type === 'button' && node.props.children === roleLabel)
+  assert.equal(buttons.length, 3, `${viewer}: a counterpart button for all three profile states`)
+  const beforeOpen = calls.length
+  const opened = new Set()
+  for (const button of buttons) {
+    button.props.onClick()
+    await settle(page)
+    const dialog = [...walk(page.tree)].find((node) => node.type?.name === 'PartyProfileDialog')
+    assert.ok(dialog)
+    const rendered = [...walk(dialog.type(dialog.props))].filter((node) => typeof node === 'string')
+    const kind = dialog.props.party.displayName
+    opened.add(kind)
+    const roleSuffix = viewer === 'mentor' ? 'Researcher' : ''
+    const expected = kind === 'filled' ? profile.bio
+      : `community.mentor.profile${kind === 'omitted' ? 'Unavailable' : 'Empty'}${roleSuffix}`
+    assert.ok(rendered.includes(expected), `${viewer}: correct text for ${kind} profile`)
+    dialog.props.onClose()
+    await settle(page)
+  }
+  assert.deepEqual(opened, new Set(['omitted', 'empty', 'filled']))
+  assert.equal(calls.length, beforeOpen, 'opening profiles uses only the already loaded proposal data')
+  unmount(page)
+}
 
 // A placeholder and a real descendant can coexist in defensive/legacy input.
 const tree = mod.buildUploadTree([{ relPath: 'papers/', size: 0 }, { relPath: 'papers/main.tex', size: 42 }])

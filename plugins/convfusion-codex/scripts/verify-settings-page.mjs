@@ -2061,8 +2061,8 @@ console.log('\n[12] 指导关系中：第三个 Tab + 接受冻结押金的二�
   assert(src.includes("'community.action.viewMentor'"), '有【查看导师信息】按钮')
   assert(src.includes("'community.action.viewStudent'"), '方向 B 里是【查看学生信息】（同一个动作、换个称呼）')
   assert(
-    /view\.counterparty\?\.profile !== undefined \? \(\s*<button[\s\S]{0,900}?setProfileTarget\(\{ proposal: p, view/.test(src),
-    '资料按钮只在服务器**给了**对方 profile 键时出现（哪一方由服务器按方向投影）',
+    /view\.counterparty \? \(\s*<button[\s\S]{0,900}?setProfileTarget\(\{ proposal: p, view/.test(src),
+    '已知对方身份时，无论服务器是否提供资料，都能打开资料弹窗',
   )
   assert(src.includes('function PartyProfileDialog('), '存在对方资料对话框（不是"导师专用"）')
   assert(
@@ -2072,6 +2072,10 @@ console.log('\n[12] 指导关系中：第三个 Tab + 接受冻结押金的二�
   assert(
     /isMentor \? 'community\.mentor\.profileEmpty' : 'community\.mentor\.profileEmptyResearcher'/.test(src),
     '对方没填 profile 时如实说明（不编内容）',
+  )
+  assert(
+    /profile === undefined\s*\? t\(isMentor \? 'community\.mentor\.profileUnavailable' : 'community\.mentor\.profileUnavailableResearcher'\)/.test(src),
+    '服务器省略 profile 时分别提示导师或学生资料未提供',
   )
   for (const f of ['profileBio', 'profileFields', 'profileInterests', 'profileExpertise']) {
     assert(src.includes(`community.mentor.${f}`), `Profile 字段有展示位：${f}`)
@@ -2522,11 +2526,6 @@ console.log('\n[13] 指导闭环：下载 / 上传')
       /if \(typeof count !== 'number' \|\| count === 0\) return null/.test(src),
     '那一侧没有文件时不催【下载】（与【下载】按钮同一判据，命令用户下一个空快照没意义）',
   )
-  // 资料入口按"服务器**给没给** profile 键"判，不是按"值非空"
-  assert(
-    /view\.counterparty\?\.profile !== undefined \?/.test(src),
-    '资料按钮按 profile **键在不在**判（null = 投影了但没填 → 仍给入口，点开说"尚未填写"）',
-  )
   assert(
     /if \(!res\.ok\)[\s\S]{0,400}?tone: 'error'[\s\S]{0,100}?return/.test(src),
     '下载失败时对话框留着并说明原因',
@@ -2636,41 +2635,34 @@ console.log('\n[13] 指导闭环：下载 / 上传')
   const legacy = planOf(true, ['SEEK_MENTOR', 'SEEK_STUDENT'])
   assertEq(legacy.more.length, 1, '历史双发：另一个方向进下拉（让用户仍有路可走，不静默丢掉）')
 
-  /*
-   * ──【指导中】的进展文案：**视角由方向决定，不是由角色决定** ──────────────
-   *
-   * 用户实测到的 bug：方向 A（学生发布工作）下两侧配反了 —— 学生看到「我已指导」
-   * （导师的第一人称），导师看到「导师已指导」（给学生的第三人称）。
-   * 这里把四种（方向 × 视角）组合**逐一**钉住，并连**文案**一起断言
-   * （只断言 key 的话，把两个 key 的文案对调也能过）。
-   */
+  // 【指导中】两个方向的导师都看自己的指导进展，学生文案保持原规则。
   {
     const { acceptedProgressKey } = await importClientModule('mentorship-labels.ts')
-    const keyOf = (direction, iAmOwner, reviewFiles) =>
-      acceptedProgressKey({ status: 'ACCEPTED', direction, reviewFiles }, { iAmOwner })
-    // 方向 A：学生是 owner，导师交付
-    assertEq(keyOf('SEEK_MENTOR', true, 3), 'community.mentor.progress.mentorGuided', '方向 A · 学生看已完成：说导师')
-    assertEq(keyOf('SEEK_MENTOR', true, 0), 'community.mentor.progress.awaitingMentor', '方向 A · 学生看未完成：等导师')
-    assertEq(keyOf('SEEK_MENTOR', false, 3), 'community.mentor.progress.iGuided', '方向 A · 导师看已完成：说我')
-    assertEq(keyOf('SEEK_MENTOR', false, 0), 'community.mentor.progress.iToGuide', '方向 A · 导师看未完成：待我')
-    // 方向 B：导师是 owner，学生交付
-    assertEq(keyOf('SEEK_STUDENT', true, 3), 'community.mentor.progress.studentDelivered', '方向 B · 导师看已完成：说学生')
-    assertEq(keyOf('SEEK_STUDENT', true, 0), 'community.mentor.progress.awaitingStudent', '方向 B · 导师看未完成：等学生')
-    assertEq(keyOf('SEEK_STUDENT', false, 3), 'community.mentor.progress.iDelivered', '方向 B · 学生看已完成：说我')
-    assertEq(keyOf('SEEK_STUDENT', false, 0), 'community.mentor.progress.iToDeliver', '方向 B · 学生看未完成：待我')
-    // `reviewFiles` 查不到（null）→ 当"还没交付"（与旧行为一致：不撒谎说已完成）
-    assertEq(keyOf('SEEK_MENTOR', false, null), 'community.mentor.progress.iToGuide', '查不到文件数 → 按"待交付"')
-    // 未 ACCEPTED → 交给状态名（不在本函数里混）
-    assertEq(acceptedProgressKey({ status: 'PROPOSED', direction: 'SEEK_MENTOR' }, { iAmOwner: true }), null, '非 ACCEPTED → 返回 null')
-
-    const zhText = readFileSync(join(PKG, 'src/client/i18n/zh.ts'), 'utf8')
-    const textOf = (key) => new RegExp(`'${key}': '([^']*)'`).exec(zhText)?.[1] ?? ''
-    assertEq(textOf('community.mentor.progress.mentorGuided'), '导师已指导', '学生看到的是「导师已指导」')
-    assertEq(textOf('community.mentor.progress.iGuided'), '我已指导', '导师看到的是「我已指导」')
-    assertEq(textOf('community.mentor.progress.iToGuide'), '待我指导', '导师未交付时是「待我指导」')
-    assertEq(textOf('community.mentor.progress.awaitingMentor'), '等待指导意见', '学生未收到时是「等待指导意见」')
-    assertEq(textOf('community.mentor.progress.studentDelivered'), '学生已交付', '方向 B 导师看到的是「学生已交付」')
-    assertEq(textOf('community.mentor.progress.iDelivered'), '我已交付', '方向 B 学生看到的是「我已交付」')
+    const { mentorshipView } = await importClientModule('mentorship-view.ts')
+    const { zh } = await importClientModule('i18n/zh.ts')
+    const labelOf = (direction, account, reviewFiles, extra = {}) => {
+      const proposal = {
+        status: 'ACCEPTED', direction, mentorId: 'mentor', researcherId: 'student', reviewFiles,
+        createdAt: '2026-11-10T00:00:00Z', ...extra,
+      }
+      const key = acceptedProgressKey(proposal, mentorshipView(proposal, account))
+      return key === null ? null : zh[key]
+    }
+    assertEq(labelOf('SEEK_MENTOR', 'student', 3), '导师已指导', '学生出题 · 学生看到导师已指导')
+    assertEq(labelOf('SEEK_MENTOR', 'student', 0), '等待指导意见', '学生出题 · 学生等待导师')
+    assertEq(labelOf('SEEK_MENTOR', 'mentor', 3), '我已指导', '学生出题 · 导师看到我已指导')
+    assertEq(labelOf('SEEK_MENTOR', 'mentor', null), '待我指导', '学生出题 · 未知导师文件数按待我指导')
+    assertEq(labelOf('SEEK_STUDENT', 'student', 3), '我已交付', '导师出题 · 学生看到我已交付')
+    assertEq(labelOf('SEEK_STUDENT', 'student', 0), '待我交付', '导师出题 · 学生看到待我交付')
+    assertEq(labelOf('SEEK_STUDENT', 'mentor', 0, {
+      workspaceUpdatedAt: '2026-11-10T08:01:00+08:00',
+    }), '我已指导', '导师出题 · 导师在提案后上传，即使学生尚未交付')
+    for (const workspaceUpdatedAt of ['2026-11-09T00:00:00Z', '2026-11-10T08:00:00+08:00', null, undefined, 'invalid']) {
+      assertEq(labelOf('SEEK_STUDENT', 'mentor', 3, { workspaceUpdatedAt }), '待我指导',
+        `导师出题 · 不把学生交付或无效的导师上传时间算成指导（${workspaceUpdatedAt}）`)
+    }
+    assertEq(labelOf('SEEK_STUDENT', 'mentor', 3, { status: 'PROPOSED' }), null,
+      '未接受的提案仍显示提案状态')
   }
   assert(!/republishMentor|republishStudent/.test(src), '两个方向各自的"更新"文案已从源码移除')
 

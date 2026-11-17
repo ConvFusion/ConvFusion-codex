@@ -18,3 +18,6 @@ declare module '*.svg' {
  * 才有可比性（见 `src/protocol.ts` 的说明）。
  */
 declare const __HOST_PROTOCOL__: number
+
+/** 本次界面打包时的本地时间（MMDD-HHmm）。 */
+declare const __CLIENT_BUILD__: string
