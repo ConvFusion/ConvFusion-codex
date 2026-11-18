@@ -364,7 +364,6 @@ export const zh = {
   'community.work.budget': '预算 {tokens}',
   'community.mentor.askingVsOffer': '开价 {asking} / 出价 {offer} Token',
   'community.mentor.feeText': '{total} Token（押金 {deposit} · 成功 {success}）',
-  'settings.uiBuild.tip': '界面构建时的本地时间（MMDD-HHmm）。',
   // 关系建立后，两个方向的导师都看到自己的指导进展。
   'community.mentor.progress.awaitingMentor': '等待指导意见',
   'community.mentor.progress.mentorGuided': '导师已指导',

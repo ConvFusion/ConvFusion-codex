@@ -79,10 +79,7 @@ function PluginUpdateSettings({ updates, t }: { updates: UpdateSettings; t: Tran
   const result = updates.result
   return <div className="preferences-card">
     <h4>{t('workbench.updates.title')}</h4>
-    <p>
-      {t('workbench.updates.installed', { version: updates.version })}{' · '}
-      <small title={t('settings.uiBuild.tip')}>ui {__CLIENT_BUILD__}</small>
-    </p>
+    <p>{t('workbench.updates.installed', { version: updates.version })}</p>
     <label className="preferences-check" htmlFor={checkboxId}>
       <input id={checkboxId} type="checkbox" checked={updates.automatic} disabled={saving}
         onChange={(event) => { void setAutomatic(event.target.checked) }} />

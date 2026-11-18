@@ -1221,7 +1221,6 @@ export function ConvFusionProjectSettings({
         <div style={{ flex: '1 1 auto', minWidth: 0 }}>
           <div style={S.heroSub}>{t('settings.hero.subtitle')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {!view && <small style={S.hint} title={t('settings.uiBuild.tip')}>ui {__CLIENT_BUILD__}</small>}
             {update ? (
               <a
                 href={update.url || undefined}
@@ -9182,9 +9181,6 @@ export function CommunityTab({
           )}
         </div>
       </div>
-      <small style={{ ...S.hint, display: 'block', marginTop: 10 }} title={t('settings.uiBuild.tip')}>
-        ui {__CLIENT_BUILD__}
-      </small>
     </>
   )
 }

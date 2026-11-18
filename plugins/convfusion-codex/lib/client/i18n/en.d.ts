@@ -318,7 +318,6 @@ export declare const en: {
     readonly 'community.work.budget': "Budget {tokens}";
     readonly 'community.mentor.askingVsOffer': "Asking {asking} / offer {offer} Tokens";
     readonly 'community.mentor.feeText': "{total} Token (deposit {deposit} · success {success})";
-    readonly 'settings.uiBuild.tip': "Local time when this interface was built (MMDD-HHmm).";
     readonly 'community.mentor.progress.awaitingMentor': "Awaiting guidance";
     readonly 'community.mentor.progress.mentorGuided': "Mentor has given guidance";
     readonly 'community.mentor.progress.iToGuide': "Guidance pending";

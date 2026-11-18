@@ -355,7 +355,6 @@ export const en = {
   'community.work.budget': 'Budget {tokens}',
   'community.mentor.askingVsOffer': 'Asking {asking} / offer {offer} Tokens',
   'community.mentor.feeText': '{total} Token (deposit {deposit} · success {success})',
-  'settings.uiBuild.tip': 'Local time when this interface was built (MMDD-HHmm).',
   // After acceptance, mentors see their own guidance progress in both directions.
   'community.mentor.progress.awaitingMentor': 'Awaiting guidance',
   'community.mentor.progress.mentorGuided': 'Mentor has given guidance',

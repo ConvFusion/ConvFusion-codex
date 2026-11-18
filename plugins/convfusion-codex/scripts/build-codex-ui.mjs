@@ -45,6 +45,6 @@ const controlsCss = `
 
 mkdirSync(join(root, 'lib'), { recursive: true })
 writeFileSync(join(root, 'lib/codex-ui.html'), `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ConvFusion</title><style>${css}${controlsCss}</style></head><body><div id="root"></div><script>${script}</script></body></html>\n`)
-console.log(`Codex workbench built (${(script.length / 1024).toFixed(0)} KiB, ui ${stamp}, no remote frontend dependencies).`)
+console.log(`Codex workbench built (${(script.length / 1024).toFixed(0)} KiB, build ${stamp}, no remote frontend dependencies).`)
 
 writeBundleNotices(root, output.metafile, 'codex-ui')

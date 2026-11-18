@@ -19,5 +19,5 @@ declare module '*.svg' {
  */
 declare const __HOST_PROTOCOL__: number
 
-/** 本次界面打包时的本地时间（MMDD-HHmm）。 */
+/** 本次工作台打包时的北京时间（YYYYMMDD-HHmm）。 */
 declare const __CLIENT_BUILD__: string

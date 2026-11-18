@@ -439,7 +439,6 @@ window.__ModuleLoader__.load({
 		  "community.work.budget": "Budget {tokens}",
 		  "community.mentor.askingVsOffer": "Asking {asking} / offer {offer} Tokens",
 		  "community.mentor.feeText": "{total} Token (deposit {deposit} · success {success})",
-		  "settings.uiBuild.tip": "Local time when this interface was built (MMDD-HHmm).",
 		  // After acceptance, mentors see their own guidance progress in both directions.
 		  "community.mentor.progress.awaitingMentor": "Awaiting guidance",
 		  "community.mentor.progress.mentorGuided": "Mentor has given guidance",
@@ -1264,7 +1263,6 @@ window.__ModuleLoader__.load({
 		  "community.work.budget": "预算 {tokens}",
 		  "community.mentor.askingVsOffer": "开价 {asking} / 出价 {offer} Token",
 		  "community.mentor.feeText": "{total} Token（押金 {deposit} · 成功 {success}）",
-		  "settings.uiBuild.tip": "界面构建时的本地时间（MMDD-HHmm）。",
 		  // 关系建立后，两个方向的导师都看到自己的指导进展。
 		  "community.mentor.progress.awaitingMentor": "等待指导意见",
 		  "community.mentor.progress.mentorGuided": "导师已指导",
@@ -3087,28 +3085,22 @@ window.__ModuleLoader__.load({
 		    view !== "system" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hero, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { flex: "1 1 auto", minWidth: 0 }, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.heroSub, children: t("settings.hero.subtitle") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
-		          !view && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { style: S.hint, title: t("settings.uiBuild.tip"), children: [
-		            "ui ",
-		            "1118-1707"
-		          ] }),
-		          update ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		            "a",
-		            {
-		              href: update.url || void 0,
-		              target: "_blank",
-		              rel: "noreferrer",
-		              title: t("settings.version.updateHint"),
-		              style: {
-		                fontSize: 11,
-		                fontWeight: 600,
-		                color: "var(--dsw-alias-state-business-primary)",
-		                textDecoration: "none"
-		              },
-		              children: t("settings.version.updateAvailable", { version: update.latest })
-		            }
-		          ) : null
-		        ] })
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: update ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          "a",
+		          {
+		            href: update.url || void 0,
+		            target: "_blank",
+		            rel: "noreferrer",
+		            title: t("settings.version.updateHint"),
+		            style: {
+		              fontSize: 11,
+		              fontWeight: 600,
+		              color: "var(--dsw-alias-state-business-primary)",
+		              textDecoration: "none"
+		            },
+		            children: t("settings.version.updateAvailable", { version: update.latest })
+		          }
+		        ) : null })
 		      ] }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }, children: totalOverridden > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "brand", children: t("settings.badge.customized", { count: totalOverridden }) }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("settings.badge.systemDefaults") }) })
 		    ] }) : null,
@@ -7870,10 +7862,6 @@ window.__ModuleLoader__.load({
 		          );
 		        }) })
 		      ] })
-		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { style: { ...S.hint, display: "block", marginTop: 10 }, title: t("settings.uiBuild.tip"), children: [
-		      "ui ",
-		      "1118-1707"
 		    ] })
 		  ] });
 		}

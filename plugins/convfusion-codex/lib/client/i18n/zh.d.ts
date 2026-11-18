@@ -318,7 +318,6 @@ export declare const zh: {
     'community.work.budget': string;
     'community.mentor.askingVsOffer': string;
     'community.mentor.feeText': string;
-    'settings.uiBuild.tip': string;
     'community.mentor.progress.awaitingMentor': string;
     'community.mentor.progress.mentorGuided': string;
     'community.mentor.progress.iToGuide': string;

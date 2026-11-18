@@ -98,7 +98,7 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
     finally { setSending(false) }
   }
   return <>
-    <header className="header"><img src={logo} alt="" /><div><h1>ConvFusion</h1><small>{current.title} · {current.version}</small></div>
+    <header className="header"><img src={logo} alt="" /><div><h1>ConvFusion</h1><small>{current.title} · {current.version}（{__CLIENT_BUILD__}）</small></div>
     </header>
     <div role="status" className="plugin-update-notice">
       {availableVersion && <p><strong>{t('workbench.updates.available', { version: availableVersion })}</strong> {t('workbench.updates.instructions')}</p>}
