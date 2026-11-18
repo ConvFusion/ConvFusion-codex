@@ -1,16 +1,16 @@
 /** Codex adapter for the shared settings/community service. No DSH runtime is started. */
 import { createServer } from 'node:http'
 import { createHash, randomBytes } from 'node:crypto'
-import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { accessSync, constants, existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, resolve, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createSettingsRpcHandler, SETTINGS_MAX_BODY_BYTES } from '../lib/settings-rpc.js'
+import { buildDownloadTarget, createSettingsRpcHandler, SETTINGS_MAX_BODY_BYTES, toWireTarget } from '../lib/settings-rpc.js'
 import { createFileCustomizationStore } from '../lib/research/skill-customization.js'
 import { createFilePaidBriefStore } from '../lib/research/paid-briefs.js'
 import { createFilePublishedStore } from '../lib/research/published-store.js'
 import { createFileSyncWatermarkStore } from '../lib/research/sync-watermarks.js'
 import { createFileSyncNoteStore } from '../lib/research/sync-note.js'
-import { createFileWorkIdentityStore, readLocalIdentity, researchRootFingerprint } from '../lib/research/work-identity.js'
+import { createFileWorkIdentityStore, readLocalIdentity, researchDirectoryIdentity, researchRootFingerprint } from '../lib/research/work-identity.js'
 import { effectiveSkillContentById } from '../lib/research/library.js'
 import { listSystemSkills } from '../lib/research/skills.js'
 import { isResearchWorkspace, researchWorkspaceOf } from '../lib/research/workspace.js'
@@ -21,6 +21,7 @@ import { DEFAULT_AUTO_CONTINUE } from '../lib/research/advance.js'
 import { writeMethodsExport } from '../lib/research/methods-export.js'
 import { collectSyncFacts, buildSyncText, resolveZipReference } from '../lib/research/sync-request.js'
 import { createDownloadJobs } from '../lib/codex/downloads.js'
+import { pickDownloadFolder } from '../lib/codex/folder-picker.js'
 import { resolveConvFusionApiKey, resolveServerUrl } from '../lib/config.js'
 
 const pluginRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -28,6 +29,11 @@ const pkg = JSON.parse(readFileSync(join(pluginRoot, 'package.json'), 'utf8'))
 export const UI_URI = 'ui://convfusion/workbench-v1.html'
 export const UI_MIME = 'text/html;profile=mcp-app'
 const failure = (code, message) => ({ ok: false, error: { code, message, details: {} } })
+const fileSide = (source) => source === 'mentor' || source === 'counterpart' ? source : 'owner'
+const inside = (parent, child) => {
+  const subpath = relative(parent, child)
+  return subpath !== '..' && !subpath.startsWith(`..${sep}`) && !isAbsolute(subpath)
+}
 
 export function createCodexUiHost(options = {}) {
   const env = options.env ?? process.env
@@ -35,6 +41,8 @@ export function createCodexUiHost(options = {}) {
   const path = (name) => join(home, name)
   const workspaces = new Map()
   const downloads = createDownloadJobs(home)
+  const pickFolder = options.pickDownloadFolder ?? pickDownloadFolder
+  let pickerOpen = false
   const saved = readJson(path('workspaces.json'), [])
   if (Array.isArray(saved)) for (const row of saved) {
     if (typeof row?.path === 'string' && isAbsolute(row.path) && existsSync(row.path)) workspaces.set(row.id, row)
@@ -63,6 +71,51 @@ export function createCodexUiHost(options = {}) {
     } catch { return null }
   }
   const saveSession = (token, state) => writePrivateJson(sessionPath(token), { version: 1, ...state })
+  // Grants are separate from workspaces.json and only authorize this download scope.
+  const pickedPath = (token, scope) => token && path(join('download-destinations', `${stateKey(JSON.stringify([token, scope]))}.json`))
+  const downloadScope = (config, key, payload) => [
+    resolveServerUrl(config, env).url, stateKey(key), payload.projectId.trim(), fileSide(payload.source),
+  ]
+  const readPickedDestination = (file) => {
+    if (!file) return null
+    try {
+      const saved = readJson(file, null)
+      if (typeof saved?.path !== 'string' || !isAbsolute(saved.path) || realpathSync(saved.path) !== saved.path) return null
+      const identity = researchDirectoryIdentity(saved.path)
+      if (!identity || saved.identity !== identity) return null
+      return { id: stateKey(saved.path), title: basename(saved.path) || saved.path, path: saved.path }
+    } catch { return null }
+  }
+  const inspectPicked = (row, remoteId) => toWireTarget(buildDownloadTarget(row, remoteId, workIdentity))
+  const chooseDestination = async (token, payload) => {
+    const config = getConfig()
+    const key = resolveConvFusionApiKey(config, env)
+    if (!key || typeof payload?.projectId !== 'string' || !payload.projectId.trim()) return failure('bad-request', '请选择研究项目。')
+    const saved = pickedPath(token, downloadScope(config, key, payload))
+    if (pickerOpen) return failure('folder-picker', '文件夹选择器已打开。')
+    pickerOpen = true
+    try {
+      let picked
+      try { picked = await pickFolder() } catch { return failure('folder-picker', '无法打开系统文件夹选择器。') }
+      if (picked === null) return { ok: true, value: { target: null } }
+      try {
+        if (typeof picked !== 'string' || !isAbsolute(picked)) throw new Error('Invalid path')
+        const directory = realpathSync(picked)
+        if (inside(realpathSync(pluginRoot), directory) || inside(existsSync(home) ? realpathSync(home) : home, directory)) {
+          throw new Error('Private plugin directory')
+        }
+        const identity = researchDirectoryIdentity(directory)
+        if (!identity) throw new Error('Not a directory')
+        accessSync(directory, constants.W_OK)
+        writePrivateJson(saved, { path: directory, identity })
+        return { ok: true, value: { target: inspectPicked({
+          id: stateKey(directory), title: basename(directory) || directory, path: directory,
+        }, payload.remoteWorkspaceId) } }
+      } catch { return failure('folder-location', '无法使用所选文件夹。') }
+    } finally {
+      pickerOpen = false
+    }
+  }
   let origin
   let persistQueue = Promise.resolve()
   const getConfig = () => ({
@@ -120,9 +173,9 @@ export function createCodexUiHost(options = {}) {
     const row = root ? registerWorkspace(root) : null
     let research = false
     try { research = Boolean(row && isResearchWorkspace(researchWorkspaceOf(row.path))) } catch { /* Keep the default view available. */ }
-    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? '研究工作台', version: pkg.version, autoCheckUpdates: autoCheckUpdates(), downloadTasks: true, uploadTasks: true, initialTab: research ? 'progress' : 'community' }
+    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? '研究工作台', version: pkg.version, autoCheckUpdates: autoCheckUpdates(), downloadTasks: true, pickDownloadFolder: true, uploadTasks: true, initialTab: research ? 'progress' : 'community' }
   }
-  const dispatch = async (root, endpoint, payload) => {
+  const dispatch = async (root, endpoint, payload, token) => {
     if (root) registerWorkspace(root)
     if (endpoint === 'codex/bootstrap') return { ok: true, value: bootstrap(root) }
     if (endpoint === 'version/check') return checkForUpdates(payload?.manual === true)
@@ -139,11 +192,16 @@ export function createCodexUiHost(options = {}) {
       const config = getConfig()
       const apiKey = resolveConvFusionApiKey(config, env)
       if (!apiKey) return failure('not-configured', '尚未登录 ConvFusion.com。')
-      const target = workspaceRows().find((row) => row.id === payload?.workspaceId)
-      if (!target || typeof payload?.projectId !== 'string' || !payload.projectId.trim()) return failure('bad-request', '请选择研究项目和目标工作区。')
+      if (typeof payload?.projectId !== 'string' || !payload.projectId.trim()) return failure('bad-request', '请选择研究项目和目标工作区。')
+      const selectionScope = downloadScope(config, apiKey, payload)
+      const grant = pickedPath(token, selectionScope)
+      const picked = readPickedDestination(grant)
+      const fromPicker = picked && picked.id === payload.workspaceId
+      const target = fromPicker ? picked : workspaceRows().find((row) => row.id === payload.workspaceId)
+      if (!target) return failure('not-found', '请选择可用的下载文件夹。')
       payload = { ...payload, projectId: payload.projectId.trim() }
       const directory = realpathSync(target.path)
-      const source = payload.source === 'mentor' || payload.source === 'counterpart' ? payload.source : 'owner'
+      const source = fileSide(payload.source)
       const intent = typeof payload.intent === 'string' && /^[a-zA-Z0-9-]{1,128}$/.test(payload.intent) ? payload.intent : undefined
       const scope = JSON.stringify([resolveServerUrl(config, env).url, createHash('sha256').update(apiKey).digest('hex'), payload.projectId, source, directory])
       if (endpoint === 'mentor/downloadCancel') {
@@ -153,9 +211,11 @@ export function createCodexUiHost(options = {}) {
       if (endpoint === 'mentor/downloadStatus') return { ok: true, value: { job: downloads.get(scope, payload.revision, payload.jobId, intent) } }
       const preflight = await handler('mentor/downloadState', { ...payload, source })
       if (!preflight.ok) return preflight
+      if (fromPicker && readPickedDestination(grant)?.id !== target.id) return failure('not-found', '所选下载文件夹已不可用。')
       const revision = preflight.value.downloadRevision
       const job = downloads.start(scope, revision, directory,
-        (control) => handler('mentor/download', { ...payload, source }, { ...control, config }),
+        (control) => handler('mentor/download', { ...payload, source, remoteWorkspaceId: preflight.value.remoteWorkspaceId },
+          { ...control, config, destination: target }),
         async () => {
           const after = await handler('mentor/downloadState', { ...payload, source })
           return after.ok ? after.value.downloadRevision : null
@@ -164,6 +224,14 @@ export function createCodexUiHost(options = {}) {
     }
     // Never accept host transport/directory callbacks from UI input: only the shared RPC dispatcher.
     const result = await handler(String(endpoint), payload ?? {})
+    if (token && endpoint === 'mentor/downloadState' && result.ok) {
+      result.value.items = result.value.items.filter((row) => row.status === 'same')
+      const config = getConfig()
+      const apiKey = resolveConvFusionApiKey(config, env)
+      const picked = apiKey && typeof payload?.projectId === 'string'
+        ? readPickedDestination(pickedPath(token, downloadScope(config, apiKey, payload))) : null
+      if (picked) result.value.pickedDestination = inspectPicked(picked, result.value.remoteWorkspaceId)
+    }
     if (endpoint === 'progress/workspace' && root && result.ok && result.value?.research) {
       const latest = latestCodexTurn(home, root)
       result.value.lastTurn = latest?.report ?? null
@@ -184,9 +252,10 @@ export function createCodexUiHost(options = {}) {
     if (!state) return failure('auth', '界面连接已失效，请重新打开 ConvFusion')
     if (root !== undefined && root !== state.root) return failure('workspace', 'Workspace is not registered')
     if (endpoint === 'codex/bootstrap') return { ok: true, value: sessionInfo(token, state) }
+    if (endpoint === 'codex/pickDownloadFolder') return chooseDestination(token, payload)
     // Progress always follows this page's task, never an arbitrary session ID from the UI.
     if (endpoint === 'progress/workspace') payload = { ...payload, sessionId: bootstrap(state.root).sessionId ?? '' }
-    return dispatch(state.root, endpoint, payload)
+    return dispatch(state.root, endpoint, payload, token)
   }
   const open = async (root, requestMeta) => {
     let selected = root === undefined ? null : registerWorkspace(root, true).path

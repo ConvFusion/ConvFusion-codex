@@ -54,6 +54,8 @@ const target = (id, status) => ({ id, title: id, path: `/fixture/${id}`, status,
 let downloadItems = [target('unrelated', 'other'), target('target', 'same'), target('empty', 'new')]
 let currentWorkspaceId = 'unrelated'
 let protocol = 31
+let pickerCalls = 0
+let finishPicker
 let uploadMatch = true
 const uploadPlans = []
 let job = null, starts = 0, cancels = 0, statuses = 0, nextId = 0, prepared = null
@@ -67,6 +69,11 @@ const send = async (endpoint, payload) => {
   if (endpoint === 'work/list') return { ok: true, value: { items: [] } }
   if (endpoint === 'mentor/list') return { ok: true, value: { proposals: [proposal, uploadProposal] } }
   if (endpoint === 'mentor/downloadState') return { ok: true, value: { files: 1, bytes: 9999, expectedName: 'guessed.zip', available: true, reason: null, items: downloadItems, currentWorkspaceId, protocol, downloadRevision: 'revision' } }
+  if (endpoint === 'codex/pickDownloadFolder') {
+    assert.equal(payload.projectId, proposal.projectId)
+    pickerCalls++
+    return new Promise((resolve) => { finishPicker = (picked) => resolve({ ok: true, value: { target: picked } }) })
+  }
   if (endpoint === 'mentor/uploadState') {
     assert.equal(payload.projectId, uploadProposal.projectId)
     return { ok: true, value: { available: true, currentWorkspaceId: 'unrelated', items: [
@@ -97,7 +104,7 @@ const send = async (endpoint, payload) => {
   }
   throw new Error(`Unexpected endpoint ${endpoint}`)
 }
-const h = { cells: [], effects: [], dirty: true, cursor: 0, tree: null, props: { send, initial: account, t, session: { sessionId: 'target', downloadTasks: true, draftEmpty: false, syncCommand: (zip) => `sync ${JSON.stringify(zip)}`, prepareSync: (text) => { prepared = text } } } }
+const h = { cells: [], effects: [], dirty: true, cursor: 0, tree: null, props: { send, initial: account, t, session: { sessionId: 'target', downloadTasks: true, pickDownloadFolder: true, draftEmpty: false, syncCommand: (zip) => `sync ${JSON.stringify(zip)}`, prepareSync: (text) => { prepared = text } } } }
 async function settle() {
   for (let n = 0; n < 30; n++) {
     if (h.dirty) {
@@ -129,12 +136,17 @@ try {
   await settle(); await open()
   assert.equal(dialog().props.selection, 'target', 'the unique match wins over an unrelated current workspace')
   const pickerTree = mod.DownloadDialog(dialog().props)
-  const disclosure = [...walk(pickerTree)].find((n) => n.type === 'details')
+  const browseButton = [...walk(pickerTree)].find((n) => n.type === 'button' && n.props.children === 'community.exchange.otherDestinations')
   const optionIds = (node) => [...walk(node)].filter((n) => n.type === 'option' && n.props.value).map((n) => n.props.value)
-  assert.equal(disclosure.props.open, undefined, 'other locations are collapsed initially')
-  assert.deepEqual(optionIds(disclosure), ['unrelated', 'empty'])
-  assert.deepEqual(optionIds([...walk(pickerTree)].find((n) => n.type === 'select')), ['target'])
+  assert.ok(browseButton, 'the system picker is available alongside the matching workspace')
+  assert.deepEqual(optionIds(pickerTree), ['target'], 'unrelated local workspaces are never rendered as options')
   assert.ok(renderDialogText().includes('community.exchange.ws.same'))
+  browseButton.props.onClick(); browseButton.props.onClick(); await settle()
+  assert.equal(pickerCalls, 1)
+  assert.ok(dialog().props.pickingFolder)
+  assert.equal(starts, 0, 'opening the chooser never starts a download')
+  finishPicker(null); await settle()
+  assert.equal(dialog().props.selection, 'target', 'cancelling the chooser retains the matching destination')
   assert.equal(dialog().props.busy, false)
   assert.equal(dialog().props.onCancel, undefined, 'no cancellation control before any download intent exists')
   const start = dialog().props.onDownload
@@ -215,11 +227,15 @@ try {
   dialog().props.onDownload(); await settle()
   assert.equal(starts, beforeManual, 'no destination means no start request')
   protocol = undefined
+  downloadItems = []
   await open()
-  assert.equal(dialog().props.selection, '', 'an older host without statuses also requires a choice')
-  dialog().props.onSelect('empty'); await settle()
+  assert.equal(dialog().props.selection, '', 'an empty workspace list still supports browsing')
+  dialog().props.onBrowse(); await settle()
+  finishPicker(target('folder-outside-registry', 'new')); await settle()
+  assert.ok(renderDialogText().includes('/fixture/folder-outside-registry'))
+  assert.equal(starts, beforeManual, 'picking a folder still requires clicking Download')
   dialog().props.onDownload(); await settle()
-  assert.equal(startPayload.workspaceId, 'empty', 'an explicitly chosen alternate destination can still download')
+  assert.equal(startPayload.workspaceId, 'folder-outside-registry', 'the native picker result is used for download')
   dialog().props.onCancel(); await settle()
   dialog().props.onClose(); await settle()
 

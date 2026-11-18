@@ -1043,6 +1043,12 @@ async function fetchMarketplaceVersion(
   }
 }
 
+type SettingsDownloadControl = DownloadControl & {
+  config?: Config
+  /** Directory chosen through the local host picker and resolved within this UI session. */
+  destination?: { id: string; title: string; path: string }
+}
+
 /**
  * 建立一个端点分发器。
  *
@@ -1110,7 +1116,7 @@ async function fetchMarketplaceVersion(
  */
 export function createSettingsRpcHandler(
   deps: SettingsRpcDeps,
-): (endpoint: string, payload: unknown, downloadControl?: DownloadControl & { config?: Config }) => Promise<SettingsRpcResult> {
+): (endpoint: string, payload: unknown, downloadControl?: SettingsDownloadControl) => Promise<SettingsRpcResult> {
   const env = (): NodeJS.ProcessEnv => deps.env ?? process.env
   const state = (): SettingsState =>
     buildSettingsState(
@@ -1893,7 +1899,7 @@ export function createSettingsRpcHandler(
     }
   }
 
-  const dispatch = async (endpoint: string, payload: unknown, downloadControl?: DownloadControl & { config?: Config }, upload?: UploadControl): Promise<SettingsRpcResult> => {
+  const dispatch = async (endpoint: string, payload: unknown, downloadControl?: SettingsDownloadControl, upload?: UploadControl): Promise<SettingsRpcResult> => {
     const p = (payload ?? {}) as Record<string, unknown>
     try {
       switch (endpoint) {
@@ -3778,14 +3784,15 @@ export function createSettingsRpcHandler(
            * **只把 ZIP 存下来，其余交给用户**（2026-09 用户拍板）。
            *
            * 因此这里没有解压、没有 scope、没有"这个工作区里有没有研究"的判断：
-           *   · 目标目录按**注册表 id 在宿主侧解析**（客户端递不进任意路径）；
+           *   · 目标按宿主登记或本机选择器返回的 id 解析；
            *   · 文件写在**工作区根目录**（用户材料，不进 `<工作区>/workspace/` 研究数据区）；
            *   · 同名**不覆盖**，自动加序号 → 所选工作区里原有的东西一个都不动，
            *     所以任何工作区都能选，不需要禁用。
            * Codex 用研究工作名生成本地文件名。其他调用使用服务器归档名，缺失时使用前缀。
            */
-          const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : null
-          const target = listed?.items.find((it) => it.id === workspaceId)
+          const chosen = downloadControl?.destination
+          const target = chosen?.id === workspaceId ? chosen
+            : (await deps.listLocalWorkspaces?.())?.items.find((it) => it.id === workspaceId)
           if (!target) {
             return fail('not-found', '找不到这个工作区（可能已被删除）。刷新后重试。')
           }

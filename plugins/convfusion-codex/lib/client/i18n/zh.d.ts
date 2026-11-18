@@ -363,6 +363,9 @@ export declare const zh: {
     'community.exchange.matchingDestinations': string;
     'community.exchange.noMatchingDestination': string;
     'community.exchange.otherDestinations': string;
+    'community.exchange.pickingFolder': string;
+    'community.exchange.folderUnavailable': string;
+    'community.exchange.folderPickerFailed': string;
     'community.exchange.chooseDestination': string;
     'community.exchange.sizeBadge': string;
     'community.exchange.zipOnly': string;

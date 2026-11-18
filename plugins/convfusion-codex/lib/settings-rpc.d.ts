@@ -593,6 +593,15 @@ export interface SettingsRpcDeps {
  * 返回 `-1 | 0 | 1`。解析失败按 0 处理（防御即可，版本串都是自己维护的）。
  */
 export declare function compareVersions(a: string, b: string): number;
+type SettingsDownloadControl = DownloadControl & {
+    config?: Config;
+    /** Directory chosen through the local host picker and resolved within this UI session. */
+    destination?: {
+        id: string;
+        title: string;
+        path: string;
+    };
+};
 /**
  * 建立一个端点分发器。
  *
@@ -658,9 +667,7 @@ export declare function compareVersions(a: string, b: string): number;
  * 服务器地址与 API Key 只出现在**宿主**与**服务器**之间；本渠道的任何返回值都不得
  * 包含 `cf_live_…`。`account/*` 一律返回 {@link AccountState}（只有可用性 + 账号信息）。
  */
-export declare function createSettingsRpcHandler(deps: SettingsRpcDeps): (endpoint: string, payload: unknown, downloadControl?: DownloadControl & {
-    config?: Config;
-}) => Promise<SettingsRpcResult>;
+export declare function createSettingsRpcHandler(deps: SettingsRpcDeps): (endpoint: string, payload: unknown, downloadControl?: SettingsDownloadControl) => Promise<SettingsRpcResult>;
 /** 最小化的 node:http 请求/响应视图（避免为了类型而依赖 @types/node 之外的东西）。 */
 interface RouteRequest {
     method?: string | undefined;

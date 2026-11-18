@@ -8,7 +8,7 @@ import { WorkbenchSettings, type UpdateCheckResult, type WorkbenchLanguage } fro
 import { dictionaries, type Translate } from './i18n/index.js'
 import logo from '../../assets/favicon.svg'
 
-type Session = { workspaceRoot: string | null; sessionId: string | null; title: string; version: string; autoCheckUpdates?: boolean; uiScope: 'global' | 'workspace'; uiSession: string; downloadTasks?: boolean; uploadTasks?: boolean; url?: string; initialTab?: 'community' | 'progress' }
+type Session = { workspaceRoot: string | null; sessionId: string | null; title: string; version: string; autoCheckUpdates?: boolean; uiScope: 'global' | 'workspace'; uiSession: string; downloadTasks?: boolean; pickDownloadFolder?: boolean; uploadTasks?: boolean; url?: string; initialTab?: 'community' | 'progress' }
 let session: Session | undefined
 let app: App | undefined
 const inHost = window.parent !== window
@@ -83,6 +83,7 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
   React.useEffect(() => { document.documentElement.lang = zh ? 'zh-CN' : 'en' }, [zh])
   const bridge = {
     sessionId: current.sessionId ?? '', draftEmpty: false, downloadTasks: current.downloadTasks === true, uploadTasks: current.uploadTasks === true,
+    pickDownloadFolder: current.pickDownloadFolder === true,
     syncCommand: (zip: string) => `$convfusion-research 同步研究资料 ${JSON.stringify(zip)}`,
     ...(app && current.uiScope === 'workspace' ? { prepareSync: (text: string) => { setSyncDraft(text); setSendError('') } } : {}),
   }

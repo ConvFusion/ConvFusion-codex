@@ -491,7 +491,7 @@ window.__ModuleLoader__.load({
 		  "community.mentor.acceptNoFunded": "The funded pool holds only {funded} Token, short of the {deposit} Token deposit (the {grant} grant Token cannot pay a mentor). Please contact an administrator to issue Tokens during the trial phase.",
 		  "community.exchange.downloadTitle": "Download into a workspace",
 		  "community.exchange.sizeBadge": "{files} files · {size}",
-		  "community.exchange.zipOnly": "Only the ZIP is saved into the chosen workspace; no extraction — the rest is up to you.",
+		  "community.exchange.zipOnly": "Saves the ZIP in the selected folder. Extraction is manual.",
 		  "community.exchange.destHint": "Expected destination: {dest}",
 		  "community.exchange.downloading": "Downloaded {done} / ≈{total}",
 		  "community.exchange.downloadingBtn": "Downloading…",
@@ -501,6 +501,9 @@ window.__ModuleLoader__.load({
 		  "community.exchange.matchingDestinations": "Matching research workspaces",
 		  "community.exchange.noMatchingDestination": "No confirmed match. Choose where to save the download.",
 		  "community.exchange.otherDestinations": "Choose another save location",
+		  "community.exchange.pickingFolder": "Choose a folder in the system dialog.",
+		  "community.exchange.folderUnavailable": "This folder is unavailable. Choose an existing folder you can write to.",
+		  "community.exchange.folderPickerFailed": "Could not open the folder picker. Try again from your local desktop.",
 		  "community.exchange.chooseDestination": "Choose a save location",
 		  "community.exchange.ws.new": "New workspace",
 		  "community.exchange.ws.newHint": "No research workspace yet; treated as a fresh one",
@@ -1316,9 +1319,12 @@ window.__ModuleLoader__.load({
 		  "community.exchange.matchingDestinations": "与这项研究匹配的工作区",
 		  "community.exchange.noMatchingDestination": "没有已确认匹配的工作区，请选择保存位置。",
 		  "community.exchange.otherDestinations": "选择其他保存位置",
+		  "community.exchange.pickingFolder": "请在系统窗口中选择文件夹。",
+		  "community.exchange.folderUnavailable": "无法使用该文件夹。请选择一个仍存在且可写的位置。",
+		  "community.exchange.folderPickerFailed": "无法打开系统文件夹选择器，请在本机桌面环境中重试。",
 		  "community.exchange.chooseDestination": "请选择保存位置",
 		  "community.exchange.sizeBadge": "{files} 个文件 · {size}",
-		  "community.exchange.zipOnly": "只把 ZIP 保存到所选工作区，不解压，其余你自己处理。",
+		  "community.exchange.zipOnly": "只将 ZIP 保存到所选文件夹，不会自动解压。",
 		  "community.exchange.destHint": "预计保存到：{dest}",
 		  // 下载中：分母是**解压后**的合计（服务器发的是压缩 ZIP），所以写「≈」
 		  "community.exchange.downloading": "已下载 {done} / ≈{total}",
@@ -3084,7 +3090,7 @@ window.__ModuleLoader__.load({
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
 		          !view && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { style: S.hint, title: t("settings.uiBuild.tip"), children: [
 		            "ui ",
-		            "1118-1615"
+		            "1118-1647"
 		          ] }),
 		          update ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "a",
@@ -4989,6 +4995,8 @@ window.__ModuleLoader__.load({
 		  notice,
 		  targets,
 		  currentWorkspaceId,
+		  pickingFolder,
+		  onBrowse,
 		  done,
 		  onSelect,
 		  onDownload,
@@ -5003,7 +5011,7 @@ window.__ModuleLoader__.load({
 		  const chosenBadge = chosenTarget ? statusBadge(t, chosenTarget) : null;
 		  const warning = chosenTarget ? downloadWarning(t, chosenTarget) : null;
 		  const dest = chosen ? `${chosen.path}/${fileName}` : "";
-		  const ready = Boolean(chosen) && files !== null && files > 0 && !busy;
+		  const ready = Boolean(chosen) && files !== null && files > 0 && !busy && !pickingFolder;
 		  const isMatch = (id) => targetOf(id)?.status === "same";
 		  const matching = (workspaces ?? []).filter((w) => isMatch(w.id));
 		  const other = (workspaces ?? []).filter((w) => !isMatch(w.id));
@@ -5014,7 +5022,7 @@ window.__ModuleLoader__.load({
 		      {
 		        style: S.select,
 		        value: options.some((w) => w.id === selection) ? selection : "",
-		        disabled: busy,
+		        disabled: busy || Boolean(pickingFolder),
 		        onChange: (e) => onSelect(e.target.value),
 		        children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "", disabled: true, children: t("community.exchange.chooseDestination") }),
@@ -5041,9 +5049,12 @@ window.__ModuleLoader__.load({
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: proposalWorkLabel(proposal) ?? t("community.mentor.untitledProject") }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.zipOnly") }),
 		      files === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noSourceFiles") }) : null,
-		      !workspacesAvailable ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: workspacesReason ?? t("community.exchange.noWorkspaces") }) : workspaces === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : workspaces.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noWorkspaces") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 8 }, children: [
-		        matching.length > 0 ? workspaceSelect(matching, t("community.exchange.matchingDestinations")) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noMatchingDestination") }),
-		        other.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("details", { children: [
+		      !onBrowse && !workspacesAvailable ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: workspacesReason ?? t("community.exchange.noWorkspaces") }) : workspaces === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : workspaces.length === 0 && !onBrowse ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noWorkspaces") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 8 }, children: [
+		        matching.length > 0 ? workspaceSelect(matching, t("community.exchange.matchingDestinations")) : !chosen && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noMatchingDestination") }),
+		        onBrowse ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, disabled: busy || pickingFolder, onClick: onBrowse, children: t("community.exchange.otherDestinations") }),
+		          pickingFolder ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { role: "status", style: S.hint, children: t("community.exchange.pickingFolder") }) : null
+		        ] }) : other.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("details", { children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("summary", { style: { ...S.label, cursor: "pointer", marginBottom: 5 }, children: t("community.exchange.otherDestinations") }),
 		          workspaceSelect(other, t("community.exchange.workspaceLabel"))
 		        ] }) : null,
@@ -5465,6 +5476,7 @@ window.__ModuleLoader__.load({
 		  const downloadStarting = import_react.default.useRef(null);
 		  const downloadAttempt = import_react.default.useRef();
 		  const downloadRequest = import_react.default.useRef(0);
+		  const folderPickerRequest = import_react.default.useRef(null);
 		  const uploadSelectionRequest = import_react.default.useRef(0);
 		  const [uploadWorkspaces, setUploadWorkspaces] = import_react.default.useState(null);
 		  const [uploadRegistry, setUploadRegistry] = import_react.default.useState(
@@ -5949,19 +5961,21 @@ window.__ModuleLoader__.load({
 		    const v = res.value;
 		    const supportsCheck = typeof v.protocol === "number" && v.protocol >= HOST_PROTOCOL_MIN_FOR_CHECK;
 		    const itemTargets = v.items.filter((w) => "status" in w);
-		    const targets = supportsCheck ? itemTargets.length ? itemTargets : v.targets ?? null : null;
+		    let targets = supportsCheck ? itemTargets.length ? itemTargets : v.targets ?? null : null;
 		    const matches = v.items.filter(
 		      (w) => targets?.some((target) => target.id === w.id && target.status === "same")
 		    );
+		    const picked = session?.pickDownloadFolder ? v.pickedDestination : void 0;
+		    if (picked) targets = [...(targets ?? []).filter((w) => w.id !== picked.id), picked];
 		    setDownloadBusy(false);
 		    setDownload({
 		      proposal: p,
 		      source,
 		      revision: v.downloadRevision,
-		      workspaces: v.items,
+		      workspaces: picked ? [...v.items.filter((w) => w.id !== picked.id), picked] : v.items,
 		      available: v.available,
 		      reason: v.reason,
-		      selection: preferredMatchingWorkspace(matches, v.currentWorkspaceId),
+		      selection: picked?.id ?? preferredMatchingWorkspace(matches, v.currentWorkspaceId),
 		      files: v.files,
 		      bytes: v.bytes,
 		      fileName: v.expectedName,
@@ -5970,6 +5984,40 @@ window.__ModuleLoader__.load({
 		      remoteWorkspaceId: v.remoteWorkspaceId ?? null,
 		      currentWorkspaceId: v.currentWorkspaceId ?? null,
 		      done: null
+		    });
+		  };
+		  const browseDownloadFolder = async () => {
+		    const target = download;
+		    const request = downloadRequest.current;
+		    if (!target || downloadBusy || downloadStarting.current || folderPickerRequest.current === request) return;
+		    folderPickerRequest.current = request;
+		    setDownload((prev) => prev ? { ...prev, pickingFolder: true } : prev);
+		    const res = await post("codex/pickDownloadFolder", {
+		      projectId: target.proposal.projectId,
+		      source: target.source,
+		      remoteWorkspaceId: target.remoteWorkspaceId
+		    });
+		    if (folderPickerRequest.current === request) folderPickerRequest.current = null;
+		    if (request !== downloadRequest.current || listScope !== currentListScope.current) return;
+		    setDownload((prev) => {
+		      if (!prev) return prev;
+		      const settled = { ...prev, pickingFolder: false };
+		      if (!res.ok) return { ...settled, notice: { tone: "error", text: t(
+		        res.error?.code === "folder-location" ? "community.exchange.folderUnavailable" : "community.exchange.folderPickerFailed"
+		      ) } };
+		      const picked = res.value.target;
+		      if (!picked) return settled;
+		      if (picked.id === prev.selection) return { ...settled, notice: null };
+		      return {
+		        ...settled,
+		        workspaces: [...(prev.workspaces ?? []).filter((w) => w.id !== picked.id), picked],
+		        targets: [...(prev.targets ?? []).filter((w) => w.id !== picked.id), picked],
+		        selection: picked.id,
+		        jobId: void 0,
+		        intent: void 0,
+		        done: null,
+		        notice: null
+		      };
 		    });
 		  };
 		  const downloadPayload = (target) => ({
@@ -6009,6 +6057,18 @@ window.__ModuleLoader__.load({
 		      const res = await post("mentor/downloadStatus", { ...downloadPayload(target), jobId: target.jobId });
 		      if (stopped) return;
 		      if (!res.ok) {
+		        if (res.error?.code === "not-found") {
+		          setDownloadBusy(false);
+		          setDownload((prev) => prev ? {
+		            ...prev,
+		            selection: "",
+		            jobId: void 0,
+		            intent: void 0,
+		            done: null,
+		            notice: { tone: "error", text: t("community.exchange.folderUnavailable") }
+		          } : prev);
+		          return;
+		        }
 		        setDownloadBusy(true);
 		        setDownloadPhase("reconnecting");
 		        setDownload((prev) => prev ? { ...prev, notice: { tone: "error", text: t("community.download.reconnecting") } } : prev);
@@ -6057,7 +6117,7 @@ window.__ModuleLoader__.load({
 		  }, []);
 		  const runDownload = async () => {
 		    const target = download;
-		    if (!target?.selection || downloadStarting.current) return;
+		    if (!target?.selection || downloadStarting.current || folderPickerRequest.current === downloadRequest.current) return;
 		    const key = downloadKey;
 		    const attempted = { ...target, intent: target.intent && !target.jobId ? target.intent : crypto.randomUUID() };
 		    downloadStarting.current = attempted.intent;
@@ -7169,10 +7229,15 @@ window.__ModuleLoader__.load({
 		        notice: download.notice,
 		        targets: download.targets,
 		        currentWorkspaceId: download.currentWorkspaceId,
+		        pickingFolder: download.pickingFolder,
+		        onBrowse: session?.pickDownloadFolder ? () => void browseDownloadFolder() : void 0,
 		        done: download.done,
 		        onSelect: (id) => setDownload((prev) => prev ? { ...prev, selection: id, jobId: void 0, intent: void 0, done: null, notice: null } : prev),
 		        onDownload: () => void runDownload(),
-		        onClose: () => setDownload(null),
+		        onClose: () => {
+		          downloadRequest.current += 1;
+		          setDownload(null);
+		        },
 		        onFill: () => {
 		          const prompt = download.done?.prompt;
 		          if (!prompt || !session?.setDraft) return;
@@ -7797,7 +7862,7 @@ window.__ModuleLoader__.load({
 		    ] }),
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { style: { ...S.hint, display: "block", marginTop: 10 }, title: t("settings.uiBuild.tip"), children: [
 		      "ui ",
-		      "1118-1615"
+		      "1118-1647"
 		    ] })
 		  ] });
 		}

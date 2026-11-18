@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Offline integration through the shipped Codex adapter and real streamed ZIP writes. */
 import assert from 'node:assert/strict'
-import { mkdtemp, mkdir, readdir, readFile, writeFile, stat, rm, realpath, unlink } from 'node:fs/promises'
+import { mkdtemp, mkdir, readdir, readFile, writeFile, stat, rm, realpath, rename, unlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fork } from 'node:child_process'
@@ -79,7 +79,8 @@ if (['--worker', '--saved-worker'].includes(process.argv[2])) {
   const home = join(temp, 'home'), root = join(temp, 'target'), other = join(temp, 'other')
   await mkdir(root); await mkdir(other)
   const server = fixture()
-  const host = createCodexUiHost({ home, env, fetchImpl: server.fetchImpl })
+  let nextFolder = null
+  const host = createCodexUiHost({ home, env, fetchImpl: server.fetchImpl, pickDownloadFolder: async () => nextFolder })
   const replacement = createCodexUiHost({ home, env, fetchImpl: server.fetchImpl })
   let child
   try {
@@ -237,6 +238,43 @@ if (['--worker', '--saved-worker'].includes(process.argv[2])) {
     assert.equal(await readFile(join(root, expectedName), 'utf8'), 'existing download')
     assert.deepEqual(await readFile(namedResult.path), zip)
     assert.match(replacement.prepareSync(root, namedResult.path).instructions, /- 项目：当前研究工作名/)
+
+    // Only an authenticated workbench picker grants an external ZIP destination.
+    const external = join(temp, '本机 下载')
+    await mkdir(external)
+    const page = await host.open()
+    const otherPage = await host.open()
+    assert.equal(page.pickDownloadFolder, true)
+    const choose = (args = named) => host.dispatchSession(page.uiSession, undefined, 'codex/pickDownloadFolder', args)
+    assert.equal((await host.dispatchSession('invalid-session', undefined, 'codex/pickDownloadFolder', named)).error.code, 'auth')
+    assert.equal((await choose({ ...named, path: external })).value.target, null, 'request paths cannot substitute for the system picker')
+    nextFolder = external
+    const picked = await choose()
+    assert.equal(picked.ok, true)
+    assert.equal(picked.value.target.path, external)
+    assert.equal(picked.value.target.status, 'new')
+    assert.deepEqual(await readdir(external), [], 'selection alone does not write anything to the chosen folder')
+    const externalTask = { ...named, workspaceId: picked.value.target.id, intent: 'browse-and-download' }
+    const downloadExternal = (kind, args = externalTask, caller = host, token = page.uiSession) =>
+      caller.dispatchSession(token, undefined, `mentor/download${kind}`, args)
+    assert.equal((await downloadExternal('Start', externalTask, host, otherPage.uiSession)).error.code, 'not-found')
+    assert.equal((await downloadExternal('Start', { ...externalTask, projectId: 'another-project' })).error.code, 'not-found')
+    nextFolder = null
+    assert.equal((await choose()).value.target, null)
+    const reopened = await downloadExternal('State', externalTask, replacement)
+    assert.deepEqual(reopened.value.items, [], 'unmatched workspaces do not appear in the workbench')
+    assert.equal(reopened.value.pickedDestination.id, externalTask.workspaceId, 'the chosen destination survives replacement of the MCP host')
+    const transfer = await downloadExternal('Start', externalTask, replacement)
+    assert.equal(transfer.ok, true, JSON.stringify(transfer))
+    server.transfers.at(-1).finish()
+    const externalResult = await until(async () => (await downloadExternal('Status')).value.job, (j) => j?.state === 'succeeded')
+    assert.equal(externalResult.result.value.dir, external)
+    assert.deepEqual(await readdir(external), [expectedName])
+    assert.deepEqual(await readFile(externalResult.result.value.path), zip)
+    assert.ok(!(await readFile(join(home, 'workspaces.json'), 'utf8')).includes(external), 'the picker never registers new project workspaces')
+    await rename(external, join(temp, 'moved'))
+    await mkdir(external)
+    assert.equal((await downloadExternal('Start')).error.code, 'not-found', 'a directory at the same path must be chosen again if replaced')
 
     // Cancellation must work even for transports which ignore AbortSignal.
     const controller = new AbortController()

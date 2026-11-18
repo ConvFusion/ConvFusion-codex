@@ -4739,9 +4739,7 @@ function downloadWarning(
 }
 
 /**
- * 【下载】：下载到**用户选的 DSH 工作区**（2026-09 用户要求）。
- *
- * 不用浏览器的默认下载，也不需要输地址：列出宿主注册表里的工作区，点一个就行。
+ * 【下载】：保存到已匹配的工作区或用户浏览后选择的文件夹。
  *
  * **只存 ZIP，不解压**（2026-09 用户拍板）：同名不覆盖（宿主自动加序号），
  * 所选工作区里原有的东西一个都不动。
@@ -4767,6 +4765,8 @@ export function DownloadDialog({
   notice,
   targets,
   currentWorkspaceId,
+  pickingFolder,
+  onBrowse,
   done,
   onSelect,
   onDownload,
@@ -4795,6 +4795,8 @@ export function DownloadDialog({
   targets: HostDownloadTarget[] | null
   /** 当前会话的工作区 id（标出来 + 说明提示词能不能填）。 */
   currentWorkspaceId: string | null
+  pickingFolder?: boolean
+  onBrowse?: (() => void) | undefined
   /** Available only after the ZIP has been validated and saved. */
   done: {
     phase: 'ready'
@@ -4832,7 +4834,7 @@ export function DownloadDialog({
   const chosenBadge = chosenTarget ? statusBadge(t, chosenTarget) : null
   const warning = chosenTarget ? downloadWarning(t, chosenTarget) : null
   const dest = chosen ? `${chosen.path}/${fileName}` : ''
-  const ready = Boolean(chosen) && files !== null && files > 0 && !busy
+  const ready = Boolean(chosen) && files !== null && files > 0 && !busy && !pickingFolder
   const isMatch = (id: string) => targetOf(id)?.status === 'same'
   const matching = (workspaces ?? []).filter((w) => isMatch(w.id))
   const other = (workspaces ?? []).filter((w) => !isMatch(w.id))
@@ -4842,7 +4844,7 @@ export function DownloadDialog({
       <select
         style={S.select}
         value={options.some((w) => w.id === selection) ? selection : ''}
-        disabled={busy}
+        disabled={busy || Boolean(pickingFolder)}
         onChange={(e) => onSelect(e.target.value)}
       >
         <option value="" disabled>{t('community.exchange.chooseDestination')}</option>
@@ -4884,18 +4886,25 @@ export function DownloadDialog({
 
           {/* 对方还没上传：0 个文件不是错误，但要说清（否则只剩一个灰按钮） */}
           {files === 0 ? <div style={S.hint}>{t('community.exchange.noSourceFiles')}</div> : null}
-          {!workspacesAvailable ? (
+          {!onBrowse && !workspacesAvailable ? (
             <div style={S.hint}>{workspacesReason ?? t('community.exchange.noWorkspaces')}</div>
           ) : workspaces === null ? (
             <div style={S.hint}>{t('community.action.loading')}</div>
-          ) : workspaces.length === 0 ? (
+          ) : workspaces.length === 0 && !onBrowse ? (
             <div style={S.hint}>{t('community.exchange.noWorkspaces')}</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {matching.length > 0
                 ? workspaceSelect(matching, t('community.exchange.matchingDestinations'))
-                : <div style={S.hint}>{t('community.exchange.noMatchingDestination')}</div>}
-              {other.length > 0 ? (
+                : !chosen && <div style={S.hint}>{t('community.exchange.noMatchingDestination')}</div>}
+              {onBrowse ? (
+                <div>
+                  <button type="button" style={S.ghostBtn} disabled={busy || pickingFolder} onClick={onBrowse}>
+                    {t('community.exchange.otherDestinations')}
+                  </button>
+                  {pickingFolder ? <div role="status" style={S.hint}>{t('community.exchange.pickingFolder')}</div> : null}
+                </div>
+              ) : other.length > 0 ? (
                 <details>
                   <summary style={{ ...S.label, cursor: 'pointer', marginBottom: 5 }}>
                     {t('community.exchange.otherDestinations')}
@@ -5497,6 +5506,7 @@ function EmailNotificationSettings({ accountId, canMentor, post, t }: {
 export interface SessionBridge {
   /** Host supports durable, idempotent background downloads. */
   downloadTasks?: boolean
+  pickDownloadFolder?: boolean
   uploadTasks?: boolean
 
   prepareSync?: ((text: string) => void) | undefined
@@ -5791,6 +5801,7 @@ export function CommunityTab({
     revision?: string
     jobId?: string
     intent?: string
+    pickingFolder?: boolean
     workspaces: Array<{ id: string; title: string; path: string }> | null
     available: boolean
     reason: string | null
@@ -5832,6 +5843,7 @@ export function CommunityTab({
   const downloadStarting = React.useRef<string | null>(null)
   const downloadAttempt = React.useRef<string | undefined>()
   const downloadRequest = React.useRef(0)
+  const folderPickerRequest = React.useRef<number | null>(null)
   const uploadSelectionRequest = React.useRef(0)
 
   /**
@@ -6551,11 +6563,7 @@ export function CommunityTab({
     ...(session?.downloadTasks ? { archiveSide: viewOf(p).otherSide } : {}),
   })
   /**
-   * 点【下载】：让用户**选一个 DSH 工作区**，把 ZIP 存进去（2026-09 用户要求）。
-   *
-   * 不用浏览器默认下载（页面拿不到保存位置），也不要求输地址 —— 工作区列表来自宿主
-   * 注册表。**只存 ZIP，不解压**：其余交给用户处理，因此任何工作区都能选
-   * （同名不覆盖，会加序号）。
+   * 下载预检同时读取 ZIP 信息和匹配的本地工作区。
    */
   const requestDownload = async (p: HostProposal): Promise<void> => {
     const request = ++downloadRequest.current
@@ -6588,22 +6596,25 @@ export function CommunityTab({
       remoteWorkspaceId?: string | null
       currentWorkspaceId?: string | null
       protocol?: number
+      pickedDestination?: HostDownloadTarget
     }
     const supportsCheck = typeof v.protocol === 'number' && v.protocol >= HOST_PROTOCOL_MIN_FOR_CHECK
     const itemTargets = v.items.filter((w): w is HostDownloadTarget => 'status' in w)
-    const targets = supportsCheck ? (itemTargets.length ? itemTargets : v.targets ?? null) : null
+    let targets = supportsCheck ? (itemTargets.length ? itemTargets : v.targets ?? null) : null
     const matches = v.items.filter((w) =>
       targets?.some((target) => target.id === w.id && target.status === 'same'),
     )
+    const picked = session?.pickDownloadFolder ? v.pickedDestination : undefined
+    if (picked) targets = [...(targets ?? []).filter((w) => w.id !== picked.id), picked]
     setDownloadBusy(false)
     setDownload({
       proposal: p,
       source,
       revision: v.downloadRevision,
-      workspaces: v.items,
+      workspaces: picked ? [...v.items.filter((w) => w.id !== picked.id), picked] : v.items,
       available: v.available,
       reason: v.reason,
-      selection: preferredMatchingWorkspace(matches, v.currentWorkspaceId),
+      selection: picked?.id ?? preferredMatchingWorkspace(matches, v.currentWorkspaceId),
       files: v.files,
       bytes: v.bytes,
       fileName: v.expectedName,
@@ -6612,6 +6623,35 @@ export function CommunityTab({
       remoteWorkspaceId: v.remoteWorkspaceId ?? null,
       currentWorkspaceId: v.currentWorkspaceId ?? null,
       done: null,
+    })
+  }
+
+  const browseDownloadFolder = async (): Promise<void> => {
+    const target = download
+    const request = downloadRequest.current
+    if (!target || downloadBusy || downloadStarting.current || folderPickerRequest.current === request) return
+    folderPickerRequest.current = request
+    setDownload((prev) => prev ? { ...prev, pickingFolder: true } : prev)
+    const res = await post('codex/pickDownloadFolder', {
+      projectId: target.proposal.projectId, source: target.source, remoteWorkspaceId: target.remoteWorkspaceId,
+    })
+    if (folderPickerRequest.current === request) folderPickerRequest.current = null
+    if (request !== downloadRequest.current || listScope !== currentListScope.current) return
+    setDownload((prev) => {
+      if (!prev) return prev
+      const settled = { ...prev, pickingFolder: false }
+      if (!res.ok) return { ...settled, notice: { tone: 'error', text: t(
+        res.error?.code === 'folder-location' ? 'community.exchange.folderUnavailable' : 'community.exchange.folderPickerFailed',
+      ) } }
+      const picked = (res.value as { target: HostDownloadTarget | null }).target
+      if (!picked) return settled
+      if (picked.id === prev.selection) return { ...settled, notice: null }
+      return {
+        ...settled,
+        workspaces: [...(prev.workspaces ?? []).filter((w) => w.id !== picked.id), picked],
+        targets: [...(prev.targets ?? []).filter((w) => w.id !== picked.id), picked],
+        selection: picked.id, jobId: undefined, intent: undefined, done: null, notice: null,
+      }
     })
   }
 
@@ -6651,6 +6691,14 @@ export function CommunityTab({
       const res = await post('mentor/downloadStatus', { ...downloadPayload(target), jobId: target.jobId })
       if (stopped) return
       if (!res.ok) {
+        if (res.error?.code === 'not-found') {
+          setDownloadBusy(false)
+          setDownload((prev) => prev ? {
+            ...prev, selection: '', jobId: undefined, intent: undefined, done: null,
+            notice: { tone: 'error', text: t('community.exchange.folderUnavailable') },
+          } : prev)
+          return
+        }
         setDownloadBusy(true)
         setDownloadPhase('reconnecting')
         setDownload((prev) => prev ? { ...prev, notice: { tone: 'error', text: t('community.download.reconnecting') } } : prev)
@@ -6698,7 +6746,7 @@ export function CommunityTab({
 
   const runDownload = async (): Promise<void> => {
     const target = download
-    if (!target?.selection || downloadStarting.current) return
+    if (!target?.selection || downloadStarting.current || folderPickerRequest.current === downloadRequest.current) return
     const key = downloadKey
     const attempted = { ...target, intent: target.intent && !target.jobId ? target.intent : crypto.randomUUID() }
     downloadStarting.current = attempted.intent
@@ -8208,10 +8256,12 @@ export function CommunityTab({
           notice={download.notice}
           targets={download.targets}
           currentWorkspaceId={download.currentWorkspaceId}
+          pickingFolder={download.pickingFolder}
+          onBrowse={session?.pickDownloadFolder ? () => void browseDownloadFolder() : undefined}
           done={download.done}
           onSelect={(id) => setDownload((prev) => (prev ? { ...prev, selection: id, jobId: undefined, intent: undefined, done: null, notice: null } : prev))}
           onDownload={() => void runDownload()}
-          onClose={() => setDownload(null)}
+          onClose={() => { downloadRequest.current += 1; setDownload(null) }}
           onFill={() => {
             const prompt = download.done?.prompt
             if (!prompt || !session?.setDraft) return

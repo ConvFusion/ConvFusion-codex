@@ -361,7 +361,7 @@ export declare const en: {
     readonly 'community.mentor.acceptNoFunded': "The funded pool holds only {funded} Token, short of the {deposit} Token deposit (the {grant} grant Token cannot pay a mentor). Please contact an administrator to issue Tokens during the trial phase.";
     readonly 'community.exchange.downloadTitle': "Download into a workspace";
     readonly 'community.exchange.sizeBadge': "{files} files · {size}";
-    readonly 'community.exchange.zipOnly': "Only the ZIP is saved into the chosen workspace; no extraction — the rest is up to you.";
+    readonly 'community.exchange.zipOnly': "Saves the ZIP in the selected folder. Extraction is manual.";
     readonly 'community.exchange.destHint': "Expected destination: {dest}";
     readonly 'community.exchange.downloading': "Downloaded {done} / ≈{total}";
     readonly 'community.exchange.downloadingBtn': "Downloading…";
@@ -370,6 +370,9 @@ export declare const en: {
     readonly 'community.exchange.matchingDestinations': "Matching research workspaces";
     readonly 'community.exchange.noMatchingDestination': "No confirmed match. Choose where to save the download.";
     readonly 'community.exchange.otherDestinations': "Choose another save location";
+    readonly 'community.exchange.pickingFolder': "Choose a folder in the system dialog.";
+    readonly 'community.exchange.folderUnavailable': "This folder is unavailable. Choose an existing folder you can write to.";
+    readonly 'community.exchange.folderPickerFailed': "Could not open the folder picker. Try again from your local desktop.";
     readonly 'community.exchange.chooseDestination': "Choose a save location";
     readonly 'community.exchange.ws.new': "New workspace";
     readonly 'community.exchange.ws.newHint': "No research workspace yet; treated as a fresh one";

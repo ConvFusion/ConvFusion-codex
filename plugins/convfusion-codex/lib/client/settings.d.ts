@@ -758,9 +758,7 @@ export declare function TokenDialog({ t, tokens, requests, loading, amount, reas
     onClose: () => void;
 }): JSX.Element;
 /**
- * 【下载】：下载到**用户选的 DSH 工作区**（2026-09 用户要求）。
- *
- * 不用浏览器的默认下载，也不需要输地址：列出宿主注册表里的工作区，点一个就行。
+ * 【下载】：保存到已匹配的工作区或用户浏览后选择的文件夹。
  *
  * **只存 ZIP，不解压**（2026-09 用户拍板）：同名不覆盖（宿主自动加序号），
  * 所选工作区里原有的东西一个都不动。
@@ -769,7 +767,7 @@ export declare function TokenDialog({ t, tokens, requests, loading, amount, reas
  */
 export declare function DownloadDialog({ t, proposal, fileName, workspaces, workspacesAvailable, workspacesReason, selection, files, bytes, busy,
 /** 下载中已收到的字节数（宿主如实报告；null = 还没开始/已结束）。 */
-received, totalBytes, phase, onCancel, notice, targets, currentWorkspaceId, done, onSelect, onDownload, onClose, onFill, onCopy, onRequest, }: {
+received, totalBytes, phase, onCancel, notice, targets, currentWorkspaceId, pickingFolder, onBrowse, done, onSelect, onDownload, onClose, onFill, onCopy, onRequest, }: {
     t: Translate;
     proposal: HostProposal;
     /** 预计保存成的文件名（服务器命名 `<owner>-<title>.zip`；实际以响应头为准）。 */
@@ -797,6 +795,8 @@ received, totalBytes, phase, onCancel, notice, targets, currentWorkspaceId, done
     targets: HostDownloadTarget[] | null;
     /** 当前会话的工作区 id（标出来 + 说明提示词能不能填）。 */
     currentWorkspaceId: string | null;
+    pickingFolder?: boolean;
+    onBrowse?: (() => void) | undefined;
     /** Available only after the ZIP has been validated and saved. */
     done: {
         phase: 'ready';
@@ -841,6 +841,7 @@ export declare function DecisionAssistControl({ checked, disabled, onChange, t }
 export interface SessionBridge {
     /** Host supports durable, idempotent background downloads. */
     downloadTasks?: boolean;
+    pickDownloadFolder?: boolean;
     uploadTasks?: boolean;
     prepareSync?: ((text: string) => void) | undefined;
     /** Host-specific handoff text; Codex has no DSH slash command. */

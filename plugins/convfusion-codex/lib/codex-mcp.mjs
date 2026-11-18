@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 // scripts/codex-ui-server.mjs
 import { createServer } from "node:http";
 import { createHash as createHash5, randomBytes as randomBytes4 } from "node:crypto";
-import { existsSync as existsSync31, readFileSync as readFileSync27, realpathSync as realpathSync5, statSync as statSync12 } from "node:fs";
+import { accessSync, constants, existsSync as existsSync31, readFileSync as readFileSync27, realpathSync as realpathSync5, statSync as statSync12 } from "node:fs";
 import { basename as basename5, dirname as dirname15, isAbsolute as isAbsolute9, join as join30, resolve as resolve10, relative as relative7, sep as sep5 } from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 
@@ -9748,9 +9748,9 @@ function trueH(env) {
   return Array.from({ length: env.k }, (_, h) => h % env.m);
 }
 function runConditions(env, arms) {
-  const run = new Set(arms.map((a) => Math.trunc(a)));
-  run.add(BASELINE_ARM);
-  return [...run].sort((a, b) => a - b);
+  const run2 = new Set(arms.map((a) => Math.trunc(a)));
+  run2.add(BASELINE_ARM);
+  return [...run2].sort((a, b) => a - b);
 }
 function environmentFor(state) {
   return {
@@ -9794,14 +9794,14 @@ function likelihoodArgmax(env, h, arm, n) {
 }
 var COND_OK_CACHE = /* @__PURE__ */ new Map();
 function conditionOk(env, arms) {
-  const run = runConditions(env, arms);
-  const key = `${envKey(env)}|${run.join(",")}`;
+  const run2 = runConditions(env, arms);
+  const key = `${envKey(env)}|${run2.join(",")}`;
   const hit = COND_OK_CACHE.get(key);
   if (hit !== void 0)
     return hit;
   const signatures = /* @__PURE__ */ new Set();
   for (let h = 0; h < env.k; h++) {
-    signatures.add(run.map((arm) => likelihoodArgmax(env, h, arm, 4)).join(","));
+    signatures.add(run2.map((arm) => likelihoodArgmax(env, h, arm, 4)).join(","));
   }
   const ok = signatures.size >= 2;
   COND_OK_CACHE.set(key, ok);
@@ -9839,11 +9839,11 @@ function ensureScratch(k, nOut) {
 }
 var IG_CACHE = /* @__PURE__ */ new Map();
 function informationGain(env, prior, arms, n) {
-  const run = runConditions(env, arms);
-  if (run.length === 0 || !conditionOk(env, run))
+  const run2 = runConditions(env, arms);
+  if (run2.length === 0 || !conditionOk(env, run2))
     return 0;
   const priorKey = prior.map((x) => x.toFixed(12)).join(",");
-  const key = `${envKey(env)}|${priorKey}|${run.join(",")}|${n}`;
+  const key = `${envKey(env)}|${priorKey}|${run2.join(",")}|${n}`;
   const hit = IG_CACHE.get(key);
   if (hit !== void 0)
     return hit;
@@ -9852,14 +9852,14 @@ function informationGain(env, prior, arms, n) {
   const p = normalise(prior);
   const h0 = entropy(p);
   const table = logLikTable(n);
-  const nOut = nY ** run.length;
+  const nOut = nY ** run2.length;
   ensureScratch(k, nOut);
   const joint = jointScratch.subarray(0, k * nOut);
   joint.fill(0);
   const th = trueH(env);
   let stride = 1;
-  for (let ci = run.length - 1; ci >= 0; ci--) {
-    const arm = run[ci];
+  for (let ci = run2.length - 1; ci >= 0; ci--) {
+    const arm = run2[ci];
     for (let o = 0; o < nOut; o++) {
       const bin = Math.floor(o / stride) % nY;
       for (let h = 0; h < k; h++) {
@@ -9927,8 +9927,8 @@ function informationGain(env, prior, arms, n) {
   return ig;
 }
 function costOf(arms, n, env) {
-  const run = env ? runConditions(env, arms) : [...new Set(arms)].sort((a, b) => a - b);
-  return 1 + 0.6 * (run.length - 1) + 0.35 * n;
+  const run2 = env ? runConditions(env, arms) : [...new Set(arms)].sort((a, b) => a - b);
+  return 1 + 0.6 * (run2.length - 1) + 0.35 * n;
 }
 var BEST_CACHE = /* @__PURE__ */ new Map();
 var BEST_TARGET_CACHE = /* @__PURE__ */ new Map();
@@ -15703,8 +15703,8 @@ function createSettingsRpcHandler(deps) {
           const workspaceId = asString3(p.workspaceId);
           if (!workspaceId)
             return fail("bad-request", "\u8BF7\u5148\u9009\u62E9\u8981\u4FDD\u5B58\u5230\u7684\u5DE5\u4F5C\u533A\u3002");
-          const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : null;
-          const target = listed?.items.find((it) => it.id === workspaceId);
+          const chosen = downloadControl?.destination;
+          const target = chosen?.id === workspaceId ? chosen : (await deps.listLocalWorkspaces?.())?.items.find((it) => it.id === workspaceId);
           if (!target) {
             return fail("not-found", "\u627E\u4E0D\u5230\u8FD9\u4E2A\u5DE5\u4F5C\u533A\uFF08\u53EF\u80FD\u5DF2\u88AB\u5220\u9664\uFF09\u3002\u5237\u65B0\u540E\u91CD\u8BD5\u3002");
           }
@@ -17406,18 +17406,87 @@ function createDownloadJobs(home) {
   } };
 }
 
+// lib/codex/folder-picker.js
+import { execFile } from "node:child_process";
+import { join as joinPickerPath } from "node:path";
+import { promisify } from "node:util";
+var run = promisify(execFile);
+var macPicker = `
+ObjC.import('AppKit')
+function run() {
+  const app = $.NSApplication.sharedApplication
+  app.setActivationPolicy(Number($.NSApplicationActivationPolicyAccessory))
+  const panel = $.NSOpenPanel.openPanel
+  panel.title = 'ConvFusion'
+  panel.canChooseFiles = false
+  panel.canChooseDirectories = true
+  panel.canCreateDirectories = true
+  app.activateIgnoringOtherApps(true)
+  return Number(panel.runModal) === Number($.NSModalResponseOK) ? ObjC.unwrap(panel.URL.path) : ''
+}
+`;
+var windowsPicker = `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+try {
+  $dialog.Description = 'ConvFusion'
+  if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+    [Console]::WriteLine($dialog.SelectedPath)
+  }
+} finally {
+  $dialog.Dispose()
+}
+`;
+async function pickDownloadFolder() {
+  const choose = async (exe, args, cancelCode) => {
+    try {
+      const { stdout } = await run(exe, args, { timeout: 12e4, maxBuffer: 32768, windowsHide: true });
+      return stdout.replace(/\r?\n$/, "") || null;
+    } catch (error2) {
+      if (cancelCode !== void 0 && error2.code === cancelCode)
+        return null;
+      throw error2;
+    }
+  };
+  if (process.platform === "darwin")
+    return choose("/usr/bin/osascript", ["-l", "JavaScript", "-e", macPicker]);
+  if (process.platform === "win32") {
+    const exe = joinPickerPath(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+    return choose(exe, ["-NoProfile", "-NonInteractive", "-STA", "-Command", windowsPicker]);
+  }
+  if (process.platform === "linux" && (process.env.DISPLAY || process.env.WAYLAND_DISPLAY)) {
+    try {
+      return await choose("zenity", ["--file-selection", "--directory", "--title=ConvFusion"], 1);
+    } catch (error2) {
+      if (error2.code !== "ENOENT")
+        throw error2;
+      return choose("kdialog", ["--title", "ConvFusion", "--getexistingdirectory"], 1);
+    }
+  }
+  throw new Error("No local desktop folder picker is available");
+}
+
 // scripts/codex-ui-server.mjs
 var pluginRoot = resolve10(dirname15(fileURLToPath4(new URL("../scripts/codex-ui-server.mjs", import.meta.url).href)), "..");
 var pkg = JSON.parse(readFileSync27(join30(pluginRoot, "package.json"), "utf8"));
 var UI_URI = "ui://convfusion/workbench-v1.html";
 var UI_MIME = "text/html;profile=mcp-app";
 var failure = (code, message) => ({ ok: false, error: { code, message, details: {} } });
+var fileSide = (source) => source === "mentor" || source === "counterpart" ? source : "owner";
+var inside = (parent, child) => {
+  const subpath = relative7(parent, child);
+  return subpath !== ".." && !subpath.startsWith(`..${sep5}`) && !isAbsolute9(subpath);
+};
 function createCodexUiHost(options = {}) {
   const env = options.env ?? process.env;
   const home = resolve10(options.home ?? codexHome(env));
   const path = (name) => join30(home, name);
   const workspaces = /* @__PURE__ */ new Map();
   const downloads = createDownloadJobs(home);
+  const pickFolder = options.pickDownloadFolder ?? pickDownloadFolder;
+  let pickerOpen = false;
   const saved = readPrivateJson(path("workspaces.json"), []);
   if (Array.isArray(saved)) for (const row of saved) {
     if (typeof row?.path === "string" && isAbsolute9(row.path) && existsSync31(row.path)) workspaces.set(row.id, row);
@@ -17442,6 +17511,63 @@ function createCodexUiHost(options = {}) {
     }
   };
   const saveSession = (token, state) => writePrivateJson(sessionPath(token), { version: 1, ...state });
+  const pickedPath = (token, scope) => token && path(join30("download-destinations", `${stateKey(JSON.stringify([token, scope]))}.json`));
+  const downloadScope = (config, key, payload) => [
+    resolveServerUrl(config, env).url,
+    stateKey(key),
+    payload.projectId.trim(),
+    fileSide(payload.source)
+  ];
+  const readPickedDestination = (file) => {
+    if (!file) return null;
+    try {
+      const saved2 = readPrivateJson(file, null);
+      if (typeof saved2?.path !== "string" || !isAbsolute9(saved2.path) || realpathSync5(saved2.path) !== saved2.path) return null;
+      const identity = researchDirectoryIdentity(saved2.path);
+      if (!identity || saved2.identity !== identity) return null;
+      return { id: stateKey(saved2.path), title: basename5(saved2.path) || saved2.path, path: saved2.path };
+    } catch {
+      return null;
+    }
+  };
+  const inspectPicked = (row, remoteId) => toWireTarget(buildDownloadTarget(row, remoteId, workIdentity));
+  const chooseDestination = async (token, payload) => {
+    const config = getConfig();
+    const key = resolveConvFusionApiKey(config, env);
+    if (!key || typeof payload?.projectId !== "string" || !payload.projectId.trim()) return failure("bad-request", "\u8BF7\u9009\u62E9\u7814\u7A76\u9879\u76EE\u3002");
+    const saved2 = pickedPath(token, downloadScope(config, key, payload));
+    if (pickerOpen) return failure("folder-picker", "\u6587\u4EF6\u5939\u9009\u62E9\u5668\u5DF2\u6253\u5F00\u3002");
+    pickerOpen = true;
+    try {
+      let picked;
+      try {
+        picked = await pickFolder();
+      } catch {
+        return failure("folder-picker", "\u65E0\u6CD5\u6253\u5F00\u7CFB\u7EDF\u6587\u4EF6\u5939\u9009\u62E9\u5668\u3002");
+      }
+      if (picked === null) return { ok: true, value: { target: null } };
+      try {
+        if (typeof picked !== "string" || !isAbsolute9(picked)) throw new Error("Invalid path");
+        const directory = realpathSync5(picked);
+        if (inside(realpathSync5(pluginRoot), directory) || inside(existsSync31(home) ? realpathSync5(home) : home, directory)) {
+          throw new Error("Private plugin directory");
+        }
+        const identity = researchDirectoryIdentity(directory);
+        if (!identity) throw new Error("Not a directory");
+        accessSync(directory, constants.W_OK);
+        writePrivateJson(saved2, { path: directory, identity });
+        return { ok: true, value: { target: inspectPicked({
+          id: stateKey(directory),
+          title: basename5(directory) || directory,
+          path: directory
+        }, payload.remoteWorkspaceId) } };
+      } catch {
+        return failure("folder-location", "\u65E0\u6CD5\u4F7F\u7528\u6240\u9009\u6587\u4EF6\u5939\u3002");
+      }
+    } finally {
+      pickerOpen = false;
+    }
+  };
   let origin;
   let persistQueue = Promise.resolve();
   const getConfig = () => ({
@@ -17521,9 +17647,9 @@ function createCodexUiHost(options = {}) {
       research = Boolean(row && isResearchWorkspace(researchWorkspaceOf(row.path)));
     } catch {
     }
-    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? "\u7814\u7A76\u5DE5\u4F5C\u53F0", version: pkg.version, autoCheckUpdates: autoCheckUpdates(), downloadTasks: true, uploadTasks: true, initialTab: research ? "progress" : "community" };
+    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? "\u7814\u7A76\u5DE5\u4F5C\u53F0", version: pkg.version, autoCheckUpdates: autoCheckUpdates(), downloadTasks: true, pickDownloadFolder: true, uploadTasks: true, initialTab: research ? "progress" : "community" };
   };
-  const dispatch = async (root, endpoint, payload) => {
+  const dispatch = async (root, endpoint, payload, token) => {
     if (root) registerWorkspace(root);
     if (endpoint === "codex/bootstrap") return { ok: true, value: bootstrap(root) };
     if (endpoint === "version/check") return checkForUpdates(payload?.manual === true);
@@ -17540,11 +17666,16 @@ function createCodexUiHost(options = {}) {
       const config = getConfig();
       const apiKey = resolveConvFusionApiKey(config, env);
       if (!apiKey) return failure("not-configured", "\u5C1A\u672A\u767B\u5F55 ConvFusion.com\u3002");
-      const target = workspaceRows().find((row) => row.id === payload?.workspaceId);
-      if (!target || typeof payload?.projectId !== "string" || !payload.projectId.trim()) return failure("bad-request", "\u8BF7\u9009\u62E9\u7814\u7A76\u9879\u76EE\u548C\u76EE\u6807\u5DE5\u4F5C\u533A\u3002");
+      if (typeof payload?.projectId !== "string" || !payload.projectId.trim()) return failure("bad-request", "\u8BF7\u9009\u62E9\u7814\u7A76\u9879\u76EE\u548C\u76EE\u6807\u5DE5\u4F5C\u533A\u3002");
+      const selectionScope = downloadScope(config, apiKey, payload);
+      const grant = pickedPath(token, selectionScope);
+      const picked = readPickedDestination(grant);
+      const fromPicker = picked && picked.id === payload.workspaceId;
+      const target = fromPicker ? picked : workspaceRows().find((row) => row.id === payload.workspaceId);
+      if (!target) return failure("not-found", "\u8BF7\u9009\u62E9\u53EF\u7528\u7684\u4E0B\u8F7D\u6587\u4EF6\u5939\u3002");
       payload = { ...payload, projectId: payload.projectId.trim() };
       const directory = realpathSync5(target.path);
-      const source = payload.source === "mentor" || payload.source === "counterpart" ? payload.source : "owner";
+      const source = fileSide(payload.source);
       const intent = typeof payload.intent === "string" && /^[a-zA-Z0-9-]{1,128}$/.test(payload.intent) ? payload.intent : void 0;
       const scope = JSON.stringify([resolveServerUrl(config, env).url, createHash5("sha256").update(apiKey).digest("hex"), payload.projectId, source, directory]);
       if (endpoint === "mentor/downloadCancel") {
@@ -17554,12 +17685,17 @@ function createCodexUiHost(options = {}) {
       if (endpoint === "mentor/downloadStatus") return { ok: true, value: { job: downloads.get(scope, payload.revision, payload.jobId, intent) } };
       const preflight = await handler("mentor/downloadState", { ...payload, source });
       if (!preflight.ok) return preflight;
+      if (fromPicker && readPickedDestination(grant)?.id !== target.id) return failure("not-found", "\u6240\u9009\u4E0B\u8F7D\u6587\u4EF6\u5939\u5DF2\u4E0D\u53EF\u7528\u3002");
       const revision = preflight.value.downloadRevision;
       const job = downloads.start(
         scope,
         revision,
         directory,
-        (control) => handler("mentor/download", { ...payload, source }, { ...control, config }),
+        (control) => handler(
+          "mentor/download",
+          { ...payload, source, remoteWorkspaceId: preflight.value.remoteWorkspaceId },
+          { ...control, config, destination: target }
+        ),
         async () => {
           const after = await handler("mentor/downloadState", { ...payload, source });
           return after.ok ? after.value.downloadRevision : null;
@@ -17569,6 +17705,13 @@ function createCodexUiHost(options = {}) {
       return { ok: true, value: { job } };
     }
     const result = await handler(String(endpoint), payload ?? {});
+    if (token && endpoint === "mentor/downloadState" && result.ok) {
+      result.value.items = result.value.items.filter((row) => row.status === "same");
+      const config = getConfig();
+      const apiKey = resolveConvFusionApiKey(config, env);
+      const picked = apiKey && typeof payload?.projectId === "string" ? readPickedDestination(pickedPath(token, downloadScope(config, apiKey, payload))) : null;
+      if (picked) result.value.pickedDestination = inspectPicked(picked, result.value.remoteWorkspaceId);
+    }
     if (endpoint === "progress/workspace" && root && result.ok && result.value?.research) {
       const latest = latestCodexTurn(home, root);
       result.value.lastTurn = latest?.report ?? null;
@@ -17589,8 +17732,9 @@ function createCodexUiHost(options = {}) {
     if (!state) return failure("auth", "\u754C\u9762\u8FDE\u63A5\u5DF2\u5931\u6548\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00 ConvFusion");
     if (root !== void 0 && root !== state.root) return failure("workspace", "Workspace is not registered");
     if (endpoint === "codex/bootstrap") return { ok: true, value: sessionInfo(token, state) };
+    if (endpoint === "codex/pickDownloadFolder") return chooseDestination(token, payload);
     if (endpoint === "progress/workspace") payload = { ...payload, sessionId: bootstrap(state.root).sessionId ?? "" };
-    return dispatch(state.root, endpoint, payload);
+    return dispatch(state.root, endpoint, payload, token);
   };
   const open = async (root, requestMeta) => {
     let selected = root === void 0 ? null : registerWorkspace(root, true).path;
@@ -28794,7 +28938,7 @@ function createDecisionAssistant(getConfig, env = process.env, net = {}) {
       const result = await active2;
       return result.status === "used" ? { ...result, shared_request: true } : result;
     }
-    const run = (async () => {
+    const run2 = (async () => {
       try {
         try {
           onRequest?.();
@@ -28819,9 +28963,9 @@ function createDecisionAssistant(getConfig, env = process.env, net = {}) {
         return skipped("service_unavailable");
       }
     })();
-    pending.set(key, run);
+    pending.set(key, run2);
     try {
-      return await run;
+      return await run2;
     } finally {
       pending.delete(key);
     }

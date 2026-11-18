@@ -422,9 +422,12 @@ export const zh = {
   'community.exchange.matchingDestinations': '与这项研究匹配的工作区',
   'community.exchange.noMatchingDestination': '没有已确认匹配的工作区，请选择保存位置。',
   'community.exchange.otherDestinations': '选择其他保存位置',
+  'community.exchange.pickingFolder': '请在系统窗口中选择文件夹。',
+  'community.exchange.folderUnavailable': '无法使用该文件夹。请选择一个仍存在且可写的位置。',
+  'community.exchange.folderPickerFailed': '无法打开系统文件夹选择器，请在本机桌面环境中重试。',
   'community.exchange.chooseDestination': '请选择保存位置',
   'community.exchange.sizeBadge': '{files} 个文件 · {size}',
-  'community.exchange.zipOnly': '只把 ZIP 保存到所选工作区，不解压，其余你自己处理。',
+  'community.exchange.zipOnly': '只将 ZIP 保存到所选文件夹，不会自动解压。',
   'community.exchange.destHint': '预计保存到：{dest}',
   // 下载中：分母是**解压后**的合计（服务器发的是压缩 ZIP），所以写「≈」
   'community.exchange.downloading': '已下载 {done} / ≈{total}',
