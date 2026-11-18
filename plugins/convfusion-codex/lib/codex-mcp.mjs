@@ -3281,8 +3281,8 @@ async function transferWorkspace(base, key, projectId, root, paths, options, con
 }
 
 // lib/settings-rpc.js
-import { existsSync as existsSync22, realpathSync, statSync as statSync8 } from "node:fs";
-import { basename, resolve as resolve5 } from "node:path";
+import { existsSync as existsSync22, lstatSync, realpathSync, statSync as statSync8 } from "node:fs";
+import { basename, join as joinPath, resolve as resolve5 } from "node:path";
 import { createHash as createHash2 } from "node:crypto";
 
 // lib/protocol.js
@@ -13940,13 +13940,100 @@ function createSettingsRpcHandler(deps) {
       return "mine";
     return nameAtPublish === workName.trim() ? "mine" : "unknown";
   };
+  const hasConflictingPublication = (workId, fingerprint) => Boolean(fingerprint) && Object.values(publishedStore.all()).some((record) => record.workId === workId && record.rootFingerprint && record.rootFingerprint !== fingerprint);
   const publicationIdentity = (root) => {
     const identity = readLocalIdentity(root, deps.workIdentity, { requireVerifiedMarker: true });
+    if (identity.workspaceId && hasConflictingPublication(identity.workspaceId, researchRootFingerprint(root))) {
+      return { ...identity, workspaceId: null, conflict: true };
+    }
+    return identity;
+  };
+  const recoverPublication = async (source, base, apiKey, loadProjects) => {
+    const { root } = source;
+    const identity = publicationIdentity(root);
+    if (identity.workspaceId) {
+      for (const direction of PROJECT_DIRECTIONS) {
+        if (await recordOn(source, base, direction, identity.workspaceId))
+          return;
+      }
+    }
+    const marker = readWorkMarker(root);
+    const verifyLegacyMarker = !identity.workspaceId && identity.source === "marker" && !marker?.rootFingerprint;
+    const workId = identity.workspaceId ?? (verifyLegacyMarker ? marker?.workspaceId : void 0);
+    if (!workId || marker?.serverUrl && serverAddressKey(marker.serverUrl) !== serverAddressKey(base))
+      return;
+    const directory = researchDirectoryIdentity(root);
     const fingerprint = researchRootFingerprint(root);
-    if (!identity.workspaceId || !fingerprint)
-      return identity;
-    const mismatched = Object.values(publishedStore.all()).some((record) => record.workId === identity.workspaceId && record.rootFingerprint && record.rootFingerprint !== fingerprint);
-    return mismatched ? { ...identity, workspaceId: null, conflict: true } : identity;
+    if (!directory || hasConflictingPublication(workId, fingerprint))
+      return;
+    const matching = (await loadProjects()).filter((project2) => project2.workspaceId === workId);
+    if (matching.length === 0)
+      return;
+    const project = matching.length === 1 ? matching[0] : matching.find((entry) => entry.id === marker?.projectId);
+    if (!project) {
+      throw new ServerError("bad-request", "\u670D\u52A1\u5668\u4E0A\u6709\u591A\u6761\u53D1\u5E03\u4F7F\u7528\u540C\u4E00\u4E2A\u7814\u7A76\u6807\u8BC6\uFF0C\u65E0\u6CD5\u786E\u5B9A\u66F4\u65B0\u76EE\u6807\u3002");
+    }
+    const [accountId, catalogue] = await Promise.all([
+      resolveAccountId(base, apiKey),
+      fetchProjectFilesWithIdentity(base, apiKey, project.id, { ...netOptions(), source: "owner" })
+    ]);
+    if (!accountId || catalogue.workspaceId !== workId) {
+      throw new ServerError("bad-response", "\u65E0\u6CD5\u6838\u5BF9\u539F\u6709\u53D1\u5E03\u7684\u8D26\u53F7\u6216\u7814\u7A76\u6807\u8BC6\uFF0C\u8BF7\u5237\u65B0\u540E\u91CD\u8BD5\u3002");
+    }
+    if (verifyLegacyMarker) {
+      const projectPath2 = joinPath(root, PROJECT_FILE);
+      if (!lstatSync(projectPath2).isFile())
+        return;
+      const digest = await fileDigest(projectPath2);
+      if (!catalogue.files.some((file) => file.relativePath === PROJECT_FILE && file.sha256 === digest))
+        return;
+    }
+    const config = deps.getConfig();
+    const current = publicationIdentity(root);
+    const currentMarker = readWorkMarker(root);
+    const sameLegacyMarker = verifyLegacyMarker && current.source === "marker" && currentMarker?.workspaceId === workId && !currentMarker.rootFingerprint && currentMarker.projectId === marker?.projectId && currentMarker.serverUrl === marker?.serverUrl;
+    if (resolveConvFusionApiKey(config, env()) !== apiKey || serverAddressKey(resolveServerUrl(config, env()).url) !== serverAddressKey(base) || directory !== researchDirectoryIdentity(root) || fingerprint !== researchRootFingerprint(root) || hasConflictingPublication(workId, fingerprint) || current.workspaceId !== workId && !sameLegacyMarker) {
+      throw new ServerError("bad-request", "\u7814\u7A76\u76EE\u5F55\u6216\u767B\u5F55\u4FE1\u606F\u5DF2\u53D8\u66F4\uFF0C\u8BF7\u5237\u65B0\u540E\u91CD\u8BD5\u3002");
+    }
+    if (current.workspaceId !== workId) {
+      const migrated = makeWorkIdentity({
+        workspaceId: workId,
+        projectId: project.id,
+        serverUrl: base,
+        accountId,
+        role: "owner",
+        ...fingerprint ? { rootFingerprint: fingerprint } : {}
+      });
+      deps.workIdentity?.set(root, migrated);
+      writeWorkMarker(root, migrated);
+      if (publicationIdentity(root).workspaceId !== workId) {
+        throw new ServerError("bad-response", "\u65E0\u6CD5\u4FDD\u5B58\u6838\u9A8C\u540E\u7684\u7814\u7A76\u6807\u8BB0\uFF0C\u8BF7\u68C0\u67E5\u672C\u673A\u76EE\u5F55\u6743\u9650\u3002");
+      }
+    }
+    const existing = publishedStore.get(root, project.direction);
+    if (existing && serverAddressKey(existing.serverUrl) === serverAddressKey(base)) {
+      if (existing.projectId === project.id && existing.accountId === accountId)
+        return existing;
+      throw new ServerError("bad-request", "\u672C\u5730\u8BB0\u5F55\u4E0E\u670D\u52A1\u5668\u4E0A\u7684\u53D1\u5E03\u4E0D\u4E00\u81F4\uFF0C\u8BF7\u5237\u65B0\u540E\u91CD\u8BD5\u3002");
+    }
+    const uploadable = new Set(buildUploadPlan(root).categories.filter((category) => category.decision !== "excluded").flatMap((category) => category.files.map((file) => file.relPath)));
+    const record = {
+      direction: project.direction,
+      projectId: project.id,
+      workId,
+      title: project.title,
+      serverUrl: base,
+      accountId,
+      version: 0,
+      publishedAt: "",
+      updatedAt: project.updatedAt,
+      serverVisibility: project.visibility,
+      checkedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      askingFee: project.askingFee,
+      files: Object.fromEntries(catalogue.files.filter((file) => uploadable.has(file.relativePath)).map((file) => [file.relativePath, file.sha256]))
+    };
+    publishedStore.set(root, record);
+    return record;
   };
   const collectLocalWorks = async () => {
     const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : { available: false, reason: "\u5BBF\u4E3B\u672A\u63D0\u4F9B\u5DE5\u4F5C\u533A\u6CE8\u518C\u8868\u8BFB\u53D6\u63A5\u53E3", items: [] };
@@ -14569,6 +14656,13 @@ function createSettingsRpcHandler(deps) {
           const base = resolveServerUrl(config, env()).url;
           const items = await verifyPublished(listed.items, apiKey, base);
           const serverProjects = apiKey ? await fetchProjects(base, apiKey, netOptions()).catch(() => []) : [];
+          if (apiKey && serverProjects.length > 0) {
+            await Promise.all(items.map(async (item) => {
+              const record = await recoverPublication({ root: item.researchRoot, title: item.title }, base, apiKey, async () => serverProjects).catch(() => void 0);
+              if (record?.workId)
+                item.workId = record.workId;
+            }));
+          }
           const publishedRemote = serverProjects.filter((p2) => p2.visibility === "PUBLISHED");
           const attachedProjects = new Set(items.flatMap((it) => it.published.map((r) => r.projectId)));
           const baseKey = serverAddressKey(base);
@@ -14705,7 +14799,12 @@ function createSettingsRpcHandler(deps) {
             return fail("not-found", "\u627E\u4E0D\u5230\u8FD9\u4E2A\u672C\u673A\u7814\u7A76\u9879\u76EE\uFF08\u6216\u5176\u7814\u7A76\u72B6\u6001\u8BFB\u4E0D\u51FA\u6765\uFF09\u3002");
           const plan = buildUploadPlan(source.root);
           const workName = researchWorkName(source.root, source.title);
-          const base = resolveServerUrl(deps.getConfig(), env()).url;
+          const config = deps.getConfig();
+          const base = resolveServerUrl(config, env()).url;
+          const apiKey = resolveConvFusionApiKey(config, env());
+          if (apiKey) {
+            await recoverPublication(source, base, apiKey, () => fetchProjects(base, apiKey, netOptions())).catch(() => void 0);
+          }
           const directory = source.directory;
           const localIdentity = publicationIdentity(source.root);
           const fingerprint = researchRootFingerprint(source.root);
@@ -14727,8 +14826,6 @@ function createSettingsRpcHandler(deps) {
           const knownFiles = record?.files ?? {};
           const added = effective.filter((r) => !(r in knownFiles));
           const changedAll = [.../* @__PURE__ */ new Set([...diff.changed, ...added])];
-          const config = deps.getConfig();
-          const apiKey = resolveConvFusionApiKey(config, env());
           const usage = apiKey ? await fetchUsage(resolveServerUrl(config, env()).url, apiKey, netOptions()) : null;
           return {
             ok: true,
@@ -14800,9 +14897,16 @@ function createSettingsRpcHandler(deps) {
             return fail("not-found", "\u627E\u4E0D\u5230\u8FD9\u4E2A\u672C\u673A\u7814\u7A76\u9879\u76EE\uFF08\u6216\u5176\u7814\u7A76\u72B6\u6001\u8BFB\u4E0D\u51FA\u6765\uFF09\u3002");
           const base = resolveServerUrl(config, env()).url;
           const directory = source.directory;
+          const publishAsNew = p.publishAsNew === true;
+          if (!publishAsNew) {
+            try {
+              await recoverPublication(source, base, apiKey, () => fetchProjects(base, apiKey, netOptions()));
+            } catch (error2) {
+              return serverFail(error2);
+            }
+          }
           const fingerprint = researchRootFingerprint(source.root);
           const localIdentity = publicationIdentity(source.root);
-          const publishAsNew = p.publishAsNew === true;
           const target = asString3(p.publicationTarget);
           if (publishAsNew && !target)
             return fail("bad-request", "\u8BF7\u6253\u5F00\u53D1\u5E03\u786E\u8BA4\u7A97\u53E3\u540E\u9009\u62E9\u300C\u4F5C\u4E3A\u65B0\u7814\u7A76\u53D1\u5E03\u300D\u3002");

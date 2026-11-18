@@ -74,7 +74,7 @@
  */
 
 import { transferWorkspace, type UploadControl } from './codex/uploads.js'
-import { existsSync, realpathSync, statSync } from 'node:fs'
+import { existsSync, lstatSync, realpathSync, statSync } from 'node:fs'
 import { basename, join as joinPath, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -98,6 +98,7 @@ import {
   makeWorkIdentity,
   normalizeWorkspaceId,
   readLocalIdentity,
+  readWorkMarker,
   researchDirectoryIdentity,
   researchRootFingerprint,
   writeWorkMarker,
@@ -174,12 +175,14 @@ import {
   type ProjectDirection,
   type RechargeRequest,
   type ServerAccount,
+  type ServerProject,
   type TokenBalance,
   type WorkBrief,
   type WorkItem,
   type FileSource,
 } from './server-client.js'
 import { isResearchWorkspace, researchWorkspaceOf } from './research/workspace.js'
+import { PROJECT_FILE } from './research/research-data.js'
 import { latestTurnReport } from './research/progress-bridge.js'
 import { buildWorkspaceProgress, captureProgress } from './research/progress.js'
 import type { ProgressCountRow } from './research/progress.js'
@@ -1494,15 +1497,110 @@ export function createSettingsRpcHandler(
     return nameAtPublish === workName.trim() ? 'mine' : 'unknown'
   }
 
+  const hasConflictingPublication = (workId: string, fingerprint: string | null): boolean =>
+    Boolean(fingerprint) && Object.values(publishedStore.all()).some((record) =>
+      record.workId === workId && record.rootFingerprint && record.rootFingerprint !== fingerprint,
+    )
+
   const publicationIdentity = (root: string): ReturnType<typeof readLocalIdentity> => {
     const identity = readLocalIdentity(root, deps.workIdentity, { requireVerifiedMarker: true })
+    if (identity.workspaceId && hasConflictingPublication(identity.workspaceId, researchRootFingerprint(root))) {
+      return { ...identity, workspaceId: null, conflict: true }
+    }
+    return identity
+  }
+
+  // Rebuild the local publication link from the authenticated owner's project and file catalogue.
+  // A legacy marker nominates a candidate. The uploaded project.md must corroborate it.
+  const recoverPublication = async (
+    source: { root: string; title: string },
+    base: string,
+    apiKey: string,
+    loadProjects: () => Promise<ServerProject[]>,
+  ): Promise<PublishedRecord | undefined> => {
+    const { root } = source
+    const identity = publicationIdentity(root)
+    if (identity.workspaceId) {
+      for (const direction of PROJECT_DIRECTIONS) {
+        if (await recordOn(source, base, direction, identity.workspaceId)) return
+      }
+    }
+
+    const marker = readWorkMarker(root)
+    const verifyLegacyMarker = !identity.workspaceId && identity.source === 'marker' && !marker?.rootFingerprint
+    const workId = identity.workspaceId ?? (verifyLegacyMarker ? marker?.workspaceId : undefined)
+    if (!workId || (marker?.serverUrl && serverAddressKey(marker.serverUrl) !== serverAddressKey(base))) return
+
+    const directory = researchDirectoryIdentity(root)
     const fingerprint = researchRootFingerprint(root)
-    if (!identity.workspaceId || !fingerprint) return identity
-    // 已落盘的发布指纹还能识别后来误写到另一项研究的身份。
-    const mismatched = Object.values(publishedStore.all()).some((record) =>
-      record.workId === identity.workspaceId && record.rootFingerprint && record.rootFingerprint !== fingerprint,
-    )
-    return mismatched ? { ...identity, workspaceId: null, conflict: true } : identity
+    if (!directory || hasConflictingPublication(workId, fingerprint)) return
+
+    const matching = (await loadProjects()).filter((project) => project.workspaceId === workId)
+    if (matching.length === 0) return
+    const project = matching.length === 1 ? matching[0] : matching.find((entry) => entry.id === marker?.projectId)
+    if (!project) {
+      throw new ServerError('bad-request', '服务器上有多条发布使用同一个研究标识，无法确定更新目标。')
+    }
+
+    const [accountId, catalogue] = await Promise.all([
+      resolveAccountId(base, apiKey),
+      fetchProjectFilesWithIdentity(base, apiKey, project.id, { ...netOptions(), source: 'owner' }),
+    ])
+    if (!accountId || catalogue.workspaceId !== workId) {
+      throw new ServerError('bad-response', '无法核对原有发布的账号或研究标识，请刷新后重试。')
+    }
+    if (verifyLegacyMarker) {
+      const projectPath = joinPath(root, PROJECT_FILE)
+      if (!lstatSync(projectPath).isFile()) return
+      const digest = await fileDigest(projectPath)
+      if (!catalogue.files.some((file) => file.relativePath === PROJECT_FILE && file.sha256 === digest)) return
+    }
+
+    const config = deps.getConfig()
+    const current = publicationIdentity(root)
+    const currentMarker = readWorkMarker(root)
+    const sameLegacyMarker = verifyLegacyMarker && current.source === 'marker' &&
+      currentMarker?.workspaceId === workId && !currentMarker.rootFingerprint &&
+      currentMarker.projectId === marker?.projectId && currentMarker.serverUrl === marker?.serverUrl
+    if (resolveConvFusionApiKey(config, env()) !== apiKey ||
+        serverAddressKey(resolveServerUrl(config, env()).url) !== serverAddressKey(base) ||
+        directory !== researchDirectoryIdentity(root) || fingerprint !== researchRootFingerprint(root) ||
+        hasConflictingPublication(workId, fingerprint) || (current.workspaceId !== workId && !sameLegacyMarker)) {
+      throw new ServerError('bad-request', '研究目录或登录信息已变更，请刷新后重试。')
+    }
+
+    if (current.workspaceId !== workId) {
+      const migrated = makeWorkIdentity({
+        workspaceId: workId, projectId: project.id, serverUrl: base, accountId, role: 'owner',
+        ...(fingerprint ? { rootFingerprint: fingerprint } : {}),
+      })
+      deps.workIdentity?.set(root, migrated)
+      writeWorkMarker(root, migrated)
+      if (publicationIdentity(root).workspaceId !== workId) {
+        throw new ServerError('bad-response', '无法保存核验后的研究标记，请检查本机目录权限。')
+      }
+    }
+
+    const existing = publishedStore.get(root, project.direction)
+    if (existing && serverAddressKey(existing.serverUrl) === serverAddressKey(base)) {
+      if (existing.projectId === project.id && existing.accountId === accountId) return existing
+      throw new ServerError('bad-request', '本地记录与服务器上的发布不一致，请刷新后重试。')
+    }
+
+    const uploadable = new Set(buildUploadPlan(root).categories
+      .filter((category) => category.decision !== 'excluded')
+      .flatMap((category) => category.files.map((file) => file.relPath)))
+    const record: PublishedRecord = {
+      direction: project.direction, projectId: project.id, workId, title: project.title,
+      serverUrl: base, accountId, version: 0, publishedAt: '', updatedAt: project.updatedAt,
+      serverVisibility: project.visibility, checkedAt: new Date().toISOString(),
+      askingFee: project.askingFee,
+      files: Object.fromEntries(catalogue.files
+        .filter((file) => uploadable.has(file.relativePath))
+        .map((file) => [file.relativePath, file.sha256])),
+    }
+    publishedStore.set(root, record)
+    return record
   }
 
   const collectLocalWorks = async (): Promise<{
@@ -2306,6 +2404,14 @@ export function createSettingsRpcHandler(
           const serverProjects = apiKey
             ? await fetchProjects(base, apiKey, netOptions()).catch(() => [])
             : []
+          if (apiKey && serverProjects.length > 0) {
+            await Promise.all(items.map(async (item) => {
+              const record = await recoverPublication(
+                { root: item.researchRoot, title: item.title }, base, apiKey, async () => serverProjects,
+              ).catch(() => undefined)
+              if (record?.workId) item.workId = record.workId
+            }))
+          }
           const publishedRemote = serverProjects.filter((p) => p.visibility === 'PUBLISHED')
           /*
            * 还**在网络上、但本机当前没打开**的研究工作也要显示（用户 2026-10 要求）：
@@ -2468,7 +2574,12 @@ export function createSettingsRpcHandler(
           const workName = researchWorkName(source.root, source.title)
           // ⚠️ 只认**当前服务器 + 当前方向**的记录：别的服务器、另一个方向的"已上传指纹"
           // 在这里都不成立（会漏传，或把两个项目的附件算在一起）
-          const base = resolveServerUrl(deps.getConfig(), env()).url
+          const config = deps.getConfig()
+          const base = resolveServerUrl(config, env()).url
+          const apiKey = resolveConvFusionApiKey(config, env())
+          if (apiKey) {
+            await recoverPublication(source, base, apiKey, () => fetchProjects(base, apiKey, netOptions())).catch(() => undefined)
+          }
           const directory = source.directory
           const localIdentity = publicationIdentity(source.root)
           const fingerprint = researchRootFingerprint(source.root)
@@ -2491,8 +2602,6 @@ export function createSettingsRpcHandler(
           const knownFiles = record?.files ?? {}
           const added = effective.filter((r) => !(r in knownFiles))
           const changedAll = [...new Set([...diff.changed, ...added])]
-          const config = deps.getConfig()
-          const apiKey = resolveConvFusionApiKey(config, env())
           const usage = apiKey
             ? await fetchUsage(resolveServerUrl(config, env()).url, apiKey, netOptions())
             : null
@@ -2574,9 +2683,16 @@ export function createSettingsRpcHandler(
           if (!source) return fail('not-found', '找不到这个本机研究项目（或其研究状态读不出来）。')
           const base = resolveServerUrl(config, env()).url
           const directory = source.directory
+          const publishAsNew = p.publishAsNew === true
+          if (!publishAsNew) {
+            try {
+              await recoverPublication(source, base, apiKey, () => fetchProjects(base, apiKey, netOptions()))
+            } catch (error) {
+              return serverFail(error)
+            }
+          }
           const fingerprint = researchRootFingerprint(source.root)
           const localIdentity = publicationIdentity(source.root)
-          const publishAsNew = p.publishAsNew === true
           const target = asString(p.publicationTarget)
           if (publishAsNew && !target) return fail('bad-request', '请打开发布确认窗口后选择「作为新研究发布」。')
           if (localIdentity.conflict && !publishAsNew) {

@@ -3076,7 +3076,7 @@ window.__ModuleLoader__.load({
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
 		          !view && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { style: S.hint, title: t("settings.uiBuild.tip"), children: [
 		            "ui ",
-		            "1118-1132"
+		            "1118-1505"
 		          ] }),
 		          update ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "a",
@@ -7766,7 +7766,7 @@ window.__ModuleLoader__.load({
 		    ] }),
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { style: { ...S.hint, display: "block", marginTop: 10 }, title: t("settings.uiBuild.tip"), children: [
 		      "ui ",
-		      "1118-1132"
+		      "1118-1505"
 		    ] })
 		  ] });
 		}

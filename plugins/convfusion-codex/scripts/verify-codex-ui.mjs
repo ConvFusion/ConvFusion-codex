@@ -251,6 +251,7 @@ async function verifyResearchSwap(temp) {
   }
   const projects = new Map()
   const creations = new Map()
+  const catalogues = new Map()
   const writes = []
   let failPublish = false
   let listAvailable = true
@@ -280,6 +281,9 @@ async function verifyResearchSwap(temp) {
     assert.ok(project, `unexpected fixture request ${method} ${path}`)
     if (!action && method === 'GET') return json(project)
     if (!action && method === 'PUT') return json(project)
+    if (action === 'files' && method === 'GET') {
+      return json({ workspace_id: project.workspace_id, items: catalogues.get(id) ?? [] })
+    }
     if (method === 'POST') {
       assert.equal(init.headers['X-Workspace-Id'] ?? init.headers['x-workspace-id'], project.workspace_id, `${action} must carry the current research identity`)
       writes.push({ id, action })
@@ -288,6 +292,9 @@ async function verifyResearchSwap(temp) {
     if (action === 'uploads' && method === 'POST') {
       const body = JSON.parse(init.body)
       assert.equal(body.files.length, 2)
+      catalogues.set(id, body.files.map((file, index) => ({
+        id: `file-${index}`, relative_path: file.path, sha256: file.sha256, size: file.size,
+      })))
       project.version = (project.version ?? 0) + 1
       return json({ id: body.id, status: 'completed', needed: [], received: [], receipt: {
         version: project.version, content_hash: 'sha256:fixture', uploaded: 2, uploaded_bytes: 32, skipped_existing: 0,
@@ -376,11 +383,42 @@ async function verifyResearchSwap(temp) {
     const restored = await mine()
     assert.equal(restored.find((item) => !item.detached).workId, 'ws_11111111111111111111111111111111')
     assert.equal(restored.filter((item) => item.published.some((record) => record.projectId === 'project-1')).length, 1)
+
+    const registryPath = join(home, 'work-identities.json')
+    const resetToLegacy = async () => {
+      await writeFile(publishedPath, '{}\n')
+      await writeFile(markerPath, JSON.stringify(copiedMarker))
+      await writeFile(registryPath, JSON.stringify({ [live]: {
+        workspaceId: copiedMarker.workspace_id, role: 'owner',
+      } }))
+    }
+    await resetToLegacy()
+    listAvailable = false
+    const offline = (await mine()).find((item) => !item.detached)
+    assert.equal(offline.workId, null)
+    assert.deepEqual(JSON.parse(await readFile(markerPath, 'utf8')), copiedMarker)
+    listAvailable = true
+    const recovered = await mine()
+    assert.equal(recovered.find((item) => !item.detached).workId, copiedMarker.workspace_id)
+    assert.equal(recovered.filter((item) => item.published.some((record) => record.projectId === 'project-1')).length, 1)
+    assert.equal(JSON.parse(await readFile(markerPath, 'utf8')).root_fingerprint, '2026-01-01')
+    assert.ok(JSON.parse(await readFile(registryPath, 'utf8'))[live].directoryIdentity)
+    assert.equal(Object.values(JSON.parse(await readFile(publishedPath, 'utf8')))[0].projectId, 'project-1')
+    await resetToLegacy()
+    const recoveredPlan = await plan(rowA.id)
+    assert.equal(recoveredPlan.identityConflict, false)
+    assert.equal(recoveredPlan.unchangedCount, 2)
+    await resetToLegacy()
+    const recoveredUpdate = await publish(rowA.id, recoveredPlan)
+    assert.equal(recoveredUpdate.ok, true, JSON.stringify(recoveredUpdate))
+    assert.equal(recoveredUpdate.value.published.projectId, 'project-1')
+    assert.equal(projects.size, 3, 'recovering an old publication must not create another project')
+
     await writeFile(join(live, 'project.md'), '---\ncreated_at: 2026-01-01\ntopic: Renamed Research A\n---\n')
     const updated = await publish(rowA.id, await plan(rowA.id))
     assert.equal(updated.ok, true, JSON.stringify(updated))
     assert.equal(updated.value.published.projectId, 'project-1')
-    assert.equal(updated.value.published.version, 2)
+    assert.equal(updated.value.published.version, 3)
     listAvailable = false
     assert.equal((await mine()).find((item) => !item.detached).published[0].projectId, 'project-1', 'local records remain usable when server listing fails')
     listAvailable = true
