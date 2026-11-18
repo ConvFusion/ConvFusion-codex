@@ -503,14 +503,6 @@ section('[6] 静态边界：插件不拦、只填不发送、标记不进上传'
   assert(!/needsForce/.test(settingsSrc), '没有 needsForce 分支')
   assert(!/not-allowed/.test(settingsSrc), '不再有"禁用"样式（判定只决定提示词，不拦）')
   assert(
-    /<select[\s\S]{0,600}?value=\{selection\}/.test(settingsSrc),
-    '工作区是**下拉框**，值 = 当前选中项',
-  )
-  assert(
-    !/<option[^>]*disabled/.test(settingsSrc),
-    '下拉里每一项都可选（判定不决定"能不能下"）',
-  )
-  assert(
     settingsSrc.includes('<option key={w.id} value={w.id}>') &&
       /onChange=\{\(e\) => onSelect\(e\.target\.value\)\}/.test(settingsSrc),
     '每一项的 id 就是它的值（选谁下到谁）',
@@ -716,18 +708,22 @@ section('[7] 【下载】对话框渲染：下拉框 + 默认选中当前工作�
     return out
   }
   const selects = collect(tree, (n) => n.type === 'select')
-  assertEq(selects.length, 1, '工作区是**一个下拉框**（不再是一列单选）')
+  assertEq(selects.length, 2, '匹配的工作区与其他保存位置分别使用下拉框')
   const sel = selects[0]
   assertEq(sel.props.value, 'w1', '下拉框的值 = 当前选中项（w1）')
   assertEq(sel.props.disabled, false, '不在下载中 → 下拉框可改')
-  const options = collect(sel, (n) => n.type === 'option')
-  assertEq(options.length, 3, '三个工作区各一项')
-  assertEq(options.map((o) => o.props.value), ['w0', 'w1', 'w2'], '每一项的 value = 工作区 id')
-  const labels = options.map((o) => collect(o, () => false) && String(o.props.children))
-  assert(labels[0].includes('另一项研究'), '第一项的文字里带判定（另一项研究）')
-  assert(labels[1].includes('当前会话'), '第二项标出「当前会话」')
-  assert(labels[1].includes('同一项研究'), '第二项的文字里带判定（同一项研究）')
-  assert(labels[2].includes('新工作区'), '第三项的文字里带判定（新工作区）')
+  const workspaceOptions = (root) => collect(root, (n) => n.type === 'option' && n.props.value)
+  const matched = workspaceOptions(sel)
+  assertEq(matched.map((o) => o.props.value), ['w1'], '主下拉框只显示匹配的工作区')
+  assert(String(matched[0]?.props.children).includes('当前会话'), '匹配项标出「当前会话」')
+  assert(String(matched[0]?.props.children).includes('同一项研究'), '匹配项显示「同一项研究」')
+  const disclosure = collect(tree, (n) => n.type === 'details')[0]
+  assertEq(disclosure?.props.open, undefined, '其他位置默认收起')
+  const alternatives = workspaceOptions(disclosure)
+  assertEq(alternatives.map((o) => o.props.value), ['w0', 'w2'], '其他工作区仍可手动选择')
+  assert([...matched, ...alternatives].every((option) => !option.props.disabled), '有效目录选项都可手动选择')
+  assert(String(alternatives[0]?.props.children).includes('另一项研究'), '其他研究标明身份不同')
+  assert(String(alternatives[1]?.props.children).includes('新工作区'), '尚无研究的目录标为新工作区')
   // 选中项的路径与结论说明在框下面（下拉里放不下）
   const hints = collect(tree, (n) => typeof n.props?.children === 'string').map((n) => n.props.children)
   assert(hints.includes('/tmp/…/w1'), '框下面给出**选中项**的完整路径')

@@ -49,6 +49,13 @@ const t = (key, args = {}) => key + (Object.keys(args).length ? JSON.stringify(a
 const account = { serverUrl: 'https://download-ui.example', keyConfigured: true, keySource: 'file', account: { id: 'student', roles: ['RESEARCHER'] } }
 const proposal = { id: 'proposal', projectId: 'project', direction: 'SEEK_MENTOR', status: 'ACCEPTED', projectTitle: 'Test', mentor: { id: 'teacher', displayName: 'Teacher' }, researcher: { id: 'student', displayName: 'Student' }, guidanceScope: '', totalFee: 0, depositAmount: 0, successPaymentAmount: 0, successCondition: { type: 'RESEARCH_COMPLETED', description: null }, workspaceFiles: 1, reviewFiles: 1 }
 proposal.workName = 'Current research work name'
+const uploadProposal = { ...proposal, id: 'upload-proposal', projectId: 'upload-project', direction: 'SEEK_STUDENT', workspaceFiles: 0 }
+const target = (id, status) => ({ id, title: id, path: `/fixture/${id}`, status, exists: true, identityConflict: false })
+let downloadItems = [target('unrelated', 'other'), target('target', 'same'), target('empty', 'new')]
+let currentWorkspaceId = 'unrelated'
+let protocol = 31
+let uploadMatch = true
+const uploadPlans = []
 let job = null, starts = 0, cancels = 0, statuses = 0, nextId = 0, prepared = null
 let holdStatus, resolveStatus, holdStart, resolveStart, startPayload
 const cancelledIntents = new Set()
@@ -58,8 +65,19 @@ const send = async (endpoint, payload) => {
   if (endpoint === 'account/state' || endpoint === 'account/verify') return { ok: true, value: account }
   if (endpoint === 'work/mine') return { ok: true, value: { items: [], registry: { available: true } } }
   if (endpoint === 'work/list') return { ok: true, value: { items: [] } }
-  if (endpoint === 'mentor/list') return { ok: true, value: { proposals: [proposal] } }
-  if (endpoint === 'mentor/downloadState') return { ok: true, value: { files: 1, bytes: 9999, expectedName: 'guessed.zip', available: true, reason: null, items: [{ id: 'target', title: 'Target', path: '/fixture/target' }], currentWorkspaceId: 'target', downloadRevision: 'revision' } }
+  if (endpoint === 'mentor/list') return { ok: true, value: { proposals: [proposal, uploadProposal] } }
+  if (endpoint === 'mentor/downloadState') return { ok: true, value: { files: 1, bytes: 9999, expectedName: 'guessed.zip', available: true, reason: null, items: downloadItems, currentWorkspaceId, protocol, downloadRevision: 'revision' } }
+  if (endpoint === 'mentor/uploadState') {
+    assert.equal(payload.projectId, uploadProposal.projectId)
+    return { ok: true, value: { available: true, currentWorkspaceId: 'unrelated', items: [
+      { id: 'unrelated', title: 'Unrelated', path: '/fixture/unrelated', root: '/fixture/unrelated/workspace' },
+      { id: 'target', title: 'Target', path: '/fixture/target', root: '/fixture/target/workspace', matchesProject: uploadMatch },
+    ] } }
+  }
+  if (endpoint === 'mentor/uploadPlan') {
+    uploadPlans.push(payload.workspaceId)
+    return { ok: true, value: { workspaceId: payload.workspaceId, plan: { defaultSelection: [] } } }
+  }
   if (endpoint === 'mentor/downloadStart') {
     startPayload = payload
     starts++
@@ -100,6 +118,8 @@ function* walk(node) {
 }
 const nodes = () => [...walk(h.tree)]
 const dialog = () => nodes().find((n) => n.type?.name === 'DownloadDialog')
+const uploadDialog = () => nodes().find((n) => n.type?.name === 'UploadDialog')
+const openUpload = async () => { nodes().find((n) => n.props?.title === 'community.tip.upload').props.onClick(); await settle() }
 const renderDialogText = () => [...walk(mod.DownloadDialog(dialog().props))].filter((x) => typeof x === 'string').join(' ')
 const open = async () => { nodes().find((n) => n.props?.title === 'community.tip.download').props.onClick(); await settle() }
 const tick = async () => { const pending = [...timers.entries()]; timers.clear(); for (const [, timer] of pending) timer.fn(); await settle() }
@@ -107,6 +127,14 @@ try {
   await settle()
   nodes().find((n) => n.type?.name === 'MiniTab' && n.props.children === 'community.tab.mentorship').props.onClick()
   await settle(); await open()
+  assert.equal(dialog().props.selection, 'target', 'the unique match wins over an unrelated current workspace')
+  const pickerTree = mod.DownloadDialog(dialog().props)
+  const disclosure = [...walk(pickerTree)].find((n) => n.type === 'details')
+  const optionIds = (node) => [...walk(node)].filter((n) => n.type === 'option' && n.props.value).map((n) => n.props.value)
+  assert.equal(disclosure.props.open, undefined, 'other locations are collapsed initially')
+  assert.deepEqual(optionIds(disclosure), ['unrelated', 'empty'])
+  assert.deepEqual(optionIds([...walk(pickerTree)].find((n) => n.type === 'select')), ['target'])
+  assert.ok(renderDialogText().includes('community.exchange.ws.same'))
   assert.equal(dialog().props.busy, false)
   assert.equal(dialog().props.onCancel, undefined, 'no cancellation control before any download intent exists')
   const start = dialog().props.onDownload
@@ -149,8 +177,13 @@ try {
   await tick()
   assert.equal(dialog().props.done.name, 'actual-2.zip')
   assert.equal(dialog().props.done.prompt, 'sync "/fixture/target/actual-2.zip"')
-  assert.equal(dialog().props.done.fillHint, null, 'Codex sync action must not claim the user is outside a chat')
+  assert.ok(dialog().props.done.fillHint.includes('community.merge.otherWorkspace'))
   assert.equal(dialog().props.busy, false)
+  assert.equal(dialog().props.onRequest, undefined, 'a matching directory in another chat still uses copy')
+  currentWorkspaceId = 'target'
+  downloadItems.push(target('copy', 'same'))
+  await open()
+  assert.equal(dialog().props.selection, 'target', 'the current match wins when several directories match')
   dialog().props.onRequest(); await settle()
   assert.equal(prepared, 'sync "/fixture/target/actual-2.zip"')
   job = null
@@ -168,5 +201,37 @@ try {
   assert.equal(dialog().props.busy, true, 'late cancelled response cannot replace a newer running task')
   assert.equal(job.id, activeId)
   dialog().props.onCancel(); await settle()
-  console.log('Download UI passed: lost acknowledgement recovery, click deduplication, close/reopen, polling cleanup, stale responses, cancellation, truthful progress and verified filenames (offline component hooks).')
+  dialog().props.onClose(); await settle()
+
+  job = null
+  currentWorkspaceId = 'unrelated'
+  await open()
+  assert.equal(dialog().props.selection, '', 'several matching copies require a choice when none is current')
+  downloadItems = downloadItems.filter((w) => w.status !== 'same')
+  await open()
+  assert.equal(dialog().props.selection, '', 'no match leaves the destination blank')
+  assert.ok(renderDialogText().includes('community.exchange.noMatchingDestination'))
+  const beforeManual = starts
+  dialog().props.onDownload(); await settle()
+  assert.equal(starts, beforeManual, 'no destination means no start request')
+  protocol = undefined
+  await open()
+  assert.equal(dialog().props.selection, '', 'an older host without statuses also requires a choice')
+  dialog().props.onSelect('empty'); await settle()
+  dialog().props.onDownload(); await settle()
+  assert.equal(startPayload.workspaceId, 'empty', 'an explicitly chosen alternate destination can still download')
+  dialog().props.onCancel(); await settle()
+  dialog().props.onClose(); await settle()
+
+  await openUpload()
+  assert.equal(uploadDialog().props.workspaceId, 'target', 'upload preselects the confirmed research, not the current workspace')
+  assert.deepEqual(uploadPlans, ['target'])
+  uploadDialog().props.onClose(); await settle()
+  uploadMatch = false
+  await openUpload()
+  assert.equal(uploadDialog().props.workspaceId, '', 'upload waits for a manual choice when identity is unavailable')
+  assert.deepEqual(uploadPlans, ['target'], 'no upload plan is loaded for an unconfirmed workspace')
+  uploadDialog().props.onSelectWorkspace('unrelated'); await settle()
+  assert.deepEqual(uploadPlans, ['target', 'unrelated'])
+  console.log('File exchange UI passed: workspace matches, explicit fallback selection, transfer recovery, cancellation, progress and verified filenames.')
 } finally { for (const cell of h.cells) cell?.cleanup?.(); timers.clear() }

@@ -1084,7 +1084,7 @@ async function fetchMarketplaceVersion(
  * | `mentor/downloadState` | `{ projectId, prefix, source?, archiveSide? }` | 【下载】预检和可选工作区。Codex 用 `archiveSide` 指定本地文件名的侧别后缀 |
  * | `mentor/download` | `{ projectId, workspaceId, prefix, source?, archiveSide? }` | 流式保存 ZIP，同名加序号。Codex 按工作名保存，侧别优先采用归档响应 |
  * | `mentor/downloadProgress` | `{ projectId }` | 下载期间的实时进度 `{ received, running }`（界面按秒问；本地读，不触网） |
- * | `mentor/uploadState` | `{}` | 【上传】对话框的工作区下拉：本机**含研究定义**的工作区（`<ws>/workspace/` 或旧布局 `<ws>`） |
+ * | `mentor/uploadState` | `{ projectId?, sessionId? }` | 【上传】候选研究目录及与服务端项目匹配的结果 |
  * | `mentor/uploadPlan` | `{ workspaceId }` | 所选工作区的**文件清单**（`mentor` 口径分类 + 默认勾选 + 体积 + 超限项） |
  * | `mentor/upload` | `{ projectId, workspaceId, paths, source? }` | 回传"我这一份工作区"：与**自己那一侧**的 `sha256` 比对 → 只传变化的 → 分批上传 |
  * | `mentor/uploadProgress` | `{ projectId }` | 上传期间的实时进度 `{ doneFiles, totalFiles, sentBytes, totalBytes, running }`（本地读、不触网） |
@@ -3397,7 +3397,7 @@ export function createSettingsRpcHandler(
            * 客户端只能递**注册表 id**，递不进路径）。
            */
           const listed = deps.listLocalWorkspaces ? await deps.listLocalWorkspaces() : null
-          const items: Array<{ id: string; title: string; path: string; root: string }> = []
+          const items: Array<{ id: string; title: string; path: string; root: string; matchesProject?: boolean }> = []
           for (const w of listed?.items ?? []) {
             let canonical = resolve(w.path)
             try {
@@ -3410,12 +3410,28 @@ export function createSettingsRpcHandler(
             if (!isResearchWorkspace(root)) continue
             items.push({ id: w.id, title: w.title, path: canonical, root })
           }
-          /*
-           * **当前会话的工作区**（与 `mentor/downloadState` 同一判据）：界面用它把下拉
-           * **默认选中"我正在用的这一个"** —— 导师回传的通常就是手上这份研究，默认落到
-           * 别的工作区会让导师以为传错了。比对走 `realpath`（注册表存的是登记路径，
-           * 可能是符号链接）。`null` = 会话工作区不在可回传列表里（此时界面不预选）。
-           */
+          const projectId = asString(p.projectId)
+          if (projectId && items.length) {
+            const config = deps.getConfig()
+            const apiKey = resolveConvFusionApiKey(config, env())
+            if (apiKey) {
+              try {
+                const base = resolveServerUrl(config, env()).url
+                const { workspaceId } = await fetchProjectFilesWithIdentity(base, apiKey, projectId, {
+                  ...netOptions(),
+                  timeoutMs: Math.min(deps.serverTimeoutMs ?? 5000, 5000),
+                })
+                if (workspaceId) {
+                  for (const item of items) {
+                    const local = readLocalIdentity(item.root, deps.workIdentity, { requireVerifiedMarker: true })
+                    item.matchesProject = local.workspaceId === workspaceId
+                  }
+                }
+              } catch {
+                // Identity lookup is optional. A failed lookup leaves manual selection available.
+              }
+            }
+          }
           const sessionId = asString(p.sessionId)
           const sessionWorkspace = sessionId ? deps.resolveSessionWorkspace?.(sessionId) : undefined
           let currentCanonical: string | null = null
@@ -3434,7 +3450,7 @@ export function createSettingsRpcHandler(
               // ⚠️ 读不到 ≠ 没有：`reason` 必须说清是"读不到"（否则界面会显示成"本机没有研究工作区"）
               reason: listed?.reason ?? (listed ? null : '宿主未提供工作区注册表读取接口'),
               items,
-              /** 当前会话所在工作区的注册表 id（界面预选用）；`null` = 会话工作区不可回传。 */
+              /** 当前会话所在工作区的注册表 id。 */
               currentWorkspaceId: current?.id ?? null,
             },
           }

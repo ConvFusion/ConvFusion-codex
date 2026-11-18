@@ -10,7 +10,7 @@ import { createSettingsRpcHandler } from '../lib/settings-rpc.js'
 import { createMemoryCustomizationStore } from '../lib/research/skill-customization.js'
 import { createMemoryPublishedStore } from '../lib/research/published-store.js'
 import { createMemorySyncWatermarkStore } from '../lib/research/sync-watermarks.js'
-import { createMemoryWorkIdentityStore, writeWorkMarker, makeWorkIdentity } from '../lib/research/work-identity.js'
+import { createMemoryWorkIdentityStore, writeWorkMarker, makeWorkIdentity, researchRootFingerprint } from '../lib/research/work-identity.js'
 import { createMemorySyncNoteStore } from '../lib/research/sync-note.js'
 import { fetchProjectFiles, fetchProjectArchive, fetchPriceGuide } from '../lib/server-client.js'
 
@@ -104,6 +104,44 @@ try {
     assert.equal(received.sourceSide, side === 'counterpart' ? null : side)
   }
   assert.equal(await fetchPriceGuide(base, key, { fetchImpl: async () => json({}, 404) }), null)
+
+  // Upload suggestions compare the project's identity with verified research roots.
+  const uploadRoots = ['same', 'different', 'unverified', 'plain'].map((id) => ({ id, path: join(temp, id), title: id }))
+  for (const item of uploadRoots) {
+    mkdirSync(item.path)
+    if (item.id === 'plain') continue
+    writeFileSync(join(item.path, 'project.md'), '---\ncreated_at: 2026-01-01T00:00:00Z\n---\n# Test\n')
+    writeWorkMarker(item.path, {
+      workspaceId: item.id === 'different' ? `ws_${'b'.repeat(32)}` : workId,
+      ...(item.id === 'unverified' ? {} : { rootFingerprint: researchRootFingerprint(item.path) }),
+    })
+  }
+  let identityResponse = json({ items: [], workspace_id: workId })
+  const uploadState = createSettingsRpcHandler({
+    getConfig: () => resolveConfig({ serverUrl: base, convfusionProdApiKey: key, customizationDir: temp }),
+    env: { CONVFUSION_ENV: 'production', CONVFUSION_ENV_FILE: '-' },
+    store: createMemoryCustomizationStore(),
+    resolveSessionWorkspace: () => uploadRoots.find((item) => item.id === 'different').path,
+    listLocalWorkspaces: async () => ({ available: true, items: uploadRoots }),
+    fetchImpl: async (url, init) => {
+      assert.ok(url.endsWith('/projects/project/files'))
+      assert.equal(init.method, 'GET')
+      return identityResponse
+    },
+  })
+  const openUpload = () => uploadState('mentor/uploadState', { projectId: 'project', sessionId: 'current' })
+  const matchedUpload = await openUpload()
+  assert.equal(matchedUpload.value.currentWorkspaceId, 'different')
+  assert.deepEqual(matchedUpload.value.items.map((item) => [item.id, item.matchesProject]), [
+    ['same', true], ['different', false], ['unverified', false],
+  ])
+  for (const unavailable of [json({ items: [] }), json({}, 503)]) {
+    identityResponse = unavailable
+    const fallback = await openUpload()
+    assert.equal(fallback.ok, true)
+    assert.equal(fallback.value.items.length, 3, 'manual research choices remain available')
+    assert.ok(fallback.value.items.every((item) => !item.matchesProject))
+  }
 
   // Exercise bookkeeping with actual ZIP writes and an existing matching research.
   for (const served of ['owner', 'mentor', null]) {

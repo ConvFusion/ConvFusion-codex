@@ -634,7 +634,7 @@ export declare function compareVersions(a: string, b: string): number;
  * | `mentor/downloadState` | `{ projectId, prefix, source?, archiveSide? }` | 【下载】预检和可选工作区。Codex 用 `archiveSide` 指定本地文件名的侧别后缀 |
  * | `mentor/download` | `{ projectId, workspaceId, prefix, source?, archiveSide? }` | 流式保存 ZIP，同名加序号。Codex 按工作名保存，侧别优先采用归档响应 |
  * | `mentor/downloadProgress` | `{ projectId }` | 下载期间的实时进度 `{ received, running }`（界面按秒问；本地读，不触网） |
- * | `mentor/uploadState` | `{}` | 【上传】对话框的工作区下拉：本机**含研究定义**的工作区（`<ws>/workspace/` 或旧布局 `<ws>`） |
+ * | `mentor/uploadState` | `{ projectId?, sessionId? }` | 【上传】候选研究目录及与服务端项目匹配的结果 |
  * | `mentor/uploadPlan` | `{ workspaceId }` | 所选工作区的**文件清单**（`mentor` 口径分类 + 默认勾选 + 体积 + 超限项） |
  * | `mentor/upload` | `{ projectId, workspaceId, paths, source? }` | 回传"我这一份工作区"：与**自己那一侧**的 `sha256` 比对 → 只传变化的 → 分批上传 |
  * | `mentor/uploadProgress` | `{ projectId }` | 上传期间的实时进度 `{ doneFiles, totalFiles, sentBytes, totalBytes, running }`（本地读、不触网） |

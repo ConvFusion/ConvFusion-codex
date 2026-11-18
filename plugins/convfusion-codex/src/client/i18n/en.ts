@@ -418,6 +418,10 @@ export const en = {
   'community.exchange.downloadDone': 'Saved {name} into {dir}.',
 
   // Download target validation (protocol 23): is this workspace **the same research**?
+  'community.exchange.matchingDestinations': 'Matching research workspaces',
+  'community.exchange.noMatchingDestination': 'No confirmed match. Choose where to save the download.',
+  'community.exchange.otherDestinations': 'Choose another save location',
+  'community.exchange.chooseDestination': 'Choose a save location',
   'community.exchange.ws.new': 'New workspace',
   'community.exchange.ws.newHint': 'No research workspace yet; treated as a fresh one',
   'community.exchange.ws.same': 'Same research',

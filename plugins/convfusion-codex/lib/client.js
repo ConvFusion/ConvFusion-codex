@@ -498,6 +498,10 @@ window.__ModuleLoader__.load({
 		  "community.exchange.noWorkspaces": "No DSH workspace available (create one in DSH first).",
 		  "community.exchange.downloadDone": "Saved {name} into {dir}.",
 		  // Download target validation (protocol 23): is this workspace **the same research**?
+		  "community.exchange.matchingDestinations": "Matching research workspaces",
+		  "community.exchange.noMatchingDestination": "No confirmed match. Choose where to save the download.",
+		  "community.exchange.otherDestinations": "Choose another save location",
+		  "community.exchange.chooseDestination": "Choose a save location",
 		  "community.exchange.ws.new": "New workspace",
 		  "community.exchange.ws.newHint": "No research workspace yet; treated as a fresh one",
 		  "community.exchange.ws.same": "Same research",
@@ -1309,6 +1313,10 @@ window.__ModuleLoader__.load({
 		  // 下载 = 把服务器上的工作区快照 **只当成一个 ZIP 存下来**，写进用户选的 DSH 工作区
 		  // （不走浏览器默认下载，也不输地址；解压与整理交给用户自己处理）
 		  "community.exchange.downloadTitle": "下载到工作区",
+		  "community.exchange.matchingDestinations": "与这项研究匹配的工作区",
+		  "community.exchange.noMatchingDestination": "没有已确认匹配的工作区，请选择保存位置。",
+		  "community.exchange.otherDestinations": "选择其他保存位置",
+		  "community.exchange.chooseDestination": "请选择保存位置",
 		  "community.exchange.sizeBadge": "{files} 个文件 · {size}",
 		  "community.exchange.zipOnly": "只把 ZIP 保存到所选工作区，不解压，其余你自己处理。",
 		  "community.exchange.destHint": "预计保存到：{dest}",
@@ -3076,7 +3084,7 @@ window.__ModuleLoader__.load({
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
 		          !view && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { style: S.hint, title: t("settings.uiBuild.tip"), children: [
 		            "ui ",
-		            "1118-1505"
+		            "1118-1615"
 		          ] }),
 		          update ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "a",
@@ -3389,6 +3397,9 @@ window.__ModuleLoader__.load({
 		}
 		function proposalWorkLabel(p) {
 		  return p.workName?.trim() || p.projectTitle;
+		}
+		function preferredMatchingWorkspace(matches, currentId) {
+		  return matches.find((w) => w.id === currentId)?.id ?? (matches.length === 1 ? matches[0].id : "");
 		}
 		var HOST_PROTOCOL_MIN_FOR_CHECK = 23;
 		var PUBLISH_BUTTON_WIDTH = 128;
@@ -4992,7 +5003,33 @@ window.__ModuleLoader__.load({
 		  const chosenBadge = chosenTarget ? statusBadge(t, chosenTarget) : null;
 		  const warning = chosenTarget ? downloadWarning(t, chosenTarget) : null;
 		  const dest = chosen ? `${chosen.path}/${fileName}` : "";
-		  const ready = Boolean(selection) && files !== null && files > 0 && !busy;
+		  const ready = Boolean(chosen) && files !== null && files > 0 && !busy;
+		  const isMatch = (id) => targetOf(id)?.status === "same";
+		  const matching = (workspaces ?? []).filter((w) => isMatch(w.id));
+		  const other = (workspaces ?? []).filter((w) => !isMatch(w.id));
+		  const workspaceSelect = (options, label) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: label }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+		      "select",
+		      {
+		        style: S.select,
+		        value: options.some((w) => w.id === selection) ? selection : "",
+		        disabled: busy,
+		        onChange: (e) => onSelect(e.target.value),
+		        children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "", disabled: true, children: t("community.exchange.chooseDestination") }),
+		          options.map((w) => {
+		            const target = targetOf(w.id);
+		            const marks = [
+		              currentWorkspaceId === w.id ? t("community.exchange.ws.current") : "",
+		              target ? statusBadge(t, target).label : ""
+		            ].filter(Boolean);
+		            return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: w.id, children: marks.length > 0 ? `${w.title}（${marks.join(" · ")}）` : w.title }, w.id);
+		          })
+		        ]
+		      }
+		    )
+		  ] });
 		  const pct2 = busy && totalBytes && totalBytes > 0 && received !== null ? Math.min(100, Math.round(received / totalBytes * 100)) : null;
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(520px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
@@ -5004,44 +5041,19 @@ window.__ModuleLoader__.load({
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: proposalWorkLabel(proposal) ?? t("community.mentor.untitledProject") }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.zipOnly") }),
 		      files === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noSourceFiles") }) : null,
-		      !workspacesAvailable ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: workspacesReason ?? t("community.exchange.noWorkspaces") }) : workspaces === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : workspaces.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noWorkspaces") }) : (
-		        /*
-		         * **下拉框**而不是单选列表（2026-10 用户要求）：工作区多起来时列表太长，
-		         * 而这里每次只会选一个。样式直接复用设置页既有的 `S.select`（与上传对话框同源）。
-		         *
-		         * 下拉框里塞不下徽章，所以把"当前会话"与判定结论压进**选项文字**；
-		         * 选中项的完整路径与结论说明放在框下面（`chosenBadge`）。
-		         * 默认选中**当前会话的工作区**（预选优先级在 `requestDownload` 里，第一顺位）。
-		         */
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: t("community.exchange.workspaceLabel") }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		            "select",
-		            {
-		              style: S.select,
-		              value: selection,
-		              disabled: busy,
-		              onChange: (e) => onSelect(e.target.value),
-		              children: workspaces.map((w) => {
-		                const tg = targetOf(w.id);
-		                const badge = tg ? statusBadge(t, tg) : null;
-		                const marks = [
-		                  // 只有当前会话的工作区才能把整合提示词填进输入框
-		                  currentWorkspaceId === w.id ? t("community.exchange.ws.current") : "",
-		                  badge ? badge.label : ""
-		                ].filter(Boolean);
-		                return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: w.id, children: marks.length > 0 ? `${w.title}（${marks.join(" · ")}）` : w.title }, w.id);
-		              })
-		            }
-		          ),
-		          chosen ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, wordBreak: "break-all" }, children: chosen.path }) : null,
-		          chosenBadge ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hint, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: chosenBadge.tone, children: chosenBadge.label }),
-		            " ",
-		            chosenBadge.hint
-		          ] }) : null
-		        ] })
-		      ),
+		      !workspacesAvailable ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: workspacesReason ?? t("community.exchange.noWorkspaces") }) : workspaces === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : workspaces.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noWorkspaces") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 8 }, children: [
+		        matching.length > 0 ? workspaceSelect(matching, t("community.exchange.matchingDestinations")) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noMatchingDestination") }),
+		        other.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("details", { children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("summary", { style: { ...S.label, cursor: "pointer", marginBottom: 5 }, children: t("community.exchange.otherDestinations") }),
+		          workspaceSelect(other, t("community.exchange.workspaceLabel"))
+		        ] }) : null,
+		        chosen ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, wordBreak: "break-all" }, children: chosen.path }) : null,
+		        chosenBadge ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hint, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: chosenBadge.tone, children: chosenBadge.label }),
+		          " ",
+		          chosenBadge.hint
+		        ] }) : null
+		      ] }),
 		      done ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 7 }, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: t("community.merge.title") }),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.downloadDone", { dir: done.dir, name: done.name }) }),
@@ -5150,7 +5162,7 @@ window.__ModuleLoader__.load({
 		  const limits = plan?.plan.limits ?? null;
 		  const batches = limits ? Math.max(1, Math.ceil(selected.length / limits.maxFilesPerRequest)) : 1;
 		  const oversize = limits ? selected.filter((f) => f.size > limits.maxFileBytes) : [];
-		  const ready = Boolean(workspaceId) && selected.length > 0 && !busy && !planLoading;
+		  const ready = Boolean(chosen && plan?.workspaceId === chosen.id) && selected.length > 0 && !busy && !planLoading;
 		  const pct2 = busy && progress && progress.totalBytes > 0 ? Math.min(100, Math.round(progress.sentBytes / progress.totalBytes * 100)) : null;
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		    "div",
@@ -5171,16 +5183,24 @@ window.__ModuleLoader__.load({
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 11 }, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: proposalWorkLabel(proposal) ?? t("community.mentor.untitledProject") }),
 		          !workspacesAvailable ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: workspacesReason ?? t("community.exchange.noWorkspaces") }) : workspaces === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : workspaces.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noUploadWorkspaces") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.exchange.workspaceLabel") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, "aria-hidden": "true", children: t("community.exchange.workspaceLabel") }),
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		              "select",
 		              {
+		                "aria-label": t("community.exchange.workspaceLabel"),
 		                style: { ...S.compactInput, flex: "1 1 auto" },
 		                value: workspaceId,
+		                disabled: busy,
 		                onChange: (e) => onSelectWorkspace(e.target.value),
 		                children: [
-		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "", children: t("community.exchange.workspacePlaceholder") }),
-		                  workspaces.map((w) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: w.id, children: currentWorkspaceId === w.id ? `${w.title}（${t("community.exchange.ws.current")}）` : w.title }, w.id))
+		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "", disabled: true, children: t("community.exchange.workspacePlaceholder") }),
+		                  workspaces.map((w) => {
+		                    const marks = [
+		                      currentWorkspaceId === w.id ? t("community.exchange.ws.current") : "",
+		                      w.matchesProject ? t("community.exchange.ws.same") : ""
+		                    ].filter(Boolean);
+		                    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: w.id, children: marks.length > 0 ? `${w.title}（${marks.join(" · ")}）` : w.title }, w.id);
+		                  })
 		                ]
 		              }
 		            )
@@ -5445,6 +5465,7 @@ window.__ModuleLoader__.load({
 		  const downloadStarting = import_react.default.useRef(null);
 		  const downloadAttempt = import_react.default.useRef();
 		  const downloadRequest = import_react.default.useRef(0);
+		  const uploadSelectionRequest = import_react.default.useRef(0);
 		  const [uploadWorkspaces, setUploadWorkspaces] = import_react.default.useState(null);
 		  const [uploadRegistry, setUploadRegistry] = import_react.default.useState(
 		    null
@@ -5553,6 +5574,8 @@ window.__ModuleLoader__.load({
 		  import_react.default.useEffect(() => {
 		    setDownload(null);
 		    downloadRequest.current += 1;
+		    setExchange(null);
+		    uploadSelectionRequest.current += 1;
 		  }, [listScope]);
 		  const canMentor = Boolean(
 		    account && (account.roles.includes("MENTOR") || account.roles.includes("ADMIN"))
@@ -5705,6 +5728,7 @@ window.__ModuleLoader__.load({
 		  };
 		  const viewOf = (p) => proposalView(p, myAccountId);
 		  const selectUploadWorkspace = async (id) => {
+		    const request = ++uploadSelectionRequest.current;
 		    setUploadWorkspaceId(id);
 		    setUploadPlan(null);
 		    setUploadSelected(/* @__PURE__ */ new Set());
@@ -5713,6 +5737,7 @@ window.__ModuleLoader__.load({
 		    if (!id) return;
 		    setUploadPlanLoading(true);
 		    const res = await post("mentor/uploadPlan", { workspaceId: id });
+		    if (request !== uploadSelectionRequest.current || listScope !== currentListScope.current) return;
 		    setUploadPlanLoading(false);
 		    if (!res.ok) {
 		      setExchangeNotice({ tone: "error", text: res.error?.message ?? t("community.error.unknown") });
@@ -5723,18 +5748,22 @@ window.__ModuleLoader__.load({
 		    setUploadSelected(new Set(v.plan.defaultSelection));
 		  };
 		  const openExchange = async (p) => {
+		    const request = ++uploadSelectionRequest.current;
 		    setExchangeNotice(null);
 		    setUploadWorkspaces(null);
 		    setUploadRegistry(null);
 		    setUploadWorkspaceId("");
 		    setUploadCurrentWorkspaceId(null);
 		    setUploadPlan(null);
+		    setUploadPlanLoading(false);
 		    setUploadSelected(/* @__PURE__ */ new Set());
 		    setUploadExpanded(/* @__PURE__ */ new Set());
 		    setExchange({ proposal: p, mode: "upload" });
 		    const res = await post("mentor/uploadState", {
+		      projectId: p.projectId,
 		      ...session?.sessionId ? { sessionId: session.sessionId } : {}
 		    });
+		    if (request !== uploadSelectionRequest.current || listScope !== currentListScope.current) return;
 		    if (!res.ok) {
 		      setUploadWorkspaces([]);
 		      setUploadRegistry({
@@ -5748,7 +5777,7 @@ window.__ModuleLoader__.load({
 		    setUploadWorkspaces(items);
 		    setUploadCurrentWorkspaceId(v.currentWorkspaceId ?? null);
 		    setUploadRegistry({ available: v.available ?? false, reason: v.reason ?? null });
-		    const preferred = v.currentWorkspaceId && items.some((w) => w.id === v.currentWorkspaceId) ? v.currentWorkspaceId : "";
+		    const preferred = preferredMatchingWorkspace(items.filter((w) => w.matchesProject), v.currentWorkspaceId);
 		    if (preferred) void selectUploadWorkspace(preferred);
 		  };
 		  const toggleUploadFiles = (relPaths, next) => {
@@ -5919,13 +5948,12 @@ window.__ModuleLoader__.load({
 		    }
 		    const v = res.value;
 		    const supportsCheck = typeof v.protocol === "number" && v.protocol >= HOST_PROTOCOL_MIN_FOR_CHECK;
-		    const targets = supportsCheck && Array.isArray(v.targets) ? v.targets : null;
-		    const current = v.currentWorkspaceId ? v.items.find((w) => w.id === v.currentWorkspaceId) : void 0;
-		    const own = v.items.find(
-		      (w) => (mine ?? []).some((m) => m.id === w.id && m.published.some((r) => r.projectId === p.projectId))
+		    const itemTargets = v.items.filter((w) => "status" in w);
+		    const targets = supportsCheck ? itemTargets.length ? itemTargets : v.targets ?? null : null;
+		    const matches = v.items.filter(
+		      (w) => targets?.some((target) => target.id === w.id && target.status === "same")
 		    );
-		    const preferred = [current, own, ...v.items].find(Boolean);
-		    if (!session?.downloadTasks) setDownloadBusy(false);
+		    setDownloadBusy(false);
 		    setDownload({
 		      proposal: p,
 		      source,
@@ -5933,7 +5961,7 @@ window.__ModuleLoader__.load({
 		      workspaces: v.items,
 		      available: v.available,
 		      reason: v.reason,
-		      selection: preferred?.id ?? "",
+		      selection: preferredMatchingWorkspace(matches, v.currentWorkspaceId),
 		      files: v.files,
 		      bytes: v.bytes,
 		      fileName: v.expectedName,
@@ -7194,7 +7222,10 @@ window.__ModuleLoader__.load({
 		        onToggleExpand: toggleUploadExpand,
 		        onCancelUpload: session?.uploadTasks && uploadTasks[`mentor:${exchange.proposal.projectId}`]?.canCancel ? () => void cancelUpload("mentor", exchange.proposal.projectId) : void 0,
 		        onUpload: () => void runUpload(),
-		        onClose: () => setExchange(null)
+		        onClose: () => {
+		          uploadSelectionRequest.current += 1;
+		          setExchange(null);
+		        }
 		      }
 		    ) : null,
 		    profileTarget ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
@@ -7766,7 +7797,7 @@ window.__ModuleLoader__.load({
 		    ] }),
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { style: { ...S.hint, display: "block", marginTop: 10 }, title: t("settings.uiBuild.tip"), children: [
 		      "ui ",
-		      "1118-1505"
+		      "1118-1615"
 		    ] })
 		  ] });
 		}

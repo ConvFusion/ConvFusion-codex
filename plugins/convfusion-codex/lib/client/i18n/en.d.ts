@@ -367,6 +367,10 @@ export declare const en: {
     readonly 'community.exchange.downloadingBtn': "Downloading…";
     readonly 'community.exchange.noWorkspaces': "No DSH workspace available (create one in DSH first).";
     readonly 'community.exchange.downloadDone': "Saved {name} into {dir}.";
+    readonly 'community.exchange.matchingDestinations': "Matching research workspaces";
+    readonly 'community.exchange.noMatchingDestination': "No confirmed match. Choose where to save the download.";
+    readonly 'community.exchange.otherDestinations': "Choose another save location";
+    readonly 'community.exchange.chooseDestination': "Choose a save location";
     readonly 'community.exchange.ws.new': "New workspace";
     readonly 'community.exchange.ws.newHint': "No research workspace yet; treated as a fresh one";
     readonly 'community.exchange.ws.same': "Same research";

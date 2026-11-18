@@ -2032,20 +2032,18 @@ interface HostUploadWorkspace {
   title: string
   path: string
   root: string
+  matchesProject?: boolean
 }
 
-/**
- * 【上传】对话框里"当前会话的工作区"（宿主 `mentor/uploadState` 的 `currentWorkspaceId`）。
- *
- * 与【下载】同一判据：宿主按 `sessionId` 解析出当前工作区，界面据此**默认选中它** ——
- * 导师回传的通常就是手上这份研究。`null` = 当前会话工作区不在可回传列表里。
- */
+function preferredMatchingWorkspace(matches: ReadonlyArray<{ id: string }>, currentId?: string | null): string {
+  return matches.find((w) => w.id === currentId)?.id ?? (matches.length === 1 ? matches[0]!.id : '')
+}
 
 /**
  * 「目标工作区校验」从哪个宿主协议号开始有（见 `src/protocol.ts` 的 `23`）。
  *
  * 客户端**不按服务器**版本号判断（那是 `workspace_id` 字段在不在的事），但**宿主**这一侧
- * 得看协议号：旧宿主的 `mentor/downloadState` 既不返回 `targets`、也不返回 `protocol`，
+ * 得看协议号：旧宿主的 `mentor/downloadState` 不返回校验状态，
  * 于是界面**完全不显示校验状态** —— 退回旧行为，而不是把"没有字段"渲染成"校验通过"。
  */
 const HOST_PROTOCOL_MIN_FOR_CHECK = 23
@@ -4834,7 +4832,35 @@ export function DownloadDialog({
   const chosenBadge = chosenTarget ? statusBadge(t, chosenTarget) : null
   const warning = chosenTarget ? downloadWarning(t, chosenTarget) : null
   const dest = chosen ? `${chosen.path}/${fileName}` : ''
-  const ready = Boolean(selection) && files !== null && files > 0 && !busy
+  const ready = Boolean(chosen) && files !== null && files > 0 && !busy
+  const isMatch = (id: string) => targetOf(id)?.status === 'same'
+  const matching = (workspaces ?? []).filter((w) => isMatch(w.id))
+  const other = (workspaces ?? []).filter((w) => !isMatch(w.id))
+  const workspaceSelect = (options: NonNullable<typeof workspaces>, label: string) => (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <span style={S.label}>{label}</span>
+      <select
+        style={S.select}
+        value={options.some((w) => w.id === selection) ? selection : ''}
+        disabled={busy}
+        onChange={(e) => onSelect(e.target.value)}
+      >
+        <option value="" disabled>{t('community.exchange.chooseDestination')}</option>
+        {options.map((w) => {
+          const target = targetOf(w.id)
+          const marks = [
+            currentWorkspaceId === w.id ? t('community.exchange.ws.current') : '',
+            target ? statusBadge(t, target).label : '',
+          ].filter(Boolean)
+          return (
+            <option key={w.id} value={w.id}>
+              {marks.length > 0 ? `${w.title}（${marks.join(' · ')}）` : w.title}
+            </option>
+          )
+        })}
+      </select>
+    </label>
+  )
   // Percentage uses the compressed response length only; the file manifest is not a ZIP size.
   const pct = busy && totalBytes && totalBytes > 0 && received !== null
     ? Math.min(100, Math.round((received / totalBytes) * 100))
@@ -4865,38 +4891,18 @@ export function DownloadDialog({
           ) : workspaces.length === 0 ? (
             <div style={S.hint}>{t('community.exchange.noWorkspaces')}</div>
           ) : (
-            /*
-             * **下拉框**而不是单选列表（2026-10 用户要求）：工作区多起来时列表太长，
-             * 而这里每次只会选一个。样式直接复用设置页既有的 `S.select`（与上传对话框同源）。
-             *
-             * 下拉框里塞不下徽章，所以把"当前会话"与判定结论压进**选项文字**；
-             * 选中项的完整路径与结论说明放在框下面（`chosenBadge`）。
-             * 默认选中**当前会话的工作区**（预选优先级在 `requestDownload` 里，第一顺位）。
-             */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              <div style={S.label}>{t('community.exchange.workspaceLabel')}</div>
-              <select
-                style={S.select}
-                value={selection}
-                // 下载进行中不许改目标：请求已经发出去了，改了只会让人以为换成功了
-                disabled={busy}
-                onChange={(e) => onSelect(e.target.value)}
-              >
-                {workspaces.map((w) => {
-                  const tg = targetOf(w.id)
-                  const badge = tg ? statusBadge(t, tg) : null
-                  const marks = [
-                    // 只有当前会话的工作区才能把整合提示词填进输入框
-                    currentWorkspaceId === w.id ? t('community.exchange.ws.current') : '',
-                    badge ? badge.label : '',
-                  ].filter(Boolean)
-                  return (
-                    <option key={w.id} value={w.id}>
-                      {marks.length > 0 ? `${w.title}（${marks.join(' · ')}）` : w.title}
-                    </option>
-                  )
-                })}
-              </select>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {matching.length > 0
+                ? workspaceSelect(matching, t('community.exchange.matchingDestinations'))
+                : <div style={S.hint}>{t('community.exchange.noMatchingDestination')}</div>}
+              {other.length > 0 ? (
+                <details>
+                  <summary style={{ ...S.label, cursor: 'pointer', marginBottom: 5 }}>
+                    {t('community.exchange.otherDestinations')}
+                  </summary>
+                  {workspaceSelect(other, t('community.exchange.workspaceLabel'))}
+                </details>
+              ) : null}
               {/* 选中项的路径：下拉框里放不下（它可能很长） */}
               {chosen ? (
                 <div style={{ ...S.hint, wordBreak: 'break-all' }}>{chosen.path}</div>
@@ -5111,7 +5117,7 @@ function UploadDialog({
   const limits = plan?.plan.limits ?? null
   const batches = limits ? Math.max(1, Math.ceil(selected.length / limits.maxFilesPerRequest)) : 1
   const oversize = limits ? selected.filter((f) => f.size > limits.maxFileBytes) : []
-  const ready = Boolean(workspaceId) && selected.length > 0 && !busy && !planLoading
+  const ready = Boolean(chosen && plan?.workspaceId === chosen.id) && selected.length > 0 && !busy && !planLoading
   const pct =
     busy && progress && progress.totalBytes > 0
       ? Math.min(100, Math.round((progress.sentBytes / progress.totalBytes) * 100))
@@ -5146,20 +5152,26 @@ function UploadDialog({
             <div style={S.hint}>{t('community.exchange.noUploadWorkspaces')}</div>
           ) : (
             <div style={S.inlineRow}>
-              <span style={S.label}>{t('community.exchange.workspaceLabel')}</span>
+              <span style={S.label} aria-hidden="true">{t('community.exchange.workspaceLabel')}</span>
               <select
+                aria-label={t('community.exchange.workspaceLabel')}
                 style={{ ...S.compactInput, flex: '1 1 auto' }}
                 value={workspaceId}
+                disabled={busy}
                 onChange={(e) => onSelectWorkspace(e.target.value)}
               >
-                <option value="">{t('community.exchange.workspacePlaceholder')}</option>
-                {workspaces.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {currentWorkspaceId === w.id
-                      ? `${w.title}（${t('community.exchange.ws.current')}）`
-                      : w.title}
-                  </option>
-                ))}
+                <option value="" disabled>{t('community.exchange.workspacePlaceholder')}</option>
+                {workspaces.map((w) => {
+                  const marks = [
+                    currentWorkspaceId === w.id ? t('community.exchange.ws.current') : '',
+                    w.matchesProject ? t('community.exchange.ws.same') : '',
+                  ].filter(Boolean)
+                  return (
+                    <option key={w.id} value={w.id}>
+                      {marks.length > 0 ? `${w.title}（${marks.join(' · ')}）` : w.title}
+                    </option>
+                  )
+                })}
               </select>
             </div>
           )}
@@ -5788,11 +5800,6 @@ export function CommunityTab({
     /** 预计保存的文件名，落盘后换成宿主返回的实际名称。 */
     fileName: string
     notice: { tone: 'success' | 'error'; text: string } | null
-    /*
-     * ── v23：目标工作区校验（这个工作区是不是**同一项研究**）────────────────
-     * 旧宿主（协议 < 23）不返回下面这些 → `targets` 为 null、`statusAvailable` 为 false
-     * → 界面**完全不显示状态**，退回今天的行为（不假装校验过）。
-     */
     /** 每个候选工作区的状态（`null` = 旧宿主，不显示）。 */
     targets: HostDownloadTarget[] | null
     /** 本次下载项在服务器上的标识；`null` = 服务器没给（判定必为 `unverifiable`）。 */
@@ -5825,6 +5832,7 @@ export function CommunityTab({
   const downloadStarting = React.useRef<string | null>(null)
   const downloadAttempt = React.useRef<string | undefined>()
   const downloadRequest = React.useRef(0)
+  const uploadSelectionRequest = React.useRef(0)
 
   /**
    * 【上传】对话框：本机可回传的工作区（宿主 `mentor/uploadState`；`null` = 还没读）。
@@ -5838,7 +5846,7 @@ export function CommunityTab({
   )
   /** 选中的工作区 id（空 = 还没选）。 */
   const [uploadWorkspaceId, setUploadWorkspaceId] = React.useState('')
-  /** 当前会话所在工作区的 id（宿主报的；用于默认选中与下拉标记）；`null` = 不可回传。 */
+  /** 当前会话所在工作区的 id。 */
   const [uploadCurrentWorkspaceId, setUploadCurrentWorkspaceId] = React.useState<string | null>(null)
   /** 选中工作区的文件清单（宿主 `mentor/uploadPlan`；`null` = 还没算）。 */
   const [uploadPlan, setUploadPlan] = React.useState<HostMentorUploadPlan | null>(null)
@@ -5992,7 +6000,12 @@ export function CommunityTab({
   const downloadKeyRef = React.useRef(downloadKey)
   downloadKeyRef.current = downloadKey
 
-  React.useEffect(() => { setDownload(null); downloadRequest.current += 1 }, [listScope])
+  React.useEffect(() => {
+    setDownload(null)
+    downloadRequest.current += 1
+    setExchange(null)
+    uploadSelectionRequest.current += 1
+  }, [listScope])
   /**
    * 能否用【可指导】视图。
    *
@@ -6285,18 +6298,13 @@ export function CommunityTab({
   const viewOf = (p: HostProposal): HostProposalView => proposalView(p, myAccountId)
 
   /**
-   * 打开【上传】对话框：先问宿主"本机有哪些工作区**可以回传**"。
-   *
-   * ⚠️ 这里**不自动拉清单**：清单是一次读盘扫描，用户还没看就扫一个几百 MB 的工作区
-   * 是白费力气（下拉选中哪个，才扫哪个）。
-   */
-  /**
    * 选工作区 → 拉文件清单（宿主扫描研究根，`mentor` 口径）。
    *
    * 默认勾选**推荐级**（研究状态 / 计划 / 论文 / 实验 / 评阅记录…）：导师回传的通常
    * 就是整份研究进展；文献原文之类的大件留给用户自己勾。
    */
   const selectUploadWorkspace = async (id: string): Promise<void> => {
+    const request = ++uploadSelectionRequest.current
     setUploadWorkspaceId(id)
     setUploadPlan(null)
     setUploadSelected(new Set())
@@ -6305,6 +6313,7 @@ export function CommunityTab({
     if (!id) return
     setUploadPlanLoading(true)
     const res = await post('mentor/uploadPlan', { workspaceId: id })
+    if (request !== uploadSelectionRequest.current || listScope !== currentListScope.current) return
     setUploadPlanLoading(false)
     if (!res.ok) {
       setExchangeNotice({ tone: 'error', text: res.error?.message ?? t('community.error.unknown') })
@@ -6315,26 +6324,23 @@ export function CommunityTab({
     setUploadSelected(new Set(v.plan.defaultSelection))
   }
 
-  /*
-   * ⚠️ 定义顺序有约束：`openExchange` 要按宿主播报的 `currentWorkspaceId` **默认选中**当前
-   * 会话的工作区，因此会调用下面这个函数。它是 `const`（不是函数声明），定义在 `openExchange`
-   * **之前**才不会踩 TDZ。改动这里时不要把它挪到后面。
-   */
   const openExchange = async (p: HostProposal): Promise<void> => {
+    const request = ++uploadSelectionRequest.current
     setExchangeNotice(null)
     setUploadWorkspaces(null)
     setUploadRegistry(null)
     setUploadWorkspaceId('')
     setUploadCurrentWorkspaceId(null)
     setUploadPlan(null)
+    setUploadPlanLoading(false)
     setUploadSelected(new Set())
     setUploadExpanded(new Set())
     setExchange({ proposal: p, mode: 'upload' })
-    // 带上 sessionId：宿主据此算出"当前会话的工作区"（界面默认选中它）。
-    // 旧宿主不认这个字段，会照常只返回 items —— 此时不预选，回退到"请选择"。
     const res = await post('mentor/uploadState', {
+      projectId: p.projectId,
       ...(session?.sessionId ? { sessionId: session.sessionId } : {}),
     })
+    if (request !== uploadSelectionRequest.current || listScope !== currentListScope.current) return
     if (!res.ok) {
       // 读不到 ≠ 没有：如实说原因（旧宿主没有这个端点 → unknown-endpoint → 提示重启）
       setUploadWorkspaces([])
@@ -6357,14 +6363,7 @@ export function CommunityTab({
     setUploadWorkspaces(items)
     setUploadCurrentWorkspaceId(v.currentWorkspaceId ?? null)
     setUploadRegistry({ available: v.available ?? false, reason: v.reason ?? null })
-    /*
-     * 默认选中**当前会话的工作区**（与【下载】同一行为）。选中后立刻拉清单 ——
-     * 与用户自己在下拉里选是同一个动作，走 `selectUploadWorkspace` 同一条路径，
-     * 不另开一条"预设"分支。
-     */
-    const preferred = v.currentWorkspaceId && items.some((w) => w.id === v.currentWorkspaceId)
-      ? v.currentWorkspaceId
-      : ''
+    const preferred = preferredMatchingWorkspace(items.filter((w) => w.matchesProject), v.currentWorkspaceId)
     if (preferred) void selectUploadWorkspace(preferred)
   }
 
@@ -6583,41 +6582,20 @@ export function CommunityTab({
       available: boolean
       reason: string | null
       expectedName: string
-      items: Array<{ id: string; title: string; path: string }>
-      /** v23 才有；旧宿主不返回 → 界面不显示校验状态。 */
+      items: Array<{ id: string; title: string; path: string } | HostDownloadTarget>
+      /** 部分宿主单独提供校验结果。 */
       targets?: HostDownloadTarget[]
       remoteWorkspaceId?: string | null
       currentWorkspaceId?: string | null
       protocol?: number
     }
-    /*
-     * v23 的校验状态只有在**宿主报了新协议号**时才用：光有字段不够 ——
-     * 旧宿主可能压根不返回 `targets`，这时按"完全没有校验"渲染（不假装校验过）。
-     */
     const supportsCheck = typeof v.protocol === 'number' && v.protocol >= HOST_PROTOCOL_MIN_FOR_CHECK
-    const targets = supportsCheck && Array.isArray(v.targets) ? v.targets : null
-    /*
-     * 预选优先级（v23 起）：
-     *   ① **当前会话的工作区** —— 它是唯一"下载完能把提示词填进去"的目标（agent 只写得进
-     *      自己会话的工作区），所以**默认就选它**；
-     *   ② 这项工作**已发布到的那个工作区**（学生侧指导意见该落回那里）；
-     *   ③ 第一个。
-     *
-     * ⚠️ 这里**不按判定过滤**：判定只决定提示词说什么，不决定"能不能下" ——
-     * 早先有一版会把 `other` / `missing` 从预选里跳过，结果"当前工作区恰好是另一项研究"时
-     * 默认落到别处，用户会以为提示词填不进去是坏了。
-     */
-    const current = v.currentWorkspaceId ? v.items.find((w) => w.id === v.currentWorkspaceId) : undefined
-    /*
-     * ② 这项工作**已发布到的那个工作区**（学生侧指导意见该落回那里）。
-     * v0.6.0：`published` 变成"一个方向一条记录"，所以按 `projectId` 在数组里找
-     * —— 项目 id 在整个服务器上唯一，方向不必再比一次。
-     */
-    const own = v.items.find((w) =>
-      (mine ?? []).some((m) => m.id === w.id && m.published.some((r) => r.projectId === p.projectId)),
+    const itemTargets = v.items.filter((w): w is HostDownloadTarget => 'status' in w)
+    const targets = supportsCheck ? (itemTargets.length ? itemTargets : v.targets ?? null) : null
+    const matches = v.items.filter((w) =>
+      targets?.some((target) => target.id === w.id && target.status === 'same'),
     )
-    const preferred = [current, own, ...v.items].find(Boolean)
-    if (!session?.downloadTasks) setDownloadBusy(false)
+    setDownloadBusy(false)
     setDownload({
       proposal: p,
       source,
@@ -6625,7 +6603,7 @@ export function CommunityTab({
       workspaces: v.items,
       available: v.available,
       reason: v.reason,
-      selection: preferred?.id ?? '',
+      selection: preferredMatchingWorkspace(matches, v.currentWorkspaceId),
       files: v.files,
       bytes: v.bytes,
       fileName: v.expectedName,
@@ -8298,7 +8276,10 @@ export function CommunityTab({
           onCancelUpload={session?.uploadTasks && uploadTasks[`mentor:${exchange.proposal.projectId}`]?.canCancel
             ? () => void cancelUpload('mentor', exchange.proposal.projectId) : undefined}
           onUpload={() => void runUpload()}
-          onClose={() => setExchange(null)}
+          onClose={() => {
+            uploadSelectionRequest.current += 1
+            setExchange(null)
+          }}
         />
       ) : null}
 

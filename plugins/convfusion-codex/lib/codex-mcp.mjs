@@ -15427,6 +15427,27 @@ function createSettingsRpcHandler(deps) {
               continue;
             items.push({ id: w.id, title: w.title, path: canonical, root });
           }
+          const projectId = asString3(p.projectId);
+          if (projectId && items.length) {
+            const config = deps.getConfig();
+            const apiKey = resolveConvFusionApiKey(config, env());
+            if (apiKey) {
+              try {
+                const base = resolveServerUrl(config, env()).url;
+                const { workspaceId } = await fetchProjectFilesWithIdentity(base, apiKey, projectId, {
+                  ...netOptions(),
+                  timeoutMs: Math.min(deps.serverTimeoutMs ?? 5e3, 5e3)
+                });
+                if (workspaceId) {
+                  for (const item of items) {
+                    const local = readLocalIdentity(item.root, deps.workIdentity, { requireVerifiedMarker: true });
+                    item.matchesProject = local.workspaceId === workspaceId;
+                  }
+                }
+              } catch {
+              }
+            }
+          }
           const sessionId = asString3(p.sessionId);
           const sessionWorkspace = sessionId ? deps.resolveSessionWorkspace?.(sessionId) : void 0;
           let currentCanonical = null;
@@ -15445,7 +15466,7 @@ function createSettingsRpcHandler(deps) {
               // ⚠️ 读不到 ≠ 没有：`reason` 必须说清是"读不到"（否则界面会显示成"本机没有研究工作区"）
               reason: listed?.reason ?? (listed ? null : "\u5BBF\u4E3B\u672A\u63D0\u4F9B\u5DE5\u4F5C\u533A\u6CE8\u518C\u8868\u8BFB\u53D6\u63A5\u53E3"),
               items,
-              /** 当前会话所在工作区的注册表 id（界面预选用）；`null` = 会话工作区不可回传。 */
+              /** 当前会话所在工作区的注册表 id。 */
               currentWorkspaceId: current?.id ?? null
             }
           };

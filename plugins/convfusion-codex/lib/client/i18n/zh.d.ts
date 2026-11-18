@@ -360,6 +360,10 @@ export declare const zh: {
     'community.mentor.acceptFundedOnly': string;
     'community.mentor.acceptNoFunded': string;
     'community.exchange.downloadTitle': string;
+    'community.exchange.matchingDestinations': string;
+    'community.exchange.noMatchingDestination': string;
+    'community.exchange.otherDestinations': string;
+    'community.exchange.chooseDestination': string;
     'community.exchange.sizeBadge': string;
     'community.exchange.zipOnly': string;
     'community.exchange.destHint': string;

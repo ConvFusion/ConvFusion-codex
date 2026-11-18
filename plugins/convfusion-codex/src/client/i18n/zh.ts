@@ -419,6 +419,10 @@ export const zh = {
   // 下载 = 把服务器上的工作区快照 **只当成一个 ZIP 存下来**，写进用户选的 DSH 工作区
   // （不走浏览器默认下载，也不输地址；解压与整理交给用户自己处理）
   'community.exchange.downloadTitle': '下载到工作区',
+  'community.exchange.matchingDestinations': '与这项研究匹配的工作区',
+  'community.exchange.noMatchingDestination': '没有已确认匹配的工作区，请选择保存位置。',
+  'community.exchange.otherDestinations': '选择其他保存位置',
+  'community.exchange.chooseDestination': '请选择保存位置',
   'community.exchange.sizeBadge': '{files} 个文件 · {size}',
   'community.exchange.zipOnly': '只把 ZIP 保存到所选工作区，不解压，其余你自己处理。',
   'community.exchange.destHint': '预计保存到：{dest}',
