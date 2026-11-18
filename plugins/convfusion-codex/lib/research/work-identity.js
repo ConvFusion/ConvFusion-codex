@@ -292,20 +292,21 @@ export function createMemoryWorkIdentityStore(seed = {}) {
  *
  * @param researchRoot 研究根（真身路径）。
  * @param store 注册表；缺省 = 没有第二级。
+ * @param requireVerifiedMarker 发布使用严格校验，标记须与研究指纹或当前目录的注册表一致。
  */
-export function readLocalIdentity(researchRoot, store) {
+export function readLocalIdentity(researchRoot, store, { requireVerifiedMarker = false } = {}) {
     const marker = readWorkMarker(researchRoot);
     const fingerprint = researchRootFingerprint(researchRoot);
     const entry = store?.get(researchRoot);
     if (marker?.rootFingerprint && fingerprint && marker.rootFingerprint !== fingerprint) {
         return { workspaceId: null, source: 'marker', conflict: true };
     }
-    /*
-     * 注册表项的**指纹核对**：注册表按路径存、路径会换住户 ——
-     * 只有"写这条记录时的研究根指纹"与当前一致才采信；老记录没有指纹 → 不采信。
-     */
-    const registryTrusted = Boolean(entry?.rootFingerprint && entry.rootFingerprint === fingerprint &&
-        entry.directoryIdentity && entry.directoryIdentity === researchDirectoryIdentity(researchRoot));
+    // 旧格式研究可能没有 created_at。发布时可用插件写入的目录实例佐证这类身份。
+    const registryFingerprintMatches = entry?.rootFingerprint
+        ? entry.rootFingerprint === fingerprint
+        : requireVerifiedMarker && fingerprint === null;
+    const registryTrusted = Boolean(registryFingerprintMatches && entry?.directoryIdentity &&
+        entry.directoryIdentity === researchDirectoryIdentity(researchRoot));
     const registry = registryTrusted ? normalizeWorkspaceId(entry?.workspaceId) : null;
     if (marker && registry) {
         if (marker.workspaceId === registry) {
@@ -313,8 +314,12 @@ export function readLocalIdentity(researchRoot, store) {
         }
         return { workspaceId: null, source: 'both', conflict: true };
     }
-    if (marker)
+    if (marker) {
+        if (requireVerifiedMarker && (!fingerprint || marker.rootFingerprint !== fingerprint)) {
+            return { workspaceId: null, source: 'marker', conflict: true };
+        }
         return { workspaceId: marker.workspaceId, source: 'marker', conflict: false };
+    }
     if (registry)
         return { workspaceId: registry, source: 'registry', conflict: false };
     return { workspaceId: null, source: null, conflict: false };

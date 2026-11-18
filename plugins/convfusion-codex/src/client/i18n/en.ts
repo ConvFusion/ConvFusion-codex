@@ -150,7 +150,7 @@ export const en = {
   'community.publish.confirm': 'Publish',
   'community.publish.asNew': 'Publish as new research',
   'community.publish.asNewHint': 'Select this only if the current folder contains a separate study. This creates a new listing.',
-  'community.publish.identityConflict': 'The current folder and the previous publication identify different studies. Check which study is open before publishing.',
+  'community.publish.identityConflict': 'The local study ID could not be verified for this folder. Check which study is open before publishing.',
   'community.action.cancel': 'Cancel',
   'community.action.close': 'Close',
   'community.action.viewMentor': 'Mentor',

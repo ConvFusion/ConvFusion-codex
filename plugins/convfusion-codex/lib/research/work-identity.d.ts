@@ -165,7 +165,7 @@ export interface LocalIdentity {
     /** 从哪读到的。 */
     source: 'marker' | 'registry' | 'both' | null;
     /**
-     * 标记与注册表**都有值且不同**。
+     * 标记与注册表的身份不一致，或严格校验时无法验证标记归属。
      *
      * 这时 `workspaceId` 归 `null`（判不了），界面按"无法确认"处理并额外说明 ——
      * 静默取一个就可能把 A 的研究融合进 B 的工作区。
@@ -177,8 +177,11 @@ export interface LocalIdentity {
  *
  * @param researchRoot 研究根（真身路径）。
  * @param store 注册表；缺省 = 没有第二级。
+ * @param requireVerifiedMarker 发布使用严格校验，标记须与研究指纹或当前目录的注册表一致。
  */
-export declare function readLocalIdentity(researchRoot: string, store?: Pick<WorkIdentityStore, 'get'> | undefined): LocalIdentity;
+export declare function readLocalIdentity(researchRoot: string, store?: Pick<WorkIdentityStore, 'get'> | undefined, { requireVerifiedMarker }?: {
+    requireVerifiedMarker?: boolean | undefined;
+}): LocalIdentity;
 /** 目标工作区的判定结论。 */
 export type WorkspaceStatus =
 /** 还没有研究工作区 → 允许，按**新建**处理。 */

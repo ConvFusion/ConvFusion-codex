@@ -1495,10 +1495,10 @@ export function createSettingsRpcHandler(
   }
 
   const publicationIdentity = (root: string): ReturnType<typeof readLocalIdentity> => {
-    const identity = readLocalIdentity(root, deps.workIdentity)
+    const identity = readLocalIdentity(root, deps.workIdentity, { requireVerifiedMarker: true })
     const fingerprint = researchRootFingerprint(root)
     if (!identity.workspaceId || !fingerprint) return identity
-    // 旧版标记没有指纹。用已落盘的发布凭据识别带着旧标记换入的研究目录。
+    // 已落盘的发布指纹还能识别后来误写到另一项研究的身份。
     const mismatched = Object.values(publishedStore.all()).some((record) =>
       record.workId === identity.workspaceId && record.rootFingerprint && record.rootFingerprint !== fingerprint,
     )
@@ -1755,6 +1755,7 @@ export function createSettingsRpcHandler(
     item: { root: string; title: string },
     base: string,
     direction: ProjectDirection,
+    workId: string | null,
   ): Promise<PublishedRecord | undefined> => {
     const root = item.root
     const record = publishedStore.get(root, direction)
@@ -1768,7 +1769,7 @@ export function createSettingsRpcHandler(
     const mine = await attributeRecord(
       root,
       record,
-      readLocalIdentity(root, deps.workIdentity).workspaceId,
+      workId,
       researchRootFingerprint(root),
       researchWorkName(root, item.title).name,
     )
@@ -2471,7 +2472,7 @@ export function createSettingsRpcHandler(
           const directory = source.directory
           const localIdentity = publicationIdentity(source.root)
           const fingerprint = researchRootFingerprint(source.root)
-          const record = localIdentity.conflict ? undefined : await recordOn(source, base, direction)
+          const record = localIdentity.conflict ? undefined : await recordOn(source, base, direction, localIdentity.workspaceId)
           const publicationTarget = createHash('sha256').update(JSON.stringify([
             base, direction, directory, fingerprint, localIdentity.workspaceId, localIdentity.conflict, record?.projectId,
           ])).digest('hex')
@@ -2579,7 +2580,7 @@ export function createSettingsRpcHandler(
           const target = asString(p.publicationTarget)
           if (publishAsNew && !target) return fail('bad-request', '请打开发布确认窗口后选择「作为新研究发布」。')
           if (localIdentity.conflict && !publishAsNew) {
-            return fail('work-identity-conflict', '当前目录与原发布记录的研究身份不符。确认是另一项研究后，请选择「作为新研究发布」。')
+            return fail('work-identity-conflict', '无法确认本机研究标识属于当前目录。确认是另一项研究后，请选择「作为新研究发布」。')
           }
           /**
            * 附件选择：界面在对话框里确认后传进来。
@@ -2599,7 +2600,7 @@ export function createSettingsRpcHandler(
               generatedAt: new Date().toISOString(),
             })
             // ⚠️ 同上：另一台服务器 / 另一个方向的记录不能当"上次传过"用
-            const savedRecord = localIdentity.conflict ? undefined : await recordOn(source, base, direction)
+            const savedRecord = localIdentity.conflict ? undefined : await recordOn(source, base, direction, localIdentity.workspaceId)
             const expectedTarget = createHash('sha256').update(JSON.stringify([
               base, direction, directory, fingerprint, localIdentity.workspaceId, localIdentity.conflict, savedRecord?.projectId,
             ])).digest('hex')
@@ -2625,7 +2626,9 @@ export function createSettingsRpcHandler(
              * ⚠️ 判据按**服务器**分：换一台服务器是另一个网络，两边各自成立。
              */
             const otherDirection = PROJECT_DIRECTIONS.find((d) => d !== direction)
-            const otherRecord = !publishAsNew && otherDirection ? await recordOn(source, base, otherDirection) : undefined
+            const otherRecord = !publishAsNew && otherDirection
+              ? await recordOn(source, base, otherDirection, localIdentity.workspaceId)
+              : undefined
             if (otherRecord && !previous) {
               const otherLabel = otherDirection === 'SEEK_STUDENT' ? '导师出题（招学生）' : '学生发布工作（求指导）'
               return fail(

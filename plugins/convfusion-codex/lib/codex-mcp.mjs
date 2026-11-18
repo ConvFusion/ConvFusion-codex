@@ -1854,14 +1854,15 @@ function createFileWorkIdentityStore(resolvePath) {
     }
   };
 }
-function readLocalIdentity(researchRoot2, store) {
+function readLocalIdentity(researchRoot2, store, { requireVerifiedMarker = false } = {}) {
   const marker = readWorkMarker(researchRoot2);
   const fingerprint = researchRootFingerprint(researchRoot2);
   const entry = store?.get(researchRoot2);
   if (marker?.rootFingerprint && fingerprint && marker.rootFingerprint !== fingerprint) {
     return { workspaceId: null, source: "marker", conflict: true };
   }
-  const registryTrusted = Boolean(entry?.rootFingerprint && entry.rootFingerprint === fingerprint && entry.directoryIdentity && entry.directoryIdentity === researchDirectoryIdentity(researchRoot2));
+  const registryFingerprintMatches = entry?.rootFingerprint ? entry.rootFingerprint === fingerprint : requireVerifiedMarker && fingerprint === null;
+  const registryTrusted = Boolean(registryFingerprintMatches && entry?.directoryIdentity && entry.directoryIdentity === researchDirectoryIdentity(researchRoot2));
   const registry = registryTrusted ? normalizeWorkspaceId(entry?.workspaceId) : null;
   if (marker && registry) {
     if (marker.workspaceId === registry) {
@@ -1869,8 +1870,12 @@ function readLocalIdentity(researchRoot2, store) {
     }
     return { workspaceId: null, source: "both", conflict: true };
   }
-  if (marker)
+  if (marker) {
+    if (requireVerifiedMarker && (!fingerprint || marker.rootFingerprint !== fingerprint)) {
+      return { workspaceId: null, source: "marker", conflict: true };
+    }
     return { workspaceId: marker.workspaceId, source: "marker", conflict: false };
+  }
   if (registry)
     return { workspaceId: registry, source: "registry", conflict: false };
   return { workspaceId: null, source: null, conflict: false };
@@ -13936,7 +13941,7 @@ function createSettingsRpcHandler(deps) {
     return nameAtPublish === workName.trim() ? "mine" : "unknown";
   };
   const publicationIdentity = (root) => {
-    const identity = readLocalIdentity(root, deps.workIdentity);
+    const identity = readLocalIdentity(root, deps.workIdentity, { requireVerifiedMarker: true });
     const fingerprint = researchRootFingerprint(root);
     if (!identity.workspaceId || !fingerprint)
       return identity;
@@ -14103,14 +14108,14 @@ function createSettingsRpcHandler(deps) {
     }
     return scoped;
   };
-  const recordOn = async (item, base, direction) => {
+  const recordOn = async (item, base, direction, workId) => {
     const root = item.root;
     const record = publishedStore.get(root, direction);
     if (!record)
       return void 0;
     if (serverAddressKey(record.serverUrl) !== serverAddressKey(base))
       return void 0;
-    const mine = await attributeRecord(root, record, readLocalIdentity(root, deps.workIdentity).workspaceId, researchRootFingerprint(root), researchWorkName(root, item.title).name);
+    const mine = await attributeRecord(root, record, workId, researchRootFingerprint(root), researchWorkName(root, item.title).name);
     return mine === "mine" ? record : void 0;
   };
   const syncRecordsFromWorkList = (items) => {
@@ -14704,7 +14709,7 @@ function createSettingsRpcHandler(deps) {
           const directory = source.directory;
           const localIdentity = publicationIdentity(source.root);
           const fingerprint = researchRootFingerprint(source.root);
-          const record = localIdentity.conflict ? void 0 : await recordOn(source, base, direction);
+          const record = localIdentity.conflict ? void 0 : await recordOn(source, base, direction, localIdentity.workspaceId);
           const publicationTarget = createHash2("sha256").update(JSON.stringify([
             base,
             direction,
@@ -14802,7 +14807,7 @@ function createSettingsRpcHandler(deps) {
           if (publishAsNew && !target)
             return fail("bad-request", "\u8BF7\u6253\u5F00\u53D1\u5E03\u786E\u8BA4\u7A97\u53E3\u540E\u9009\u62E9\u300C\u4F5C\u4E3A\u65B0\u7814\u7A76\u53D1\u5E03\u300D\u3002");
           if (localIdentity.conflict && !publishAsNew) {
-            return fail("work-identity-conflict", "\u5F53\u524D\u76EE\u5F55\u4E0E\u539F\u53D1\u5E03\u8BB0\u5F55\u7684\u7814\u7A76\u8EAB\u4EFD\u4E0D\u7B26\u3002\u786E\u8BA4\u662F\u53E6\u4E00\u9879\u7814\u7A76\u540E\uFF0C\u8BF7\u9009\u62E9\u300C\u4F5C\u4E3A\u65B0\u7814\u7A76\u53D1\u5E03\u300D\u3002");
+            return fail("work-identity-conflict", "\u65E0\u6CD5\u786E\u8BA4\u672C\u673A\u7814\u7A76\u6807\u8BC6\u5C5E\u4E8E\u5F53\u524D\u76EE\u5F55\u3002\u786E\u8BA4\u662F\u53E6\u4E00\u9879\u7814\u7A76\u540E\uFF0C\u8BF7\u9009\u62E9\u300C\u4F5C\u4E3A\u65B0\u7814\u7A76\u53D1\u5E03\u300D\u3002");
           }
           const selectionProvided = Array.isArray(p.selection);
           const remember = p.remember !== false;
@@ -14814,7 +14819,7 @@ function createSettingsRpcHandler(deps) {
               progress: source.progress,
               generatedAt: (/* @__PURE__ */ new Date()).toISOString()
             });
-            const savedRecord = localIdentity.conflict ? void 0 : await recordOn(source, base, direction);
+            const savedRecord = localIdentity.conflict ? void 0 : await recordOn(source, base, direction, localIdentity.workspaceId);
             const expectedTarget = createHash2("sha256").update(JSON.stringify([
               base,
               direction,
@@ -14834,7 +14839,7 @@ function createSettingsRpcHandler(deps) {
             }
             const previous = publishAsNew ? void 0 : savedRecord;
             const otherDirection = PROJECT_DIRECTIONS.find((d) => d !== direction);
-            const otherRecord = !publishAsNew && otherDirection ? await recordOn(source, base, otherDirection) : void 0;
+            const otherRecord = !publishAsNew && otherDirection ? await recordOn(source, base, otherDirection, localIdentity.workspaceId) : void 0;
             if (otherRecord && !previous) {
               const otherLabel = otherDirection === "SEEK_STUDENT" ? "\u5BFC\u5E08\u51FA\u9898\uFF08\u62DB\u5B66\u751F\uFF09" : "\u5B66\u751F\u53D1\u5E03\u5DE5\u4F5C\uFF08\u6C42\u6307\u5BFC\uFF09";
               return fail("already-published", `\u8FD9\u9879\u5DE5\u4F5C\u5DF2\u7ECF\u4EE5\u300C${otherLabel}\u300D\u53D1\u5E03\u8FC7\u4E86\u3002\u4E00\u4E2A\u7814\u7A76\u5DE5\u4F5C\u53EA\u80FD\u5C5E\u4E8E\u4E00\u4E2A\u65B9\u5411 \u2014\u2014 \u8981\u7EE7\u7EED\u66F4\u65B0\u8BF7\u70B9\u540C\u4E00\u4E2A\u6309\u94AE\uFF08\u3010\u66F4\u65B0\u3011\uFF09\uFF0C\u4E0D\u80FD\u6539\u53D1\u5230\u53E6\u4E00\u4E2A\u65B9\u5411\u3002`);
@@ -17358,7 +17363,7 @@ function createCodexUiHost(options = {}) {
     listLocalWorkspaces: async () => ({ available: true, items: workspaceRows() }),
     paidBriefStore: createFilePaidBriefStore(() => path("paid-briefs.json")),
     publishedStore: createFilePublishedStore(() => path("published.json"), {
-      workIdOf: (root) => readLocalIdentity(root, workIdentity).workspaceId,
+      workIdOf: (root) => readLocalIdentity(root, workIdentity, { requireVerifiedMarker: true }).workspaceId,
       fingerprintOf: researchRootFingerprint
     }),
     syncStore: createFileSyncWatermarkStore(() => path("sync-watermarks.json")),

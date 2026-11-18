@@ -323,10 +323,16 @@ async function verifyResearchSwap(temp) {
     assert.equal((await call('account/login', { apiKey: 'cf_live_swap_fixture', serverUrl: 'https://fixture.example.com' })).ok, true)
     const rowA = (await mine()).find((item) => !item.detached)
     const publishedA = await publish(rowA.id, await plan(rowA.id)); assert.equal(publishedA.ok, true, JSON.stringify(publishedA))
-    const stored = JSON.parse(await readFile(join(home, 'published.json'), 'utf8'))
+    const publishedPath = join(home, 'published.json')
+    const stored = JSON.parse(await readFile(publishedPath, 'utf8'))
     assert.ok(Object.keys(stored).some((key) => key.includes('ws_11111111111111111111111111111111')), 'adapter must wire identity-keyed file storage')
     const markerPath = join(live, '.convfusion', 'work.json')
     const marker = await readFile(markerPath, 'utf8')
+    const copiedMarker = JSON.parse(marker)
+    delete copiedMarker.root_fingerprint
+    await writeFile(markerPath, JSON.stringify(copiedMarker))
+    assert.equal((await mine()).find((item) => !item.detached).workId, projects.get('project-1').workspace_id,
+      'a registry entry for this directory can verify a marker without a fingerprint')
     await rm(markerPath)
     assert.equal((await mine()).find((item) => !item.detached).workId, projects.get('project-1').workspace_id, 'the on-disk registry can recover a missing marker in the same directory')
     const oldPlan = await plan(rowA.id)
@@ -344,18 +350,21 @@ async function verifyResearchSwap(temp) {
     assert.equal(projects.size, 2, 'new research must create a different server project')
     assert.notEqual(projects.get('project-1').workspace_id, projects.get('project-2').workspace_id, 'equal created_at values must not share an identity')
     assert.ok(writes.some((write) => write.id === 'project-2' && write.action === 'uploads'))
-    const copiedMarker = JSON.parse(marker)
-    delete copiedMarker.root_fingerprint
     await mkdir(join(stashC, '.convfusion'))
     await writeFile(join(stashC, '.convfusion', 'work.json'), JSON.stringify(copiedMarker))
     await rename(live, stashB); await rename(stashC, live)
-    const rowC = (await mine()).find((item) => !item.detached)
+    const savedWithB = await readFile(publishedPath, 'utf8')
+    await writeFile(publishedPath, '{}\n')
+    const rowsWithEmptyCache = await mine()
+    const rowC = rowsWithEmptyCache.find((item) => !item.detached)
     assert.equal(rowC.workId, null)
     assert.deepEqual(rowC.published, [])
+    assert.ok(rowsWithEmptyCache.some((item) => item.detached && item.published.some((record) => record.projectId === 'project-1')))
     const conflictPlan = await plan(rowC.id)
     assert.equal(conflictPlan.identityConflict, true)
     assert.equal((await publish(rowC.id, conflictPlan)).error.code, 'work-identity-conflict')
     assert.equal(writes.length, 4, 'conflicting marker must not write to the original project')
+    await writeFile(publishedPath, savedWithB)
     failPublish = true
     assert.equal((await publish(rowC.id, conflictPlan, true)).ok, false)
     const publishedC = await publish(rowC.id, conflictPlan, true)
@@ -374,5 +383,18 @@ async function verifyResearchSwap(temp) {
     assert.equal(updated.value.published.version, 2)
     listAvailable = false
     assert.equal((await mine()).find((item) => !item.detached).published[0].projectId, 'project-1', 'local records remain usable when server listing fails')
+    listAvailable = true
+    await rename(live, stashA)
+    await mkdir(live)
+    await writeFile(join(live, 'project.md'), '---\ntopic: Research without created_at\n---\n')
+    await writeFile(join(live, 'research-state.md'), '# Research without created_at\n\n- Version: v1\n')
+    const undated = (await mine()).find((item) => !item.detached)
+    const firstUndated = await publish(undated.id, await plan(undated.id))
+    assert.equal(firstUndated.ok, true, JSON.stringify(firstUndated))
+    await rm(markerPath)
+    const updatedUndated = await publish(undated.id, await plan(undated.id))
+    assert.equal(updatedUndated.ok, true, JSON.stringify(updatedUndated))
+    assert.equal(updatedUndated.value.published.projectId, firstUndated.value.published.projectId,
+      'a verified directory can reuse its project even without a marker or created_at')
   } finally { await swapHost.close() }
 }

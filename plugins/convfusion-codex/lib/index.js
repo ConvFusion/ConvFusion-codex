@@ -141,7 +141,7 @@ export function apply(ctx, liveConfig = {}) {
          *
          * ⚠️ `workIdentityStore` 在下面才创建：这个闭包只在 RPC 调用时求值，那时它已就绪。
          */
-        workIdOf: (root) => readLocalIdentity(root, workIdentityStore).workspaceId,
+        workIdOf: (root) => readLocalIdentity(root, workIdentityStore, { requireVerifiedMarker: true }).workspaceId,
         fingerprintOf: researchRootFingerprint,
     });
     /**

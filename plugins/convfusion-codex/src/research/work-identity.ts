@@ -359,7 +359,7 @@ export interface LocalIdentity {
   /** 从哪读到的。 */
   source: 'marker' | 'registry' | 'both' | null
   /**
-   * 标记与注册表**都有值且不同**。
+   * 标记与注册表的身份不一致，或严格校验时无法验证标记归属。
    *
    * 这时 `workspaceId` 归 `null`（判不了），界面按"无法确认"处理并额外说明 ——
    * 静默取一个就可能把 A 的研究融合进 B 的工作区。
@@ -372,10 +372,12 @@ export interface LocalIdentity {
  *
  * @param researchRoot 研究根（真身路径）。
  * @param store 注册表；缺省 = 没有第二级。
+ * @param requireVerifiedMarker 发布使用严格校验，标记须与研究指纹或当前目录的注册表一致。
  */
 export function readLocalIdentity(
   researchRoot: string,
   store?: Pick<WorkIdentityStore, 'get'> | undefined,
+  { requireVerifiedMarker = false } = {},
 ): LocalIdentity {
   const marker = readWorkMarker(researchRoot)
   const fingerprint = researchRootFingerprint(researchRoot)
@@ -383,13 +385,13 @@ export function readLocalIdentity(
   if (marker?.rootFingerprint && fingerprint && marker.rootFingerprint !== fingerprint) {
     return { workspaceId: null, source: 'marker', conflict: true }
   }
-  /*
-   * 注册表项的**指纹核对**：注册表按路径存、路径会换住户 ——
-   * 只有"写这条记录时的研究根指纹"与当前一致才采信；老记录没有指纹 → 不采信。
-   */
+  // 旧格式研究可能没有 created_at。发布时可用插件写入的目录实例佐证这类身份。
+  const registryFingerprintMatches = entry?.rootFingerprint
+    ? entry.rootFingerprint === fingerprint
+    : requireVerifiedMarker && fingerprint === null
   const registryTrusted = Boolean(
-    entry?.rootFingerprint && entry.rootFingerprint === fingerprint &&
-      entry.directoryIdentity && entry.directoryIdentity === researchDirectoryIdentity(researchRoot),
+    registryFingerprintMatches && entry?.directoryIdentity &&
+      entry.directoryIdentity === researchDirectoryIdentity(researchRoot),
   )
   const registry = registryTrusted ? normalizeWorkspaceId(entry?.workspaceId) : null
   if (marker && registry) {
@@ -398,7 +400,12 @@ export function readLocalIdentity(
     }
     return { workspaceId: null, source: 'both', conflict: true }
   }
-  if (marker) return { workspaceId: marker.workspaceId, source: 'marker', conflict: false }
+  if (marker) {
+    if (requireVerifiedMarker && (!fingerprint || marker.rootFingerprint !== fingerprint)) {
+      return { workspaceId: null, source: 'marker', conflict: true }
+    }
+    return { workspaceId: marker.workspaceId, source: 'marker', conflict: false }
+  }
   if (registry) return { workspaceId: registry, source: 'registry', conflict: false }
   return { workspaceId: null, source: null, conflict: false }
 }

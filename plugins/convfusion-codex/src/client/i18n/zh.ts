@@ -151,7 +151,7 @@ export const zh = {
   'community.publish.confirm': '发布',
   'community.publish.asNew': '作为新研究发布',
   'community.publish.asNewHint': '仅当当前目录是另一项研究时勾选。该操作会新建一条发布。',
-  'community.publish.identityConflict': '当前目录与原发布记录的研究身份不符。请先确认当前打开的是哪项研究。',
+  'community.publish.identityConflict': '无法确认本机研究标识属于当前目录。请先确认当前打开的是哪项研究。',
   'community.action.cancel': '取消',
   'community.action.close': '关闭',
   'community.action.viewMentor': '导师',

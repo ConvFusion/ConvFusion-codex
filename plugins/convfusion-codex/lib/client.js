@@ -238,7 +238,7 @@ window.__ModuleLoader__.load({
 		  "community.publish.confirm": "Publish",
 		  "community.publish.asNew": "Publish as new research",
 		  "community.publish.asNewHint": "Select this only if the current folder contains a separate study. This creates a new listing.",
-		  "community.publish.identityConflict": "The current folder and the previous publication identify different studies. Check which study is open before publishing.",
+		  "community.publish.identityConflict": "The local study ID could not be verified for this folder. Check which study is open before publishing.",
 		  "community.action.cancel": "Cancel",
 		  "community.action.close": "Close",
 		  "community.action.viewMentor": "Mentor",
@@ -1048,7 +1048,7 @@ window.__ModuleLoader__.load({
 		  "community.publish.confirm": "发布",
 		  "community.publish.asNew": "作为新研究发布",
 		  "community.publish.asNewHint": "仅当当前目录是另一项研究时勾选。该操作会新建一条发布。",
-		  "community.publish.identityConflict": "当前目录与原发布记录的研究身份不符。请先确认当前打开的是哪项研究。",
+		  "community.publish.identityConflict": "无法确认本机研究标识属于当前目录。请先确认当前打开的是哪项研究。",
 		  "community.action.cancel": "取消",
 		  "community.action.close": "关闭",
 		  "community.action.viewMentor": "导师",
@@ -3076,7 +3076,7 @@ window.__ModuleLoader__.load({
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
 		          !view && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { style: S.hint, title: t("settings.uiBuild.tip"), children: [
 		            "ui ",
-		            "1117-1658"
+		            "1118-1132"
 		          ] }),
 		          update ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "a",
@@ -7766,7 +7766,7 @@ window.__ModuleLoader__.load({
 		    ] }),
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { style: { ...S.hint, display: "block", marginTop: 10 }, title: t("settings.uiBuild.tip"), children: [
 		      "ui ",
-		      "1117-1658"
+		      "1118-1132"
 		    ] })
 		  ] });
 		}

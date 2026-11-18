@@ -97,7 +97,7 @@ export function createCodexUiHost(options = {}) {
     listLocalWorkspaces: async () => ({ available: true, items: workspaceRows() }),
     paidBriefStore: createFilePaidBriefStore(() => path('paid-briefs.json')),
     publishedStore: createFilePublishedStore(() => path('published.json'), {
-      workIdOf: (root) => readLocalIdentity(root, workIdentity).workspaceId,
+      workIdOf: (root) => readLocalIdentity(root, workIdentity, { requireVerifiedMarker: true }).workspaceId,
       fingerprintOf: researchRootFingerprint,
     }),
     syncStore: createFileSyncWatermarkStore(() => path('sync-watermarks.json')),
