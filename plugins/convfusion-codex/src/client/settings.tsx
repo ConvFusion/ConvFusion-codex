@@ -4839,10 +4839,11 @@ export function DownloadDialog({
   const matching = (workspaces ?? []).filter((w) => isMatch(w.id))
   const other = (workspaces ?? []).filter((w) => !isMatch(w.id))
   const workspaceSelect = (options: NonNullable<typeof workspaces>, label: string) => (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+    <label style={S.field}>
       <span style={S.label}>{label}</span>
       <select
-        style={S.select}
+        style={{ ...S.select, minWidth: 0, boxSizing: 'border-box', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+        title={options.find((w) => w.id === selection)?.title}
         value={options.some((w) => w.id === selection) ? selection : ''}
         disabled={busy || Boolean(pickingFolder)}
         onChange={(e) => onSelect(e.target.value)}
@@ -4852,7 +4853,7 @@ export function DownloadDialog({
           const target = targetOf(w.id)
           const marks = [
             currentWorkspaceId === w.id ? t('community.exchange.ws.current') : '',
-            target ? statusBadge(t, target).label : '',
+            target && target.status !== 'same' ? statusBadge(t, target).label : '',
           ].filter(Boolean)
           return (
             <option key={w.id} value={w.id}>
@@ -4894,17 +4895,31 @@ export function DownloadDialog({
             <div style={S.hint}>{t('community.exchange.noWorkspaces')}</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {matching.length > 0
-                ? workspaceSelect(matching, t('community.exchange.matchingDestinations'))
-                : !chosen && <div style={S.hint}>{t('community.exchange.noMatchingDestination')}</div>}
-              {onBrowse ? (
-                <div>
-                  <button type="button" style={S.ghostBtn} disabled={busy || pickingFolder} onClick={onBrowse}>
-                    {t('community.exchange.otherDestinations')}
-                  </button>
-                  {pickingFolder ? <div role="status" style={S.hint}>{t('community.exchange.pickingFolder')}</div> : null}
+              {matching.length === 0 && !chosen && (
+                <div style={{
+                  ...S.hint,
+                  color: 'var(--dsw-alias-state-warn-primary)',
+                  background: 'var(--dsw-alias-state-warn-tertiary)',
+                  borderInlineStart: '3px solid currentColor',
+                  borderRadius: 6,
+                  padding: '8px 10px',
+                  fontWeight: 600,
+                }}>
+                  {t('community.exchange.noMatchingDestination')}
                 </div>
-              ) : other.length > 0 ? (
+              )}
+              {(matching.length > 0 || onBrowse) && (
+                <div style={{ ...S.inlineRow, alignItems: 'flex-end' }}>
+                  {matching.length > 0 && workspaceSelect(matching, t('community.exchange.matchingDestinations'))}
+                  {onBrowse && (
+                    <button type="button" style={S.ghostBtn} disabled={busy || pickingFolder} onClick={onBrowse}>
+                      {t('community.exchange.otherDestinations')}
+                    </button>
+                  )}
+                </div>
+              )}
+              {onBrowse && pickingFolder ? <div role="status" style={S.hint}>{t('community.exchange.pickingFolder')}</div> : null}
+              {!onBrowse && other.length > 0 ? (
                 <details>
                   <summary style={{ ...S.label, cursor: 'pointer', marginBottom: 5 }}>
                     {t('community.exchange.otherDestinations')}

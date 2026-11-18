@@ -3090,7 +3090,7 @@ window.__ModuleLoader__.load({
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
 		          !view && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { style: S.hint, title: t("settings.uiBuild.tip"), children: [
 		            "ui ",
-		            "1118-1647"
+		            "1118-1707"
 		          ] }),
 		          update ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "a",
@@ -5015,12 +5015,13 @@ window.__ModuleLoader__.load({
 		  const isMatch = (id) => targetOf(id)?.status === "same";
 		  const matching = (workspaces ?? []).filter((w) => isMatch(w.id));
 		  const other = (workspaces ?? []).filter((w) => !isMatch(w.id));
-		  const workspaceSelect = (options, label) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
+		  const workspaceSelect = (options, label) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { style: S.field, children: [
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: label }),
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		      "select",
 		      {
-		        style: S.select,
+		        style: { ...S.select, minWidth: 0, boxSizing: "border-box", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+		        title: options.find((w) => w.id === selection)?.title,
 		        value: options.some((w) => w.id === selection) ? selection : "",
 		        disabled: busy || Boolean(pickingFolder),
 		        onChange: (e) => onSelect(e.target.value),
@@ -5030,7 +5031,7 @@ window.__ModuleLoader__.load({
 		            const target = targetOf(w.id);
 		            const marks = [
 		              currentWorkspaceId === w.id ? t("community.exchange.ws.current") : "",
-		              target ? statusBadge(t, target).label : ""
+		              target && target.status !== "same" ? statusBadge(t, target).label : ""
 		            ].filter(Boolean);
 		            return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: w.id, children: marks.length > 0 ? `${w.title}（${marks.join(" · ")}）` : w.title }, w.id);
 		          })
@@ -5050,11 +5051,21 @@ window.__ModuleLoader__.load({
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.zipOnly") }),
 		      files === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noSourceFiles") }) : null,
 		      !onBrowse && !workspacesAvailable ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: workspacesReason ?? t("community.exchange.noWorkspaces") }) : workspaces === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.action.loading") }) : workspaces.length === 0 && !onBrowse ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noWorkspaces") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 8 }, children: [
-		        matching.length > 0 ? workspaceSelect(matching, t("community.exchange.matchingDestinations")) : !chosen && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noMatchingDestination") }),
-		        onBrowse ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, disabled: busy || pickingFolder, onClick: onBrowse, children: t("community.exchange.otherDestinations") }),
-		          pickingFolder ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { role: "status", style: S.hint, children: t("community.exchange.pickingFolder") }) : null
-		        ] }) : other.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("details", { children: [
+		        matching.length === 0 && !chosen && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: {
+		          ...S.hint,
+		          color: "var(--dsw-alias-state-warn-primary)",
+		          background: "var(--dsw-alias-state-warn-tertiary)",
+		          borderInlineStart: "3px solid currentColor",
+		          borderRadius: 6,
+		          padding: "8px 10px",
+		          fontWeight: 600
+		        }, children: t("community.exchange.noMatchingDestination") }),
+		        (matching.length > 0 || onBrowse) && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.inlineRow, alignItems: "flex-end" }, children: [
+		          matching.length > 0 && workspaceSelect(matching, t("community.exchange.matchingDestinations")),
+		          onBrowse && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, disabled: busy || pickingFolder, onClick: onBrowse, children: t("community.exchange.otherDestinations") })
+		        ] }),
+		        onBrowse && pickingFolder ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { role: "status", style: S.hint, children: t("community.exchange.pickingFolder") }) : null,
+		        !onBrowse && other.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("details", { children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("summary", { style: { ...S.label, cursor: "pointer", marginBottom: 5 }, children: t("community.exchange.otherDestinations") }),
 		          workspaceSelect(other, t("community.exchange.workspaceLabel"))
 		        ] }) : null,
@@ -7862,7 +7873,7 @@ window.__ModuleLoader__.load({
 		    ] }),
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { style: { ...S.hint, display: "block", marginTop: 10 }, title: t("settings.uiBuild.tip"), children: [
 		      "ui ",
-		      "1118-1647"
+		      "1118-1707"
 		    ] })
 		  ] });
 		}
