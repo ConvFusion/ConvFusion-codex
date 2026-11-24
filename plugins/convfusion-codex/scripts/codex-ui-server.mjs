@@ -173,7 +173,12 @@ export function createCodexUiHost(options = {}) {
     const row = root ? registerWorkspace(root) : null
     let research = false
     try { research = Boolean(row && isResearchWorkspace(researchWorkspaceOf(row.path))) } catch { /* Keep the default view available. */ }
-    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? '研究工作台', version: pkg.version, autoCheckUpdates: autoCheckUpdates(), downloadTasks: true, pickDownloadFolder: true, uploadTasks: true, initialTab: research ? 'progress' : 'community' }
+    return {
+      workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? '研究工作台',
+      version: pkg.version, autoCheckUpdates: autoCheckUpdates(), downloadTasks: true,
+      pickDownloadFolder: true, uploadTasks: true, isResearchWorkspace: research,
+      initialTab: research ? 'progress' : 'community',
+    }
   }
   const dispatch = async (root, endpoint, payload, token) => {
     if (root) registerWorkspace(root)

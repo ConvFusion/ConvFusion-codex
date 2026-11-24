@@ -17647,7 +17647,18 @@ function createCodexUiHost(options = {}) {
       research = Boolean(row && isResearchWorkspace(researchWorkspaceOf(row.path)));
     } catch {
     }
-    return { workspaceRoot: row?.path ?? null, sessionId: row?.id ?? null, title: row?.title ?? "\u7814\u7A76\u5DE5\u4F5C\u53F0", version: pkg.version, autoCheckUpdates: autoCheckUpdates(), downloadTasks: true, pickDownloadFolder: true, uploadTasks: true, initialTab: research ? "progress" : "community" };
+    return {
+      workspaceRoot: row?.path ?? null,
+      sessionId: row?.id ?? null,
+      title: row?.title ?? "\u7814\u7A76\u5DE5\u4F5C\u53F0",
+      version: pkg.version,
+      autoCheckUpdates: autoCheckUpdates(),
+      downloadTasks: true,
+      pickDownloadFolder: true,
+      uploadTasks: true,
+      isResearchWorkspace: research,
+      initialTab: research ? "progress" : "community"
+    };
   };
   const dispatch = async (root, endpoint, payload, token) => {
     if (root) registerWorkspace(root);

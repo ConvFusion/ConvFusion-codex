@@ -8,7 +8,7 @@ import { WorkbenchSettings, type UpdateCheckResult, type WorkbenchLanguage } fro
 import { dictionaries, type Translate } from './i18n/index.js'
 import logo from '../../assets/favicon.svg'
 
-type Session = { workspaceRoot: string | null; sessionId: string | null; title: string; version: string; autoCheckUpdates?: boolean; uiScope: 'global' | 'workspace'; uiSession: string; downloadTasks?: boolean; pickDownloadFolder?: boolean; uploadTasks?: boolean; url?: string; initialTab?: 'community' | 'progress' }
+type Session = { workspaceRoot: string | null; sessionId: string | null; title: string; version: string; autoCheckUpdates?: boolean; uiScope: 'global' | 'workspace'; uiSession: string; downloadTasks?: boolean; pickDownloadFolder?: boolean; uploadTasks?: boolean; url?: string; isResearchWorkspace: boolean; initialTab?: 'community' | 'progress' }
 let session: Session | undefined
 let app: App | undefined
 const inHost = window.parent !== window
@@ -33,7 +33,8 @@ const transport: SettingsSend = async (endpoint, payload, signal) => {
 }
 function Workbench({ initial }: { initial: Session }): JSX.Element {
   const current = initial
-  const [tab, setTab] = React.useState<'community' | 'progress' | 'methods' | 'settings'>(current.initialTab ?? 'community')
+  const progressWorkspaceId = current.isResearchWorkspace ? current.sessionId : null
+  const [tab, setTab] = React.useState<'community' | 'progress' | 'methods' | 'settings'>(progressWorkspaceId ? current.initialTab ?? 'progress' : 'community')
   const [language, setLanguage] = React.useState<WorkbenchLanguage>('zh')
   const [syncDraft, setSyncDraft] = React.useState<string | null>(null)
   const [sending, setSending] = React.useState(false)
@@ -105,13 +106,13 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
     </div>
     <nav className="workbench-nav" aria-label={zh ? '功能' : 'Features'}>
       <button aria-current={tab === 'community' ? 'page' : undefined} onClick={() => setTab('community')}>{zh ? '研究网络' : 'Research network'}</button>
-      <button aria-current={tab === 'progress' ? 'page' : undefined} onClick={() => setTab('progress')}>{zh ? '研究进展' : 'Research progress'}</button>
+      {progressWorkspaceId && <button aria-current={tab === 'progress' ? 'page' : undefined} onClick={() => setTab('progress')}>{zh ? '研究进展' : 'Research progress'}</button>}
       <button aria-current={tab === 'methods' ? 'page' : undefined} onClick={() => setTab('methods')}>{zh ? '研究方法' : 'Research methods'}</button>
       <button aria-current={tab === 'settings' ? 'page' : undefined} onClick={() => setTab('settings')}>{t('workbench.settings.title')}</button>
     </nav>
     <main key={current.workspaceRoot ?? 'global'}>
       {tab === 'community' && <CommunityTab send={transport} initial={null} t={t} session={bridge} view="network" />}
-      {tab === 'progress' && (current.sessionId ? <ResearchProgressPanel sessionId={current.sessionId} t={t} send={transport} /> : <p role="status">{zh ? '在项目聊天中 @ 使用 ConvFusion 并打开工作台，即可查看该项目的研究进展。' : 'Use @ to invoke ConvFusion in a project chat and open the workbench to view its research progress.'}</p>)}
+      {tab === 'progress' && progressWorkspaceId && <ResearchProgressPanel sessionId={progressWorkspaceId} t={t} send={transport} />}
       {tab === 'methods' && <><MethodsExport zh={zh} enabled={Boolean(current.workspaceRoot)} /><ConvFusionProjectSettings send={transport} t={t} session={bridge} view="methods" /></>}
       {tab === 'settings' && <WorkbenchSettings send={transport} t={t} language={language} onLanguageChange={setLanguage}
         updates={{ version: current.version, automatic: autoCheckUpdates, result: updateCheck, onChange: changeAutoCheckUpdates, onCheck: () => { void checkForUpdates(true) } }} />}

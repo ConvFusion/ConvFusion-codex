@@ -93,6 +93,7 @@ try {
   const global = (await handleRequest({ jsonrpc: '2.0', id: 24, method: 'tools/call', params: { name: 'research_ui', arguments: {} } })).result
   assert.equal(global.isError, false)
   assert.equal(global.structuredContent.uiScope, 'global')
+  assert.equal(global.structuredContent.isResearchWorkspace, false)
   assert.equal(global.structuredContent.initialTab, 'community')
   assert.equal(global.structuredContent.workspaceRoot, null, 'global launch must not use process cwd')
   const uiCall = async (payload) => (await handleRequest({ jsonrpc: '2.0', id: 25, method: 'tools/call', params: { name: 'research_ui_action', arguments: { ui_session: global.structuredContent.uiSession, ...payload } } })).result
@@ -148,7 +149,13 @@ try {
   const firstPage = (await click({ thread_id: 'click-first', threadId: 'click-first' })).structuredContent
   assert.equal(firstPage.workspaceRoot, await realpath(temp))
   assert.equal(firstPage.uiScope, 'workspace')
+  assert.equal(firstPage.isResearchWorkspace, true)
   assert.equal(firstPage.initialTab, 'progress')
+  handleLifecycle({ hook_event_name: 'SessionStart', cwd: temp, session_id: 'same-workspace' })
+  const sameWorkspace = (await click({ threadId: 'same-workspace' })).structuredContent
+  assert.equal(sameWorkspace.workspaceRoot, firstPage.workspaceRoot)
+  assert.equal(sameWorkspace.sessionId, firstPage.sessionId, 'chats in one workspace share the progress key')
+  assert.equal(sameWorkspace.initialTab, 'progress')
   const secondRoot = join(temp, 'second-project')
   await mkdir(secondRoot)
   await call('research_workspace', { workspace_root: secondRoot, action: 'init', topic: 'Second click project' })
@@ -167,9 +174,13 @@ try {
     const fallback = await click(meta)
     assert.equal(fallback.isError, false)
     assert.equal(fallback.structuredContent.workspaceRoot, null)
+    assert.equal(fallback.structuredContent.isResearchWorkspace, false)
     assert.equal(fallback.structuredContent.initialTab, 'community', 'unresolved clicks keep the default workbench')
   }
   assert.deepEqual(await readdir(ordinary), [], 'opening an ordinary thread never initializes research')
+  const explicitOrdinary = (await click(undefined, { workspace_root: ordinary })).structuredContent
+  assert.equal(explicitOrdinary.workspaceRoot, ordinary)
+  assert.equal(explicitOrdinary.isResearchWorkspace, false, 'having an explicit directory does not make it a research workspace')
   assert.equal((await click({ thread_id: 'click-second' }, { workspace_root: temp })).structuredContent.workspaceRoot, await realpath(temp), 'explicit task routing takes precedence')
   // Corrupt and ambiguous mappings must not silently borrow another research project.
   const firstSession = join(process.env.CONVFUSION_CODEX_HOME, 'sessions', `${stateKey(`${await realpath(temp)}\nclick-first`)}.json`)
