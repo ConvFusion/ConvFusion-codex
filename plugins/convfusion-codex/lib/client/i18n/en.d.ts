@@ -544,6 +544,11 @@ export declare const en: {
     readonly 'system.retrieval.saveFailed': "Save failed: {detail}";
     readonly 'system.retrieval.clearFailed': "Clear failed: {detail}";
     readonly 'progress.name': "Research progress";
+    readonly 'progress.workspace.setupRequired': "This folder has no research workspace yet. Ask ConvFusion to set up a research workspace in this chat, then reopen Research Progress.";
+    readonly 'progress.workspace.unresolved': "The workspace for this chat could not be identified. If you haven’t set up a research workspace yet, ask ConvFusion to do so in this chat, then reopen Research Progress.";
+    readonly 'workbench.connection.loading': "Connecting to ConvFusion…";
+    readonly 'workbench.connection.failed': "Could not open ConvFusion";
+    readonly 'workbench.connection.retry': "Reopen ConvFusion in Codex or use the local link returned by the tool.";
     readonly 'progress.tab.label': "Progress {percent}";
     readonly 'progress.summary': "Maturity conversion {percent}";
     readonly 'progress.currentStage': " · Current stage: {stage}";

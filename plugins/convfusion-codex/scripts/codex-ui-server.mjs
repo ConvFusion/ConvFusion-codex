@@ -67,7 +67,7 @@ export function createCodexUiHost(options = {}) {
       if (state?.version !== 1 || typeof state.selectable !== 'boolean') return null
       if (state.root !== null && (typeof state.root !== 'string' || !isAbsolute(state.root))) return null
       if (!state.selectable && state.root === null) return null
-      return { root: state.root, selectable: state.selectable }
+      return { root: state.root, selectable: state.selectable, progressOnly: state.progressOnly === true }
     } catch { return null }
   }
   const saveSession = (token, state) => writePrivateJson(sessionPath(token), { version: 1, ...state })
@@ -251,24 +251,28 @@ export function createCodexUiHost(options = {}) {
     return { ok: facts.zipOk, facts, instructions: buildSyncText(facts, researchWorkspaceOf(root) === root ? '' : 'workspace') }
   }
   const uiHtml = () => readFileSync(join(pluginRoot, 'lib/codex-ui.html'), 'utf8')
-  const sessionInfo = (token, state) => ({ ...bootstrap(state.root), uiScope: state.selectable ? 'global' : 'workspace', uiSession: token })
+  const sessionInfo = (token, state) => ({
+    ...bootstrap(state.root), uiScope: state.selectable ? 'global' : 'workspace',
+    uiSession: token, progressOnly: state.progressOnly,
+  })
   const dispatchSession = async (token, root, endpoint, payload) => {
     const state = readSession(token)
     if (!state) return failure('auth', '界面连接已失效，请重新打开 ConvFusion')
     if (root !== undefined && root !== state.root) return failure('workspace', 'Workspace is not registered')
     if (endpoint === 'codex/bootstrap') return { ok: true, value: sessionInfo(token, state) }
+    if (state.progressOnly && endpoint !== 'progress/workspace') return failure('scope', 'This panel only reads workspace research progress')
     if (endpoint === 'codex/pickDownloadFolder') return chooseDestination(token, payload)
     // Progress always follows this page's task, never an arbitrary session ID from the UI.
     if (endpoint === 'progress/workspace') payload = { ...payload, sessionId: bootstrap(state.root).sessionId ?? '' }
     return dispatch(state.root, endpoint, payload, token)
   }
-  const open = async (root, requestMeta) => {
+  const open = async (root, requestMeta, { progressOnly = false } = {}) => {
     let selected = root === undefined ? null : registerWorkspace(root, true).path
     if (root === undefined) {
       const inferred = resolveCodexThreadWorkspace(home, requestMeta)
       try {
-        if (inferred && isResearchWorkspace(researchWorkspaceOf(inferred))) selected = registerWorkspace(inferred).path
-      } catch { /* An invalid automatic binding falls back to the global workbench. */ }
+        if (inferred && (progressOnly || isResearchWorkspace(researchWorkspaceOf(inferred)))) selected = registerWorkspace(inferred).path
+      } catch { /* An invalid automatic binding leaves the page without a workspace. */ }
     }
     if (!launch) launch = (async () => {
       server = createServer(async (req, res) => {
@@ -305,7 +309,7 @@ export function createCodexUiHost(options = {}) {
     })().catch((error) => { launch = undefined; throw error })
     await launch
     const token = randomBytes(32).toString('hex')
-    const state = { root: selected, selectable: selected === null }
+    const state = { root: selected, selectable: selected === null, progressOnly }
     saveSession(token, state)
     return { ...sessionInfo(token, state), url: `${origin}/#${token}` }
   }

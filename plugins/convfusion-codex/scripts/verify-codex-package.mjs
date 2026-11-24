@@ -27,7 +27,7 @@ try {
   assert.equal(result.status, 0, result.stderr)
   const responses = new Map(result.stdout.trim().split('\n').map((line) => { const msg = JSON.parse(line); return [msg.id, msg] }))
   assert.equal(responses.size, requests.length)
-  assert.equal(responses.get(2).result.tools.length, 23)
+  assert.equal(responses.get(2).result.tools.length, 24)
   assert.equal(responses.get(3).result.structuredContent.methods.length, 58)
   assert.equal(responses.get(4).result.isError, false)
   assert.equal(responses.get(5).result.isError, false)
@@ -64,14 +64,16 @@ try {
   assert.equal(hook.status, 0, hook.stderr)
   assert.match(JSON.parse(hook.stdout).hookSpecificOutput.additionalContext, /Standalone install verification/)
   const clicked = run([
-    { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'research_ui', arguments: {}, _meta: { thread_id: 'installed', threadId: 'installed' } } },
-    { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'research_ui', arguments: {}, _meta: { thread_id: 'unresolved' } } },
+    { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'research_progress_ui', arguments: {}, _meta: { thread_id: 'installed', threadId: 'installed' } } },
+    { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'research_progress_ui', arguments: {}, _meta: { thread_id: 'unresolved' } } },
   ])
   assert.equal(clicked.status, 0, clicked.stderr)
   const pages = new Map(clicked.stdout.trim().split('\n').map((line) => { const msg = JSON.parse(line); return [msg.id, msg.result.structuredContent] }))
   assert.equal(pages.get(1).workspaceRoot, workspace, 'the installed bundle resolves the exact hook session from host metadata')
+  assert.equal(pages.get(1).progressOnly, true)
   assert.equal(pages.get(1).initialTab, 'progress')
   assert.equal(pages.get(2).workspaceRoot, null)
+  assert.equal(pages.get(2).progressOnly, true)
   assert.equal(pages.get(2).initialTab, 'community', 'unknown threads must not reuse the last installed page directory')
-  console.log('Clean package passed: actual STDIO entrypoint, click-to-progress routing and fallback, page sessions across independent processes, directory isolation, 23 tools, 58 methods/operations, initialization, context and UI resource without node_modules.')
+  console.log('Clean package passed: actual STDIO entrypoint, click-to-progress routing and fallback, page sessions across independent processes, directory isolation, 24 tools, 58 methods/operations, initialization, context and UI resource without node_modules.')
 } finally { rmSync(temp, { recursive: true, force: true }) }

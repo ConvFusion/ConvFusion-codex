@@ -39,7 +39,7 @@ try {
 
   const listed = await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
   const names = listed.result.tools.map((tool) => tool.name)
-  assert.equal(names.length, 23)
+  assert.equal(names.length, 24)
   for (const expected of [
     'research_action_construction',
     'research_diagram',
@@ -49,6 +49,7 @@ try {
     'research_methods',
     'research_sync',
     'research_ui',
+    'research_progress_ui',
     'research_ui_action',
     'research_workspace',
     'research_plan',
@@ -84,15 +85,21 @@ try {
   assert.ok(resource.result.contents[0].text.includes('<!doctype html>'))
   assert.deepEqual(listed.result.tools.find((t) => t.name === 'research_ui_action')._meta.ui.visibility, ['app'])
   const uiTool = listed.result.tools.find((t) => t.name === 'research_ui')
-  assert.deepEqual(uiTool._meta['openai/ui'].entrypoints, [{ type: 'global' }, { type: 'thread' }])
-  assert.deepEqual(uiTool.inputSchema.required, [], 'sidebar and panel entrypoints must accept {}')
+  const progressTool = listed.result.tools.find((t) => t.name === 'research_progress_ui')
+  assert.equal(progressTool.title, '研究进展 / Research Progress')
+  assert.deepEqual(uiTool._meta['openai/ui'].entrypoints, [{ type: 'global' }])
+  assert.deepEqual(progressTool._meta['openai/ui'].entrypoints, [{ type: 'thread' }])
+  assert.deepEqual(progressTool._meta.ui.visibility, ['app'])
+  assert.deepEqual(uiTool.inputSchema.required, [], 'global entrypoint must accept {}')
+  assert.deepEqual(progressTool.inputSchema.required, [], 'thread entrypoint must accept {}')
   assert.match(uiTool.icons[0].src, /^data:image\/svg\+xml;base64,/)
-  for (const tool of listed.result.tools.filter((tool) => !['research_ui', 'research_ui_action'].includes(tool.name))) {
+  for (const tool of listed.result.tools.filter((tool) => !['research_ui', 'research_progress_ui', 'research_ui_action'].includes(tool.name))) {
     assert.ok(tool.inputSchema.required.includes('workspace_root'), `${tool.name} must retain explicit workspace routing`)
   }
   const global = (await handleRequest({ jsonrpc: '2.0', id: 24, method: 'tools/call', params: { name: 'research_ui', arguments: {} } })).result
   assert.equal(global.isError, false)
   assert.equal(global.structuredContent.uiScope, 'global')
+  assert.equal(global.structuredContent.progressOnly, false)
   assert.equal(global.structuredContent.isResearchWorkspace, false)
   assert.equal(global.structuredContent.initialTab, 'community')
   assert.equal(global.structuredContent.workspaceRoot, null, 'global launch must not use process cwd')
@@ -144,11 +151,12 @@ try {
   assert.match(await readFile(join(temp, 'workspace', 'project.md'), 'utf8'), /Verify the Codex adapter/)
 
   // Static entrypoints call with {}, while the desktop host puts the thread in _meta.
-  const click = async (meta, args = {}) => (await handleRequest({ jsonrpc: '2.0', id: 30, method: 'tools/call', params: { name: 'research_ui', arguments: args, _meta: meta } })).result
+  const click = async (meta, args = {}) => (await handleRequest({ jsonrpc: '2.0', id: 30, method: 'tools/call', params: { name: 'research_progress_ui', arguments: args, _meta: meta } })).result
   handleLifecycle({ hook_event_name: 'SessionStart', cwd: temp, session_id: 'click-first' })
   const firstPage = (await click({ thread_id: 'click-first', threadId: 'click-first' })).structuredContent
   assert.equal(firstPage.workspaceRoot, await realpath(temp))
   assert.equal(firstPage.uiScope, 'workspace')
+  assert.equal(firstPage.progressOnly, true)
   assert.equal(firstPage.isResearchWorkspace, true)
   assert.equal(firstPage.initialTab, 'progress')
   handleLifecycle({ hook_event_name: 'SessionStart', cwd: temp, session_id: 'same-workspace' })
@@ -167,16 +175,23 @@ try {
   assert.equal(firstProgress.result.structuredContent.value.workspace, join(await realpath(temp), 'workspace'), 'later calls and UI payloads cannot switch the original page to another project')
   const secondBootstrap = await handleRequest({ jsonrpc: '2.0', id: 32, method: 'tools/call', params: { name: 'research_ui_action', arguments: { ui_session: secondPage.uiSession, endpoint: 'codex/bootstrap' } } })
   assert.equal(secondBootstrap.result.structuredContent.value.workspaceRoot, secondRoot)
+  assert.equal(secondBootstrap.result.structuredContent.value.progressOnly, true)
+  const outOfScope = await uiCall({ ui_session: firstPage.uiSession, endpoint: 'account/state' })
+  assert.equal(outOfScope.structuredContent.error.code, 'scope')
   const ordinary = join(temp, 'ordinary-folder')
   await mkdir(ordinary)
   handleLifecycle({ hook_event_name: 'SessionStart', cwd: ordinary, session_id: 'click-ordinary' })
-  for (const meta of [undefined, {}, [], { thread_id: 'unknown-thread' }, { thread_id: '../click-first' }, { threadId: 1 }, { thread_id: 'click-first', threadId: 'click-second' }, { thread_id: 'click-ordinary' }]) {
+  for (const meta of [undefined, {}, [], { thread_id: 'unknown-thread' }, { thread_id: '../click-first' }, { threadId: 1 }, { thread_id: 'click-first', threadId: 'click-second' }]) {
     const fallback = await click(meta)
     assert.equal(fallback.isError, false)
     assert.equal(fallback.structuredContent.workspaceRoot, null)
+    assert.equal(fallback.structuredContent.progressOnly, true)
     assert.equal(fallback.structuredContent.isResearchWorkspace, false)
-    assert.equal(fallback.structuredContent.initialTab, 'community', 'unresolved clicks keep the default workbench')
   }
+  const ordinaryPage = (await click({ thread_id: 'click-ordinary' })).structuredContent
+  assert.equal(ordinaryPage.workspaceRoot, ordinary)
+  assert.equal(ordinaryPage.progressOnly, true)
+  assert.equal(ordinaryPage.isResearchWorkspace, false)
   assert.deepEqual(await readdir(ordinary), [], 'opening an ordinary thread never initializes research')
   const explicitOrdinary = (await click(undefined, { workspace_root: ordinary })).structuredContent
   assert.equal(explicitOrdinary.workspaceRoot, ordinary)

@@ -629,6 +629,11 @@ export const zh = {
   'system.retrieval.clearFailed': '清除失败：{detail}',
 
   'progress.name': '研究进展',
+  'progress.workspace.setupRequired': '当前目录尚未建立研究工作区。请在当前聊天中让 ConvFusion「建立研究工作区」，完成后重新打开研究进展。',
+  'progress.workspace.unresolved': '无法识别当前聊天的工作区。如果尚未建立研究工作区，请在当前聊天中让 ConvFusion「建立研究工作区」，完成后重新打开研究进展。',
+  'workbench.connection.loading': '正在连接 ConvFusion…',
+  'workbench.connection.failed': '无法打开 ConvFusion',
+  'workbench.connection.retry': '请在 Codex 中重新打开 ConvFusion，或使用工具返回的本地链接。',
   // 会话 Tab 的文案：拿得到百分比就带上（tab 条上一眼能看到进度）
   'progress.tab.label': '研究进展 {percent}',
   'progress.summary': '成熟度折算 {percent}',

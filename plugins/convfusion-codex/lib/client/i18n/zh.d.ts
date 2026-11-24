@@ -544,6 +544,11 @@ export declare const zh: {
     'system.retrieval.saveFailed': string;
     'system.retrieval.clearFailed': string;
     'progress.name': string;
+    'progress.workspace.setupRequired': string;
+    'progress.workspace.unresolved': string;
+    'workbench.connection.loading': string;
+    'workbench.connection.failed': string;
+    'workbench.connection.retry': string;
     'progress.tab.label': string;
     'progress.summary': string;
     'progress.currentStage': string;

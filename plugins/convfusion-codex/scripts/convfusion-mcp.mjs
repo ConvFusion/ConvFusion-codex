@@ -36,6 +36,7 @@ import { readPlan, parsePlanFrontmatter, PLAN_STATUSES } from '../lib/research/p
 import { loadPlanHandoff } from '../lib/research/plan.js'
 
 const packageInfo = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+const workbenchIcons = [{ src: `data:image/svg+xml;base64,${readFileSync(new URL('../assets/sidebar-icon.svg', import.meta.url)).toString('base64')}`, mimeType: 'image/svg+xml', sizes: ['any'] }]
 if (typeof packageInfo.name !== 'string' || typeof packageInfo.version !== 'string') {
   throw new Error('package.json must define string name and version fields')
 }
@@ -284,11 +285,21 @@ const codexTools = [
     name: 'research_ui',
     description: 'Open the ConvFusion workbench for research progress, method customization and ConvFusion.com accounts, research publishing, finding mentors/students and file exchange. Pass workspace_root for the current task, or {} for a global workbench with directory selection. Returns an MCP Apps UI and a local browser URL. Network publishing, paid actions and file selection are confirmed by the user in the UI.',
     title: 'ConvFusion 工作台',
-    icons: [{ src: `data:image/svg+xml;base64,${readFileSync(new URL('../assets/sidebar-icon.svg', import.meta.url)).toString('base64')}`, mimeType: 'image/svg+xml', sizes: ['any'] }],
+    icons: workbenchIcons,
     parameters: {},
     optionalWorkspace: true,
-    _meta: { ui: { resourceUri: UI_URI }, 'openai/outputTemplate': UI_URI, 'openai/ui': { entrypoints: [{ type: 'global' }, { type: 'thread' }] } },
+    _meta: { ui: { resourceUri: UI_URI }, 'openai/outputTemplate': UI_URI, 'openai/ui': { entrypoints: [{ type: 'global' }] } },
     execute: async (args, context) => ({ ok: true, ...await uiHost.open(args.workspace_root, context?.requestMeta) }),
+  },
+  {
+    name: 'research_progress_ui',
+    description: 'Open the read-only research progress panel for the current workspace.',
+    title: '研究进展 / Research Progress',
+    icons: workbenchIcons,
+    parameters: {},
+    optionalWorkspace: true,
+    _meta: { ui: { resourceUri: UI_URI, visibility: ['app'] }, 'openai/outputTemplate': UI_URI, 'openai/ui': { entrypoints: [{ type: 'thread' }] } },
+    execute: async (args, context) => ({ ok: true, ...await uiHost.open(args.workspace_root, context?.requestMeta, { progressOnly: true }) }),
   },
   {
     name: 'research_ui_action',
@@ -369,7 +380,7 @@ export async function handleRequest(message, sendNotification) {
         capabilities: { tools: { listChanged: false }, resources: {} },
         serverInfo: SERVER_INFO,
         instructions:
-          'ConvFusion stores research data under the current task workspace. Research tools require workspace_root: pass the absolute Codex task cwd, never this plugin installation directory. research_ui also accepts {} for global sidebar/panel access to accounts, research network and methods. For project progress, open research_ui from the project chat with its workspace_root. research_ui_action is restricted to the UI session.',
+          'ConvFusion stores research data under the current task workspace. Research tools require workspace_root: pass the absolute Codex task cwd, never this plugin installation directory. research_ui also accepts {} for global sidebar access to accounts, research network and methods. For project progress, open research_ui from the project chat with its workspace_root. research_progress_ui is the chat side-panel entrypoint. research_ui_action is restricted to the UI session.',
       },
     }
   }

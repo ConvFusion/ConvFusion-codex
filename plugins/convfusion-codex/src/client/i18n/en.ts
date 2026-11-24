@@ -613,6 +613,11 @@ export const en = {
   'system.retrieval.clearFailed': 'Clear failed: {detail}',
 
   'progress.name': 'Research progress',
+  'progress.workspace.setupRequired': 'This folder has no research workspace yet. Ask ConvFusion to set up a research workspace in this chat, then reopen Research Progress.',
+  'progress.workspace.unresolved': 'The workspace for this chat could not be identified. If you haven’t set up a research workspace yet, ask ConvFusion to do so in this chat, then reopen Research Progress.',
+  'workbench.connection.loading': 'Connecting to ConvFusion…',
+  'workbench.connection.failed': 'Could not open ConvFusion',
+  'workbench.connection.retry': 'Reopen ConvFusion in Codex or use the local link returned by the tool.',
   // Session-tab copy: carry the percentage when one is known
   'progress.tab.label': 'Progress {percent}',
   'progress.summary': 'Maturity conversion {percent}',

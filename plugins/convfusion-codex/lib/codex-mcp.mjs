@@ -17505,7 +17505,7 @@ function createCodexUiHost(options = {}) {
       if (state?.version !== 1 || typeof state.selectable !== "boolean") return null;
       if (state.root !== null && (typeof state.root !== "string" || !isAbsolute9(state.root))) return null;
       if (!state.selectable && state.root === null) return null;
-      return { root: state.root, selectable: state.selectable };
+      return { root: state.root, selectable: state.selectable, progressOnly: state.progressOnly === true };
     } catch {
       return null;
     }
@@ -17737,22 +17737,28 @@ function createCodexUiHost(options = {}) {
     return { ok: facts.zipOk, facts, instructions: buildSyncText(facts, researchWorkspaceOf(root) === root ? "" : "workspace") };
   };
   const uiHtml = () => readFileSync27(join30(pluginRoot, "lib/codex-ui.html"), "utf8");
-  const sessionInfo = (token, state) => ({ ...bootstrap(state.root), uiScope: state.selectable ? "global" : "workspace", uiSession: token });
+  const sessionInfo = (token, state) => ({
+    ...bootstrap(state.root),
+    uiScope: state.selectable ? "global" : "workspace",
+    uiSession: token,
+    progressOnly: state.progressOnly
+  });
   const dispatchSession = async (token, root, endpoint, payload) => {
     const state = readSession(token);
     if (!state) return failure("auth", "\u754C\u9762\u8FDE\u63A5\u5DF2\u5931\u6548\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00 ConvFusion");
     if (root !== void 0 && root !== state.root) return failure("workspace", "Workspace is not registered");
     if (endpoint === "codex/bootstrap") return { ok: true, value: sessionInfo(token, state) };
+    if (state.progressOnly && endpoint !== "progress/workspace") return failure("scope", "This panel only reads workspace research progress");
     if (endpoint === "codex/pickDownloadFolder") return chooseDestination(token, payload);
     if (endpoint === "progress/workspace") payload = { ...payload, sessionId: bootstrap(state.root).sessionId ?? "" };
     return dispatch(state.root, endpoint, payload, token);
   };
-  const open = async (root, requestMeta) => {
+  const open = async (root, requestMeta, { progressOnly = false } = {}) => {
     let selected = root === void 0 ? null : registerWorkspace(root, true).path;
     if (root === void 0) {
       const inferred = resolveCodexThreadWorkspace(home, requestMeta);
       try {
-        if (inferred && isResearchWorkspace(researchWorkspaceOf(inferred))) selected = registerWorkspace(inferred).path;
+        if (inferred && (progressOnly || isResearchWorkspace(researchWorkspaceOf(inferred)))) selected = registerWorkspace(inferred).path;
       } catch {
       }
     }
@@ -17801,7 +17807,7 @@ function createCodexUiHost(options = {}) {
     });
     await launch;
     const token = randomBytes4(32).toString("hex");
-    const state = { root: selected, selectable: selected === null };
+    const state = { root: selected, selectable: selected === null, progressOnly };
     saveSession(token, state);
     return { ...sessionInfo(token, state), url: `${origin}/#${token}` };
   };
@@ -29049,6 +29055,7 @@ function buildHandoffText(doc) {
 
 // scripts/convfusion-mcp.mjs
 var packageInfo = JSON.parse(readFileSync31(new URL("../package.json", new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href), "utf8"));
+var workbenchIcons = [{ src: `data:image/svg+xml;base64,${readFileSync31(new URL("../assets/sidebar-icon.svg", new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href)).toString("base64")}`, mimeType: "image/svg+xml", sizes: ["any"] }];
 if (typeof packageInfo.name !== "string" || typeof packageInfo.version !== "string") {
   throw new Error("package.json must define string name and version fields");
 }
@@ -29279,11 +29286,21 @@ var codexTools = [
     name: "research_ui",
     description: "Open the ConvFusion workbench for research progress, method customization and ConvFusion.com accounts, research publishing, finding mentors/students and file exchange. Pass workspace_root for the current task, or {} for a global workbench with directory selection. Returns an MCP Apps UI and a local browser URL. Network publishing, paid actions and file selection are confirmed by the user in the UI.",
     title: "ConvFusion \u5DE5\u4F5C\u53F0",
-    icons: [{ src: `data:image/svg+xml;base64,${readFileSync31(new URL("../assets/sidebar-icon.svg", new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href)).toString("base64")}`, mimeType: "image/svg+xml", sizes: ["any"] }],
+    icons: workbenchIcons,
     parameters: {},
     optionalWorkspace: true,
-    _meta: { ui: { resourceUri: UI_URI }, "openai/outputTemplate": UI_URI, "openai/ui": { entrypoints: [{ type: "global" }, { type: "thread" }] } },
+    _meta: { ui: { resourceUri: UI_URI }, "openai/outputTemplate": UI_URI, "openai/ui": { entrypoints: [{ type: "global" }] } },
     execute: async (args, context) => ({ ok: true, ...await uiHost.open(args.workspace_root, context?.requestMeta) })
+  },
+  {
+    name: "research_progress_ui",
+    description: "Open the read-only research progress panel for the current workspace.",
+    title: "\u7814\u7A76\u8FDB\u5C55 / Research Progress",
+    icons: workbenchIcons,
+    parameters: {},
+    optionalWorkspace: true,
+    _meta: { ui: { resourceUri: UI_URI, visibility: ["app"] }, "openai/outputTemplate": UI_URI, "openai/ui": { entrypoints: [{ type: "thread" }] } },
+    execute: async (args, context) => ({ ok: true, ...await uiHost.open(args.workspace_root, context?.requestMeta, { progressOnly: true }) })
   },
   {
     name: "research_ui_action",
@@ -29360,7 +29377,7 @@ async function handleRequest(message, sendNotification) {
         protocolVersion: params.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false }, resources: {} },
         serverInfo: SERVER_INFO,
-        instructions: "ConvFusion stores research data under the current task workspace. Research tools require workspace_root: pass the absolute Codex task cwd, never this plugin installation directory. research_ui also accepts {} for global sidebar/panel access to accounts, research network and methods. For project progress, open research_ui from the project chat with its workspace_root. research_ui_action is restricted to the UI session."
+        instructions: "ConvFusion stores research data under the current task workspace. Research tools require workspace_root: pass the absolute Codex task cwd, never this plugin installation directory. research_ui also accepts {} for global sidebar access to accounts, research network and methods. For project progress, open research_ui from the project chat with its workspace_root. research_progress_ui is the chat side-panel entrypoint. research_ui_action is restricted to the UI session."
       }
     };
   }

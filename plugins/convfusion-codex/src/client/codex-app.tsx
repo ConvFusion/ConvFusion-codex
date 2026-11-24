@@ -8,7 +8,7 @@ import { WorkbenchSettings, type UpdateCheckResult, type WorkbenchLanguage } fro
 import { dictionaries, type Translate } from './i18n/index.js'
 import logo from '../../assets/favicon.svg'
 
-type Session = { workspaceRoot: string | null; sessionId: string | null; title: string; version: string; autoCheckUpdates?: boolean; uiScope: 'global' | 'workspace'; uiSession: string; downloadTasks?: boolean; pickDownloadFolder?: boolean; uploadTasks?: boolean; url?: string; isResearchWorkspace: boolean; initialTab?: 'community' | 'progress' }
+type Session = { workspaceRoot: string | null; sessionId: string | null; title: string; version: string; autoCheckUpdates?: boolean; uiScope: 'global' | 'workspace'; uiSession: string; downloadTasks?: boolean; pickDownloadFolder?: boolean; uploadTasks?: boolean; url?: string; isResearchWorkspace: boolean; initialTab?: 'community' | 'progress'; progressOnly?: boolean }
 let session: Session | undefined
 let app: App | undefined
 const inHost = window.parent !== window
@@ -31,6 +31,20 @@ const transport: SettingsSend = async (endpoint, payload, signal) => {
   if (!response.ok) throw new Error('连接已失效，请在 Codex 中重新打开 ConvFusion 界面。')
   return response.json()
 }
+function translate(language: WorkbenchLanguage, ...[key, params]: Parameters<Translate>): string {
+  if (key === 'progress.turn.unavailable') return language === 'zh' ? '所选研究还没有回合报告。审核并信任 Hooks 后，完成一轮研究即可查看；当前研究状态始终可读。' : 'No turn report for this research yet. Trust the hooks and complete a research turn; current workspace state is always available.'
+  const template = ((dictionaries[language] as Record<string, string>)[key] ?? key).replaceAll('DSH 设置', '插件设置').replaceAll('DSH settings', 'plugin settings').replaceAll('DSH', 'Codex').replaceAll('Harness', 'Codex')
+  return template.replace(/\{(\w+)\}/g, (match, name: string) => params && name in params ? String(params[name]) : match)
+}
+function WorkspaceProgress({ workspace, language }: { workspace: Session; language: WorkbenchLanguage }): JSX.Element {
+  const t: Translate = React.useCallback((key, params) => translate(language, key, params), [language])
+  return <main aria-label={t('progress.name')}>
+    {workspace.isResearchWorkspace && workspace.sessionId
+      ? <ResearchProgressPanel sessionId={workspace.sessionId} t={t} send={transport} />
+      : <p role="status">{t(workspace.workspaceRoot ? 'progress.workspace.setupRequired' : 'progress.workspace.unresolved')}</p>}
+  </main>
+}
+
 function Workbench({ initial }: { initial: Session }): JSX.Element {
   const current = initial
   const progressWorkspaceId = current.isResearchWorkspace ? current.sessionId : null
@@ -75,11 +89,7 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
     // Supply the task workspace as app data for the next turn, without sending a chat message.
     void app?.updateModelContext({ structuredContent: { plugin: 'ConvFusion', workspace_root: current.workspaceRoot, scope: current.uiScope } }).catch(() => {})
   }, [current.workspaceRoot, current.uiScope])
-  const t: Translate = React.useCallback((key, params) => {
-    if (key === 'progress.turn.unavailable') return language === 'zh' ? '所选研究还没有回合报告。审核并信任 Hooks 后，完成一轮研究即可查看；当前研究状态始终可读。' : 'No turn report for this research yet. Trust the hooks and complete a research turn; current workspace state is always available.'
-    const template = ((dictionaries[language] as Record<string, string>)[key] ?? key).replaceAll('DSH 设置', '插件设置').replaceAll('DSH settings', 'plugin settings').replaceAll('DSH', 'Codex').replaceAll('Harness', 'Codex')
-    return template.replace(/\{(\w+)\}/g, (match, name: string) => params && name in params ? String(params[name]) : match)
-  }, [language])
+  const t: Translate = React.useCallback((key, params) => translate(language, key, params), [language])
   const zh = language === 'zh'
   React.useEffect(() => { document.documentElement.lang = zh ? 'zh-CN' : 'en' }, [zh])
   const bridge = {
@@ -149,25 +159,56 @@ function MethodsExport({ zh, enabled }: { zh: boolean; enabled: boolean }): JSX.
 }
 
 const root = createRoot(document.getElementById('root')!)
-root.render(<p className="loading" role="status">正在连接研究工作区…</p>)
+function displayLanguage(locale = navigator.language): WorkbenchLanguage {
+  return /^zh(?:-|$)/i.test(locale) ? 'zh' : 'en'
+}
+let panelLanguage = displayLanguage()
+function showLoading(): void {
+  document.documentElement.lang = panelLanguage === 'zh' ? 'zh-CN' : 'en'
+  root.render(<p className="loading" role="status">{translate(panelLanguage, 'workbench.connection.loading')}</p>)
+}
+showLoading()
+function showPage(info: Session): void {
+  session = info
+  boot(info)
+  if (info.progressOnly) {
+    document.documentElement.lang = panelLanguage === 'zh' ? 'zh-CN' : 'en'
+    document.title = translate(panelLanguage, 'progress.name')
+    root.render(<WorkspaceProgress key={info.uiSession} workspace={info} language={panelLanguage} />)
+  } else {
+    document.title = 'ConvFusion'
+    root.render(<Workbench key={info.uiSession} initial={info} />)
+  }
+}
+function applyHostLanguage(locale?: string): void {
+  const language = displayLanguage(locale)
+  if (panelLanguage === language) return
+  panelLanguage = language
+  if (!session) showLoading()
+  else if (session.progressOnly) showPage(session)
+}
 async function start(): Promise<void> {
   if (inHost) {
     app = new App({ name: 'ConvFusion', version: '1.0.0' }, {}, { autoResize: true })
     app.ontoolresult = (result) => {
       const info = result.structuredContent as Session | undefined
-      if (info?.uiSession && info?.uiScope) { session = info; boot(info); root.render(<Workbench key={info.uiSession} initial={info} />) }
+      if (info?.uiSession && info?.uiScope) showPage(info)
     }
     app.onhostcontextchanged = (context) => {
       if (context.theme) document.documentElement.dataset.theme = context.theme
+      applyHostLanguage(app?.getHostContext()?.locale)
     }
     await app.connect()
+    applyHostLanguage(app.getHostContext()?.locale)
     await ready
   } else {
     const result = await transport('codex/bootstrap', {})
-    if (!result.ok) throw new Error(result.error?.message ?? '无法读取工作区')
-    session = result.value as Session
-    boot(session)
-    root.render(<Workbench initial={session} />)
+    if (!result.ok) throw new Error(result.error?.message)
+    showPage(result.value as Session)
   }
 }
-void start().catch((error) => root.render(<div className="loading" role="alert"><h2>无法打开 ConvFusion</h2><p>{String(error.message)}</p><p>请使用 Codex 工具返回的本地界面链接重新打开。</p></div>))
+void start().catch((error) => root.render(<div className="loading" role="alert">
+  <h2>{translate(panelLanguage, 'workbench.connection.failed')}</h2>
+  {error.message && <p>{String(error.message)}</p>}
+  <p>{translate(panelLanguage, 'workbench.connection.retry')}</p>
+</div>))
