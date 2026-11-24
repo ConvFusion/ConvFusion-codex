@@ -25,7 +25,7 @@
  *    自己的宿主答案 —— 这正是那次链式槽位故障的反面。
  */
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchSettingsSend, type SettingsSend } from './settings.js'
 import {
   maturityDimensionText,
@@ -363,6 +363,8 @@ function workGapText(t: Translate, next: NonNullable<WorkProgress['next']>): str
 export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, showTurnReport = true }: PanelProps): JSX.Element {
   const [probe, setProbe] = useState<ProgressProbe>({ kind: 'loading' })
   const [busy, setBusy] = useState(false)
+  const [refreshFailed, setRefreshFailed] = useState(false)
+  const activeRequest = useRef<AbortController | null>(null)
   /** 当前选中的研究工作 id（空串 = 总览；宿主刷新后该工作消失则自动回到总览）。 */
   const [workId, setWorkId] = useState('')
 
@@ -375,23 +377,41 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
   const load = useCallback(async (): Promise<void> => {
     if (!sessionId) {
       setProbe({ kind: 'hidden' })
+      setBusy(false)
+      setRefreshFailed(false)
       return
     }
+    if (activeRequest.current) return
+    const controller = new AbortController()
+    activeRequest.current = controller
     setBusy(true)
+    setRefreshFailed(false)
     try {
-      const res = await send('progress/workspace', { sessionId })
+      const res = await send('progress/workspace', { sessionId }, controller.signal)
+      if (controller.signal.aborted) return
+      if (!res.ok) {
+        setRefreshFailed(true)
+        return
+      }
       setProbe(readProgressValue(res))
     } catch {
-      // 宿主不可达 / 端点不存在（老宿主）：保守地不显示，不猜
-      setProbe({ kind: 'hidden' })
+      if (!controller.signal.aborted) setRefreshFailed(true)
     } finally {
-      setBusy(false)
+      if (activeRequest.current === controller) {
+        activeRequest.current = null
+        setBusy(false)
+      }
     }
   }, [sessionId, send])
 
   // 挂载即问一次
   useEffect(() => {
+    setProbe({ kind: 'loading' })
     void load()
+    return () => {
+      activeRequest.current?.abort()
+      activeRequest.current = null
+    }
   }, [load])
 
   // 研究资产一变读数就该变 —— 所以：低频轮询 + 窗口重新可见时立刻刷新
@@ -422,10 +442,40 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
   const mono: React.CSSProperties = {
     fontFamily: 'var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace)',
   }
+  const refreshButton = sessionId && (
+    <button
+      type="button"
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        marginInlineStart: 'auto', minBlockSize: '40px', minInlineSize: '40px', padding: '8px',
+        border: '1px solid var(--dsw-alias-border-l2, rgba(127,127,127,0.45))',
+        borderRadius: '8px', background: 'var(--dsw-alias-state-business-tertiary, transparent)',
+        color: 'var(--dsw-alias-state-business-primary, currentColor)',
+        cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.65 : 1,
+      }}
+      aria-label={t('progress.refresh')}
+      aria-busy={busy}
+      title={t(busy ? 'progress.reading' : 'progress.refresh')}
+      disabled={busy}
+      onClick={() => void load()}
+    >
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M20 11a8 8 0 1 0-2.35 6.65M20 4v7h-7" />
+      </svg>
+    </button>
+  )
+  const refreshError = refreshFailed && (
+    <p role="status" style={{ color: muted, margin: '6px 0' }}>{t('progress.refreshFailed')}</p>
+  )
   if (probe.kind !== 'shown') {
     return (
-      <div data-convfusion-progress-view="1" style={{ color: muted }}>
-        {probe.kind === 'loading' ? t('progress.reading') : t('progress.noReport')}
+      <div data-convfusion-progress-view="1">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <strong>{t('progress.name')}</strong>
+          {refreshButton}
+        </div>
+        {refreshError || (!busy && <div style={{ color: muted }}>{t('progress.noReport')}</div>)}
       </div>
     )
   }
@@ -458,16 +508,6 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
     letterSpacing: '0.04em',
     fontWeight: 600,
     marginBottom: '7px',
-  }
-  const iconButton: React.CSSProperties = {
-    border: 'none',
-    background: 'transparent',
-    color: 'inherit',
-    cursor: 'pointer',
-    padding: '0 4px',
-    borderRadius: '4px',
-    font: 'inherit',
-    lineHeight: 1,
   }
   /* 工作 tab 条：紧凑一条，下边框表示选中（不引入新的主题 token）。 */
   const tabStrip: React.CSSProperties = {
@@ -578,34 +618,25 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
 
   return (
     <div data-convfusion-progress-view="1">
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-        <strong>{t('progress.name')}</strong>
-        {report ? (
-          <span style={{ color: muted, ...mono }}>
-            {t('progress.summary', { percent: pct(work ? work.overall : report.overall) })}
-            {work
-              ? ` · ${t('progress.work.meta', { version: work.version, status: work.status })}`
-              : report.progress.stage
-                ? t('progress.currentStage', { stage: stageText(t, report.progress.stage) })
-                : ''}
-          </span>
-        ) : (
-          <span style={{ color: muted }}>{t('progress.noData')}</span>
-        )}
-        <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: '2px' }}>
-          {busy ? <span style={{ color: muted, ...mono }}>{t('progress.reading')}</span> : null}
-          <button
-            type="button"
-            style={{ ...iconButton, opacity: busy ? 0.5 : 1 }}
-            aria-label={t('progress.refresh')}
-            title={t('progress.refresh')}
-            disabled={busy}
-            onClick={() => void load()}
-          >
-            ⟳
-          </button>
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px 8px', flexWrap: 'wrap', minWidth: 0 }}>
+          <strong>{t('progress.name')}</strong>
+          {report ? (
+            <span style={{ color: muted, ...mono }}>
+              {t('progress.summary', { percent: pct(work ? work.overall : report.overall) })}
+              {work
+                ? ` · ${t('progress.work.meta', { version: work.version, status: work.status })}`
+                : report.progress.stage
+                  ? t('progress.currentStage', { stage: stageText(t, report.progress.stage) })
+                  : ''}
+            </span>
+          ) : (
+            <span style={{ color: muted }}>{t('progress.noData')}</span>
+          )}
+        </div>
+        {refreshButton}
       </div>
+      {refreshError}
       <div style={{ color: muted, ...mono }}>
         {shortenPath(probe.workspace)}
         {work ? ` · ${work.id}` : ''}

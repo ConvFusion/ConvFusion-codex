@@ -703,6 +703,7 @@ window.__ModuleLoader__.load({
 		  "progress.noData": "No data yet",
 		  "progress.reading": "Reading…",
 		  "progress.refresh": "Refresh",
+		  "progress.refreshFailed": "Research progress could not be read. Try refreshing again.",
 		  "progress.section.maturity": "A · Research maturity (level conversion, not a measurement)",
 		  "progress.section.assets": "A2 · Countable assets (actual counts)",
 		  "progress.paper": "Paper body",
@@ -1543,6 +1544,7 @@ window.__ModuleLoader__.load({
 		  "progress.noData": "尚无数据",
 		  "progress.reading": "读取中…",
 		  "progress.refresh": "刷新",
+		  "progress.refreshFailed": "暂时无法读取研究进展，请重试。",
 		  "progress.section.maturity": "A · 研究成熟度（等级折算，非测量值）",
 		  "progress.section.assets": "A2 · 可数资产（真实计数）",
 		  "progress.paper": "论文正文",
@@ -8461,6 +8463,8 @@ window.__ModuleLoader__.load({
 		function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, showTurnReport = true }) {
 		  const [probe, setProbe] = (0, import_react3.useState)({ kind: "loading" });
 		  const [busy, setBusy] = (0, import_react3.useState)(false);
+		  const [refreshFailed, setRefreshFailed] = (0, import_react3.useState)(false);
+		  const activeRequest = (0, import_react3.useRef)(null);
 		  const [workId, setWorkId] = (0, import_react3.useState)("");
 		  const shownWorkIds = (probe.kind === "shown" ? probe.report?.works ?? [] : []).map((w) => w.id).join("\0");
 		  (0, import_react3.useEffect)(() => {
@@ -8469,20 +8473,39 @@ window.__ModuleLoader__.load({
 		  const load = (0, import_react3.useCallback)(async () => {
 		    if (!sessionId) {
 		      setProbe({ kind: "hidden" });
+		      setBusy(false);
+		      setRefreshFailed(false);
 		      return;
 		    }
+		    if (activeRequest.current) return;
+		    const controller = new AbortController();
+		    activeRequest.current = controller;
 		    setBusy(true);
+		    setRefreshFailed(false);
 		    try {
-		      const res = await send("progress/workspace", { sessionId });
+		      const res = await send("progress/workspace", { sessionId }, controller.signal);
+		      if (controller.signal.aborted) return;
+		      if (!res.ok) {
+		        setRefreshFailed(true);
+		        return;
+		      }
 		      setProbe(readProgressValue(res));
 		    } catch {
-		      setProbe({ kind: "hidden" });
+		      if (!controller.signal.aborted) setRefreshFailed(true);
 		    } finally {
-		      setBusy(false);
+		      if (activeRequest.current === controller) {
+		        activeRequest.current = null;
+		        setBusy(false);
+		      }
 		    }
 		  }, [sessionId, send]);
 		  (0, import_react3.useEffect)(() => {
+		    setProbe({ kind: "loading" });
 		    void load();
+		    return () => {
+		      activeRequest.current?.abort();
+		      activeRequest.current = null;
+		    };
 		  }, [load]);
 		  (0, import_react3.useEffect)(() => {
 		    const timer = window.setInterval(() => void load(), PROGRESS_REFRESH_MS);
@@ -8499,8 +8522,57 @@ window.__ModuleLoader__.load({
 		  const mono = {
 		    fontFamily: "var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace)"
 		  };
+		  const refreshButton = sessionId && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+		    "button",
+		    {
+		      type: "button",
+		      style: {
+		        display: "inline-flex",
+		        alignItems: "center",
+		        justifyContent: "center",
+		        flexShrink: 0,
+		        marginInlineStart: "auto",
+		        minBlockSize: "40px",
+		        minInlineSize: "40px",
+		        padding: "8px",
+		        border: "1px solid var(--dsw-alias-border-l2, rgba(127,127,127,0.45))",
+		        borderRadius: "8px",
+		        background: "var(--dsw-alias-state-business-tertiary, transparent)",
+		        color: "var(--dsw-alias-state-business-primary, currentColor)",
+		        cursor: busy ? "wait" : "pointer",
+		        opacity: busy ? 0.65 : 1
+		      },
+		      "aria-label": t("progress.refresh"),
+		      "aria-busy": busy,
+		      title: t(busy ? "progress.reading" : "progress.refresh"),
+		      disabled: busy,
+		      onClick: () => void load(),
+		      children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+		        "svg",
+		        {
+		          width: "22",
+		          height: "22",
+		          viewBox: "0 0 24 24",
+		          fill: "none",
+		          stroke: "currentColor",
+		          strokeWidth: "1.9",
+		          strokeLinecap: "round",
+		          strokeLinejoin: "round",
+		          "aria-hidden": "true",
+		          children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("path", { d: "M20 11a8 8 0 1 0-2.35 6.65M20 4v7h-7" })
+		        }
+		      )
+		    }
+		  );
+		  const refreshError = refreshFailed && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { role: "status", style: { color: muted, margin: "6px 0" }, children: t("progress.refreshFailed") });
 		  if (probe.kind !== "shown") {
-		    return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { "data-convfusion-progress-view": "1", style: { color: muted }, children: probe.kind === "loading" ? t("progress.reading") : t("progress.noReport") });
+		    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { "data-convfusion-progress-view": "1", children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("strong", { children: t("progress.name") }),
+		        refreshButton
+		      ] }),
+		      refreshError || !busy && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { color: muted }, children: t("progress.noReport") })
+		    ] });
 		  }
 		  const report = probe.report;
 		  const lastTurn = probe.lastTurn;
@@ -8519,16 +8591,6 @@ window.__ModuleLoader__.load({
 		    letterSpacing: "0.04em",
 		    fontWeight: 600,
 		    marginBottom: "7px"
-		  };
-		  const iconButton = {
-		    border: "none",
-		    background: "transparent",
-		    color: "inherit",
-		    cursor: "pointer",
-		    padding: "0 4px",
-		    borderRadius: "4px",
-		    font: "inherit",
-		    lineHeight: 1
 		  };
 		  const tabStrip = {
 		    display: "flex",
@@ -8599,28 +8661,17 @@ window.__ModuleLoader__.load({
 		    ] }, row ? row.id : "totals");
 		  };
 		  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { "data-convfusion-progress-view": "1", children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "baseline", gap: "8px", flexWrap: "wrap" }, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("strong", { children: t("progress.name") }),
-		      report ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { style: { color: muted, ...mono }, children: [
-		        t("progress.summary", { percent: pct(work ? work.overall : report.overall) }),
-		        work ? ` · ${t("progress.work.meta", { version: work.version, status: work.status })}` : report.progress.stage ? t("progress.currentStage", { stage: stageText(t, report.progress.stage) }) : ""
-		      ] }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted }, children: t("progress.noData") }),
-		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { style: { marginLeft: "auto", display: "inline-flex", gap: "2px" }, children: [
-		        busy ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted, ...mono }, children: t("progress.reading") }) : null,
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
-		          "button",
-		          {
-		            type: "button",
-		            style: { ...iconButton, opacity: busy ? 0.5 : 1 },
-		            "aria-label": t("progress.refresh"),
-		            title: t("progress.refresh"),
-		            disabled: busy,
-		            onClick: () => void load(),
-		            children: "⟳"
-		          }
-		        )
-		      ] })
+		    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "baseline", gap: "4px 8px", flexWrap: "wrap", minWidth: 0 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("strong", { children: t("progress.name") }),
+		        report ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { style: { color: muted, ...mono }, children: [
+		          t("progress.summary", { percent: pct(work ? work.overall : report.overall) }),
+		          work ? ` · ${t("progress.work.meta", { version: work.version, status: work.status })}` : report.progress.stage ? t("progress.currentStage", { stage: stageText(t, report.progress.stage) }) : ""
+		        ] }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted }, children: t("progress.noData") })
+		      ] }),
+		      refreshButton
 		    ] }),
+		    refreshError,
 		    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { color: muted, ...mono }, children: [
 		      shortenPath(probe.workspace),
 		      work ? ` · ${work.id}` : ""

@@ -629,6 +629,7 @@ export const en = {
   'progress.noData': 'No data yet',
   'progress.reading': 'Reading…',
   'progress.refresh': 'Refresh',
+  'progress.refreshFailed': 'Research progress could not be read. Try refreshing again.',
   'progress.section.maturity': 'A · Research maturity (level conversion, not a measurement)',
   'progress.section.assets': 'A2 · Countable assets (actual counts)',
   'progress.paper': 'Paper body',

@@ -564,6 +564,7 @@ export declare const dictionaries: {
         'progress.noData': string;
         'progress.reading': string;
         'progress.refresh': string;
+        'progress.refreshFailed': string;
         'progress.section.maturity': string;
         'progress.section.assets': string;
         'progress.paper': string;
@@ -1330,6 +1331,7 @@ export declare const dictionaries: {
         readonly 'progress.noData': "No data yet";
         readonly 'progress.reading': "Reading…";
         readonly 'progress.refresh': "Refresh";
+        readonly 'progress.refreshFailed': "Research progress could not be read. Try refreshing again.";
         readonly 'progress.section.maturity': "A · Research maturity (level conversion, not a measurement)";
         readonly 'progress.section.assets': "A2 · Countable assets (actual counts)";
         readonly 'progress.paper': "Paper body";

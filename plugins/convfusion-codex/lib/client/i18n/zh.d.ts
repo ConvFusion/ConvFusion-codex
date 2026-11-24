@@ -559,6 +559,7 @@ export declare const zh: {
     'progress.noData': string;
     'progress.reading': string;
     'progress.refresh': string;
+    'progress.refreshFailed': string;
     'progress.section.maturity': string;
     'progress.section.assets': string;
     'progress.paper': string;

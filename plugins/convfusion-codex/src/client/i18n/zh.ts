@@ -645,6 +645,7 @@ export const zh = {
   'progress.noData': '尚无数据',
   'progress.reading': '读取中…',
   'progress.refresh': '刷新',
+  'progress.refreshFailed': '暂时无法读取研究进展，请重试。',
   'progress.section.maturity': 'A · 研究成熟度（等级折算，非测量值）',
   'progress.section.assets': 'A2 · 可数资产（真实计数）',
   'progress.paper': '论文正文',
