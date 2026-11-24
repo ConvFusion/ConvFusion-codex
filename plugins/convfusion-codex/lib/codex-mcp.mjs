@@ -29295,7 +29295,7 @@ var codexTools = [
   {
     name: "research_progress_ui",
     description: "Open the read-only research progress panel for the current workspace.",
-    title: "\u7814\u7A76\u8FDB\u5C55 / Research Progress",
+    title: "\u7814\u7A76\u8FDB\u5C55",
     icons: workbenchIcons,
     parameters: {},
     optionalWorkspace: true,

@@ -86,7 +86,7 @@ try {
   assert.deepEqual(listed.result.tools.find((t) => t.name === 'research_ui_action')._meta.ui.visibility, ['app'])
   const uiTool = listed.result.tools.find((t) => t.name === 'research_ui')
   const progressTool = listed.result.tools.find((t) => t.name === 'research_progress_ui')
-  assert.equal(progressTool.title, '研究进展 / Research Progress')
+  assert.equal(progressTool.title, '研究进展')
   assert.deepEqual(uiTool._meta['openai/ui'].entrypoints, [{ type: 'global' }])
   assert.deepEqual(progressTool._meta['openai/ui'].entrypoints, [{ type: 'thread' }])
   assert.deepEqual(progressTool._meta.ui.visibility, ['app'])

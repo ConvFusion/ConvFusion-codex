@@ -294,7 +294,7 @@ const codexTools = [
   {
     name: 'research_progress_ui',
     description: 'Open the read-only research progress panel for the current workspace.',
-    title: '研究进展 / Research Progress',
+    title: '研究进展',
     icons: workbenchIcons,
     parameters: {},
     optionalWorkspace: true,

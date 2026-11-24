@@ -12,6 +12,51 @@ const output = await build({ absWorkingDir: root, metafile: true, entryPoints: [
 const script = output.outputFiles[0].text.replace(/<\/script/gi, '<\\/script')
 const css = `:root{color-scheme:light dark;--dsw-alias-bg-base:#f6f7f9;--dsw-alias-bg-layer-1:#fff;--dsw-alias-bg-layer-2:#f7f8fa;--dsw-alias-bg-layer-3:#edf0f4;--dsw-alias-border-l1:#e4e7ec;--dsw-alias-border-l2:#d0d5dd;--dsw-alias-label-primary:#182230;--dsw-alias-label-secondary:#475467;--dsw-alias-label-tertiary:#667085;--dsw-alias-brand-primary:#3157a4;--dsw-alias-button-primary-fill:#3157a4;--dsw-alias-state-business-primary:#3157a4;--dsw-alias-state-business-tertiary:#edf3ff;--dsw-alias-state-error-primary:#b42318;--dsw-alias-state-success-primary:#087443;--dsw-alias-state-success-tertiary:#ecfdf3;--dsw-alias-state-warn-primary:#b54708;--dsw-alias-state-warn-tertiary:#fffaeb;--ds-font-family-code:ui-monospace,monospace;--ds-transition-duration:160ms;--ds-ease-in-out:ease-in-out}*{box-sizing:border-box}body{margin:0;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:14px/1.6 system-ui,sans-serif}#root{max-width:1100px;margin:auto;padding:24px}.header{display:flex;align-items:center;gap:14px}.header img{width:42px;height:42px}h1{margin:0;font-size:24px}small{color:var(--dsw-alias-label-secondary)}.workbench-nav{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0}.workbench-nav button{border:0;border-radius:10px;padding:9px 18px;background:var(--dsw-alias-bg-layer-1);color:inherit;cursor:pointer}.workbench-nav button[aria-current]{background:var(--dsw-alias-brand-primary);color:var(--workbench-selected-text,#fff)}button:focus-visible,a:focus-visible{outline:2px solid #528bff;outline-offset:3px}.loading{padding:40px;white-space:pre-wrap}main{min-width:0}@media(max-width:600px){#root{padding:12px}.workbench-nav{gap:4px}.workbench-nav button{padding:8px 12px}}@media(prefers-color-scheme:dark){:root{--workbench-selected-text:#14171c;--dsw-alias-bg-base:#14171c;--dsw-alias-bg-layer-1:#1e232b;--dsw-alias-bg-layer-2:#252c35;--dsw-alias-bg-layer-3:#303944;--dsw-alias-border-l1:#35404d;--dsw-alias-border-l2:#475567;--dsw-alias-label-primary:#f0f3f8;--dsw-alias-label-secondary:#c0cad8;--dsw-alias-label-tertiary:#95a3b6;--dsw-alias-brand-primary:#7da8ff;--dsw-alias-state-business-primary:#a8c5ff;--dsw-alias-state-business-tertiary:#243754;--dsw-alias-state-success-primary:#67dfa6;--dsw-alias-state-success-tertiary:#16382c;--dsw-alias-state-warn-primary:#ffcb7c;--dsw-alias-state-warn-tertiary:#43321c;--dsw-alias-state-error-primary:#ff9e94}}`
 const controlsCss = `
+.progress-unavailable {
+  display:grid;
+  place-items:center;
+  min-block-size:calc(100vh - 48px);
+  padding:16px;
+  text-align:center;
+}
+.progress-unavailable-content {
+  --status-color:var(--dsw-alias-state-warn-primary);
+  max-inline-size:30rem;
+}
+.progress-unavailable-content[data-unresolved="true"] {
+  --status-color:var(--dsw-alias-state-error-primary);
+}
+.progress-unavailable-icon {
+  display:grid;
+  place-items:center;
+  inline-size:clamp(88px,24vw,124px);
+  aspect-ratio:1;
+  margin:0 auto 20px;
+  border-radius:50%;
+  color:var(--status-color);
+  background:color-mix(in srgb,var(--status-color) 10%,var(--dsw-alias-bg-base));
+}
+.progress-unavailable-icon svg {inline-size:62%;block-size:auto}
+.progress-unavailable-badge {fill:var(--dsw-alias-bg-base)}
+.progress-unavailable h1 {font-size:clamp(20px,5vw,27px);line-height:1.3}
+.progress-unavailable-instruction {
+  margin:12px auto 0;
+  font-size:.9375rem;
+  font-weight:600;
+  line-height:1.6;
+}
+.progress-unavailable-detail {
+  max-inline-size:24rem;
+  margin:14px auto 0;
+  padding-block-start:12px;
+  border-block-start:1px solid var(--dsw-alias-border-l2);
+  color:var(--dsw-alias-label-secondary);
+  font-size:.8125rem;
+  line-height:1.65;
+}
+@media(max-width:600px) {
+  .progress-unavailable {min-block-size:calc(100vh - 24px)}
+}
 .method-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:12px 0;padding:14px;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l1);border-radius:12px}
 .method-actions button,.sync-request button,.preferences-form button{padding:7px 12px;background:var(--dsw-alias-bg-layer-2);color:inherit;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;cursor:pointer}
 .method-actions button:disabled,.preferences-form button:disabled{opacity:.55;cursor:default}

@@ -38,10 +38,27 @@ function translate(language: WorkbenchLanguage, ...[key, params]: Parameters<Tra
 }
 function WorkspaceProgress({ workspace, language }: { workspace: Session; language: WorkbenchLanguage }): JSX.Element {
   const t: Translate = React.useCallback((key, params) => translate(language, key, params), [language])
-  return <main aria-label={t('progress.name')}>
-    {workspace.isResearchWorkspace && workspace.sessionId
-      ? <ResearchProgressPanel sessionId={workspace.sessionId} t={t} send={transport} />
-      : <p role="status">{t(workspace.workspaceRoot ? 'progress.workspace.setupRequired' : 'progress.workspace.unresolved')}</p>}
+  if (workspace.isResearchWorkspace && workspace.sessionId) {
+    return <main aria-label={t('progress.name')}>
+      <ResearchProgressPanel sessionId={workspace.sessionId} t={t} send={transport} />
+    </main>
+  }
+  const reason = workspace.workspaceRoot ? 'progress.workspace.setupRequired' : 'progress.workspace.unresolved'
+  return <main className="progress-unavailable" aria-label={t('progress.name')}>
+    <div className="progress-unavailable-content" data-unresolved={!workspace.workspaceRoot} role="status">
+      <div className="progress-unavailable-icon" aria-hidden="true">
+        <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 20a5 5 0 0 1 5-5h11l6 6h19a5 5 0 0 1 5 5v17a6 6 0 0 1-6 6H14a6 6 0 0 1-6-6Z" />
+          <circle cx="48" cy="46" r="12" className="progress-unavailable-badge" />
+          {workspace.workspaceRoot
+            ? <path d="M48 41v5m0 5h.01" />
+            : <path d="m44.5 42.5 7 7m0-7-7 7" />}
+        </svg>
+      </div>
+      <h1>{t(`${reason}.title`)}</h1>
+      <p className="progress-unavailable-instruction">{t(reason)}</p>
+      <p className="progress-unavailable-detail">{t(`${reason}.detail`)}</p>
+    </div>
   </main>
 }
 

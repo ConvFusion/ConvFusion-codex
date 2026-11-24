@@ -549,8 +549,12 @@ export declare const dictionaries: {
         'system.retrieval.saveFailed': string;
         'system.retrieval.clearFailed': string;
         'progress.name': string;
+        'progress.workspace.setupRequired.title': string;
         'progress.workspace.setupRequired': string;
+        'progress.workspace.setupRequired.detail': string;
+        'progress.workspace.unresolved.title': string;
         'progress.workspace.unresolved': string;
+        'progress.workspace.unresolved.detail': string;
         'workbench.connection.loading': string;
         'workbench.connection.failed': string;
         'workbench.connection.retry': string;
@@ -1311,8 +1315,12 @@ export declare const dictionaries: {
         readonly 'system.retrieval.saveFailed': "Save failed: {detail}";
         readonly 'system.retrieval.clearFailed': "Clear failed: {detail}";
         readonly 'progress.name': "Research progress";
-        readonly 'progress.workspace.setupRequired': "This folder has no research workspace yet. Ask ConvFusion to set up a research workspace in this chat, then reopen Research Progress.";
-        readonly 'progress.workspace.unresolved': "The workspace for this chat could not be identified. If you haven’t set up a research workspace yet, ask ConvFusion to do so in this chat, then reopen Research Progress.";
+        readonly 'progress.workspace.setupRequired.title': "Research workspace needed";
+        readonly 'progress.workspace.setupRequired': "Ask ConvFusion to set up a research workspace in this chat.";
+        readonly 'progress.workspace.setupRequired.detail': "Once the workspace is ready, reopen Research Progress.";
+        readonly 'progress.workspace.unresolved.title': "Workspace not identified";
+        readonly 'progress.workspace.unresolved': "Open Research Progress from a chat in your research project.";
+        readonly 'progress.workspace.unresolved.detail': "If you need to set up a research workspace, ask ConvFusion in that project chat.";
         readonly 'workbench.connection.loading': "Connecting to ConvFusion…";
         readonly 'workbench.connection.failed': "Could not open ConvFusion";
         readonly 'workbench.connection.retry': "Reopen ConvFusion in Codex or use the local link returned by the tool.";
