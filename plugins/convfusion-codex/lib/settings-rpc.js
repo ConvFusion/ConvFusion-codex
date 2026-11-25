@@ -84,7 +84,7 @@ import { CUSTOMIZABLE_SECTIONS, clearAllCustomizations, listCustomizationPoints,
 import { effectiveSkillContentById } from './research/library.js';
 import { openDownloadPart, readResearchFile, safeDirName, } from './research/workspace-sync.js';
 import { describeConvFusionKey, describeOpenAlexKey, redactConfig, resolveConvFusionApiKey, resolveCustomizationPath, resolveServerUrl, } from './config.js';
-import { acceptInvitation, createProject, fetchAcceptProposal, fetchAccount, fetchEmailNotificationPreferences, fetchProjectArchive, fetchProjectFiles, fetchProjectFilesWithIdentity, fetchFeeSuggestion, fetchProposals, fetchPropose, fetchRejectProposal, fetchTokenBalance, asCcfLevel, asJcrLevel, fetchWorkBrief, fetchWorkList, fetchWorkSummary, normalizeApiKey, normalizeBaseUrl, fetchUsage, fetchProject, fetchProjects, probeServerHealth, publishProject, purchaseStorage, readStateVersion, fetchPriceGuide, updateProject, submitRechargeRequest, fetchRechargeRequests, PROJECT_DIRECTIONS, SERVER_TIMEOUT_MS, ServerError, uploadProjectFiles, uploadWorkspaceFiles, workspaceUploadRequest, uploadResearchState, } from './server-client.js';
+import { acceptInvitation, createProject, fetchAcceptProposal, fetchAccount, fetchEmailNotificationPreferences, fetchAssignedGpuHosts, fetchProjectArchive, fetchProjectFiles, fetchProjectFilesWithIdentity, fetchFeeSuggestion, fetchProposals, fetchPropose, fetchRejectProposal, fetchTokenBalance, asCcfLevel, asJcrLevel, fetchWorkBrief, fetchWorkList, fetchWorkSummary, normalizeApiKey, normalizeBaseUrl, fetchUsage, fetchProject, fetchProjects, probeServerHealth, publishProject, purchaseStorage, readStateVersion, fetchPriceGuide, updateProject, submitRechargeRequest, fetchRechargeRequests, PROJECT_DIRECTIONS, SERVER_TIMEOUT_MS, ServerError, uploadProjectFiles, uploadWorkspaceFiles, workspaceUploadRequest, uploadResearchState, } from './server-client.js';
 import { isResearchWorkspace, researchWorkspaceOf } from './research/workspace.js';
 import { PROJECT_FILE } from './research/research-data.js';
 import { latestTurnReport } from './research/progress-bridge.js';
@@ -1413,6 +1413,22 @@ export function createSettingsRpcHandler(deps) {
                 case 'account/state':
                     // 不联网：服务器挂了也要能打开设置页（因此也没有余额）
                     return { ok: true, value: buildAccountState(deps.getConfig(), env(), null) };
+                case 'account/gpu-hosts': {
+                    const config = deps.getConfig();
+                    const apiKey = resolveConvFusionApiKey(config, env());
+                    if (!apiKey)
+                        return fail('not-configured', '尚未登录 ConvFusion.com。');
+                    try {
+                        const base = resolveServerUrl(config, env()).url;
+                        return { ok: true, value: await fetchAssignedGpuHosts(base, apiKey, netOptions()) };
+                    }
+                    catch (e) {
+                        if (e instanceof ServerError && e.httpStatus === 404) {
+                            return fail('gpu-hosts-unavailable', '当前服务器暂不支持 GPU 主机列表。');
+                        }
+                        return serverFail(e);
+                    }
+                }
                 case 'account/email-notifications':
                 case 'account/email-notifications/save': {
                     const config = deps.getConfig();

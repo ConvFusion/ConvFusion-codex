@@ -973,6 +973,35 @@ export async function fetchTokenBalance(
   }
 }
 
+export async function fetchAssignedGpuHosts(
+  base: string,
+  apiKey: string,
+  options: ServerRequestOptions = {},
+): Promise<import('./client/gpu-host-types.js').AssignedGpuHost[]> {
+  const body = await requestJson(base, '/gpu/hosts', { method: 'GET', apiKey: requireKey(apiKey) }, options, 'GPU 主机')
+  if (!Array.isArray(body)) throw new ServerError('bad-response', 'GPU 主机列表格式有误。')
+  const networkStates = ['existing', 'pending', 'accepted', 'account-mismatch', 'unavailable', 'preparing'] as const
+  return body.map((raw) => {
+    const host = asObject(raw, 'GPU 主机')
+    const id = asString(host.id)
+    const name = asString(host.name)
+    const tailscaleIp = asString(host.tailscale_ip)
+    const sshPort = asNumber(host.ssh_port)
+    const sshUsername = asString(host.ssh_username)
+    const networkAccess = networkStates.find((state) => state === host.network_access) ?? 'unavailable'
+    if (!id || !name || !tailscaleIp || !sshUsername || !Number.isInteger(sshPort) || sshPort < 1 || sshPort > 65535) {
+      throw new ServerError('bad-response', 'GPU 主机连接信息有误。')
+    }
+    return {
+      id, name, tailscaleIp, sshPort, sshUsername,
+      tailscaleDnsName: asString(host.tailscale_dns_name) || null,
+      gpuModel: asString(host.gpu_model) || null,
+      gpuCount: optionalNumber(host.gpu_count),
+      networkAccess,
+    }
+  })
+}
+
 /**
  * 续费申请的状态（与服务器 `RechargeRequestStatus` 对齐）。
  *

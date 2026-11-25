@@ -460,6 +460,7 @@ export declare function acceptInvitation(base: string, input: {
  * @throws {ServerError} `invalid-key` / `unreachable` / …
  */
 export declare function fetchTokenBalance(base: string, apiKey: string, options?: ServerRequestOptions): Promise<TokenBalance>;
+export declare function fetchAssignedGpuHosts(base: string, apiKey: string, options?: ServerRequestOptions): Promise<import('./client/gpu-host-types.js').AssignedGpuHost[]>;
 /**
  * 续费申请的状态（与服务器 `RechargeRequestStatus` 对齐）。
  *

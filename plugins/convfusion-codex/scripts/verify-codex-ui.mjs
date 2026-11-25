@@ -15,6 +15,8 @@ const key = 'cf_live_codex_offline_fixture_secret'
 const calls = []
 let emailPreferences = { email_research_updates: true, email_new_work: false }
 let notificationsSupported = true
+let gpuHostsSupported = true
+let gpuRows = []
 const gbBytes = 1024 ** 3
 let capacityBytes = gbBytes
 let available = 100
@@ -25,6 +27,10 @@ const host = createCodexUiHost({ home, env: { CONVFUSION_ENV: 'production' }, fe
   calls.push({ url, method: options.method })
   assert.equal(options.headers.authorization, `Bearer ${key}`)
   if (url.endsWith('/auth/me')) return new Response(JSON.stringify({ id: 'offline-account', email: 'fixture@example.com', display_name: 'Offline fixture', status: 'ACTIVE', roles: ['RESEARCHER'] }), { status: 200 })
+  if (url.endsWith('/gpu/hosts')) {
+    assert.equal(options.method, 'GET')
+    return gpuHostsSupported ? Response.json(gpuRows) : Response.json({}, { status: 404 })
+  }
   if (url.endsWith('/tokens')) return Response.json({ available_balance: available, frozen_balance: 0, total_balance: available })
   if (url.endsWith('/usage')) {
     return Response.json({
@@ -79,6 +85,7 @@ try {
   assert.equal(global.sessionId, null)
   const globalCall = (endpoint, payload = {}, root) => host.dispatchSession(global.uiSession, root, endpoint, payload)
   assert.equal((await globalCall('state')).ok, true, 'settings are usable before choosing a directory')
+  assert.equal((await globalCall('account/gpu-hosts')).error.code, 'not-configured')
   // Reset scopes must survive the Codex transport and persistence boundary.
   const custom = async (endpoint, payload) => {
     const result = await globalCall(`customization/${endpoint}`, payload)
@@ -126,6 +133,19 @@ try {
   assert.equal(state.ok, true)
   assert.equal(calls.length, 0, 'account state must be available offline')
   const login = await host.dispatch(first, 'account/login', { apiKey: key, serverUrl: 'https://fixture.example.com' })
+  assert.deepEqual((await globalCall('account/gpu-hosts')).value, [])
+  gpuRows = [{
+    id: 'gpu-fixture', name: 'Dual 4090', tailscale_ip: '100.80.12.34', ssh_port: 2222,
+    ssh_username: 'research', gpu_model: 'RTX 4090', gpu_count: 2, password: 'never-project',
+    tailscale_dns_name: 'fixture.example.ts.net', network_access: 'pending',
+  }]
+  assert.deepEqual((await globalCall('account/gpu-hosts')).value, [{
+    id: 'gpu-fixture', name: 'Dual 4090', tailscaleIp: '100.80.12.34', sshPort: 2222,
+    sshUsername: 'research', gpuModel: 'RTX 4090', gpuCount: 2,
+    tailscaleDnsName: 'fixture.example.ts.net', networkAccess: 'pending',
+  }])
+  gpuHostsSupported = false
+  assert.equal((await globalCall('account/gpu-hosts')).error.code, 'gpu-hosts-unavailable')
   assert.equal(login.ok, true)
   assert.ok(!JSON.stringify(login).includes(key), 'account response must not disclose a credential')
   assert.ok((await readFile(join(home, 'config.json'), 'utf8')).includes(key))

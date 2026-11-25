@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { App } from '@modelcontextprotocol/ext-apps'
 import { CommunityTab, ConvFusionProjectSettings, copyText, type SettingsSend } from './settings.js'
 import { ResearchProgressPanel } from './progress-panel.js'
+import { GpuHostsPanel } from './gpu-hosts-panel.js'
 import { WorkbenchSettings, type UpdateCheckResult, type WorkbenchLanguage } from './workbench-settings.js'
 import { dictionaries, type Translate } from './i18n/index.js'
 import logo from '../../assets/favicon.svg'
@@ -65,7 +66,7 @@ function WorkspaceProgress({ workspace, language }: { workspace: Session; langua
 function Workbench({ initial }: { initial: Session }): JSX.Element {
   const current = initial
   const progressWorkspaceId = current.isResearchWorkspace ? current.sessionId : null
-  const [tab, setTab] = React.useState<'community' | 'progress' | 'methods' | 'settings'>(progressWorkspaceId ? current.initialTab ?? 'progress' : 'community')
+  const [tab, setTab] = React.useState<'community' | 'progress' | 'methods' | 'gpu' | 'settings'>(progressWorkspaceId ? current.initialTab ?? 'progress' : 'community')
   const [language, setLanguage] = React.useState<WorkbenchLanguage>('zh')
   const [syncDraft, setSyncDraft] = React.useState<string | null>(null)
   const [sending, setSending] = React.useState(false)
@@ -135,12 +136,14 @@ function Workbench({ initial }: { initial: Session }): JSX.Element {
       <button aria-current={tab === 'community' ? 'page' : undefined} onClick={() => setTab('community')}>{zh ? '研究网络' : 'Research network'}</button>
       {progressWorkspaceId && <button aria-current={tab === 'progress' ? 'page' : undefined} onClick={() => setTab('progress')}>{zh ? '研究进展' : 'Research progress'}</button>}
       <button aria-current={tab === 'methods' ? 'page' : undefined} onClick={() => setTab('methods')}>{zh ? '研究方法' : 'Research methods'}</button>
+      <button aria-current={tab === 'gpu' ? 'page' : undefined} onClick={() => setTab('gpu')}>{t('gpu.title')}</button>
       <button aria-current={tab === 'settings' ? 'page' : undefined} onClick={() => setTab('settings')}>{t('workbench.settings.title')}</button>
     </nav>
     <main key={current.workspaceRoot ?? 'global'}>
       {tab === 'community' && <CommunityTab send={transport} initial={null} t={t} session={bridge} view="network" />}
       {tab === 'progress' && progressWorkspaceId && <ResearchProgressPanel sessionId={progressWorkspaceId} t={t} send={transport} />}
       {tab === 'methods' && <><MethodsExport zh={zh} enabled={Boolean(current.workspaceRoot)} /><ConvFusionProjectSettings send={transport} t={t} session={bridge} view="methods" /></>}
+      {tab === 'gpu' && <GpuHostsPanel send={transport} t={t} />}
       {tab === 'settings' && <WorkbenchSettings send={transport} t={t} language={language} onLanguageChange={setLanguage}
         updates={{ version: current.version, automatic: autoCheckUpdates, result: updateCheck, onChange: changeAutoCheckUpdates, onCheck: () => { void checkForUpdates(true) } }} />}
     </main>

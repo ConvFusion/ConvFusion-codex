@@ -1,5 +1,6 @@
 {
   "repository": "https://github.com/ConvFusion/ConvFusion-dsh",
   "version": "0.7.4",
-  "commit": "c45b7a680519262541033c0862b8bc25fb63e70a"
+  "commit": "c45b7a680519262541033c0862b8bc25fb63e70a",
+  "codexVersionOverride": "0.7.5-codex.1"
 }

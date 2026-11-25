@@ -2261,6 +2261,35 @@ async function fetchTokenBalance(base, apiKey, options = {}) {
     funded: optionalNumber(b.funded_balance)
   };
 }
+async function fetchAssignedGpuHosts(base, apiKey, options = {}) {
+  const body = await requestJson(base, "/gpu/hosts", { method: "GET", apiKey: requireKey(apiKey) }, options, "GPU \u4E3B\u673A");
+  if (!Array.isArray(body))
+    throw new ServerError("bad-response", "GPU \u4E3B\u673A\u5217\u8868\u683C\u5F0F\u6709\u8BEF\u3002");
+  const networkStates = ["existing", "pending", "accepted", "account-mismatch", "unavailable", "preparing"];
+  return body.map((raw) => {
+    const host = asObject(raw, "GPU \u4E3B\u673A");
+    const id = asString2(host.id);
+    const name = asString2(host.name);
+    const tailscaleIp = asString2(host.tailscale_ip);
+    const sshPort = asNumber(host.ssh_port);
+    const sshUsername = asString2(host.ssh_username);
+    const networkAccess = networkStates.find((state) => state === host.network_access) ?? "unavailable";
+    if (!id || !name || !tailscaleIp || !sshUsername || !Number.isInteger(sshPort) || sshPort < 1 || sshPort > 65535) {
+      throw new ServerError("bad-response", "GPU \u4E3B\u673A\u8FDE\u63A5\u4FE1\u606F\u6709\u8BEF\u3002");
+    }
+    return {
+      id,
+      name,
+      tailscaleIp,
+      sshPort,
+      sshUsername,
+      tailscaleDnsName: asString2(host.tailscale_dns_name) || null,
+      gpuModel: asString2(host.gpu_model) || null,
+      gpuCount: optionalNumber(host.gpu_count),
+      networkAccess
+    };
+  });
+}
 function parseRechargeRequest(raw) {
   const b = asObject(raw, "\u7EED\u8D39\u7533\u8BF7");
   const id = asString2(b.id);
@@ -14363,6 +14392,21 @@ function createSettingsRpcHandler(deps) {
          */
         case "account/state":
           return { ok: true, value: buildAccountState(deps.getConfig(), env(), null) };
+        case "account/gpu-hosts": {
+          const config = deps.getConfig();
+          const apiKey = resolveConvFusionApiKey(config, env());
+          if (!apiKey)
+            return fail("not-configured", "\u5C1A\u672A\u767B\u5F55 ConvFusion.com\u3002");
+          try {
+            const base = resolveServerUrl(config, env()).url;
+            return { ok: true, value: await fetchAssignedGpuHosts(base, apiKey, netOptions()) };
+          } catch (e) {
+            if (e instanceof ServerError && e.httpStatus === 404) {
+              return fail("gpu-hosts-unavailable", "\u5F53\u524D\u670D\u52A1\u5668\u6682\u4E0D\u652F\u6301 GPU \u4E3B\u673A\u5217\u8868\u3002");
+            }
+            return serverFail(e);
+          }
+        }
         case "account/email-notifications":
         case "account/email-notifications/save": {
           const config = deps.getConfig();

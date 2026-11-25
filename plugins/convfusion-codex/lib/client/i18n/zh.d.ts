@@ -1,6 +1,22 @@
 /** Simplified Chinese dictionary; the type rejects missing and extra keys. */
 export declare const zh: {
     'workbench.settings.title': string;
+    'gpu.title': string;
+    'gpu.refresh': string;
+    'gpu.loading': string;
+    'gpu.assigned': string;
+    'gpu.empty': string;
+    'gpu.signed-out': string;
+    'gpu.unsupported': string;
+    'gpu.error': string;
+    'gpu.sshUser': string;
+    'gpu.sshPort': string;
+    'gpu.network.existing': string;
+    'gpu.network.pending': string;
+    'gpu.network.accepted': string;
+    'gpu.network.account-mismatch': string;
+    'gpu.network.unavailable': string;
+    'gpu.network.preparing': string;
     'workbench.settings.categories': string;
     'workbench.settings.category.user': string;
     'workbench.settings.category.server': string;

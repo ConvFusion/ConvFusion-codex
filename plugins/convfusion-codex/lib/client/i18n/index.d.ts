@@ -6,6 +6,22 @@ export type Translate = (key: string, params?: TranslateParams) => string;
 export declare const dictionaries: {
     zh: {
         'workbench.settings.title': string;
+        'gpu.title': string;
+        'gpu.refresh': string;
+        'gpu.loading': string;
+        'gpu.assigned': string;
+        'gpu.empty': string;
+        'gpu.signed-out': string;
+        'gpu.unsupported': string;
+        'gpu.error': string;
+        'gpu.sshUser': string;
+        'gpu.sshPort': string;
+        'gpu.network.existing': string;
+        'gpu.network.pending': string;
+        'gpu.network.accepted': string;
+        'gpu.network.account-mismatch': string;
+        'gpu.network.unavailable': string;
+        'gpu.network.preparing': string;
         'workbench.settings.categories': string;
         'workbench.settings.category.user': string;
         'workbench.settings.category.server': string;
@@ -773,6 +789,22 @@ export declare const dictionaries: {
     };
     en: {
         readonly 'workbench.settings.title': "Settings";
+        readonly 'gpu.title': "GPU hosts";
+        readonly 'gpu.refresh': "Refresh";
+        readonly 'gpu.loading': "Loading assigned hosts…";
+        readonly 'gpu.assigned': "Assigned hosts: {count}";
+        readonly 'gpu.empty': "No GPU hosts are assigned to this account.";
+        readonly 'gpu.signed-out': "Sign in to ConvFusion.com in Settings.";
+        readonly 'gpu.unsupported': "This server does not support the GPU host list yet.";
+        readonly 'gpu.error': "Could not load GPU hosts. Refresh to try again.";
+        readonly 'gpu.sshUser': "SSH username";
+        readonly 'gpu.sshPort': "SSH port";
+        readonly 'gpu.network.existing': "Uses existing Tailscale access.";
+        readonly 'gpu.network.pending': "Tailscale share pending. Check your email for the invitation.";
+        readonly 'gpu.network.accepted': "Tailscale share accepted.";
+        readonly 'gpu.network.account-mismatch': "The Tailscale account that accepted the invitation does not match. Contact your administrator.";
+        readonly 'gpu.network.unavailable': "Could not verify the Tailscale share status.";
+        readonly 'gpu.network.preparing': "Waiting for your administrator to confirm the Tailscale invitation.";
         readonly 'workbench.settings.categories': "Settings categories";
         readonly 'workbench.settings.category.user': "User preferences";
         readonly 'workbench.settings.category.server': "Server settings";

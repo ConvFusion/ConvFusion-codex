@@ -133,6 +133,7 @@ import {
   fetchAcceptProposal,
   fetchAccount,
   fetchEmailNotificationPreferences,
+  fetchAssignedGpuHosts,
   fetchProjectArchive,
   fetchProjectFileBytes,
   fetchProjectFiles,
@@ -2055,6 +2056,21 @@ export function createSettingsRpcHandler(
         case 'account/state':
           // 不联网：服务器挂了也要能打开设置页（因此也没有余额）
           return { ok: true, value: buildAccountState(deps.getConfig(), env(), null) }
+
+        case 'account/gpu-hosts': {
+          const config = deps.getConfig()
+          const apiKey = resolveConvFusionApiKey(config, env())
+          if (!apiKey) return fail('not-configured', '尚未登录 ConvFusion.com。')
+          try {
+            const base = resolveServerUrl(config, env()).url
+            return { ok: true, value: await fetchAssignedGpuHosts(base, apiKey, netOptions()) }
+          } catch (e) {
+            if (e instanceof ServerError && e.httpStatus === 404) {
+              return fail('gpu-hosts-unavailable', '当前服务器暂不支持 GPU 主机列表。')
+            }
+            return serverFail(e)
+          }
+        }
 
         case 'account/email-notifications':
         case 'account/email-notifications/save': {
