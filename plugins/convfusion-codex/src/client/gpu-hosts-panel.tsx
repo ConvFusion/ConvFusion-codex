@@ -81,7 +81,7 @@ export function GpuHostsPanel({ send, t }: { send: SettingsSend; t: Translate })
     {state.status === 'ready' && state.hosts.length > 0 && <ul className="gpu-host-list">
       {state.hosts.map((host) => <li className="preferences-card" key={host.id}>
         <h3>{host.name}</h3>
-        <p>{t(`gpu.network.${host.networkAccess}`)}</p>
+        <p className="gpu-host-status">{t(`gpu.network.${host.networkAccess}`)}</p>
         <dl>
           {(host.gpuModel || host.gpuCount !== null) && <>
             <dt>GPU</dt>
@@ -94,8 +94,8 @@ export function GpuHostsPanel({ send, t }: { send: SettingsSend; t: Translate })
             <dt>{t('gpu.sshPort')}</dt><dd>{host.sshPort}</dd>
           </>}
         </dl>
-        <p>{t(`gpu.workspace.${host.workspaceStatus}`)}</p>
-        {host.workspaceStatus === 'ready' && !host.localIdentity && <p>{t('gpu.workspace.keyMissing')}</p>}
+        <p className="gpu-host-status">{t(`gpu.workspace.${host.workspaceStatus}`)}</p>
+        {host.workspaceStatus === 'ready' && !host.localIdentity && <p className="gpu-host-warning">{t('gpu.workspace.keyMissing')}</p>}
         <div className="plugin-update-actions">
           {host.workspaceStatus === 'unrequested' && <button type="button" aria-disabled={Boolean(actionHost) || undefined}
             onClick={() => { void workspaceAction(host, true) }}>{t('gpu.workspace.request')}</button>}

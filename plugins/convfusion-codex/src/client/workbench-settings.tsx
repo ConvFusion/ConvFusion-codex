@@ -28,7 +28,7 @@ export function WorkbenchSettings({ send, t, language, onLanguageChange, updates
     user: () => <>
       <div className="preferences-card">
         <label className="preferences-row">
-          <span>{t('workbench.settings.language')}</span>
+          <span className="preferences-row-title">{t('workbench.settings.language')}</span>
           <select value={language} onChange={(e) => onLanguageChange(e.target.value as WorkbenchLanguage)}>
             <option value="zh">简体中文</option>
             <option value="en">English</option>
@@ -79,7 +79,7 @@ function PluginUpdateSettings({ updates, t }: { updates: UpdateSettings; t: Tran
   const result = updates.result
   return <div className="preferences-card">
     <h4>{t('workbench.updates.title')}</h4>
-    <p>{t('workbench.updates.installed', { version: updates.version })}</p>
+    <p style={{ color: 'var(--dsw-alias-label-secondary)', fontSize: 'var(--cf-type-label)' }}>{t('workbench.updates.installed', { version: updates.version })}</p>
     <label className="preferences-check" htmlFor={checkboxId}>
       <input id={checkboxId} type="checkbox" checked={updates.automatic} disabled={saving}
         onChange={(event) => { void setAutomatic(event.target.checked) }} />

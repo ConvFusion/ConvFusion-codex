@@ -95,7 +95,7 @@ window.__ModuleLoader__.load({
 		  "gpu.loading": "Loading assigned hosts…",
 		  "gpu.assigned": "Assigned hosts: {count}",
 		  "gpu.empty": "No GPU hosts are assigned to this account.",
-		  "gpu.signed-out": "Sign in to ConvFusion.com in Settings.",
+		  "gpu.signed-out": "Sign in to ConvFusion.com in Research network first.",
 		  "gpu.unsupported": "This server does not support the GPU host list yet.",
 		  "gpu.error": "Could not load GPU hosts. Refresh to try again.",
 		  "gpu.sshUser": "SSH username",
@@ -330,8 +330,8 @@ window.__ModuleLoader__.load({
 		  "community.dash.tokenFrozen": "{frozen} frozen",
 		  "community.dash.tokenTotal": "{total} in total",
 		  // v0.6.3: the two pools are reported separately — only the funded pool can pay a mentor
-		  "community.dash.tokenPools": "Funded {funded} · grant {grant}",
-		  "community.dash.tokenPoolsFrozen": "Funded {funded} · grant {grant} · {frozen} frozen",
+		  "community.dash.tokenPools": "Funded {funded} · Grant {grant}",
+		  "community.dash.tokenPoolsFrozen": "Funded {funded} · Grant {grant} · Frozen {frozen}",
 		  "community.dash.storage": "Storage",
 		  "community.dash.storageSub": "Used {used} / {total}",
 		  "community.storagePurchase.open": "Buy storage",
@@ -422,7 +422,7 @@ window.__ModuleLoader__.load({
 		  // The student side of the same dialog (bid on a mentor-published topic): same logic,
 		  // but it must say plainly that the deposit frozen on acceptance is **theirs**.
 		  "community.mentor.bidTitle": "Bid to join",
-		  "community.mentor.bidNote": "A {percent}% deposit ({deposit} Token) is frozen from **your** account when the mentor accepts, the two sides confirm the success condition, and the remaining {success} Token is paid once the outcome is verified.",
+		  "community.mentor.bidNote": "A {percent}% deposit ({deposit} Token) is frozen from your account when the mentor accepts, both sides confirm the success condition, and the remaining {success} Token is paid once the outcome is verified.",
 		  "community.mentor.bidDone": "Bid placed; waiting for the mentor’s response.",
 		  // The mentor only sets the total: the deposit ratio is platform policy
 		  "community.mentor.feeTotal": "Total fee",
@@ -504,7 +504,7 @@ window.__ModuleLoader__.load({
 		  "community.mentor.acceptConfirmBadgeOther": "Freeze {deposit} Token from the student",
 		  "community.mentor.acceptConfirm": "Confirm accept",
 		  "community.mentor.acceptFreezeNote": "Accepting freezes a {deposit} Token deposit (still yours, just unavailable).",
-		  "community.mentor.acceptFreezeNoteOther": "Accepting freezes a {deposit} Token deposit from the **student**’s account; it fails if the student’s funded pool is short.",
+		  "community.mentor.acceptFreezeNoteOther": "Accepting freezes a {deposit} Token deposit from the student’s account; it fails if the student’s funded pool is short.",
 		  "community.mentor.acceptBalance": "Available balance: {balance} Token",
 		  // The deposit can only be frozen from the **funded** pool; when that is known, report
 		  // only it instead of a total that would mislead.
@@ -544,7 +544,7 @@ window.__ModuleLoader__.load({
 		  "community.exchange.ws.conflict": "Identity conflict",
 		  "community.exchange.ws.conflictHint": "The in-workspace marker and the local record disagree — cannot confirm",
 		  "community.exchange.ws.current": "Current session",
-		  "community.exchange.ws.otherWarn": "⚠️ This workspace holds **another** research. After downloading, DSH first **backs up** the existing research root (moved under this workspace and renamed to `workspace_<initialism>_<date>`; never deleted) and then extracts this one as a new root — pick another workspace if you want to keep it as it is.",
+		  "community.exchange.ws.otherWarn": "⚠️ This workspace holds another research project. After downloading, DSH first backs up the existing research root (moved under this workspace and renamed to workspace_<initialism>_<date>, never deleted) and then extracts this archive as a new root; pick another workspace if you want to keep it unchanged.",
 		  "community.exchange.ws.unknownWarn": "⚠️ This workspace's identity cannot be read, so sameness is unconfirmed. The merge prompt makes DSH survey read-only, state a judgement, and wait for your confirmation before touching files.",
 		  "community.exchange.ws.conflictWarn": "⚠️ The in-workspace marker and the local record contradict each other, so sameness is unconfirmed. The merge prompt makes DSH survey read-only, state a judgement, and wait for your confirmation.",
 		  "community.exchange.ws.unverifiableWarn": "⚠️ The server provided no research identity, so sameness cannot be verified. The merge prompt makes DSH survey read-only, state a judgement, and wait for your confirmation.",
@@ -554,20 +554,20 @@ window.__ModuleLoader__.load({
 		  // delete), then extract as a new one**. Unreadable / missing identity → survey, state a judgement,
 		  // wait for confirmation, then act on the matching branch. Two steps either way.
 		  "community.merge.title": "Sync command",
-		  "community.merge.hint": "Just send it: the agent loads the `sync` skill first — step 1 is a **read-only survey** whose report it stops at, and only after your confirmation does it touch files. Same research → merge (new files from both sides, never overwrite); another research → back up the existing root first, then extract the new one.",
+		  "community.merge.hint": "Just send it: the agent loads the sync skill first — step 1 is a read-only survey whose report it stops at, and only after your confirmation does it touch files. Same research → merge (new files from both sides, never overwrite); another research → back up the existing root first, then extract the new one.",
 		  "community.merge.fill": "Fill the input box",
 		  "community.merge.fillHint": "Replaces whatever is in the input box",
 		  "community.merge.copy": "Copy prompt",
 		  "community.merge.copied": "Prompt copied to the clipboard.",
 		  "community.merge.copyFailed": "Copy failed. Please try again.",
 		  "community.merge.filled": "Merge prompt filled into the input box — send it when you are ready.",
-		  "community.merge.otherWorkspace": "Saved to {dir}. That workspace is not this session's workspace — send this command from a session **in that workspace** (DSH can only write its own session workspace).",
+		  "community.merge.otherWorkspace": "Saved to {dir}. That workspace is not this session's workspace — send this command from a session in that workspace (DSH can only write its own session workspace).",
 		  "community.merge.noComposer": "Copy this command and send it in a chat for the destination workspace.",
-		  "community.merge.plan.new": "This workspace has **no** research root yet: step 2 extracts the archive into a new one.",
-		  "community.merge.plan.same": "This workspace already holds the **same** research (identity matches): step 2 **merges** the archive into it — not a replacement, information from both sides survives.",
-		  "community.merge.plan.other": "This workspace currently holds **another** research (identity differs): step 2 first backs up the whole existing research root (**moves** it, never deletes) and then extracts the download as a **new** research root. The backup stays in place — nothing is lost.",
-		  "community.merge.plan.unknown": "This workspace has research but its **identity cannot be read**, so sameness cannot be decided automatically: in the survey, compare both sides' project.md / research-state.md topics and questions, state whether they are the same research and why, and **wait for my confirmation** before acting on either branch.",
-		  "community.merge.plan.unverifiable": "The server provided **no** research identity, so sameness cannot be decided automatically: in the survey, compare both sides' project.md / research-state.md topics and questions, state your judgement and its basis, and **wait for my confirmation** before acting on either branch.",
+		  "community.merge.plan.new": "This workspace has no research root yet: step 2 extracts the archive into a new one.",
+		  "community.merge.plan.same": "This workspace already holds the same research (identity matches): step 2 merges the archive into it — not a replacement, information from both sides survives.",
+		  "community.merge.plan.other": "This workspace currently holds another research (identity differs): step 2 first backs up the whole existing research root (moves it, never deletes) and then extracts the download as a new research root. The backup stays in place — nothing is lost.",
+		  "community.merge.plan.unknown": "This workspace has research but its identity cannot be read, so sameness cannot be decided automatically: in the survey, compare both sides' project.md / research-state.md topics and questions, state whether they are the same research and why, and wait for my confirmation before acting on either branch.",
+		  "community.merge.plan.unverifiable": "The server provided no research identity, so sameness cannot be decided automatically: in the survey, compare both sides' project.md / research-state.md topics and questions, state your judgement and its basis, and wait for my confirmation before acting on either branch.",
 		  // Upload = hand back *my copy of the workspace* (the mentor kept working inside the student's workspace/)
 		  "community.exchange.uploadTitle": "Upload research progress",
 		  "community.exchange.workspaceLabel": "Workspace",
@@ -729,28 +729,28 @@ window.__ModuleLoader__.load({
 		  "progress.reading": "Reading…",
 		  "progress.refresh": "Refresh",
 		  "progress.refreshFailed": "Research progress could not be read. Try refreshing again.",
-		  "progress.section.maturity": "A · Research maturity (level conversion, not a measurement)",
-		  "progress.section.assets": "A2 · Countable assets (actual counts)",
+		  "progress.section.maturity": "Research maturity (level-based)",
+		  "progress.section.assets": "Research assets",
 		  "progress.paper": "Paper body",
 		  "progress.paper.present": "Draft exists",
 		  "progress.paper.absent": "No draft yet",
 		  "progress.stateVersion": "Research State version: {version}",
-		  "progress.section.turn": "B · Most recent turn",
+		  "progress.section.turn": "Latest turn changes",
 		  "progress.turn.summary": "Turn {turn} · Maturity conversion {before} → {after}{assetChange}",
 		  "progress.turn.assetChange": " · {count} asset changes",
 		  "progress.turn.noAssetChange": " · No asset changes",
 		  "progress.turn.maturityChange": "Maturity {dimension}: {from} → {to}",
 		  "progress.turn.countChange": "{label}: {from} → {to} ({delta})",
 		  "progress.turn.noChange": "This turn created no new verifiable research assets. Discussion and clarification do not create assets, which is normal.",
-		  "progress.turn.unavailable": "This session has no turn report yet. The Host creates one after a conversation turn; section A always shows the latest state.",
-		  "progress.section.need": "C · Current gaps and advance assessment",
+		  "progress.turn.unavailable": "This session has no turn report yet. The Host creates one after a conversation turn; the maturity and asset sections above always show the latest state.",
+		  "progress.section.need": "Gaps and next-step assessment",
 		  "progress.need.assessment": "Advance assessment:",
 		  "progress.need.basis": " (Basis: {basis})",
 		  "progress.need.nextStep": "Next step: {text}",
 		  "progress.need.decision": "Your decision is needed: {text}",
 		  "progress.basis.blockingQuestion": "A research question is explicitly marked as blocking",
 		  "progress.basis.stalled": "No new verifiable research assets were created for {rounds} consecutive turns",
-		  "progress.basis.draftPlans": "{count} plans are still drafts ({plans})",
+		  "progress.basis.draftPlans": "{count} plans are still in draft ({plans})",
 		  "progress.basis.processComplete": "Every research-process stage has a landed asset; there is no structural gap",
 		  "progress.basis.stagePending": "The current stage “{stage}” has not landed yet ({evidence})",
 		  "progress.decision.stalled": "The current approach is not producing assets. Continue in this direction, switch direction, or adjust the objective?",
@@ -758,14 +758,14 @@ window.__ModuleLoader__.load({
 		  "progress.decision.processComplete": "Should the research deepen, move to writing, or open a new question? Choose a direction.",
 		  "progress.noReport": "The Host has not returned progress data for this workspace yet.",
 		  "progress.footnote": "All data comes from real assets on disk (project.md / research-state.md / evidence / claims / plans). Maturity is a conversion of Research State levels, not a measurement. This panel describes research needs; it does not prescribe the next action.",
-		  "progress.clarity.clear": "Direction is clear → proceed directly",
+		  "progress.clarity.clear": "Direction is clear; ready to proceed",
 		  "progress.clarity.ambiguous": "Choose a direction",
 		  "progress.clarity.blocked": "Waiting for your decision (blocked)",
 		  "progress.clarity.unknown": "Not assessed",
 		  "progress.gap.stagePending": "Current research-process stage: {stage} (not yet landed)",
 		  "progress.gap.processComplete": "Every research-process stage has a landed asset",
 		  "progress.gap.unsupportedClaims": "{count} claims still lack supporting evidence",
-		  "progress.gap.missingArtifacts": "{count} evidence items lack a raw-artifact reference (incomplete provenance)",
+		  "progress.gap.missingArtifacts": "{count} evidence items lack raw-artifact provenance references",
 		  "progress.gap.openQuestions": "{count} open questions remain",
 		  "progress.stage.topics": "Topic Proposal",
 		  "progress.stage.literature": "Literature Grounding",
@@ -804,7 +804,7 @@ window.__ModuleLoader__.load({
 		  "progress.works.overview": "Overview",
 		  "progress.works.active": "active paper",
 		  // 总览 tab 的多工作汇总（v2）：逐工作一行 + 合计；括号里的子集含义放悬停提示
-		  "progress.works.section.aggregate": "All works (actual counts)",
+		  "progress.works.section.aggregate": "All research works",
 		  "progress.works.col.work": "Work",
 		  "progress.works.col.maturity": "Maturity",
 		  "progress.works.col.sections": "Sections",
@@ -815,23 +815,23 @@ window.__ModuleLoader__.load({
 		  "progress.works.totals": "Total ({count} works)",
 		  "progress.works.derived": "derived from assets",
 		  "progress.works.evidenceShared": "shared workspace evidence library",
-		  "progress.work.section.maturity": "A · Paper maturity (level conversion, not a measurement)",
+		  "progress.work.section.maturity": "Paper maturity (level-based)",
 		  "progress.work.maturityDerived": " · derived from assets",
-		  "progress.work.section.assets": "A2 · This work’s countable assets (actual counts)",
-		  "progress.work.section.next": "C · This work’s next step",
+		  "progress.work.section.assets": "Work assets",
+		  "progress.work.section.next": "Next step for this work",
 		  "progress.work.meta": "v{version} · {status}",
-		  "progress.work.count.sections": "Sections (substantive)",
+		  "progress.work.count.sections": "Completed sections",
 		  "progress.work.count.claims": "Claims",
 		  "progress.work.count.claimsWithoutEvidence": "{count} without evidence",
 		  "progress.work.count.evidence": "Evidence",
 		  "progress.work.count.evidenceUsed": "{count} cited in manuscript",
-		  "progress.work.count.gaps": "Open gaps (rule check)",
+		  "progress.work.count.gaps": "Open gaps",
 		  "progress.work.count.gapsHigh": "{count} high priority",
 		  "progress.work.count.proposals": "Pending revisions",
 		  "progress.work.nextStep": "Next step: {text}",
 		  "progress.work.nextSkill": "Suggested capability: {skill}",
-		  "progress.work.gap.missing-section": "Missing `{target}` section",
-		  "progress.work.gap.thin-section": "Section `{target}` has no substantive content",
+		  "progress.work.gap.missing-section": "Missing “{target}” section",
+		  "progress.work.gap.thin-section": "Section “{target}” has no substantive content",
 		  "progress.work.gap.unsupported-claim": "Claim {target} lacks supporting evidence",
 		  "progress.work.gap.contested-claim": "Claim {target} has contradicting evidence",
 		  "progress.work.gap.missing-evidence": "Missing supporting evidence",
@@ -839,7 +839,7 @@ window.__ModuleLoader__.load({
 		  "progress.work.gap.unreferenced-evidence": "Evidence is not cited in the manuscript",
 		  "progress.work.gap.missing-ablation": "Missing ablation",
 		  "progress.work.gap.experimental-validation": "Missing experimental validation",
-		  "progress.work.gap.no-claim-map": "No claim ↔ evidence map",
+		  "progress.work.gap.no-claim-map": "Missing claim-to-evidence mapping",
 		  "progress.work.gap.outdated-related-work": "Related work may be outdated",
 		  "progress.work.gap.reproducibility": "Reproducibility information is insufficient",
 		  "maturity.dimension.Problem": "Problem",
@@ -947,7 +947,7 @@ window.__ModuleLoader__.load({
 		  "gpu.loading": "正在查询已分配的主机…",
 		  "gpu.assigned": "当前账号已分配 {count} 台主机。",
 		  "gpu.empty": "当前账号暂无已分配的 GPU 主机。",
-		  "gpu.signed-out": "请在设置中登录 ConvFusion.com。",
+		  "gpu.signed-out": "请先在「研究网络」中登录 ConvFusion.com。",
 		  "gpu.unsupported": "当前服务器暂不支持 GPU 主机列表。",
 		  "gpu.error": "无法查询 GPU 主机，请刷新重试。",
 		  "gpu.sshUser": "SSH 用户名",
@@ -1182,8 +1182,8 @@ window.__ModuleLoader__.load({
 		  "community.dash.tokenFrozen": "冻结 {frozen}",
 		  "community.dash.tokenTotal": "合计 {total}",
 		  // v0.6.3：两池分开报 —— 只有资金池能付给导师（赠送额度只能买平台自营服务）
-		  "community.dash.tokenPools": "资金池 {funded} · 赠送 {grant}",
-		  "community.dash.tokenPoolsFrozen": "资金池 {funded} · 赠送 {grant} · 冻 {frozen}",
+		  "community.dash.tokenPools": "资金池 {funded} · 赠送 {grant}",
+		  "community.dash.tokenPoolsFrozen": "资金池 {funded} · 赠送 {grant} · 冻结 {frozen}",
 		  "community.dash.storage": "存储空间",
 		  "community.dash.storageSub": "已用 {used} / {total}",
 		  "community.storagePurchase.open": "购买空间",
@@ -1280,7 +1280,7 @@ window.__ModuleLoader__.load({
 		  // 学生侧的同一个对话框（【可加入】点【出价】）—— 逻辑一样，只是要写清
 		  // "冻结的是**你**的押金"：两个方向都是学生出钱，但出价的人不同。
 		  "community.mentor.bidTitle": "出价加入",
-		  "community.mentor.bidNote": "押金 {percent}%（{deposit} Token）由**你**在导师接受时冻结，成功条件由双方确认，其余 {success} Token 成果验证后支付。",
+		  "community.mentor.bidNote": "押金 {percent}%（{deposit} Token）将在导师接受时从你的账户冻结，成功条件由双方确认，其余 {success} Token 于成果验证后支付。",
 		  "community.mentor.bidDone": "已出价，等待导师响应。",
 		  // 导师侧只填总费用：押金比例由平台定（界面按平台建议算比例，不写死 20%）
 		  "community.mentor.feeTotal": "总费用",
@@ -1363,7 +1363,7 @@ window.__ModuleLoader__.load({
 		  "community.mentor.acceptConfirmBadgeOther": "学生冻结 {deposit} Token",
 		  "community.mentor.acceptConfirm": "确认接受",
 		  "community.mentor.acceptFreezeNote": "接受后冻结押金 {deposit} Token（仍是你的，只是暂不可用）。",
-		  "community.mentor.acceptFreezeNoteOther": "接受后从**学生**的账户冻结押金 {deposit} Token；学生的资金池不足时会失败。",
+		  "community.mentor.acceptFreezeNoteOther": "接受后从学生的账户冻结押金 {deposit} Token；学生的资金池不足时会失败。",
 		  "community.mentor.acceptBalance": "当前可用余额：{balance} Token",
 		  // 押金只能从**资金池**冻结（赠送额度不能付给导师）：有资金池就只报它，别报总数误导
 		  "community.mentor.acceptPools": "资金池 {funded} Token · 赠送 {grant} Token（赠送不能付给导师）",
@@ -1407,7 +1407,7 @@ window.__ModuleLoader__.load({
 		  "community.exchange.ws.conflict": "身份记录冲突",
 		  "community.exchange.ws.conflictHint": "工作区内的标记与本地记录互相矛盾，无法确认",
 		  "community.exchange.ws.current": "当前会话",
-		  "community.exchange.ws.otherWarn": "⚠️ 这个工作区里是**另一项**研究。下载后 DSH 会先把现有研究根整体**备份**（移动到本工作区下、改名为 `workspace_缩写_日期`，不删除），再把这份解压成新的研究根 —— 想保住原研究、又不想换掉它的话，请另选一个工作区。",
+		  "community.exchange.ws.otherWarn": "⚠️ 这个工作区里是另一项研究。下载后 DSH 会先把现有研究根整体备份（移动到本工作区下、改名为 workspace_缩写_日期，不删除），再把这份解压成新的研究根；如需保留原研究，请另选一个工作区。",
 		  "community.exchange.ws.unknownWarn": "⚠️ 读不到这个工作区的身份标识，无法确认是否同一项研究。整合提示词会让 DSH 先只读盘查、给出判断，等你确认后才动文件。",
 		  "community.exchange.ws.conflictWarn": "⚠️ 这个工作区里的标记与本地记录互相矛盾，无法确认是不是同一项研究。整合提示词会让 DSH 先只读盘查、给出判断，等你确认后才动文件。",
 		  "community.exchange.ws.unverifiableWarn": "⚠️ 服务器没有提供研究标识，无法校验是不是同一项研究。整合提示词会让 DSH 先只读盘查、给出判断，等你确认后才动文件。",
@@ -1418,20 +1418,20 @@ window.__ModuleLoader__.load({
 		  // 标识读不到 / 服务器不给 → 先盘查、给出判断，等我确认后按对应的一支执行。
 		  // 两步走：第 1 步只读盘查并报告 → 我确认 → 第 2 步才动文件。
 		  "community.merge.title": "同步命令",
-		  "community.merge.hint": "把它发出去就行：agent 会先加载 `sync` 技能 —— 第 1 步**只读盘查**并报告，**停下等你确认**后才动文件。同一项研究就融合（读两侧内容产出新文件，不是覆盖）；另一项研究就先整体备份现有研究根，再解压成新的。",
+		  "community.merge.hint": "发送后，agent 会先加载 sync 技能：第 1 步仅做只读盘查并报告，等待你确认后才修改文件。同一项研究将融合两侧内容（不直接覆盖）；另一项研究将先整体备份现有研究根，再解压为新的研究根。",
 		  "community.merge.fill": "填入输入框",
 		  "community.merge.fillHint": "会替换输入框里现有的内容",
 		  "community.merge.copy": "复制提示词",
 		  "community.merge.copied": "提示词已复制到剪贴板。",
 		  "community.merge.copyFailed": "复制失败，请重试。",
 		  "community.merge.filled": "整合提示词已填入输入框，确认后发送。",
-		  "community.merge.otherWorkspace": "已保存到 {dir}。这个工作区不是当前会话的工作区 —— 请到**那个工作区**的会话里发送这条命令（DSH 只能写自己会话的工作区）。",
+		  "community.merge.otherWorkspace": "已保存到 {dir}。该工作区不是当前会话的工作区，请到目标工作区的会话中发送这条命令（DSH 只能写入当前会话的工作区）。",
 		  "community.merge.noComposer": "复制这条命令，到目标工作区的会话里粘贴发送。",
-		  "community.merge.plan.new": "本工作区**还没有**研究工作区：第 2 步把包内内容解压成新的研究根。",
-		  "community.merge.plan.same": "本工作区里已经是**同一项**研究（标识一致）：第 2 步把包内内容与本地内容**融合** —— 不是替换，两侧信息都要保留。",
-		  "community.merge.plan.other": "本工作区里现在是**另一项**研究（标识不一致）：第 2 步先把现有研究根**整体备份**（移动，不是删除），再把下载的这份解压成**新的**研究根。备份会留在原地，什么都不丢。",
-		  "community.merge.plan.unknown": '本工作区里有研究，但**读不到它的标识**，无法自动判断是不是同一项：请在盘查时对照两侧 `project.md` / `research-state.md` 的研究主题与研究问题，给出"同一项 / 另一项"的判断与依据，**等我确认后**再按对应的一支执行。',
-		  "community.merge.plan.unverifiable": "服务器没有提供研究工作标识，**无法自动判断**是不是同一项：请在盘查时对照两侧 `project.md` / `research-state.md` 的研究主题与研究问题，给出判断与依据，**等我确认后**再按对应的一支执行。",
+		  "community.merge.plan.new": "本工作区还没有研究工作区：第 2 步将把包内内容解压成新的研究根。",
+		  "community.merge.plan.same": "本工作区已是同一项研究（标识一致）：第 2 步将把包内内容与本地内容融合，保留两侧信息而非替换。",
+		  "community.merge.plan.other": "本工作区当前是另一项研究（标识不一致）：第 2 步将先把现有研究根整体备份（移动而非删除），再把下载内容解压为新的研究根。",
+		  "community.merge.plan.unknown": "本工作区已有研究内容，但无法读取标识，不能自动判断是否同一项：请在盘查时对照两侧 project.md 与 research-state.md 的研究主题与问题，给出判断与依据，待确认后再执行。",
+		  "community.merge.plan.unverifiable": "服务器未提供研究工作标识，无法自动判断是否同一项：请在盘查时对照两侧 project.md 与 research-state.md 的研究主题与问题，给出判断与依据，待确认后再执行。",
 		  // 上传 = **回传我这一份工作区**（导师是在学生的 workspace/ 里继续推进研究的）：
 		  // 选工作区 → 勾文件 → 只说清"传什么、多少"，不解释背景
 		  "community.exchange.uploadTitle": "上传研究进展",
@@ -1595,28 +1595,28 @@ window.__ModuleLoader__.load({
 		  "progress.reading": "读取中…",
 		  "progress.refresh": "刷新",
 		  "progress.refreshFailed": "暂时无法读取研究进展，请重试。",
-		  "progress.section.maturity": "A · 研究成熟度（等级折算，非测量值）",
-		  "progress.section.assets": "A2 · 可数资产（真实计数）",
+		  "progress.section.maturity": "研究成熟度（等级折算）",
+		  "progress.section.assets": "研究资产统计",
 		  "progress.paper": "论文正文",
 		  "progress.paper.present": "已有正文",
 		  "progress.paper.absent": "尚无正文",
 		  "progress.stateVersion": "Research State 版本：{version}",
-		  "progress.section.turn": "B · 最近一轮变化",
+		  "progress.section.turn": "最近一轮变化",
 		  "progress.turn.summary": "第 {turn} 轮 · 成熟度折算 {before} → {after}{assetChange}",
 		  "progress.turn.assetChange": " · {count} 项资产变化",
 		  "progress.turn.noAssetChange": " · 本轮无资产变化",
 		  "progress.turn.maturityChange": "成熟度 {dimension}：{from} → {to}",
 		  "progress.turn.countChange": "{label}：{from} → {to}（{delta}）",
 		  "progress.turn.noChange": "这一轮没有形成新的可验证研究资产（讨论/澄清不产生资产，这是正常的）。",
-		  "progress.turn.unavailable": "本会话还没有回合报告（对话结束后宿主才会生成；面板的 A 段始终是最新状态）。",
-		  "progress.section.need": "C · 当前缺口与推进判定",
+		  "progress.turn.unavailable": "本会话还没有回合报告（对话结束后宿主才会生成；上方成熟度与资产统计始终为最新状态）。",
+		  "progress.section.need": "当前缺口与推进判定",
 		  "progress.need.assessment": "推进判定：",
 		  "progress.need.basis": "（依据：{basis}）",
 		  "progress.need.nextStep": "下一步：{text}",
 		  "progress.need.decision": "待你决定：{text}",
 		  "progress.basis.blockingQuestion": "研究问题中存在显式标记的阻塞项",
 		  "progress.basis.stalled": "连续 {rounds} 轮没有形成新的可验证研究资产",
-		  "progress.basis.draftPlans": "存在 {count} 个仍是 draft 的计划（{plans}）",
+		  "progress.basis.draftPlans": "存在 {count} 个草稿状态的计划（{plans}）",
 		  "progress.basis.processComplete": "科研过程各阶段均已有落地资产，没有结构性缺口",
 		  "progress.basis.stagePending": "当前阶段「{stage}」尚未落地（{evidence}）",
 		  "progress.decision.stalled": "当前推进方式没有产生资产。请确认：是继续这个方向，还是换一个方向／调整目标？",
@@ -1624,14 +1624,14 @@ window.__ModuleLoader__.load({
 		  "progress.decision.processComplete": "接下来是继续深化、转向写作，还是开新的问题？请指定方向。",
 		  "progress.noReport": "宿主还没有返回这个工作区的进展数据。",
 		  "progress.footnote": "数据全部来自磁盘上的真实资产（project.md / research-state.md / evidence / claims / plans）。成熟度是 Research State 的等级折算，不是测量值；这里只陈述研究需求，不代表必须执行的下一步。",
-		  "progress.clarity.clear": "方向明确 → 可直接推进",
-		  "progress.clarity.ambiguous": "需要你选一个方向",
-		  "progress.clarity.blocked": "等你拍板（阻塞）",
+		  "progress.clarity.clear": "方向明确，可直接推进",
+		  "progress.clarity.ambiguous": "需要选择推进方向",
+		  "progress.clarity.blocked": "需要确认后继续（已阻塞）",
 		  "progress.clarity.unknown": "（未判定）",
 		  "progress.gap.stagePending": "科研过程当前阶段：{stage}（尚未落地）",
 		  "progress.gap.processComplete": "科研过程各阶段均已有落地资产",
 		  "progress.gap.unsupportedClaims": "{count} 条主张尚缺支撑证据",
-		  "progress.gap.missingArtifacts": "{count} 条证据缺原始产物引用（provenance 不完整）",
+		  "progress.gap.missingArtifacts": "{count} 条证据缺少原始产物溯源引用",
 		  "progress.gap.openQuestions": "{count} 个开放问题待解",
 		  "progress.stage.topics": "提出话题",
 		  "progress.stage.literature": "文献调研",
@@ -1670,7 +1670,7 @@ window.__ModuleLoader__.load({
 		  "progress.works.overview": "总览",
 		  "progress.works.active": "当前激活论文",
 		  // 总览 tab 的多工作汇总（v2）：逐工作一行 + 合计；括号里的子集含义放悬停提示
-		  "progress.works.section.aggregate": "全部工作汇总（真实计数）",
+		  "progress.works.section.aggregate": "全部研究工作汇总",
 		  "progress.works.col.work": "工作",
 		  "progress.works.col.maturity": "成熟度",
 		  "progress.works.col.sections": "章节",
@@ -1681,23 +1681,23 @@ window.__ModuleLoader__.load({
 		  "progress.works.totals": "合计（{count} 个工作）",
 		  "progress.works.derived": "依资产推定",
 		  "progress.works.evidenceShared": "工作区共用的证据库",
-		  "progress.work.section.maturity": "A · 论文成熟度（等级折算，非测量值）",
+		  "progress.work.section.maturity": "论文成熟度（等级折算）",
 		  "progress.work.maturityDerived": " · 依资产推定",
-		  "progress.work.section.assets": "A2 · 该工作的可数资产（真实计数）",
-		  "progress.work.section.next": "C · 该工作的下一步",
+		  "progress.work.section.assets": "当前工作资产统计",
+		  "progress.work.section.next": "当前工作下一步",
 		  "progress.work.meta": "v{version} · {status}",
-		  "progress.work.count.sections": "章节（有实质内容）",
+		  "progress.work.count.sections": "已完成章节",
 		  "progress.work.count.claims": "主张",
 		  "progress.work.count.claimsWithoutEvidence": "{count} 无支撑",
 		  "progress.work.count.evidence": "证据",
 		  "progress.work.count.evidenceUsed": "{count} 正文引用",
-		  "progress.work.count.gaps": "未解决缺口（规则检查）",
+		  "progress.work.count.gaps": "未解决缺口",
 		  "progress.work.count.gapsHigh": "{count} 高优先级",
 		  "progress.work.count.proposals": "待处理修订",
 		  "progress.work.nextStep": "下一步：{text}",
 		  "progress.work.nextSkill": "建议能力：{skill}",
-		  "progress.work.gap.missing-section": "缺少 `{target}` 章节",
-		  "progress.work.gap.thin-section": "`{target}` 章节没有实质内容",
+		  "progress.work.gap.missing-section": "缺少「{target}」章节",
+		  "progress.work.gap.thin-section": "「{target}」章节尚无实质内容",
 		  "progress.work.gap.unsupported-claim": "主张 {target} 缺支撑证据",
 		  "progress.work.gap.contested-claim": "主张 {target} 有矛盾证据",
 		  "progress.work.gap.missing-evidence": "缺少证据支持",
@@ -1705,7 +1705,7 @@ window.__ModuleLoader__.load({
 		  "progress.work.gap.unreferenced-evidence": "证据未被正文引用",
 		  "progress.work.gap.missing-ablation": "缺少消融实验",
 		  "progress.work.gap.experimental-validation": "缺少实验验证",
-		  "progress.work.gap.no-claim-map": "缺 Claim ↔ 证据映射",
+		  "progress.work.gap.no-claim-map": "缺少主张与证据的对应映射",
 		  "progress.work.gap.outdated-related-work": "相关工作需要更新",
 		  "progress.work.gap.reproducibility": "可复现性信息不足",
 		  "maturity.dimension.Problem": "问题",
@@ -1980,10 +1980,10 @@ window.__ModuleLoader__.load({
 		          "code",
 		          {
 		            style: {
-		              fontFamily: "var(--dsw-font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
-		              fontSize: 11,
-		              padding: "1px 4px",
-		              borderRadius: 4,
+		              fontFamily: "var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace)",
+		              fontSize: "var(--cf-type-code, 11.5px)",
+		              padding: "1px 5px",
+		              borderRadius: 5,
 		              background: "var(--dsw-alias-bg-layer-3)"
 		            },
 		            children: tk.text
@@ -2018,8 +2018,9 @@ window.__ModuleLoader__.load({
 		        {
 		          style: {
 		            fontWeight: 700,
-		            fontSize: block.level <= 2 ? 13 : 12.5,
-		            margin: "4px 0 2px"
+		            fontSize: block.level <= 2 ? "var(--cf-type-body, 13px)" : "var(--cf-type-label, 12.5px)",
+		            color: "var(--dsw-alias-label-primary)",
+		            margin: "6px 0 2px"
 		          },
 		          children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Inline, { text: block.text })
 		        }
@@ -2029,14 +2030,15 @@ window.__ModuleLoader__.load({
 		        "pre",
 		        {
 		          style: {
-		            margin: "4px 0",
-		            padding: "6px 8px",
-		            borderRadius: 6,
+		            margin: "5px 0",
+		            padding: "8px 10px",
+		            borderRadius: 7,
+		            border: "1px solid var(--dsw-alias-border-l1)",
 		            overflowX: "auto",
 		            background: "var(--dsw-alias-bg-layer-3)",
-		            fontFamily: "var(--dsw-font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
-		            fontSize: 11,
-		            lineHeight: 1.5
+		            fontFamily: "var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace)",
+		            fontSize: "var(--cf-type-code, 11.5px)",
+		            lineHeight: 1.55
 		          },
 		          children: block.text
 		        }
@@ -2046,27 +2048,29 @@ window.__ModuleLoader__.load({
 		        "div",
 		        {
 		          style: {
-		            margin: "4px 0",
-		            paddingLeft: 8,
-		            borderLeft: "2px solid var(--dsw-alias-border-l2)",
+		            margin: "5px 0",
+		            paddingLeft: 10,
+		            borderLeft: "3px solid var(--dsw-alias-border-l2)",
 		            color: "var(--dsw-alias-label-secondary)"
 		          },
 		          children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Inline, { text: block.text })
 		        }
 		      );
 		    case "list": {
-		      const items = block.items.map((it, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { style: { margin: "1px 0" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Inline, { text: it }) }, i));
-		      return block.ordered ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ol", { style: { margin: "3px 0", paddingLeft: 20 }, children: items }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", { style: { margin: "3px 0", paddingLeft: 18 }, children: items });
+		      const items = block.items.map((it, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { style: { margin: "2px 0" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Inline, { text: it }) }, i));
+		      return block.ordered ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ol", { style: { margin: "4px 0", paddingLeft: 20 }, children: items }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", { style: { margin: "4px 0", paddingLeft: 18 }, children: items });
 		    }
 		    case "table":
-		      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { margin: "4px 0", overflowX: "auto" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("table", { style: { borderCollapse: "collapse", fontSize: 11.5 }, children: [
+		      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { margin: "5px 0", overflowX: "auto" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("table", { style: { borderCollapse: "collapse", fontSize: "var(--cf-type-meta, 11.5px)" }, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tr", { children: block.head.map((cell, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
 		          "th",
 		          {
 		            style: {
 		              textAlign: "left",
 		              fontWeight: 650,
-		              padding: "2px 6px",
+		              padding: "5px 8px",
+		              background: "var(--dsw-alias-bg-layer-3)",
+		              color: "var(--dsw-alias-label-primary)",
 		              border: "1px solid var(--dsw-alias-border-l1)",
 		              whiteSpace: "nowrap"
 		            },
@@ -2078,7 +2082,7 @@ window.__ModuleLoader__.load({
 		          "td",
 		          {
 		            style: {
-		              padding: "2px 6px",
+		              padding: "5px 8px",
 		              border: "1px solid var(--dsw-alias-border-l1)",
 		              verticalAlign: "top"
 		            },
@@ -2634,7 +2638,7 @@ window.__ModuleLoader__.load({
 		    border: "1px solid transparent",
 		    background: "var(--dsw-alias-button-primary-fill)",
 		    color: "#fff",
-		    fontSize: 12.5,
+		    fontSize: "var(--cf-type-label, 12.5px)",
 		    fontWeight: 600,
 		    cursor: "pointer"
 		  },
@@ -2644,11 +2648,11 @@ window.__ModuleLoader__.load({
 		    border: "1px solid var(--dsw-alias-border-l2)",
 		    background: "transparent",
 		    color: "var(--dsw-alias-label-primary)",
-		    fontSize: 12.5,
+		    fontSize: "var(--cf-type-label, 12.5px)",
 		    fontWeight: 600,
 		    cursor: "pointer"
 		  },
-		  mono: { fontFamily: "var(--ds-font-family-code)", fontSize: 11 },
+		  mono: { fontFamily: "var(--ds-font-family-code)", fontSize: "var(--cf-type-code, 11.5px)" },
 		  /** 紧凑的一行（登录输入 / 账号信息 / 失败提示共用）：靠 flexWrap 自适应窄宽度。 */
 		  inlineRow: {
 		    display: "flex",
@@ -2669,7 +2673,7 @@ window.__ModuleLoader__.load({
 		    border: "1px solid var(--dsw-alias-state-business-primary)",
 		    background: "var(--dsw-alias-state-business-tertiary)",
 		    color: "var(--dsw-alias-state-business-primary)",
-		    fontSize: 12.5,
+		    fontSize: "var(--cf-type-label, 12.5px)",
 		    fontWeight: 600,
 		    cursor: "pointer"
 		  },
@@ -2696,7 +2700,7 @@ window.__ModuleLoader__.load({
 		    border: "1px solid var(--dsw-alias-border-l2)",
 		    background: "var(--dsw-alias-bg-layer-2)",
 		    color: "var(--dsw-alias-state-business-primary)",
-		    fontSize: 11,
+		    fontSize: "var(--cf-type-meta, 11px)",
 		    fontWeight: 700,
 		    cursor: "pointer",
 		    whiteSpace: "nowrap"
@@ -2756,7 +2760,7 @@ window.__ModuleLoader__.load({
 		  },
 		  /** 已登录时的账号名。 */
 		  accountName: {
-		    fontSize: 13,
+		    fontSize: "var(--cf-type-card, 13px)",
 		    fontWeight: 700,
 		    color: "var(--dsw-alias-label-primary)"
 		  },
@@ -2876,12 +2880,13 @@ window.__ModuleLoader__.load({
 		    brand: { fg: "var(--dsw-alias-state-business-primary)", bg: "var(--dsw-alias-state-business-tertiary)" },
 		    success: { fg: "var(--dsw-alias-state-success-primary)", bg: "var(--dsw-alias-state-success-tertiary)" },
 		    warn: { fg: "var(--dsw-alias-state-warn-primary)", bg: "var(--dsw-alias-state-warn-tertiary)" },
-		    error: { fg: "var(--dsw-alias-state-error-primary)", bg: "var(--dsw-alias-bg-layer-3)" }
+		    error: { fg: "var(--dsw-alias-state-error-primary)", bg: "var(--cf-state-error-bg, var(--dsw-alias-bg-layer-3))" }
 		  };
 		  const c = tones[tone] ?? tones.neutral;
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "span",
 		    {
+		      className: "cf-badge",
 		      style: {
 		        display: "inline-flex",
 		        alignItems: "center",
@@ -2935,6 +2940,8 @@ window.__ModuleLoader__.load({
 		    "button",
 		    {
 		      type: "button",
+		      className: "cf-minitab",
+		      "data-active": active ? "true" : void 0,
 		      onClick,
 		      style: {
 		        padding: "3px 10px",
@@ -3153,7 +3160,7 @@ window.__ModuleLoader__.load({
 		  const totalOverridden = state ? state.categories.reduce((n, c) => n + c.overriddenCount, 0) : 0;
 		  const totalPoints = state ? state.categories.reduce((n, c) => n + c.pointCount, 0) : 0;
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.page, children: [
-		    view !== "system" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.hero, children: [
+		    view !== "system" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-hero", style: S.hero, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { flex: "1 1 auto", minWidth: 0 }, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.heroSub, children: t("settings.hero.subtitle") }),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: update ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
@@ -3190,7 +3197,7 @@ window.__ModuleLoader__.load({
 		        state && (!state.retrieval.configured || state.dependencies?.tectonic.available === false) ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, marginLeft: 6 }, children: t("settings.status.needsConfiguration") }) : null
 		      ] })
 		    ] }),
-		    staleHost ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		    staleHost ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-card", style: S.card, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		        t("settings.stale.title"),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
@@ -3202,7 +3209,7 @@ window.__ModuleLoader__.load({
 		        t("settings.stale.action")
 		      ] }) })
 		    ] }) : null,
-		    error ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		    error ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-card", style: S.card, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		        t("settings.error.title"),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
@@ -3214,17 +3221,17 @@ window.__ModuleLoader__.load({
 		          {
 		            style: {
 		              color: "var(--dsw-alias-state-error-primary)",
-		              fontSize: 12.5,
+		              fontSize: "var(--cf-type-label, 12.5px)",
 		              whiteSpace: "pre-wrap",
 		              lineHeight: 1.6
 		            },
 		            children: error
 		          }
 		        ),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.footer, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => void reload(), children: t("settings.action.retry") }) })
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-footer", style: S.footer, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: () => void reload(), children: t("settings.action.retry") }) })
 		      ] })
 		    ] }) : null,
-		    loading && !state ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("settings.status.loading") }) }) }) : null,
+		    loading && !state ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-card", style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("settings.status.loading") }) }) }) : null,
 		    showCommunityTab && activeTab === "community" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(CommunityTab, { session, send, initial: state?.account ?? null, t }) : null,
 		    activeTab === "retrieval" && (!view || state) ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      SystemTab,
@@ -3238,7 +3245,7 @@ window.__ModuleLoader__.load({
 		      }
 		    ) : null,
 		    state && activeTab === "local" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-card", style: S.card, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		          t("settings.library.title"),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("settings.library.localOnly") }),
@@ -3248,7 +3255,7 @@ window.__ModuleLoader__.load({
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.cardBody, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.row, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.field, children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: t("settings.library.category") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("select", { style: S.select, value: categoryId, onChange: (e) => onCategory(e.target.value), children: state.categories.map((c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("option", { value: c.categoryId, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("select", { className: "cf-select", style: S.select, value: categoryId, onChange: (e) => onCategory(e.target.value), children: state.categories.map((c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("option", { value: c.categoryId, children: [
 		              c.code ? `${c.code} ` : "",
 		              categoryText(t, c.categoryId, c.categoryName),
 		              " (",
@@ -3260,7 +3267,7 @@ window.__ModuleLoader__.load({
 		          ] }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.field, children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: t("settings.library.skill") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("select", { style: S.select, value: skillId, onChange: (e) => onSkill(e.target.value), children: category?.skills.map((s) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("option", { value: s.skillId, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("select", { className: "cf-select", style: S.select, value: skillId, onChange: (e) => onSkill(e.target.value), children: category?.skills.map((s) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("option", { value: s.skillId, children: [
 		              s.code ? `${s.code} · ` : "",
 		              skillText(t, s.skillId, s.skillName),
 		              s.overriddenCount > 0 ? t("settings.library.customizedSuffix", { count: s.overriddenCount }) : ""
@@ -3269,7 +3276,7 @@ window.__ModuleLoader__.load({
 		          ] }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.field, children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: t("settings.library.section") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("select", { style: S.select, value: section, onChange: (e) => onSection(e.target.value), children: skill?.sections.map((s) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("option", { value: s.section, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("select", { className: "cf-select", style: S.select, value: section, onChange: (e) => onSection(e.target.value), children: skill?.sections.map((s) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("option", { value: s.section, children: [
 		              sectionText(t, s.section),
 		              s.overridden ? t("settings.library.sectionCustomizedSuffix") : ""
 		            ] }, s.section)) }),
@@ -3277,7 +3284,7 @@ window.__ModuleLoader__.load({
 		          ] })
 		        ] }) })
 		      ] }),
-		      skill && point ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		      skill && point ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-card", style: S.card, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }, children: [
 		            skill.code ? `${skill.code} · ` : "",
@@ -3302,6 +3309,7 @@ window.__ModuleLoader__.load({
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "textarea",
 		            {
+		              className: "cf-textarea",
 		              style: S.textarea,
 		              spellCheck: false,
 		              value: draft,
@@ -3309,17 +3317,17 @@ window.__ModuleLoader__.load({
 		              onChange: (e) => setDraft(e.target.value)
 		            }
 		          ),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("details", { children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("details", { className: "cf-details", children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("summary", { style: { ...S.label, cursor: "pointer" }, children: t("settings.editor.base", { count: point.base.length }) }),
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.base, marginTop: 8 }, children: point.base })
 		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-footer", style: S.footer, children: [
 		            notice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "span",
 		              {
 		                style: {
 		                  marginRight: "auto",
-		                  fontSize: 12,
+		                  fontSize: "var(--cf-type-label, 12px)",
 		                  color: notice.tone === "success" ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-state-error-primary)"
 		                },
 		                children: notice.text
@@ -3329,6 +3337,7 @@ window.__ModuleLoader__.load({
 		              "button",
 		              {
 		                type: "button",
+		                className: "cf-btn-ghost",
 		                style: { ...S.ghostBtn, opacity: point.overridden && !saving ? 1 : 0.55 },
 		                disabled: !point.overridden || saving,
 		                onClick: () => void reset(),
@@ -3339,6 +3348,7 @@ window.__ModuleLoader__.load({
 		              "button",
 		              {
 		                type: "button",
+		                className: "cf-btn-ghost",
 		                style: { ...S.ghostBtn, opacity: skill.overriddenCount > 0 && !saving ? 1 : 0.55 },
 		                disabled: skill.overriddenCount === 0 || saving,
 		                onClick: () => void resetSkill(),
@@ -3349,6 +3359,7 @@ window.__ModuleLoader__.load({
 		              "button",
 		              {
 		                type: "button",
+		                className: "cf-btn-primary",
 		                style: { ...S.primaryBtn, opacity: dirty && !saving ? 1 : 0.55 },
 		                disabled: !dirty || saving,
 		                onClick: () => void save(),
@@ -3494,6 +3505,7 @@ window.__ModuleLoader__.load({
 		    "button",
 		    {
 		      type: "button",
+		      className: "cf-btn-ghost",
 		      style: {
 		        ...S.ghostBtn,
 		        ...withCaret ? { flex: "1 1 auto", padding: "6px 8px", borderTopRightRadius: 0, borderBottomRightRadius: 0 } : { width: PUBLISH_BUTTON_WIDTH }
@@ -3520,6 +3532,7 @@ window.__ModuleLoader__.load({
 		          "button",
 		          {
 		            type: "button",
+		            className: "cf-btn-ghost",
 		            style: {
 		              ...S.ghostBtn,
 		              padding: "6px 6px",
@@ -3541,6 +3554,7 @@ window.__ModuleLoader__.load({
 		        open ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		          "div",
 		          {
+		            className: "cf-menu",
 		            style: {
 		              position: "absolute",
 		              top: "100%",
@@ -3632,10 +3646,10 @@ window.__ModuleLoader__.load({
 		      {
 		        style: {
 		          display: "inline-block",
-		          width: 44,
-		          height: 4,
-		          borderRadius: 2,
-		          background: "var(--dsw-alias-bg-layer-3)",
+		          width: 56,
+		          height: 5,
+		          borderRadius: 999,
+		          background: "var(--cf-ring-track, var(--dsw-alias-bg-layer-3))",
 		          overflow: "hidden"
 		        },
 		        children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
@@ -3645,13 +3659,14 @@ window.__ModuleLoader__.load({
 		              display: "block",
 		              width: `${pct2}%`,
 		              height: "100%",
+		              borderRadius: 999,
 		              background: "var(--dsw-alias-state-business-primary)"
 		            }
 		          }
 		        )
 		      }
 		    ),
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: S.mono, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { ...S.mono, fontVariantNumeric: "tabular-nums" }, children: [
 		      pct2,
 		      "%"
 		    ] })
@@ -3680,15 +3695,15 @@ window.__ModuleLoader__.load({
 		  onBrief,
 		  below
 		}) {
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.listRow, alignItems: "flex-start" }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 4 }, children: [
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-list-row", style: { ...S.listRow, alignItems: "flex-start" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 5 }, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: title }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.hint, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }, children: [
 		        author ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: t("community.work.byAuthor", { name: author }) }) : null,
 		        fields.length ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: fields.join(" · ") }) : null,
 		        stage ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: enumText(t, STAGE_LABEL_KEYS, stage) }) : null,
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(ProgressBar, { value: progress }),
-		        price ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { color: "var(--dsw-alias-brand-primary)" }, children: price }) : null,
+		        price ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { color: "var(--dsw-alias-brand-primary)", fontWeight: 600 }, children: price }) : null,
 		        updatedAt ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: updatedAt.slice(0, 10) }) : null
 		      ] })
 		    ] }),
@@ -3698,6 +3713,7 @@ window.__ModuleLoader__.load({
 		          "button",
 		          {
 		            type: "button",
+		            className: "cf-btn-ghost",
 		            style: { ...S.ghostBtn, opacity: disabled || busy ? 0.55 : 1 },
 		            disabled: disabled || busy !== null,
 		            title: t("community.tip.summary"),
@@ -3709,6 +3725,7 @@ window.__ModuleLoader__.load({
 		          "button",
 		          {
 		            type: "button",
+		            className: "cf-btn-ghost",
 		            style: {
 		              ...S.ghostBtn,
 		              display: "inline-flex",
@@ -3741,17 +3758,18 @@ window.__ModuleLoader__.load({
 		  work,
 		  brief
 		}) {
-		  const line = (label, value) => value ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.label, flex: "0 0 56px" }, children: label }),
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, color: "var(--dsw-alias-label-secondary)", whiteSpace: "pre-wrap" }, children: value })
+		  const line = (label, value) => value ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", gap: 12, alignItems: "baseline" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.label, flex: "0 0 72px" }, children: label }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { fontSize: "var(--cf-type-label, 12px)", lineHeight: 1.6, color: "var(--dsw-alias-label-secondary)", whiteSpace: "pre-wrap" }, children: value })
 		  ] }) : null;
-		  const block = (label, value) => value && value.trim() !== "" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", gap: 8 }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.label, flex: "0 0 56px" }, children: label }),
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, minWidth: 0, flex: "1 1 auto", color: "var(--dsw-alias-label-secondary)" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Markdown, { text: value }) })
+		  const block = (label, value) => value && value.trim() !== "" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", gap: 12, alignItems: "baseline" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.label, flex: "0 0 72px" }, children: label }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: "var(--cf-type-label, 12px)", lineHeight: 1.6, minWidth: 0, flex: "1 1 auto", color: "var(--dsw-alias-label-secondary)" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Markdown, { text: value }) })
 		  ] }) : null;
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		    "div",
 		    {
+		      className: "cf-work-detail",
 		      style: {
 		        margin: "0 12px 10px",
 		        padding: 10,
@@ -3819,7 +3837,7 @@ window.__ModuleLoader__.load({
 		  onToggleExpand
 		}) {
 		  const visible = categories.filter((c) => c.decision !== "excluded" && c.files.length > 0);
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: visible.map((cat, i) => {
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-list", style: S.list, children: visible.map((cat, i) => {
 		    const files = cat.files;
 		    const all = files.every((f) => selection.has(f.relPath));
 		    const some = !all && files.some((f) => selection.has(f.relPath));
@@ -3829,7 +3847,7 @@ window.__ModuleLoader__.load({
 		      {
 		        style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
 		        children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.listRow, alignItems: "flex-start" }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-list-row", style: { ...S.listRow, alignItems: "flex-start" }, children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "input",
 		              {
@@ -3853,7 +3871,7 @@ window.__ModuleLoader__.load({
 		              ] }),
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t(`upload.reason.${cat.id}`) })
 		            ] }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.linkBtn, onClick: () => onToggleExpand(cat.id), children: isOpen ? t("community.publish.collapse") : t("community.publish.expand") })
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-link", style: S.linkBtn, onClick: () => onToggleExpand(cat.id), children: isOpen ? t("community.publish.collapse") : t("community.publish.expand") })
 		          ] }),
 		          isOpen ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { maxHeight: 240, overflow: "auto", padding: "4px 12px 10px 34px" }, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            CategoryFileTree,
@@ -3946,7 +3964,7 @@ window.__ModuleLoader__.load({
 		                      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
 		                      fontSize: 13,
 		                      textAlign: "center",
-		                      color: "var(--dsw-alias-text-secondary)"
+		                      color: "var(--dsw-alias-label-secondary)"
 		                    },
 		                    children: isOpen ? "−" : "+"
 		                  }
@@ -3978,9 +3996,9 @@ window.__ModuleLoader__.load({
 		                      padding: 0,
 		                      textAlign: "left",
 		                      cursor: node.placeholder ? "default" : "pointer",
-		                      color: node.placeholder ? "var(--dsw-alias-text-secondary)" : "inherit",
+		                      color: node.placeholder ? "var(--dsw-alias-label-secondary)" : "inherit",
 		                      font: "inherit",
-		                      fontFamily: "var(--dsw-alias-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)"
+		                      fontFamily: "var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace)"
 		                    },
 		                    children: [
 		                      node.name,
@@ -4071,10 +4089,11 @@ window.__ModuleLoader__.load({
 		  const label = t(isMentorSide ? "community.publish.priceMentor" : "community.publish.priceResearcher");
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.listTitle, fontSize: 12.5 }, children: label }),
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.listTitle, fontSize: "var(--cf-type-label, 12.5px)" }, children: label }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		        "select",
 		        {
+		          className: "cf-select",
 		          style: { ...S.input, minWidth: 190, padding: "4px 6px" },
 		          value: mode === "custom" ? "custom" : String(tokens ?? ""),
 		          onChange: (e) => {
@@ -4094,6 +4113,7 @@ window.__ModuleLoader__.load({
 		          min: minAllowed,
 		          step: 1,
 		          inputMode: "numeric",
+		          className: "cf-input",
 		          style: { ...S.input, width: 110, padding: "4px 6px" },
 		          value: text,
 		          onChange: (e) => onText(e.target.value),
@@ -4150,12 +4170,14 @@ window.__ModuleLoader__.load({
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "div",
 		    {
+		      className: "cf-overlay",
 		      style: S.overlay,
 		      role: "dialog",
 		      "aria-modal": "true",
 		      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		        "div",
 		        {
+		          className: "cf-card cf-dialog-card",
 		          style: {
 		            ...S.card,
 		            width: "min(760px, 96vw)",
@@ -4215,7 +4237,7 @@ window.__ModuleLoader__.load({
 		                ] }),
 		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.publish.asNewHint") })
 		              ] }) : null,
-		              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-footer", style: S.footer, children: [
 		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, marginRight: "auto" }, children: t("community.publish.summary", {
 		                  files: selectedFiles.length,
 		                  size: formatBytes(selectedBytes),
@@ -4225,13 +4247,14 @@ window.__ModuleLoader__.load({
 		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("input", { type: "checkbox", checked: remember, onChange: (e) => onRemember(e.target.checked) }),
 		                  t("community.publish.remember")
 		                ] }),
-		                onCancelUpload ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancelUpload, children: t("community.upload.cancel") }) : null,
+		                onCancelUpload ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: onCancelUpload, children: t("community.upload.cancel") }) : null,
 		                notice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { role: "alert", style: S.hint, children: notice }) : null,
-		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, disabled: busy && !canCloseWhileUploading, onClick: onCancel, children: t("community.action.cancel") }),
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, disabled: busy && !canCloseWhileUploading, onClick: onCancel, children: t("community.action.cancel") }),
 		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  "button",
 		                  {
 		                    type: "button",
+		                    className: "cf-btn-primary",
 		                    style: { ...S.primaryBtn, opacity: publishDisabled ? 0.55 : 1 },
 		                    disabled: publishDisabled,
 		                    onClick: onConfirm,
@@ -4257,10 +4280,11 @@ window.__ModuleLoader__.load({
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "div",
 		    {
+		      className: "cf-overlay",
 		      style: S.overlay,
 		      role: "dialog",
 		      "aria-modal": "true",
-		      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(430px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-card cf-dialog-card", style: { ...S.card, width: "min(430px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		          t("community.briefConfirm.title"),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
@@ -4275,10 +4299,10 @@ window.__ModuleLoader__.load({
 		            typeof balance === "number" ? t("community.briefConfirm.balance", { balance }) : t("community.briefConfirm.balanceUnknown")
 		          ] }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.briefConfirm.idempotent") }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-footer", style: S.footer, children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onConfirm, children: t("community.briefConfirm.confirm") })
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-primary", style: S.primaryBtn, onClick: onConfirm, children: t("community.briefConfirm.confirm") })
 		          ] })
 		        ] })
 		      ] })
@@ -4305,10 +4329,11 @@ window.__ModuleLoader__.load({
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "div",
 		    {
+		      className: "cf-overlay",
 		      style: S.overlay,
 		      role: "dialog",
 		      "aria-modal": "true",
-		      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(460px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-card cf-dialog-card", style: { ...S.card, width: "min(460px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		          t(iPayer ? "community.mentor.acceptConfirmTitle" : "community.mentor.acceptConfirmTitleOther"),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
@@ -4339,13 +4364,14 @@ window.__ModuleLoader__.load({
 		            grant: grant ?? 0,
 		            deposit: proposal.depositAmount
 		          }) }) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-footer", style: S.footer, children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "button",
 		              {
 		                type: "button",
+		                className: "cf-btn-primary",
 		                style: { ...S.primaryBtn, opacity: short ? 0.55 : 1 },
 		                disabled: short,
 		                onClick: onConfirm,
@@ -4372,7 +4398,7 @@ window.__ModuleLoader__.load({
 		  const denom = total > 0 ? total : 1;
 		  const segments = funded === null || grant === null ? [{ value: Math.max(0, total - frozen), stroke: "var(--dsw-alias-state-business-primary)" }] : [
 		    { value: funded, stroke: "var(--dsw-alias-state-business-primary)" },
-		    { value: grant, stroke: "var(--dsw-alias-state-business-tertiary)" }
+		    { value: grant, stroke: "var(--cf-token-grant-arc, var(--dsw-alias-state-business-tertiary))" }
 		  ];
 		  if (frozen > 0) segments.push({ value: frozen, stroke: "var(--dsw-alias-label-secondary)" });
 		  let offset = 0;
@@ -4398,7 +4424,7 @@ window.__ModuleLoader__.load({
 		    return arc;
 		  });
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { width: size, height: size, viewBox: "0 0 160 160", "aria-hidden": "true", children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx, cy, r, fill: "none", stroke: "var(--dsw-alias-bg-layer-2)", strokeWidth: 14 }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx, cy, r, fill: "none", stroke: "var(--cf-ring-track, var(--dsw-alias-bg-layer-3))", strokeWidth: 14 }),
 		    arcs
 		  ] });
 		}
@@ -4422,7 +4448,7 @@ window.__ModuleLoader__.load({
 		      }
 		    ),
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, flex: "0 0 auto" }, children: label }),
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--dsw-alias-label-primary)" }, children: value }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { fontSize: "var(--cf-type-label, 12px)", fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "var(--dsw-alias-label-primary)" }, children: value }),
 		    hint ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.hint, children: hint }) : null
 		  ] });
 		}
@@ -4437,7 +4463,7 @@ window.__ModuleLoader__.load({
 		  const f = Math.max(0, Math.min(1, Number.isFinite(fraction) ? fraction : 0));
 		  const stroke = tone === "warn" ? "var(--dsw-alias-state-warn-primary)" : tone === "neutral" ? "var(--dsw-alias-label-tertiary)" : "var(--dsw-alias-state-business-primary)";
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { width: size, height: size, viewBox: "0 0 160 160", "aria-hidden": "true", style: { flex: "0 0 auto" }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: c, cy: c, r, fill: "none", stroke: "var(--dsw-alias-bg-layer-2)", strokeWidth: 14 }),
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: c, cy: c, r, fill: "none", stroke: "var(--cf-ring-track, var(--dsw-alias-bg-layer-3))", strokeWidth: 14 }),
 		    f > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      "circle",
 		      {
@@ -4462,15 +4488,15 @@ window.__ModuleLoader__.load({
 		  sub,
 		  action
 		}) {
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.dashTile, children: [
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-dash-tile", style: S.dashTile, children: [
 		    chart,
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.dashTitle, children: title }),
-		      value ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: S.dashValue, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "cf-dash-title", style: S.dashTitle, children: title }),
+		      value ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "cf-dash-value", style: S.dashValue, children: [
 		        value,
 		        unit ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.dashUnit, children: unit }) : null
 		      ] }) : null,
-		      sub ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.dashSub, children: sub }) : null,
+		      sub ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "cf-dash-sub", style: S.dashSub, children: sub }) : null,
 		      action
 		    ] })
 		  ] });
@@ -4576,6 +4602,7 @@ window.__ModuleLoader__.load({
 		        if (node && !node.open) node.showModal();
 		      },
 		      "aria-labelledby": titleId,
+		      className: "cf-card cf-dialog-card",
 		      onCancel: (event) => {
 		        event.preventDefault();
 		        if (!inFlight.current) onClose();
@@ -4612,6 +4639,7 @@ window.__ModuleLoader__.load({
 		                    setAmount(event.currentTarget.value);
 		                    setError(null);
 		                  },
+		                  className: "cf-input",
 		                  style: { ...S.compactInput, width: 96, flex: "0 0 auto" }
 		                }
 		              )
@@ -4624,9 +4652,9 @@ window.__ModuleLoader__.load({
 		            bytesPerToken <= 0 && !error ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.storagePurchase.priceUnavailable") }) : null,
 		            expired || error || pending || insufficient ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { role: "alert", style: { color: "var(--dsw-alias-state-error-primary)" }, children: expired ? t("community.storagePurchase.retryExpired") : error ?? t(pending ? "community.storagePurchase.unconfirmed" : "community.storagePurchase.insufficient") }) : null
 		          ] }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, disabled: submitting, onClick: onClose, children: t(receipt ? "community.action.close" : "community.action.cancel") }),
-		            expired ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => {
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-footer", style: S.footer, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, disabled: submitting, onClick: onClose, children: t(receipt ? "community.action.close" : "community.action.cancel") }),
+		            expired ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: () => {
 		              saveStoragePurchase(key, null);
 		              setPending(null);
 		              setAmount("");
@@ -4636,6 +4664,7 @@ window.__ModuleLoader__.load({
 		              "button",
 		              {
 		                type: "button",
+		                className: "cf-btn-primary",
 		                style: { ...S.primaryBtn, opacity: canSubmit ? 1 : 0.55 },
 		                disabled: !canSubmit,
 		                onClick: () => void submit(),
@@ -4669,15 +4698,15 @@ window.__ModuleLoader__.load({
 		  const amountValid = Number.isInteger(parsed) && parsed > 0;
 		  const canApply = !pending && amountValid && !submitting && !loading;
 		  const pools = tokens !== null && tokens.funded !== null && tokens.grant !== null;
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(460px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-overlay", style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-card cf-dialog-card", style: { ...S.card, width: "min(500px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		      t("community.token.dialogTitle"),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(RefreshIconButton, { t, busy: loading, onClick: onRefresh })
 		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
-		      tokens ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "flex-start", gap: 12 }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { flex: "0 0 auto", display: "flex", alignItems: "center", gap: 10 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 12 }, children: [
+		      tokens ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-token-layout", style: { display: "flex", alignItems: "flex-start", gap: 16 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { flex: "0 0 auto", display: "flex", alignItems: "center", gap: 12 }, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            TokenDonut,
 		            {
@@ -4688,7 +4717,7 @@ window.__ModuleLoader__.load({
 		              size: 92
 		            }
 		          ),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 5 }, children: [
 		            pools ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                TokenLegendRow,
@@ -4702,7 +4731,7 @@ window.__ModuleLoader__.load({
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                TokenLegendRow,
 		                {
-		                  color: "var(--dsw-alias-state-business-tertiary)",
+		                  color: "var(--cf-token-grant-arc, var(--dsw-alias-state-business-tertiary))",
 		                  label: t("community.token.grant"),
 		                  value: String(tokens.grant),
 		                  hint: t("community.token.grantHint")
@@ -4734,7 +4763,7 @@ window.__ModuleLoader__.load({
 		            )
 		          ] })
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 8 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { flex: "1 1 200px", minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.token.renewHint") }),
 		          pending ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-business-primary)" }, children: t("community.token.pendingLine", { amount: pending.amount }) }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
@@ -4742,6 +4771,7 @@ window.__ModuleLoader__.load({
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                "input",
 		                {
+		                  className: "cf-input",
 		                  style: S.compactInput,
 		                  type: "text",
 		                  inputMode: "numeric",
@@ -4758,6 +4788,7 @@ window.__ModuleLoader__.load({
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                "input",
 		                {
+		                  className: "cf-input",
 		                  style: S.compactInput,
 		                  type: "text",
 		                  spellCheck: false,
@@ -4772,15 +4803,16 @@ window.__ModuleLoader__.load({
 		          ] })
 		        ] })
 		      ] }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.briefConfirm.balanceUnknown") }),
-		      error ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 11.5, lineHeight: 1.6, color: "var(--dsw-alias-state-error-primary)" }, children: error }) : null,
-		      receipt ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 11.5, lineHeight: 1.6, color: "var(--dsw-alias-state-success-primary)" }, children: receipt }) : null,
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		      error ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: "var(--cf-type-label, 12px)", lineHeight: 1.6, color: "var(--dsw-alias-state-error-primary)" }, children: error }) : null,
+		      receipt ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: "var(--cf-type-label, 12px)", lineHeight: 1.6, color: "var(--dsw-alias-state-success-primary)" }, children: receipt }) : null,
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-footer", style: S.footer, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.token.close") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: onClose, children: t("community.token.close") }),
 		        !pending ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		          "button",
 		          {
 		            type: "button",
+		            className: "cf-btn-primary",
 		            style: { ...S.primaryBtn, opacity: canApply ? 1 : 0.55 },
 		            disabled: !canApply,
 		            onClick: onApply,
@@ -4823,23 +4855,25 @@ window.__ModuleLoader__.load({
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "div",
 		    {
+		      className: "cf-overlay",
 		      style: S.overlay,
 		      role: "dialog",
 		      "aria-modal": "true",
-		      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(400px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-card cf-dialog-card", style: { ...S.card, width: "min(420px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		          t(variant === "researcher" ? "community.mentor.bidTitle" : "community.mentor.proposeTitle"),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		          levelText ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t(levelText.key, levelText.params) }) : null,
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("community.mentor.proposeFree") })
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 10 }, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: title }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.label, children: t("community.mentor.conditionLabel") }),
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "select",
 		              {
+		                className: "cf-select",
 		                style: input,
 		                value: condition,
 		                onChange: (e) => {
@@ -4856,6 +4890,7 @@ window.__ModuleLoader__.load({
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		              "select",
 		              {
+		                className: "cf-select",
 		                style: input,
 		                value: levelKey,
 		                onChange: (e) => {
@@ -4878,6 +4913,7 @@ window.__ModuleLoader__.load({
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "input",
 		              {
+		                className: "cf-input",
 		                style: input,
 		                value: total,
 		                inputMode: "numeric",
@@ -4894,13 +4930,14 @@ window.__ModuleLoader__.load({
 		            { percent: Math.round(ratio * 100), deposit, success }
 		          ) : t("community.mentor.feeInvalid") }),
 		          error ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, color: "var(--dsw-alias-state-error-primary)" }, children: error }) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-footer", style: S.footer, children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: onCancel, children: t("community.action.cancel") }),
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "button",
 		              {
 		                type: "button",
+		                className: "cf-btn-primary",
 		                style: { ...S.primaryBtn, opacity: valid && !busy && !feeLoading ? 1 : 0.55 },
 		                disabled: !valid || busy || feeLoading,
 		                onClick: () => onSubmit({
@@ -4935,13 +4972,13 @@ window.__ModuleLoader__.load({
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.label, flex: "0 0 64px" }, children: label }),
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, flex: "1 1 auto", minWidth: 0 }, children: value })
 		  ] }) : null;
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", "aria-label": title, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(430px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-overlay", style: S.overlay, role: "dialog", "aria-modal": "true", "aria-label": title, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-card cf-dialog-card", style: { ...S.card, width: "min(440px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		      title,
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: proposalTone(status), children: enumText(t, PROPOSAL_STATUS_KEYS, status) })
 		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 10 }, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: party.displayName || t("community.mentor.unknownParty") }),
 		      affiliation ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: affiliation }) : null,
 		      profile ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
@@ -4950,9 +4987,9 @@ window.__ModuleLoader__.load({
 		        line(t("community.mentor.profileInterests"), profile.researchInterests.join(" · ")),
 		        line(t("community.mentor.profileExpertise"), profile.researchExpertise.join(" · "))
 		      ] }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: profile === void 0 ? t(isMentor ? "community.mentor.profileUnavailable" : "community.mentor.profileUnavailableResearcher") : t(isMentor ? "community.mentor.profileEmpty" : "community.mentor.profileEmptyResearcher") }),
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-footer", style: S.footer, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") })
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") })
 		      ] })
 		    ] })
 		  ] }) });
@@ -5083,6 +5120,7 @@ window.__ModuleLoader__.load({
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		      "select",
 		      {
+		        className: "cf-select",
 		        style: { ...S.select, minWidth: 0, boxSizing: "border-box", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
 		        title: options.find((w) => w.id === selection)?.title,
 		        value: options.some((w) => w.id === selection) ? selection : "",
@@ -5103,13 +5141,13 @@ window.__ModuleLoader__.load({
 		    )
 		  ] });
 		  const pct2 = busy && totalBytes && totalBytes > 0 && received !== null ? Math.min(100, Math.round(received / totalBytes * 100)) : null;
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(520px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-overlay", style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-card cf-dialog-card", style: { ...S.card, width: "min(520px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		      t("community.exchange.downloadTitle"),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		      files === null ? null : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("community.exchange.sizeBadge", { files, size: formatBytes(bytes ?? 0) }) })
 		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 9 }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.cardBody, gap: 10 }, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: proposalWorkLabel(proposal) ?? t("community.mentor.untitledProject") }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.zipOnly") }),
 		      files === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.exchange.noSourceFiles") }) : null,
@@ -5125,10 +5163,10 @@ window.__ModuleLoader__.load({
 		        }, children: t("community.exchange.noMatchingDestination") }),
 		        (matching.length > 0 || onBrowse) && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.inlineRow, alignItems: "flex-end" }, children: [
 		          matching.length > 0 && workspaceSelect(matching, t("community.exchange.matchingDestinations")),
-		          onBrowse && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, disabled: busy || pickingFolder, onClick: onBrowse, children: t("community.exchange.otherDestinations") })
+		          onBrowse && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, disabled: busy || pickingFolder, onClick: onBrowse, children: t("community.exchange.otherDestinations") })
 		        ] }),
 		        onBrowse && pickingFolder ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { role: "status", style: S.hint, children: t("community.exchange.pickingFolder") }) : null,
-		        !onBrowse && other.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("details", { children: [
+		        !onBrowse && other.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("details", { className: "cf-details", children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("summary", { style: { ...S.label, cursor: "pointer", marginBottom: 5 }, children: t("community.exchange.otherDestinations") }),
 		          workspaceSelect(other, t("community.exchange.workspaceLabel"))
 		        ] }) : null,
@@ -5196,18 +5234,19 @@ window.__ModuleLoader__.load({
 		          children: notice.text
 		        }
 		      ) : null,
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-footer", style: S.footer, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		        busy && onCancel ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancel, disabled: phase === "cancelling" || phase === "finalizing", children: t("community.download.cancel") }) : null,
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t(busy && onCancel && phase !== "checking" && phase !== "reconnecting" ? "community.download.close" : "community.action.close") }),
+		        busy && onCancel ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: onCancel, disabled: phase === "cancelling" || phase === "finalizing", children: t("community.download.cancel") }) : null,
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: onClose, children: t(busy && onCancel && phase !== "checking" && phase !== "reconnecting" ? "community.download.close" : "community.action.close") }),
 		        done ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCopy, children: t("community.merge.copy") }),
-		          onRequest && done.phase === "ready" && !busy ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onRequest, children: t("community.merge.prepare") }) : null,
-		          done.canFill && !done.filled ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.primaryBtn, onClick: onFill, children: t("community.merge.fill") }) : null
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: onCopy, children: t("community.merge.copy") }),
+		          onRequest && done.phase === "ready" && !busy ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-primary", style: S.primaryBtn, onClick: onRequest, children: t("community.merge.prepare") }) : null,
+		          done.canFill && !done.filled ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-primary", style: S.primaryBtn, onClick: onFill, children: t("community.merge.fill") }) : null
 		        ] }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		          "button",
 		          {
 		            type: "button",
+		            className: "cf-btn-primary",
 		            style: { ...S.primaryBtn, opacity: ready ? 1 : 0.55 },
 		            disabled: !ready,
 		            onClick: onDownload,
@@ -5249,9 +5288,10 @@ window.__ModuleLoader__.load({
 		  const oversize = limits ? selected.filter((f) => f.size > limits.maxFileBytes) : [];
 		  const ready = Boolean(chosen && plan?.workspaceId === chosen.id) && selected.length > 0 && !busy && !planLoading;
 		  const pct2 = busy && progress && progress.totalBytes > 0 ? Math.min(100, Math.round(progress.sentBytes / progress.totalBytes * 100)) : null;
-		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-overlay", style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		    "div",
 		    {
+		      className: "cf-card cf-dialog-card",
 		      style: {
 		        ...S.card,
 		        width: "min(760px, 96vw)",
@@ -5273,6 +5313,7 @@ window.__ModuleLoader__.load({
 		              "select",
 		              {
 		                "aria-label": t("community.exchange.workspaceLabel"),
+		                className: "cf-select",
 		                style: { ...S.compactInput, flex: "1 1 auto" },
 		                value: workspaceId,
 		                disabled: busy,
@@ -5316,18 +5357,19 @@ window.__ModuleLoader__.load({
 		              children: notice.text
 		            }
 		          ) : null,
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-footer", style: S.footer, children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, marginRight: "auto" }, children: plan ? t("community.exchange.uploadSummary", {
 		              files: selected.length,
 		              size: formatBytes(selectedBytes),
 		              batches
 		            }) : "" }),
-		            onCancelUpload ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onCancelUpload, children: t("community.upload.cancel") }) : null,
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") }),
+		            onCancelUpload ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: onCancelUpload, children: t("community.upload.cancel") }) : null,
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: onClose, children: t("community.action.close") }),
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "button",
 		              {
 		                type: "button",
+		                className: "cf-btn-primary",
 		                style: { ...S.primaryBtn, opacity: ready ? 1 : 0.55 },
 		                disabled: !ready,
 		                onClick: onUpload,
@@ -5349,6 +5391,7 @@ window.__ModuleLoader__.load({
 		    "button",
 		    {
 		      type: "button",
+		      className: "cf-btn-icon",
 		      style: { ...S.iconBtn, flex: "0 0 auto", opacity: busy ? 0.55 : 1 },
 		      disabled: busy,
 		      title: busy ? t("community.action.loading") : t("community.action.refresh"),
@@ -5390,10 +5433,13 @@ window.__ModuleLoader__.load({
 		  const status = result.state === "busy" ? t("community.server.probing") : result.state === "ok" ? t("community.server.probeOk") : result.state === "fail" ? t("community.server.probeFail") : "";
 		  const title = [label, status, result.reason ?? "", url].filter((s) => s !== "").join(" · ");
 		  const skin = result.state === "busy" ? { opacity: 0.55 } : result.state === "ok" ? S.iconBtnOk : result.state === "fail" ? S.iconBtn : active ? S.iconBtnActive : S.iconBtn;
+		  const stateAttr = result.state === "ok" ? "ok" : result.state === "idle" && active ? "active" : void 0;
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		    "button",
 		    {
 		      type: "button",
+		      className: "cf-btn-icon",
+		      "data-state": stateAttr,
 		      style: { ...S.iconBtn, flex: "0 0 auto", ...skin },
 		      title,
 		      "aria-label": label,
@@ -6706,6 +6752,7 @@ window.__ModuleLoader__.load({
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		        "input",
 		        {
+		          className: "cf-input",
 		          style: S.compactInput,
 		          type: "text",
 		          spellCheck: false,
@@ -6717,51 +6764,55 @@ window.__ModuleLoader__.load({
 		          onChange: (e) => setServerDraft(e.target.value)
 		        }
 		      ),
-		      state?.serverPresets ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "cf-action-group", children: [
+		        state?.serverPresets ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		            ServerPresetButton,
+		            {
+		              t,
+		              icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(DevServerGlyph, {}),
+		              label: t("community.server.presetDev"),
+		              url: state.serverPresets.development,
+		              result: serverProbes.development ?? { state: "idle", reason: null },
+		              active: activeServerUrl === stripSlash(state.serverPresets.development),
+		              onPick: (url) => void pickServerPreset("development", url)
+		            }
+		          ),
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		            ServerPresetButton,
+		            {
+		              t,
+		              icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(InternetGlyph, {}),
+		              label: t("community.server.presetProd"),
+		              url: state.serverPresets.production,
+		              result: serverProbes.production ?? { state: "idle", reason: null },
+		              active: activeServerUrl === stripSlash(state.serverPresets.production),
+		              onPick: (url) => void pickServerPreset("production", url)
+		            }
+		          )
+		        ] }) : null,
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		          ServerPresetButton,
+		          "button",
 		          {
-		            t,
-		            icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(DevServerGlyph, {}),
-		            label: t("community.server.presetDev"),
-		            url: state.serverPresets.development,
-		            result: serverProbes.development ?? { state: "idle", reason: null },
-		            active: activeServerUrl === stripSlash(state.serverPresets.development),
-		            onPick: (url) => void pickServerPreset("development", url)
-		          }
-		        ),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		          ServerPresetButton,
-		          {
-		            t,
-		            icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(InternetGlyph, {}),
-		            label: t("community.server.presetProd"),
-		            url: state.serverPresets.production,
-		            result: serverProbes.production ?? { state: "idle", reason: null },
-		            active: activeServerUrl === stripSlash(state.serverPresets.production),
-		            onPick: (url) => void pickServerPreset("production", url)
+		            type: "button",
+		            className: "cf-btn-icon",
+		            style: { ...S.iconBtn, flex: "0 0 auto" },
+		            title: `${t("community.server.inviteCode")} · ${t("community.action.applyInviteTip")} · ${serverUrl}`,
+		            "aria-label": t("community.server.inviteCode"),
+		            onClick: openServerHome,
+		            children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(InviteCodeGlyph, {})
 		          }
 		        )
-		      ] }) : null,
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		        "button",
-		        {
-		          type: "button",
-		          style: { ...S.iconBtn, flex: "0 0 auto" },
-		          title: `${t("community.server.inviteCode")} · ${t("community.action.applyInviteTip")} · ${serverUrl}`,
-		          "aria-label": t("community.server.inviteCode"),
-		          onClick: openServerHome,
-		          children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(InviteCodeGlyph, {})
-		        }
-		      )
+		      ] })
 		    ] }),
-		    serverChanged ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		    serverChanged ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-banner", "data-tone": "warn", style: S.inlineRow, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("community.badge.addressChanged") }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, flex: "1 1 auto" }, children: t("community.hint.addressChanged") }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		        "button",
 		        {
 		          type: "button",
+		          className: "cf-btn-primary",
 		          style: { ...S.primaryBtn, flex: "0 0 auto", opacity: busy ? 0.55 : 1 },
 		          disabled: busy,
 		          onClick: () => void saveServerAddress(),
@@ -6769,16 +6820,16 @@ window.__ModuleLoader__.load({
 		        }
 		      )
 		    ] }) : null,
-		    state?.serverUrlMismatch ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { fontSize: 11.5, lineHeight: 1.6, color: "var(--dsw-alias-state-warn-primary)" }, children: state.environment === "production" ? t("community.hint.mismatchProduction") : t("community.hint.mismatchDevelopment") }) : null
+		    state?.serverUrlMismatch ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-banner", "data-tone": "warn", style: { fontSize: "var(--cf-type-label, 12px)", lineHeight: 1.6, color: "var(--dsw-alias-state-warn-primary)" }, children: state.environment === "production" ? t("community.hint.mismatchProduction") : t("community.hint.mismatchDevelopment") }) : null
 		  ] });
-		  const accountFailure = failure ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		  const accountFailure = failure ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-banner", "data-tone": "error", style: S.inlineRow, children: [
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: failure.code }),
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		      "span",
 		      {
 		        style: {
 		          color: "var(--dsw-alias-state-error-primary)",
-		          fontSize: 12,
+		          fontSize: "var(--cf-type-label, 12px)",
 		          lineHeight: 1.6,
 		          flex: "1 1 320px",
 		          minWidth: 0
@@ -6790,6 +6841,7 @@ window.__ModuleLoader__.load({
 		      "button",
 		      {
 		        type: "button",
+		        className: "cf-btn-ghost",
 		        style: { ...S.ghostBtn, opacity: busy ? 0.55 : 1 },
 		        disabled: busy,
 		        onClick: () => void verify(),
@@ -6808,22 +6860,22 @@ window.__ModuleLoader__.load({
 		    accountScope
 		  ) : null;
 		  if (view === "server-settings") {
-		    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
+		    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-card", style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
 		      phase === "loading" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { role: "status", style: S.hint, children: t("community.badge.checking") }) : serverSettings,
 		      accountFailure
 		    ] }) });
 		  }
 		  if (view === "user-settings") {
-		    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
+		    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-card", style: S.card, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
 		      phase === "loading" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { role: "status", style: S.hint, children: t("community.badge.checking") }) : emailNotifications ?? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.label, children: t("community.emailNotifications.title") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "preferences-row-title", style: S.label, children: t("community.emailNotifications.title") }),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("workbench.settings.notificationsSignIn") })
 		      ] }),
 		      accountFailure
 		    ] }) });
 		  }
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-card", style: S.card, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		        "div",
 		        {
@@ -6852,6 +6904,7 @@ window.__ModuleLoader__.load({
 		                "button",
 		                {
 		                  type: "button",
+		                  className: "cf-token-badge",
 		                  style: { ...S.tokenBadge, flex: "0 0 auto", opacity: busy ? 0.55 : 1 },
 		                  disabled: busy,
 		                  title: t("community.tip.balance"),
@@ -6915,6 +6968,7 @@ window.__ModuleLoader__.load({
 		                {
 		                  style: {
 		                    ...S.mono,
+		                    color: "var(--dsw-alias-label-secondary)",
 		                    flex: "0 1 auto",
 		                    minWidth: 0,
 		                    overflow: "hidden",
@@ -6934,6 +6988,7 @@ window.__ModuleLoader__.load({
 		                "button",
 		                {
 		                  type: "button",
+		                  className: "cf-token-badge",
 		                  style: {
 		                    ...S.tokenBadge,
 		                    flex: "0 0 auto",
@@ -6952,27 +7007,30 @@ window.__ModuleLoader__.load({
 		                    "◎ ",
 		                    state.tokens.available,
 		                    " Token",
-		                    state.tokens.frozen > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { fontWeight: 400, opacity: 0.7 }, children: t("community.balance.frozenNote", { count: state.tokens.frozen }) }) : null
+		                    state.tokens.frozen > 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { fontWeight: 400, opacity: 0.78 }, children: t("community.balance.frozenNote", { count: state.tokens.frozen }) }) : null
 		                  ]
 		                }
 		              ) : null,
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
-		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(RefreshIconButton, { t, busy, onClick: () => void verify() }),
-		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-		                "button",
-		                {
-		                  type: "button",
-		                  style: { ...S.iconBtn, flex: "0 0 auto", opacity: busy || fromEnv ? 0.55 : 1 },
-		                  disabled: busy || fromEnv,
-		                  title: fromEnv ? t("community.tip.envKey") : t("community.action.signOut"),
-		                  "aria-label": t("community.action.signOut"),
-		                  onClick: () => void logout(),
-		                  children: "⏏"
-		                }
-		              )
+		              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "cf-action-group", children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(RefreshIconButton, { t, busy, onClick: () => void verify() }),
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		                  "button",
+		                  {
+		                    type: "button",
+		                    className: "cf-btn-icon",
+		                    style: { ...S.iconBtn, flex: "0 0 auto", opacity: busy || fromEnv ? 0.55 : 1 },
+		                    disabled: busy || fromEnv,
+		                    title: fromEnv ? t("community.tip.envKey") : t("community.action.signOut"),
+		                    "aria-label": t("community.action.signOut"),
+		                    onClick: () => void logout(),
+		                    children: "⏏"
+		                  }
+		                )
+		              ] })
 		            ] }),
 		            !view && emailNotifications,
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.dash, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-dash", style: S.dash, children: [
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                DashTile,
 		                {
@@ -7010,6 +7068,7 @@ window.__ModuleLoader__.load({
 		                    "button",
 		                    {
 		                      type: "button",
+		                      className: "cf-btn-link",
 		                      style: { ...S.linkBtn, alignSelf: "flex-start", paddingLeft: 0 },
 		                      disabled: busy,
 		                      onClick: () => {
@@ -7044,6 +7103,7 @@ window.__ModuleLoader__.load({
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                "input",
 		                {
+		                  className: "cf-input",
 		                  style: S.compactInput,
 		                  type: "password",
 		                  autoComplete: "off",
@@ -7061,6 +7121,7 @@ window.__ModuleLoader__.load({
 		                "button",
 		                {
 		                  type: "button",
+		                  className: "cf-btn-primary",
 		                  style: { ...S.primaryBtn, opacity: apiKey.trim() && !busy ? 1 : 0.55 },
 		                  disabled: !apiKey.trim() || busy,
 		                  onClick: () => void login(),
@@ -7071,6 +7132,7 @@ window.__ModuleLoader__.load({
 		                "button",
 		                {
 		                  type: "button",
+		                  className: "cf-btn-link",
 		                  style: S.linkBtn,
 		                  onClick: () => setInviteOpen((v) => !v),
 		                  "aria-expanded": inviteOpen,
@@ -7083,6 +7145,7 @@ window.__ModuleLoader__.load({
 		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  "input",
 		                  {
+		                    className: "cf-input",
 		                    style: S.compactInput,
 		                    type: "password",
 		                    autoComplete: "off",
@@ -7095,6 +7158,7 @@ window.__ModuleLoader__.load({
 		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  "input",
 		                  {
+		                    className: "cf-input",
 		                    style: S.compactInput,
 		                    type: "text",
 		                    autoComplete: "off",
@@ -7107,6 +7171,7 @@ window.__ModuleLoader__.load({
 		                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		                  "input",
 		                  {
+		                    className: "cf-input",
 		                    style: S.compactInput,
 		                    type: "text",
 		                    autoComplete: "off",
@@ -7120,6 +7185,7 @@ window.__ModuleLoader__.load({
 		                  "button",
 		                  {
 		                    type: "button",
+		                    className: "cf-btn-primary",
 		                    style: {
 		                      ...S.primaryBtn,
 		                      opacity: invite.code.trim() && invite.email.trim() && invite.displayName.trim() && !busy ? 1 : 0.55
@@ -7133,6 +7199,7 @@ window.__ModuleLoader__.load({
 		                  "button",
 		                  {
 		                    type: "button",
+		                    className: "cf-btn-ghost",
 		                    style: S.ghostBtn,
 		                    title: `${t("community.action.applyInviteTip")}（${serverUrl}）`,
 		                    onClick: openServerHome,
@@ -7244,6 +7311,7 @@ window.__ModuleLoader__.load({
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		        "div",
 		        {
+		          className: "cf-menu",
 		          style: {
 		            position: "fixed",
 		            left: Math.max(8, menuFor.x - 110),
@@ -7447,7 +7515,7 @@ window.__ModuleLoader__.load({
 		        onClose: () => setTokenDialog(false)
 		      }
 		    ) : null,
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-card", style: S.card, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading network-work-header", style: S.cardHead, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { marginRight: 4 }, children: t("community.work.title") }),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MiniTab, { active: workTab === "mine", count: mine?.length ?? null, onClick: () => setWorkTab("mine"), children: t("community.tab.mine") }),
@@ -7462,14 +7530,14 @@ window.__ModuleLoader__.load({
 		        workTab === "joinable" && !account ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("community.badge.sample") }) : null
 		      ] }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
-		        publishNotice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		        publishNotice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-banner", "data-tone": publishNotice.tone === "success" ? "success" : "error", style: S.inlineRow, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: publishNotice.tone === "success" ? "success" : "error", children: publishNotice.tone === "success" ? t("community.badge.published") : publishNotice.code ?? t("community.badge.published") }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		            "span",
 		            {
 		              style: {
 		                color: publishNotice.tone === "success" ? "var(--dsw-alias-label-secondary)" : "var(--dsw-alias-state-error-primary)",
-		                fontSize: 12,
+		                fontSize: "var(--cf-type-label, 12px)",
 		                lineHeight: 1.6,
 		                flex: "1 1 320px",
 		                minWidth: 0
@@ -7481,11 +7549,11 @@ window.__ModuleLoader__.load({
 		            }
 		          )
 		        ] }) : null,
-		        chargeNotice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		        chargeNotice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-banner", "data-tone": "brand", style: S.inlineRow, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "brand", children: t("community.badge.charged") }),
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.hint, children: chargeNotice })
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, color: "var(--dsw-alias-label-secondary)" }, children: chargeNotice })
 		        ] }) : null,
-		        mentorNotice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		        mentorNotice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-banner", "data-tone": mentorNotice.tone === "success" ? "success" : "error", style: S.inlineRow, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: mentorNotice.tone === "success" ? "success" : "error", children: mentorNotice.tone === "success" ? t("community.mentor.badgeDone") : t("community.mentor.badgeFailed") }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "span",
@@ -7495,14 +7563,14 @@ window.__ModuleLoader__.load({
 		            }
 		          )
 		        ] }) : null,
-		        worksError ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		        worksError ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-banner", "data-tone": "error", style: S.inlineRow, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: worksError.code }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "span",
 		            {
 		              style: {
 		                color: "var(--dsw-alias-state-error-primary)",
-		                fontSize: 12,
+		                fontSize: "var(--cf-type-label, 12px)",
 		                lineHeight: 1.6,
 		                flex: "1 1 320px",
 		                minWidth: 0
@@ -7511,14 +7579,14 @@ window.__ModuleLoader__.load({
 		            }
 		          )
 		        ] }) : null,
-		        joinableError ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		        joinableError ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-banner", "data-tone": "error", style: S.inlineRow, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: joinableError.code }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "span",
 		            {
 		              style: {
 		                color: "var(--dsw-alias-state-error-primary)",
-		                fontSize: 12,
+		                fontSize: "var(--cf-type-label, 12px)",
 		                lineHeight: 1.6,
 		                flex: "1 1 320px",
 		                minWidth: 0
@@ -7537,17 +7605,17 @@ window.__ModuleLoader__.load({
 		           * 指导范围 / 成功条件 / 导师简介 / 机构 / 研究方向这些**描述性文字全部去掉**
 		           * （导师简介留在「接受指导」的确认框里 —— 那是真正要做判断的地方）。
 		           */
-		          !account ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		          !account ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-banner", "data-tone": "warn", style: S.inlineRow, children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("community.badge.signInRequired") }),
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.hint, children: t("community.hint.mentorSignIn") })
-		          ] }) : proposalsError ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		          ] }) : proposalsError ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-banner", "data-tone": "error", style: S.inlineRow, children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: proposalsError.code }),
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "span",
 		              {
 		                style: {
 		                  color: "var(--dsw-alias-state-error-primary)",
-		                  fontSize: 12,
+		                  fontSize: "var(--cf-type-label, 12px)",
 		                  lineHeight: 1.6,
 		                  flex: "1 1 320px",
 		                  minWidth: 0
@@ -7555,12 +7623,12 @@ window.__ModuleLoader__.load({
 		                children: proposalsError.message
 		              }
 		            ),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => void loadProposals(), children: t("community.action.retry") })
-		          ] }) : proposals === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: proposalsLoading ? t("community.hint.loading") : t("community.hint.noData") }) : trackItems.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.mentorEmpty") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: trackItems.map(({ p, view: view2 }, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: () => void loadProposals(), children: t("community.action.retry") })
+		          ] }) : proposals === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: proposalsLoading ? t("community.hint.loading") : t("community.hint.noData") }) : trackItems.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.mentorEmpty") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-list", style: S.list, children: trackItems.map(({ p, view: view2 }, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "div",
 		            {
 		              style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
-		              children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.listRow, children: [
+		              children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-list-row", style: S.listRow, children: [
 		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
 		                  "div",
 		                  {
@@ -7569,11 +7637,11 @@ window.__ModuleLoader__.load({
 		                      flex: "1 1 auto",
 		                      display: "flex",
 		                      flexDirection: "column",
-		                      gap: 2
+		                      gap: 3
 		                    },
 		                    children: [
 		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: proposalWorkLabel(p) ?? t("community.mentor.untitledProject") }),
-		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: view2.counterparty?.displayName ?? t("community.mentor.unknownParty") }),
+		                      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { ...S.hint, fontSize: "var(--cf-type-label, 12px)", fontWeight: 560, color: "var(--dsw-alias-label-secondary)" }, children: view2.counterparty?.displayName ?? t("community.mentor.unknownParty") }),
 		                      typeof p.askingFee === "number" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.mentor.askingVsOffer", {
 		                        asking: p.askingFee,
 		                        offer: p.totalFee
@@ -7599,6 +7667,7 @@ window.__ModuleLoader__.load({
 		                        "button",
 		                        {
 		                          type: "button",
+		                          className: "cf-btn-ghost",
 		                          style: S.ghostBtn,
 		                          title: t("community.tip.download"),
 		                          onClick: () => void requestDownload(p),
@@ -7609,6 +7678,7 @@ window.__ModuleLoader__.load({
 		                        "button",
 		                        {
 		                          type: "button",
+		                          className: "cf-btn-accent",
 		                          style: { ...S.accentBtn, opacity: 0.85 },
 		                          title: t("community.tip.upload"),
 		                          onClick: () => void openExchange(p),
@@ -7619,6 +7689,7 @@ window.__ModuleLoader__.load({
 		                        "button",
 		                        {
 		                          type: "button",
+		                          className: "cf-btn-ghost",
 		                          style: S.ghostBtn,
 		                          title: t(
 		                            view2.counterpartyIsMentor ? "community.mentor.profileTitle" : "community.mentor.profileTitleResearcher"
@@ -7640,6 +7711,7 @@ window.__ModuleLoader__.load({
 		                            "button",
 		                            {
 		                              type: "button",
+		                              className: "cf-btn-accent",
 		                              style: {
 		                                ...S.accentBtn,
 		                                borderTopRightRadius: 0,
@@ -7658,8 +7730,10 @@ window.__ModuleLoader__.load({
 		                            "button",
 		                            {
 		                              type: "button",
+		                              className: "cf-btn-accent",
 		                              style: {
 		                                ...S.accentBtn,
+		                                borderLeft: "none",
 		                                borderTopLeftRadius: 0,
 		                                borderBottomLeftRadius: 0,
 		                                // 纵向 padding 归零（高度靠 stretch 撑），横向加宽到近方形，
@@ -7693,14 +7767,14 @@ window.__ModuleLoader__.load({
 		          )) })
 		        ) : workTab === "mine" ? (
 		          /* ── 我的：本机研究项目 ── */
-		          mineError ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		          mineError ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-banner", "data-tone": "error", style: S.inlineRow, children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: mineError.code }),
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "span",
 		              {
 		                style: {
 		                  color: "var(--dsw-alias-state-error-primary)",
-		                  fontSize: 12,
+		                  fontSize: "var(--cf-type-label, 12px)",
 		                  lineHeight: 1.6,
 		                  flex: "1 1 320px",
 		                  minWidth: 0
@@ -7708,19 +7782,19 @@ window.__ModuleLoader__.load({
 		                children: mineError.message
 		              }
 		            ),
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", style: S.ghostBtn, onClick: () => void loadMine(), children: t("community.action.retry") })
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", className: "cf-btn-ghost", style: S.ghostBtn, onClick: () => void loadMine(), children: t("community.action.retry") })
 		          ] }) : mineRegistry && !mineRegistry.available ? (
 		            // 注册表读不到（≠ 没有研究项目）：把原因原样说出来，便于定位
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.inlineRow, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-banner", "data-tone": "warn", style: S.inlineRow, children: [
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("community.badge.registryUnavailable") }),
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.hint, children: mineRegistry.reason ?? t("community.hint.registryUnavailable") })
 		            ] })
-		          ) : mine === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: mineLoading ? t("community.hint.loading") : t("community.hint.noData") }) : mine.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.mineEmpty") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: mine.map((w, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		          ) : mine === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: mineLoading ? t("community.hint.loading") : t("community.hint.noData") }) : mine.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.mineEmpty") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-list", style: S.list, children: mine.map((w, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "div",
 		            {
 		              style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
-		              children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.listRow, alignItems: "flex-start" }, children: [
-		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 4 }, children: [
+		              children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-list-row", style: { ...S.listRow, alignItems: "flex-start" }, children: [
+		                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", gap: 5 }, children: [
 		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.listTitle, children: workLabelOf(w) }),
 		                  /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.hint, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }, children: [
 		                    w.stage ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: translateOr(t, `progress.stage.${w.stage.id}`, w.stage.label) }) : null,
@@ -7805,7 +7879,7 @@ window.__ModuleLoader__.load({
 		           *   ③ 空态/提示文案说"导师发布的选题"。
 		           */
 		          !account ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: SAMPLE_WORKS.map((w, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-list", style: S.list, children: SAMPLE_WORKS.map((w, i) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		              "div",
 		              {
 		                style: i === 0 ? void 0 : { borderTop: "1px solid var(--dsw-alias-border-l1)" },
@@ -7828,7 +7902,7 @@ window.__ModuleLoader__.load({
 		              w.titleKey
 		            )) }),
 		            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.sampleFootnote") })
-		          ] }) : joinable === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: joinableLoading ? t("community.hint.loadingWork") : t("community.hint.noData") }) : joinable.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.noJoinable") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: joinable.map((w, i) => {
+		          ] }) : joinable === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: joinableLoading ? t("community.hint.loadingWork") : t("community.hint.noData") }) : joinable.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.noJoinable") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-list", style: S.list, children: joinable.map((w, i) => {
 		            const expanded = open?.projectId === w.projectId;
 		            const busyKind = detailBusy?.projectId === w.projectId ? detailBusy.kind : null;
 		            const bidded = myResearcherProposalByProject.get(w.projectId);
@@ -7861,6 +7935,7 @@ window.__ModuleLoader__.load({
 		                          "button",
 		                          {
 		                            type: "button",
+		                            className: "cf-btn-accent",
 		                            style: { ...S.accentBtn, opacity: bidded ? 0.55 : 1 },
 		                            disabled: Boolean(bidded) || proposeBusy,
 		                            title: bidded ? t("community.tip.bidded") : t("community.tip.bid"),
@@ -7880,7 +7955,7 @@ window.__ModuleLoader__.load({
 		        ) : works === null ? (
 		          /* ── 可指导：学生发布的研究工作（`SEEK_MENTOR`，只对导师显示这个 Tab）── */
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: worksLoading ? t("community.hint.loadingWork") : t("community.hint.noData") })
-		        ) : works.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.noDiscoverable") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.list, children: works.map((w, i) => {
+		        ) : works.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.hint, children: t("community.hint.noDiscoverable") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "cf-list", style: S.list, children: works.map((w, i) => {
 		          const expanded = open?.projectId === w.projectId;
 		          const busyKind = detailBusy?.projectId === w.projectId ? detailBusy.kind : null;
 		          const proposed = myMentorProposalByProject.get(w.projectId);
@@ -7917,6 +7992,7 @@ window.__ModuleLoader__.load({
 		                        "button",
 		                        {
 		                          type: "button",
+		                          className: "cf-btn-accent",
 		                          style: { ...S.accentBtn, opacity: proposed ? 0.55 : 1 },
 		                          disabled: Boolean(proposed) || proposeBusy,
 		                          title: proposed ? t("community.tip.proposed") : t("community.tip.propose"),
@@ -8007,24 +8083,24 @@ window.__ModuleLoader__.load({
 		    }
 		  };
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-card", style: S.card, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
-		        "🧩 ",
 		        t("system.dependency.title"),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		        dep === null ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("system.status.unknown") }) : dep.available ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "success", children: t("system.status.installed") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("system.status.notInstalled") })
 		      ] }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.mono, children: "tectonic" }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }, children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.mono, fontWeight: 600, color: "var(--dsw-alias-label-primary)" }, children: "tectonic" }),
 		          dep?.version ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.hint, children: dep.version }) : null,
-		          dep?.path ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, opacity: 0.7 }, children: dep.path }) : null,
+		          dep?.path ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, ...S.mono, opacity: 0.85 }, children: dep.path }) : null,
 		          dep?.viaEnv ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: S.hint, children: t("system.dependency.viaEnv", { envVar: dep.envVar }) }) : null,
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "button",
 		            {
 		              type: "button",
+		              className: "cf-btn-ghost",
 		              style: { ...S.ghostBtn, opacity: checking ? 0.55 : 1 },
 		              disabled: checking,
 		              onClick: () => void recheck(),
@@ -8053,9 +8129,8 @@ window.__ModuleLoader__.load({
 		        ] }) : null
 		      ] })
 		    ] }),
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-card", style: S.card, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
-		        "⌕ ",
 		        t("system.retrieval.title"),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		        configured ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "success", children: t("system.status.configured") }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("system.status.notConfigured") })
@@ -8067,6 +8142,7 @@ window.__ModuleLoader__.load({
 		            "input",
 		            {
 		              id: keyInputId,
+		              className: "cf-input",
 		              style: S.input,
 		              type: "password",
 		              autoComplete: "off",
@@ -8093,12 +8169,12 @@ window.__ModuleLoader__.load({
 		            t("system.retrieval.envFromAction")
 		          ] }) : null
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.footer, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "cf-footer", style: S.footer, children: [
 		          notice ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
 		            "span",
 		            {
 		              role: notice.tone === "error" ? "alert" : "status",
-		              style: { marginRight: "auto", fontSize: 12, color: `var(--dsw-alias-state-${notice.tone}-primary)` },
+		              style: { marginRight: "auto", fontSize: "var(--cf-type-label, 12px)", color: `var(--dsw-alias-state-${notice.tone}-primary)` },
 		              children: notice.text
 		            }
 		          ) : null,
@@ -8106,6 +8182,7 @@ window.__ModuleLoader__.load({
 		            "button",
 		            {
 		              type: "button",
+		              className: "cf-btn-ghost",
 		              style: { ...S.ghostBtn, opacity: busy ? 0.55 : 1 },
 		              disabled: busy !== null,
 		              onClick: () => void clear(),
@@ -8116,6 +8193,7 @@ window.__ModuleLoader__.load({
 		            "button",
 		            {
 		              type: "button",
+		              className: "cf-btn-primary",
 		              style: { ...S.primaryBtn, opacity: draft.trim() && !busy ? 1 : 0.55 },
 		              disabled: !draft.trim() || busy !== null,
 		              onClick: () => void save(),
@@ -8578,6 +8656,7 @@ window.__ModuleLoader__.load({
 		    "button",
 		    {
 		      type: "button",
+		      className: "progress-refresh-btn",
 		      style: {
 		        display: "inline-flex",
 		        alignItems: "center",
@@ -8589,7 +8668,7 @@ window.__ModuleLoader__.load({
 		        padding: "8px",
 		        border: "1px solid var(--dsw-alias-border-l2, rgba(127,127,127,0.45))",
 		        borderRadius: "8px",
-		        background: "var(--dsw-alias-state-business-tertiary, transparent)",
+		        background: "var(--dsw-alias-interactive-bg-hover, transparent)",
 		        color: "var(--dsw-alias-state-business-primary, currentColor)",
 		        cursor: busy ? "wait" : "pointer",
 		        opacity: busy ? 0.65 : 1
@@ -8667,10 +8746,10 @@ window.__ModuleLoader__.load({
 		    textOverflow: "ellipsis",
 		    borderBottom: active ? "2px solid var(--dsw-alias-state-business-primary, #4176e6)" : "2px solid transparent"
 		  });
-		  const workRow = (label, value, note) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", gap: "8px" }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { minWidth: "92px", whiteSpace: "nowrap", ...mono }, children: label }),
-		    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: mono, children: value }),
-		    note ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted }, children: note }) : null
+		  const workRow = (label, value, note) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-asset-item", style: { display: "flex", gap: "8px" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "progress-asset-label", style: { minWidth: "92px", whiteSpace: "nowrap", ...mono }, children: label }),
+		    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "progress-asset-value", style: mono, children: value }),
+		    note ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "progress-asset-detail", style: { color: muted }, children: note }) : null
 		  ] }, label);
 		  const aggCell = (key, value, extra, extraLabel, alwaysTitle = false) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { title: extra > 0 || alwaysTitle ? extraLabel : void 0, children: extra > 0 ? `${value} (${extra})` : String(value) }, key);
 		  const aggRow = (row, totals) => {
@@ -8756,20 +8835,20 @@ window.__ModuleLoader__.load({
 		      ))
 		    ] }) : null,
 		    report && work ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: section, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: sectionTitle, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-section", style: section, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-section-title", style: sectionTitle, children: [
 		          t("progress.work.section.maturity"),
 		          work.maturitySource === "derived" ? t("progress.work.maturityDerived") : ""
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))", gap: "2px 16px" }, children: work.maturity.map((d) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "progress-metric-grid", style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))", gap: "2px 16px" }, children: work.maturity.map((d) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-maturity-item", style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { minWidth: "92px", whiteSpace: "nowrap", ...mono }, children: translateOr(t, `maturity.paper.${d.dimension}`, d.dimension) }),
 		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Bar, { scale: d.scale }),
 		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted, whiteSpace: "nowrap", ...mono }, children: maturityLevelText(t, d.level) })
 		        ] }, d.dimension)) })
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: section, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: sectionTitle, children: t("progress.work.section.assets") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))", gap: "2px 16px" }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-section", style: section, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "progress-section-title", style: sectionTitle, children: t("progress.work.section.assets") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-metric-grid", style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))", gap: "2px 16px" }, children: [
 		          workRow(
 		            t("progress.work.count.sections"),
 		            `${work.counts.sectionsWithContent}/${work.counts.sections}`
@@ -8792,14 +8871,16 @@ window.__ModuleLoader__.load({
 		          work.counts.openProposals > 0 ? workRow(t("progress.work.count.proposals"), String(work.counts.openProposals)) : null
 		        ] })
 		      ] }),
-		      work.next ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: section, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: sectionTitle, children: t("progress.work.section.next") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { children: t("progress.work.nextStep", { text: workGapText(t, work.next) }) }),
-		        work.next.skill ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { color: muted }, children: t("progress.work.nextSkill", { skill: skillText(t, work.next.skill, work.next.skill) }) }) : null
+		      work.next ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-section", style: section, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "progress-section-title", style: sectionTitle, children: t("progress.work.section.next") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-need-stack", children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "progress-callout-next", children: t("progress.work.nextStep", { text: workGapText(t, work.next) }) }),
+		          work.next.skill ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { color: muted }, children: t("progress.work.nextSkill", { skill: skillText(t, work.next.skill, work.next.skill) }) }) : null
+		        ] })
 		      ] }) : null
 		    ] }) : report ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
-		      multi && report.aggregate ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: section, "data-convfusion-progress-aggregate": "1", children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: sectionTitle, children: t("progress.works.section.aggregate") }),
+		      multi && report.aggregate ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-section", style: section, "data-convfusion-progress-aggregate": "1", children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "progress-section-title", style: sectionTitle, children: t("progress.works.section.aggregate") }),
 		        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
 		          "div",
 		          {
@@ -8824,31 +8905,39 @@ window.__ModuleLoader__.load({
 		          }
 		        )
 		      ] }) : null,
-		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: section, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: sectionTitle, children: t("progress.section.maturity") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))", gap: "2px 16px" }, children: report.progress.dimensions.map((d) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-section", style: section, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "progress-section-title", style: sectionTitle, children: t("progress.section.maturity") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "progress-metric-grid", style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))", gap: "2px 16px" }, children: report.progress.dimensions.map((d) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-maturity-item", style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { minWidth: "92px", whiteSpace: "nowrap", ...mono }, children: maturityDimensionText(t, d.dimension) }),
 		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Bar, { scale: d.scale }),
 		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted, whiteSpace: "nowrap", ...mono }, children: maturityLevelText(t, d.level) })
 		        ] }, d.dimension)) })
 		      ] }),
-		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: section, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: sectionTitle, children: t("progress.section.assets") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))", gap: "2px 16px" }, children: [
-		          report.counts.map((row) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", gap: "8px" }, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { minWidth: "92px", whiteSpace: "nowrap", ...mono }, children: progressCountText(t, row.key) }),
-		            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: mono, children: row.value }),
-		            row.detail ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted }, children: t(`progress.count.${row.detail.code}`, { count: row.detail.count }) }) : null
+		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-section", style: section, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "progress-section-title", style: sectionTitle, children: t("progress.section.assets") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-metric-grid", style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))", gap: "2px 16px" }, children: [
+		          report.counts.map((row) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-asset-item", style: { display: "flex", gap: "8px" }, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "progress-asset-label", style: { minWidth: "92px", whiteSpace: "nowrap", ...mono }, children: progressCountText(t, row.key) }),
+		            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "progress-asset-value", style: mono, children: row.value }),
+		            row.detail ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "progress-asset-detail", style: { color: muted }, children: t(`progress.count.${row.detail.code}`, { count: row.detail.count }) }) : null
 		          ] }, row.key)),
-		          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", gap: "8px" }, children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { minWidth: "92px", ...mono }, children: t("progress.paper") }),
-		            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted }, children: report.paper ? t("progress.paper.present") : t("progress.paper.absent") })
+		          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-asset-item", style: { display: "flex", gap: "8px" }, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "progress-asset-label", style: { minWidth: "92px", ...mono }, children: t("progress.paper") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+		              "span",
+		              {
+		                className: "progress-asset-status",
+		                "data-present": report.paper ? "true" : "false",
+		                style: { color: muted },
+		                children: report.paper ? t("progress.paper.present") : t("progress.paper.absent")
+		              }
+		            )
 		          ] })
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { color: muted }, children: t("progress.stateVersion", { version: report.stateVersion }) })
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "progress-state-meta", style: { color: muted }, children: t("progress.stateVersion", { version: report.stateVersion }) })
 		      ] }),
-		      showTurnReport ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: section, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: sectionTitle, children: t("progress.section.turn") }),
+		      showTurnReport ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-section", style: section, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "progress-section-title", style: sectionTitle, children: t("progress.section.turn") }),
 		        lastTurn ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { color: muted, ...mono }, children: t("progress.turn.summary", {
 		            turn: lastTurn.turn,
@@ -8856,7 +8945,7 @@ window.__ModuleLoader__.load({
 		            after: pct(lastTurn.overall.after),
 		            assetChange: lastTurn.changes.counts.length > 0 ? t("progress.turn.assetChange", { count: lastTurn.changes.counts.length }) : t("progress.turn.noAssetChange")
 		          }) }),
-		          lastTurn.changes.changed ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("ul", { style: { margin: "2px 0 0", paddingLeft: "18px" }, children: [
+		          lastTurn.changes.changed ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("ul", { className: "progress-list", style: { margin: "2px 0 0", paddingLeft: "18px" }, children: [
 		            lastTurn.changes.maturity.map((m) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("li", { children: t("progress.turn.maturityChange", {
 		              dimension: maturityDimensionText(t, m.dimension),
 		              from: maturityLevelText(t, m.from),
@@ -8871,21 +8960,23 @@ window.__ModuleLoader__.load({
 		          ] }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { color: muted }, children: t("progress.turn.noChange") })
 		        ] }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { color: muted }, children: t("progress.turn.unavailable") })
 		      ] }) : null,
-		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: section, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: sectionTitle, children: t("progress.section.need") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("ul", { style: { margin: "2px 0 0", paddingLeft: "18px" }, children: report.need.gaps.map((g, index) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("li", { children: gapText(t, g) }, `${g.code}-${index}`)) }),
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { marginTop: "2px" }, children: [
-		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted }, children: t("progress.need.assessment") }),
-		          clarityText(t, report.need.clarity),
-		          report.need.basis ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted }, children: t("progress.need.basis", { basis: basisText(t, report.need, report.progress.stage) }) }) : null
-		        ] }),
-		        report.need.nextStep ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { children: t("progress.need.nextStep", {
-		          text: nextStepText(t, report.need.nextStep, report.progress.stage)
-		        }) }) : null,
-		        decisionText(t, report.need) ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { children: t("progress.need.decision", { text: decisionText(t, report.need) }) }) : null
+		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-section", style: section, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "progress-section-title", style: sectionTitle, children: t("progress.section.need") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-need-stack", children: [
+		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("ul", { className: "progress-list", style: { margin: "2px 0 0", paddingLeft: "18px" }, children: report.need.gaps.map((g, index) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("li", { children: gapText(t, g) }, `${g.code}-${index}`)) }),
+		          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { marginTop: "2px" }, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted }, children: t("progress.need.assessment") }),
+		            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("strong", { className: "progress-need-clarity", style: { fontWeight: 600 }, children: clarityText(t, report.need.clarity) }),
+		            report.need.basis ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted }, children: t("progress.need.basis", { basis: basisText(t, report.need, report.progress.stage) }) }) : null
+		          ] }),
+		          report.need.nextStep ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "progress-callout-next", children: t("progress.need.nextStep", {
+		            text: nextStepText(t, report.need.nextStep, report.progress.stage)
+		          }) }) : null,
+		          decisionText(t, report.need) ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "progress-callout-decision", children: t("progress.need.decision", { text: decisionText(t, report.need) }) }) : null
+		        ] })
 		      ] })
 		    ] }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { marginTop: "8px", color: muted }, children: t("progress.noReport") }),
-		    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { marginTop: "10px", color: muted }, children: t("progress.footnote") })
+		    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "progress-footnote", style: { marginTop: "10px", color: muted }, children: t("progress.footnote") })
 		  ] });
 		}
 		function ResearchProgressView({ sessionId, t }) {

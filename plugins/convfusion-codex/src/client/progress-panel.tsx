@@ -445,11 +445,12 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
   const refreshButton = sessionId && (
     <button
       type="button"
+      className="progress-refresh-btn"
       style={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         marginInlineStart: 'auto', minBlockSize: '40px', minInlineSize: '40px', padding: '8px',
         border: '1px solid var(--dsw-alias-border-l2, rgba(127,127,127,0.45))',
-        borderRadius: '8px', background: 'var(--dsw-alias-state-business-tertiary, transparent)',
+        borderRadius: '8px', background: 'var(--dsw-alias-interactive-bg-hover, transparent)',
         color: 'var(--dsw-alias-state-business-primary, currentColor)',
         cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.65 : 1,
       }}
@@ -537,10 +538,10 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
   })
   /** 工作面板里的一行资产（标签 + 数值 + 可选括注）。 */
   const workRow = (label: string, value: string, note?: string): JSX.Element => (
-    <div key={label} style={{ display: 'flex', gap: '8px' }}>
-      <span style={{ minWidth: '92px', whiteSpace: 'nowrap', ...mono }}>{label}</span>
-      <span style={mono}>{value}</span>
-      {note ? <span style={{ color: muted }}>{note}</span> : null}
+    <div key={label} className="progress-asset-item" style={{ display: 'flex', gap: '8px' }}>
+      <span className="progress-asset-label" style={{ minWidth: '92px', whiteSpace: 'nowrap', ...mono }}>{label}</span>
+      <span className="progress-asset-value" style={mono}>{value}</span>
+      {note ? <span className="progress-asset-detail" style={{ color: muted }}>{note}</span> : null}
     </div>
   )
   /**
@@ -674,14 +675,14 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
       {report && work ? (
         <>
           {/* A. 这个工作自己的成熟度（论文成熟度维度；无评估时按资产推定并标明） */}
-          <div style={section}>
-            <div style={sectionTitle}>
+          <div className="progress-section" style={section}>
+            <div className="progress-section-title" style={sectionTitle}>
               {t('progress.work.section.maturity')}
               {work.maturitySource === 'derived' ? t('progress.work.maturityDerived') : ''}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))', gap: '2px 16px' }}>
+            <div className="progress-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))', gap: '2px 16px' }}>
               {work.maturity.map((d) => (
-                <div key={d.dimension} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div key={d.dimension} className="progress-maturity-item" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ minWidth: '92px', whiteSpace: 'nowrap', ...mono }}>
                     {translateOr(t, `maturity.paper.${d.dimension}`, d.dimension)}
                   </span>
@@ -693,9 +694,9 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
           </div>
 
           {/* A2. 这个工作自己的可数资产（真实计数） */}
-          <div style={section}>
-            <div style={sectionTitle}>{t('progress.work.section.assets')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))', gap: '2px 16px' }}>
+          <div className="progress-section" style={section}>
+            <div className="progress-section-title" style={sectionTitle}>{t('progress.work.section.assets')}</div>
+            <div className="progress-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))', gap: '2px 16px' }}>
               {workRow(
                 t('progress.work.count.sections'),
                 `${work.counts.sectionsWithContent}/${work.counts.sections}`,
@@ -727,14 +728,16 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
 
           {/* C. 这个工作的下一步（最高优先级缺口；没有缺口就不渲染这一段） */}
           {work.next ? (
-            <div style={section}>
-              <div style={sectionTitle}>{t('progress.work.section.next')}</div>
-              <div>{t('progress.work.nextStep', { text: workGapText(t, work.next) })}</div>
-              {work.next.skill ? (
-                <div style={{ color: muted }}>
-                  {t('progress.work.nextSkill', { skill: skillText(t, work.next.skill, work.next.skill) })}
-                </div>
-              ) : null}
+            <div className="progress-section" style={section}>
+              <div className="progress-section-title" style={sectionTitle}>{t('progress.work.section.next')}</div>
+              <div className="progress-need-stack">
+                <div className="progress-callout-next">{t('progress.work.nextStep', { text: workGapText(t, work.next) })}</div>
+                {work.next.skill ? (
+                  <div style={{ color: muted }}>
+                    {t('progress.work.nextSkill', { skill: skillText(t, work.next.skill, work.next.skill) })}
+                  </div>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </>
@@ -743,8 +746,8 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
           {/* 总览（多工作）：每个工作一行 + 合计 —— 一台工作一台读数，不复述某一个工作。
               下面的 A/A2/B/C 是**项目级**内容（Research State / 全局计数 / 回合变化），照旧保留。 */}
           {multi && report.aggregate ? (
-            <div style={section} data-convfusion-progress-aggregate="1">
-              <div style={sectionTitle}>{t('progress.works.section.aggregate')}</div>
+            <div className="progress-section" style={section} data-convfusion-progress-aggregate="1">
+              <div className="progress-section-title" style={sectionTitle}>{t('progress.works.section.aggregate')}</div>
               <div
                 style={{
                   display: 'grid',
@@ -768,11 +771,11 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
           ) : null}
 
           {/* A. 研究现在到了哪里 */}
-          <div style={section}>
-            <div style={sectionTitle}>{t('progress.section.maturity')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))', gap: '2px 16px' }}>
+          <div className="progress-section" style={section}>
+            <div className="progress-section-title" style={sectionTitle}>{t('progress.section.maturity')}</div>
+            <div className="progress-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))', gap: '2px 16px' }}>
               {report.progress.dimensions.map((d) => (
-                <div key={d.dimension} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div key={d.dimension} className="progress-maturity-item" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ minWidth: '92px', whiteSpace: 'nowrap', ...mono }}>{maturityDimensionText(t, d.dimension)}</span>
                   <Bar scale={d.scale} />
                   <span style={{ color: muted, whiteSpace: 'nowrap', ...mono }}>{maturityLevelText(t, d.level)}</span>
@@ -782,33 +785,37 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
           </div>
 
           {/* 可数资产（真实计数，不给百分比） */}
-          <div style={section}>
-            <div style={sectionTitle}>{t('progress.section.assets')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))', gap: '2px 16px' }}>
+          <div className="progress-section" style={section}>
+            <div className="progress-section-title" style={sectionTitle}>{t('progress.section.assets')}</div>
+            <div className="progress-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))', gap: '2px 16px' }}>
               {report.counts.map((row) => (
-                <div key={row.key} style={{ display: 'flex', gap: '8px' }}>
-                  <span style={{ minWidth: '92px', whiteSpace: 'nowrap', ...mono }}>{progressCountText(t, row.key)}</span>
-                  <span style={mono}>{row.value}</span>
+                <div key={row.key} className="progress-asset-item" style={{ display: 'flex', gap: '8px' }}>
+                  <span className="progress-asset-label" style={{ minWidth: '92px', whiteSpace: 'nowrap', ...mono }}>{progressCountText(t, row.key)}</span>
+                  <span className="progress-asset-value" style={mono}>{row.value}</span>
                   {row.detail ? (
-                    <span style={{ color: muted }}>
+                    <span className="progress-asset-detail" style={{ color: muted }}>
                       {t(`progress.count.${row.detail.code}`, { count: row.detail.count })}
                     </span>
                   ) : null}
                 </div>
               ))}
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <span style={{ minWidth: '92px', ...mono }}>{t('progress.paper')}</span>
-                <span style={{ color: muted }}>
+              <div className="progress-asset-item" style={{ display: 'flex', gap: '8px' }}>
+                <span className="progress-asset-label" style={{ minWidth: '92px', ...mono }}>{t('progress.paper')}</span>
+                <span
+                  className="progress-asset-status"
+                  data-present={report.paper ? 'true' : 'false'}
+                  style={{ color: muted }}
+                >
                   {report.paper ? t('progress.paper.present') : t('progress.paper.absent')}
                 </span>
               </div>
             </div>
-            <div style={{ color: muted }}>{t('progress.stateVersion', { version: report.stateVersion })}</div>
+            <div className="progress-state-meta" style={{ color: muted }}>{t('progress.stateVersion', { version: report.stateVersion })}</div>
           </div>
 
           {/* B. 最近一轮改变了什么（需要该会话跑完过至少一轮） */}
-          {showTurnReport ? <div style={section}>
-            <div style={sectionTitle}>{t('progress.section.turn')}</div>
+          {showTurnReport ? <div className="progress-section" style={section}>
+            <div className="progress-section-title" style={sectionTitle}>{t('progress.section.turn')}</div>
             {lastTurn ? (
               <div>
                 <div style={{ color: muted, ...mono }}>
@@ -823,7 +830,7 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
                   })}
                 </div>
                 {lastTurn.changes.changed ? (
-                  <ul style={{ margin: '2px 0 0', paddingLeft: '18px' }}>
+                  <ul className="progress-list" style={{ margin: '2px 0 0', paddingLeft: '18px' }}>
                     {lastTurn.changes.maturity.map((m) => (
                       <li key={`m-${m.dimension}`}>
                         {t('progress.turn.maturityChange', {
@@ -854,39 +861,41 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
           </div> : null}
 
           {/* C. 当前缺口与推进判定 */}
-          <div style={section}>
-            <div style={sectionTitle}>{t('progress.section.need')}</div>
-            <ul style={{ margin: '2px 0 0', paddingLeft: '18px' }}>
-              {report.need.gaps.map((g, index) => (
-                <li key={`${g.code}-${index}`}>{gapText(t, g)}</li>
-              ))}
-            </ul>
-            <div style={{ marginTop: '2px' }}>
-              <span style={{ color: muted }}>{t('progress.need.assessment')}</span>
-              {clarityText(t, report.need.clarity)}
-              {report.need.basis ? (
-                <span style={{ color: muted }}>
-                  {t('progress.need.basis', { basis: basisText(t, report.need, report.progress.stage) })}
-                </span>
+          <div className="progress-section" style={section}>
+            <div className="progress-section-title" style={sectionTitle}>{t('progress.section.need')}</div>
+            <div className="progress-need-stack">
+              <ul className="progress-list" style={{ margin: '2px 0 0', paddingLeft: '18px' }}>
+                {report.need.gaps.map((g, index) => (
+                  <li key={`${g.code}-${index}`}>{gapText(t, g)}</li>
+                ))}
+              </ul>
+              <div style={{ marginTop: '2px' }}>
+                <span style={{ color: muted }}>{t('progress.need.assessment')}</span>
+                <strong className="progress-need-clarity" style={{ fontWeight: 600 }}>{clarityText(t, report.need.clarity)}</strong>
+                {report.need.basis ? (
+                  <span style={{ color: muted }}>
+                    {t('progress.need.basis', { basis: basisText(t, report.need, report.progress.stage) })}
+                  </span>
+                ) : null}
+              </div>
+              {report.need.nextStep ? (
+                <div className="progress-callout-next">
+                  {t('progress.need.nextStep', {
+                    text: nextStepText(t, report.need.nextStep, report.progress.stage),
+                  })}
+                </div>
+              ) : null}
+              {decisionText(t, report.need) ? (
+                <div className="progress-callout-decision">{t('progress.need.decision', { text: decisionText(t, report.need) })}</div>
               ) : null}
             </div>
-            {report.need.nextStep ? (
-              <div>
-                {t('progress.need.nextStep', {
-                  text: nextStepText(t, report.need.nextStep, report.progress.stage),
-                })}
-              </div>
-            ) : null}
-            {decisionText(t, report.need) ? (
-              <div>{t('progress.need.decision', { text: decisionText(t, report.need) })}</div>
-            ) : null}
           </div>
         </>
       ) : (
         <div style={{ marginTop: '8px', color: muted }}>{t('progress.noReport')}</div>
       )}
 
-      <div style={{ marginTop: '10px', color: muted }}>{t('progress.footnote')}</div>
+      <div className="progress-footnote" style={{ marginTop: '10px', color: muted }}>{t('progress.footnote')}</div>
     </div>
   )
 }

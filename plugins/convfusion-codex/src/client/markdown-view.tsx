@@ -38,10 +38,10 @@ function inline(tokens: MdInline[]): React.ReactNode[] {
           <code
             key={i}
             style={{
-              fontFamily: 'var(--dsw-font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
-              fontSize: 11,
-              padding: '1px 4px',
-              borderRadius: 4,
+              fontFamily: 'var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace)',
+              fontSize: 'var(--cf-type-code, 11.5px)',
+              padding: '1px 5px',
+              borderRadius: 5,
               background: 'var(--dsw-alias-bg-layer-3)',
             }}
           >
@@ -78,8 +78,9 @@ function Block({ block }: { block: MdBlock }): JSX.Element {
         <div
           style={{
             fontWeight: 700,
-            fontSize: block.level <= 2 ? 13 : 12.5,
-            margin: '4px 0 2px',
+            fontSize: block.level <= 2 ? 'var(--cf-type-body, 13px)' : 'var(--cf-type-label, 12.5px)',
+            color: 'var(--dsw-alias-label-primary)',
+            margin: '6px 0 2px',
           }}
         >
           <Inline text={block.text} />
@@ -89,14 +90,15 @@ function Block({ block }: { block: MdBlock }): JSX.Element {
       return (
         <pre
           style={{
-            margin: '4px 0',
-            padding: '6px 8px',
-            borderRadius: 6,
+            margin: '5px 0',
+            padding: '8px 10px',
+            borderRadius: 7,
+            border: '1px solid var(--dsw-alias-border-l1)',
             overflowX: 'auto',
             background: 'var(--dsw-alias-bg-layer-3)',
-            fontFamily: 'var(--dsw-font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
-            fontSize: 11,
-            lineHeight: 1.5,
+            fontFamily: 'var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace)',
+            fontSize: 'var(--cf-type-code, 11.5px)',
+            lineHeight: 1.55,
           }}
         >
           {block.text}
@@ -106,9 +108,9 @@ function Block({ block }: { block: MdBlock }): JSX.Element {
       return (
         <div
           style={{
-            margin: '4px 0',
-            paddingLeft: 8,
-            borderLeft: '2px solid var(--dsw-alias-border-l2)',
+            margin: '5px 0',
+            paddingLeft: 10,
+            borderLeft: '3px solid var(--dsw-alias-border-l2)',
             color: 'var(--dsw-alias-label-secondary)',
           }}
         >
@@ -117,20 +119,20 @@ function Block({ block }: { block: MdBlock }): JSX.Element {
       )
     case 'list': {
       const items = block.items.map((it, i) => (
-        <li key={i} style={{ margin: '1px 0' }}>
+        <li key={i} style={{ margin: '2px 0' }}>
           <Inline text={it} />
         </li>
       ))
       return block.ordered ? (
-        <ol style={{ margin: '3px 0', paddingLeft: 20 }}>{items}</ol>
+        <ol style={{ margin: '4px 0', paddingLeft: 20 }}>{items}</ol>
       ) : (
-        <ul style={{ margin: '3px 0', paddingLeft: 18 }}>{items}</ul>
+        <ul style={{ margin: '4px 0', paddingLeft: 18 }}>{items}</ul>
       )
     }
     case 'table':
       return (
-        <div style={{ margin: '4px 0', overflowX: 'auto' }}>
-          <table style={{ borderCollapse: 'collapse', fontSize: 11.5 }}>
+        <div style={{ margin: '5px 0', overflowX: 'auto' }}>
+          <table style={{ borderCollapse: 'collapse', fontSize: 'var(--cf-type-meta, 11.5px)' }}>
             <thead>
               <tr>
                 {block.head.map((cell, i) => (
@@ -139,7 +141,9 @@ function Block({ block }: { block: MdBlock }): JSX.Element {
                     style={{
                       textAlign: 'left',
                       fontWeight: 650,
-                      padding: '2px 6px',
+                      padding: '5px 8px',
+                      background: 'var(--dsw-alias-bg-layer-3)',
+                      color: 'var(--dsw-alias-label-primary)',
                       border: '1px solid var(--dsw-alias-border-l1)',
                       whiteSpace: 'nowrap',
                     }}
@@ -156,7 +160,7 @@ function Block({ block }: { block: MdBlock }): JSX.Element {
                     <td
                       key={c}
                       style={{
-                        padding: '2px 6px',
+                        padding: '5px 8px',
                         border: '1px solid var(--dsw-alias-border-l1)',
                         verticalAlign: 'top',
                       }}

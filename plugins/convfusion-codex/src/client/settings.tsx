@@ -595,7 +595,7 @@ const S = {
     border: '1px solid transparent',
     background: 'var(--dsw-alias-button-primary-fill)',
     color: '#fff',
-    fontSize: 12.5,
+    fontSize: 'var(--cf-type-label, 12.5px)',
     fontWeight: 600,
     cursor: 'pointer',
   } as React.CSSProperties,
@@ -605,11 +605,11 @@ const S = {
     border: '1px solid var(--dsw-alias-border-l2)',
     background: 'transparent',
     color: 'var(--dsw-alias-label-primary)',
-    fontSize: 12.5,
+    fontSize: 'var(--cf-type-label, 12.5px)',
     fontWeight: 600,
     cursor: 'pointer',
   } as React.CSSProperties,
-  mono: { fontFamily: 'var(--ds-font-family-code)', fontSize: 11 } as React.CSSProperties,
+  mono: { fontFamily: 'var(--ds-font-family-code)', fontSize: 'var(--cf-type-code, 11.5px)' } as React.CSSProperties,
   /** 紧凑的一行（登录输入 / 账号信息 / 失败提示共用）：靠 flexWrap 自适应窄宽度。 */
   inlineRow: {
     display: 'flex',
@@ -630,7 +630,7 @@ const S = {
     border: '1px solid var(--dsw-alias-state-business-primary)',
     background: 'var(--dsw-alias-state-business-tertiary)',
     color: 'var(--dsw-alias-state-business-primary)',
-    fontSize: 12.5,
+    fontSize: 'var(--cf-type-label, 12.5px)',
     fontWeight: 600,
     cursor: 'pointer',
   } as React.CSSProperties,
@@ -657,7 +657,7 @@ const S = {
     border: '1px solid var(--dsw-alias-border-l2)',
     background: 'var(--dsw-alias-bg-layer-2)',
     color: 'var(--dsw-alias-state-business-primary)',
-    fontSize: 11,
+    fontSize: 'var(--cf-type-meta, 11px)',
     fontWeight: 700,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
@@ -717,7 +717,7 @@ const S = {
   } as React.CSSProperties,
   /** 已登录时的账号名。 */
   accountName: {
-    fontSize: 13,
+    fontSize: 'var(--cf-type-card, 13px)',
     fontWeight: 700,
     color: 'var(--dsw-alias-label-primary)',
   } as React.CSSProperties,
@@ -841,11 +841,12 @@ function Badge({
     brand: { fg: 'var(--dsw-alias-state-business-primary)', bg: 'var(--dsw-alias-state-business-tertiary)' },
     success: { fg: 'var(--dsw-alias-state-success-primary)', bg: 'var(--dsw-alias-state-success-tertiary)' },
     warn: { fg: 'var(--dsw-alias-state-warn-primary)', bg: 'var(--dsw-alias-state-warn-tertiary)' },
-    error: { fg: 'var(--dsw-alias-state-error-primary)', bg: 'var(--dsw-alias-bg-layer-3)' },
+    error: { fg: 'var(--dsw-alias-state-error-primary)', bg: 'var(--cf-state-error-bg, var(--dsw-alias-bg-layer-3))' },
   }
   const c = tones[tone] ?? tones.neutral
   return (
     <span
+      className="cf-badge"
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -922,6 +923,8 @@ function MiniTab({
   return (
     <button
       type="button"
+      className="cf-minitab"
+      data-active={active ? 'true' : undefined}
       onClick={onClick}
       style={{
         padding: '3px 10px',
@@ -1218,7 +1221,7 @@ export function ConvFusionProjectSettings({
   return (
     <div style={S.page}>
       {/* ── Hero ─────────────────────────────────────────────────── */}
-      {view !== 'system' ? <div style={S.hero}>
+      {view !== 'system' ? <div className="cf-hero" style={S.hero}>
         <div style={{ flex: '1 1 auto', minWidth: 0 }}>
           <div style={S.heroSub}>{t('settings.hero.subtitle')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -1266,7 +1269,7 @@ export function ConvFusionProjectSettings({
       </div>}
 
       {staleHost ? (
-        <div style={S.card}>
+        <div className="cf-card" style={S.card}>
           <div className="workbench-card-heading" style={S.cardHead}>
             {t('settings.stale.title')}
             <span style={{ flex: '1 1 auto' }} />
@@ -1283,7 +1286,7 @@ export function ConvFusionProjectSettings({
       ) : null}
 
       {error ? (
-        <div style={S.card}>
+        <div className="cf-card" style={S.card}>
           <div className="workbench-card-heading" style={S.cardHead}>
             {t('settings.error.title')}
             <span style={{ flex: '1 1 auto' }} />
@@ -1293,15 +1296,15 @@ export function ConvFusionProjectSettings({
             <div
               style={{
                 color: 'var(--dsw-alias-state-error-primary)',
-                fontSize: 12.5,
+                fontSize: 'var(--cf-type-label, 12.5px)',
                 whiteSpace: 'pre-wrap',
                 lineHeight: 1.6,
               }}
             >
               {error}
             </div>
-            <div style={S.footer}>
-              <button type="button" style={S.ghostBtn} onClick={() => void reload()}>
+            <div className="cf-footer" style={S.footer}>
+              <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={() => void reload()}>
                 {t('settings.action.retry')}
               </button>
             </div>
@@ -1310,7 +1313,7 @@ export function ConvFusionProjectSettings({
       ) : null}
 
       {loading && !state ? (
-        <div style={S.card}>
+        <div className="cf-card" style={S.card}>
           <div style={S.cardBody}>
             <div style={S.hint}>{t('settings.status.loading')}</div>
           </div>
@@ -1337,7 +1340,7 @@ export function ConvFusionProjectSettings({
       {state && activeTab === 'local' ? (
         <>
           {/* ── 选择区（能力类别 → 能力 → 章节）──────────────────── */}
-          <div style={S.card}>
+          <div className="cf-card" style={S.card}>
             <div className="workbench-card-heading" style={S.cardHead}>
               {t('settings.library.title')}
               {/* 与 ConvFusion.com 的边界：方法留在本机，不随研究进展上传 */}
@@ -1351,7 +1354,7 @@ export function ConvFusionProjectSettings({
               <div style={S.row}>
                 <div style={S.field}>
                   <div style={S.label}>{t('settings.library.category')}</div>
-                  <select style={S.select} value={categoryId} onChange={(e) => onCategory(e.target.value)}>
+                  <select className="cf-select" style={S.select} value={categoryId} onChange={(e) => onCategory(e.target.value)}>
                     {state.categories.map((c) => (
                       <option key={c.categoryId} value={c.categoryId}>
                         {c.code ? `${c.code} ` : ''}
@@ -1370,7 +1373,7 @@ export function ConvFusionProjectSettings({
                 </div>
                 <div style={S.field}>
                   <div style={S.label}>{t('settings.library.skill')}</div>
-                  <select style={S.select} value={skillId} onChange={(e) => onSkill(e.target.value)}>
+                  <select className="cf-select" style={S.select} value={skillId} onChange={(e) => onSkill(e.target.value)}>
                     {category?.skills.map((s) => (
                       <option key={s.skillId} value={s.skillId}>
                         {s.code ? `${s.code} · ` : ''}
@@ -1387,7 +1390,7 @@ export function ConvFusionProjectSettings({
                 </div>
                 <div style={S.field}>
                   <div style={S.label}>{t('settings.library.section')}</div>
-                  <select style={S.select} value={section} onChange={(e) => onSection(e.target.value)}>
+                  <select className="cf-select" style={S.select} value={section} onChange={(e) => onSection(e.target.value)}>
                     {skill?.sections.map((s) => (
                       <option key={s.section} value={s.section}>
                         {sectionText(t, s.section)}
@@ -1407,7 +1410,7 @@ export function ConvFusionProjectSettings({
 
           {/* ── 编辑器 ───────────────────────────────────────────── */}
           {skill && point ? (
-            <div style={S.card}>
+            <div className="cf-card" style={S.card}>
               <div className="workbench-card-heading" style={S.cardHead}>
                 <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {skill.code ? `${skill.code} · ` : ''}
@@ -1428,24 +1431,25 @@ export function ConvFusionProjectSettings({
                 </div>
                 <div style={S.label}>{t('settings.editor.requirements')}</div>
                 <textarea
+                  className="cf-textarea"
                   style={S.textarea}
                   spellCheck={false}
                   value={draft}
                   placeholder={t('settings.editor.placeholder')}
                   onChange={(e) => setDraft(e.target.value)}
                 />
-                <details>
+                <details className="cf-details">
                   <summary style={{ ...S.label, cursor: 'pointer' }}>
                     {t('settings.editor.base', { count: point.base.length })}
                   </summary>
                   <div style={{ ...S.base, marginTop: 8 }}>{point.base}</div>
                 </details>
-                <div style={S.footer}>
+                <div className="cf-footer" style={S.footer}>
                   {notice ? (
                     <span
                       style={{
                         marginRight: 'auto',
-                        fontSize: 12,
+                        fontSize: 'var(--cf-type-label, 12px)',
                         color:
                           notice.tone === 'success'
                             ? 'var(--dsw-alias-state-success-primary)'
@@ -1461,6 +1465,7 @@ export function ConvFusionProjectSettings({
                   )}
                   <button
                     type="button"
+                    className="cf-btn-ghost"
                     style={{ ...S.ghostBtn, opacity: point.overridden && !saving ? 1 : 0.55 }}
                     disabled={!point.overridden || saving}
                     onClick={() => void reset()}
@@ -1469,6 +1474,7 @@ export function ConvFusionProjectSettings({
                   </button>
                   <button
                     type="button"
+                    className="cf-btn-ghost"
                     style={{ ...S.ghostBtn, opacity: skill.overriddenCount > 0 && !saving ? 1 : 0.55 }}
                     disabled={skill.overriddenCount === 0 || saving}
                     onClick={() => void resetSkill()}
@@ -1477,6 +1483,7 @@ export function ConvFusionProjectSettings({
                   </button>
                   <button
                     type="button"
+                    className="cf-btn-primary"
                     style={{ ...S.primaryBtn, opacity: dirty && !saving ? 1 : 0.55 }}
                     disabled={!dirty || saving}
                     onClick={() => void save()}
@@ -2170,6 +2177,7 @@ function PublishButton({
   const main = (withCaret: boolean): JSX.Element => (
     <button
       type="button"
+      className="cf-btn-ghost"
       style={{
         ...S.ghostBtn,
         ...(withCaret
@@ -2198,6 +2206,7 @@ function PublishButton({
       {main(true)}
       <button
         type="button"
+        className="cf-btn-ghost"
         style={{
           ...S.ghostBtn,
           padding: '6px 6px',
@@ -2219,6 +2228,7 @@ function PublishButton({
       </button>
       {open ? (
         <div
+          className="cf-menu"
           style={{
             position: 'absolute',
             top: '100%',
@@ -2498,10 +2508,10 @@ function ProgressBar({ value }: { value: number }): JSX.Element {
       <span
         style={{
           display: 'inline-block',
-          width: 44,
-          height: 4,
-          borderRadius: 2,
-          background: 'var(--dsw-alias-bg-layer-3)',
+          width: 56,
+          height: 5,
+          borderRadius: 999,
+          background: 'var(--cf-ring-track, var(--dsw-alias-bg-layer-3))',
           overflow: 'hidden',
         }}
       >
@@ -2510,11 +2520,12 @@ function ProgressBar({ value }: { value: number }): JSX.Element {
             display: 'block',
             width: `${pct}%`,
             height: '100%',
+            borderRadius: 999,
             background: 'var(--dsw-alias-state-business-primary)',
           }}
         />
       </span>
-      <span style={S.mono}>{pct}%</span>
+      <span style={{ ...S.mono, fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>
     </span>
   )
 }
@@ -2594,8 +2605,8 @@ function WorkRow({
   below?: React.ReactNode
 }): JSX.Element {
   return (
-    <div style={{ ...S.listRow, alignItems: 'flex-start' }}>
-      <div style={{ minWidth: 0, flex: '1 1 auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <div className="cf-list-row" style={{ ...S.listRow, alignItems: 'flex-start' }}>
+      <div style={{ minWidth: 0, flex: '1 1 auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
         <div style={S.listTitle}>{title}</div>
         <div style={{ ...S.hint, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           {author ? <span>{t('community.work.byAuthor', { name: author })}</span> : null}
@@ -2603,7 +2614,7 @@ function WorkRow({
           {stage ? <span>{enumText(t, STAGE_LABEL_KEYS, stage)}</span> : null}
           <ProgressBar value={progress} />
           {/* 挂牌价（三态：没挂牌价 / 旧服务器 → 这个槽位是 null，什么都不画） */}
-          {price ? <span style={{ color: 'var(--dsw-alias-brand-primary)' }}>{price}</span> : null}
+          {price ? <span style={{ color: 'var(--dsw-alias-brand-primary)', fontWeight: 600 }}>{price}</span> : null}
           {updatedAt ? <span>{updatedAt.slice(0, 10)}</span> : null}
         </div>
       </div>
@@ -2611,6 +2622,7 @@ function WorkRow({
       <div style={{ display: 'flex', gap: 6 }}>
         <button
           type="button"
+          className="cf-btn-ghost"
           style={{ ...S.ghostBtn, opacity: disabled || busy ? 0.55 : 1 }}
           disabled={disabled || busy !== null}
           title={t('community.tip.summary')}
@@ -2620,6 +2632,7 @@ function WorkRow({
         </button>
         <button
           type="button"
+          className="cf-btn-ghost"
           style={{
             ...S.ghostBtn,
             display: 'inline-flex',
@@ -2679,9 +2692,9 @@ function WorkDetail({
   /** 一行：标签 + **纯文本**（短标签类值，如证据名）。 */
   const line = (label: string, value: string | null | undefined): JSX.Element | null =>
     value ? (
-      <div style={{ display: 'flex', gap: 8 }}>
-        <span style={{ ...S.label, flex: '0 0 56px' }}>{label}</span>
-        <span style={{ ...S.hint, color: 'var(--dsw-alias-label-secondary)', whiteSpace: 'pre-wrap' }}>{value}</span>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
+        <span style={{ ...S.label, flex: '0 0 72px' }}>{label}</span>
+        <span style={{ fontSize: 'var(--cf-type-label, 12px)', lineHeight: 1.6, color: 'var(--dsw-alias-label-secondary)', whiteSpace: 'pre-wrap' }}>{value}</span>
       </div>
     ) : null
   /**
@@ -2692,15 +2705,16 @@ function WorkDetail({
    */
   const block = (label: string, value: string | null | undefined): JSX.Element | null =>
     value && value.trim() !== '' ? (
-      <div style={{ display: 'flex', gap: 8 }}>
-        <span style={{ ...S.label, flex: '0 0 56px' }}>{label}</span>
-        <div style={{ ...S.hint, minWidth: 0, flex: '1 1 auto', color: 'var(--dsw-alias-label-secondary)' }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
+        <span style={{ ...S.label, flex: '0 0 72px' }}>{label}</span>
+        <div style={{ fontSize: 'var(--cf-type-label, 12px)', lineHeight: 1.6, minWidth: 0, flex: '1 1 auto', color: 'var(--dsw-alias-label-secondary)' }}>
           <Markdown text={value} />
         </div>
       </div>
     ) : null
   return (
     <div
+      className="cf-work-detail"
       style={{
         margin: '0 12px 10px',
         padding: 10,
@@ -2846,7 +2860,7 @@ function UploadCategoryList({
 }): JSX.Element {
   const visible = categories.filter((c) => c.decision !== 'excluded' && c.files.length > 0)
   return (
-    <div style={S.list}>
+    <div className="cf-list" style={S.list}>
       {visible.map((cat, i) => {
         const files = cat.files
         const all = files.every((f) => selection.has(f.relPath))
@@ -2857,7 +2871,7 @@ function UploadCategoryList({
             key={cat.id}
             style={i === 0 ? undefined : { borderTop: '1px solid var(--dsw-alias-border-l1)' }}
           >
-            <div style={{ ...S.listRow, alignItems: 'flex-start' }}>
+            <div className="cf-list-row" style={{ ...S.listRow, alignItems: 'flex-start' }}>
               <input
                 type="checkbox"
                 checked={all}
@@ -2876,7 +2890,7 @@ function UploadCategoryList({
                 </div>
                 <div style={S.hint}>{t(`upload.reason.${cat.id}`)}</div>
               </div>
-              <button type="button" style={S.linkBtn} onClick={() => onToggleExpand(cat.id)}>
+              <button type="button" className="cf-btn-link" style={S.linkBtn} onClick={() => onToggleExpand(cat.id)}>
                 {isOpen ? t('community.publish.collapse') : t('community.publish.expand')}
               </button>
             </div>
@@ -3038,7 +3052,7 @@ export function CategoryFileTreeView({
                   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
                   fontSize: 13,
                   textAlign: 'center',
-                  color: 'var(--dsw-alias-text-secondary)',
+                  color: 'var(--dsw-alias-label-secondary)',
                 }}
               >
                 {isOpen ? '−' : '+'}
@@ -3071,9 +3085,9 @@ export function CategoryFileTreeView({
                 padding: 0,
                 textAlign: 'left',
                 cursor: node.placeholder ? 'default' : 'pointer',
-                color: node.placeholder ? 'var(--dsw-alias-text-secondary)' : 'inherit',
+                color: node.placeholder ? 'var(--dsw-alias-label-secondary)' : 'inherit',
                 font: 'inherit',
-                fontFamily: 'var(--dsw-alias-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
+                fontFamily: 'var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace)',
               }}
             >
               {node.name}/
@@ -3196,8 +3210,9 @@ export function PriceGuideRow({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ ...S.listTitle, fontSize: 12.5 }}>{label}</span>
+        <span style={{ ...S.listTitle, fontSize: 'var(--cf-type-label, 12.5px)' }}>{label}</span>
         <select
+          className="cf-select"
           style={{ ...S.input, minWidth: 190, padding: '4px 6px' }}
           value={mode === 'custom' ? 'custom' : String(tokens ?? '')}
           onChange={(e) => {
@@ -3218,6 +3233,7 @@ export function PriceGuideRow({
             min={minAllowed}
             step={1}
             inputMode="numeric"
+            className="cf-input"
             style={{ ...S.input, width: 110, padding: '4px 6px' }}
             value={text}
             onChange={(e) => onText(e.target.value)}
@@ -3326,11 +3342,13 @@ export function PublishDialog({
 
   return (
     <div
+      className="cf-overlay"
       style={S.overlay}
       role="dialog"
       aria-modal="true"
     >
       <div
+        className="cf-card cf-dialog-card"
         style={{
           ...S.card,
           width: 'min(760px, 96vw)',
@@ -3429,7 +3447,7 @@ export function PublishDialog({
               <div style={S.hint}>{t('community.publish.asNewHint')}</div>
             </div>
           ) : null}
-          <div style={S.footer}>
+          <div className="cf-footer" style={S.footer}>
             <span style={{ ...S.hint, marginRight: 'auto' }}>
               {t('community.publish.summary', {
                 files: selectedFiles.length,
@@ -3441,15 +3459,16 @@ export function PublishDialog({
               <input type="checkbox" checked={remember} onChange={(e) => onRemember(e.target.checked)} />
               {t('community.publish.remember')}
             </label>
-            {onCancelUpload ? <button type="button" style={S.ghostBtn} onClick={onCancelUpload}>
+            {onCancelUpload ? <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={onCancelUpload}>
               {t('community.upload.cancel')}
             </button> : null}
             {notice ? <span role="alert" style={S.hint}>{notice}</span> : null}
-            <button type="button" style={S.ghostBtn} disabled={busy && !canCloseWhileUploading} onClick={onCancel}>
+            <button type="button" className="cf-btn-ghost" style={S.ghostBtn} disabled={busy && !canCloseWhileUploading} onClick={onCancel}>
               {t('community.action.cancel')}
             </button>
             <button
               type="button"
+              className="cf-btn-primary"
               style={{ ...S.primaryBtn, opacity: publishDisabled ? 0.55 : 1 }}
               disabled={publishDisabled}
               onClick={onConfirm}
@@ -3494,11 +3513,12 @@ function BriefConfirmDialog({
 }): JSX.Element {
   return (
     <div
+      className="cf-overlay"
       style={S.overlay}
       role="dialog"
       aria-modal="true"
     >
-      <div style={{ ...S.card, width: 'min(430px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
+      <div className="cf-card cf-dialog-card" style={{ ...S.card, width: 'min(430px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
         <div className="workbench-card-heading" style={S.cardHead}>
           {t('community.briefConfirm.title')}
           <span style={{ flex: '1 1 auto' }} />
@@ -3515,12 +3535,12 @@ function BriefConfirmDialog({
               : t('community.briefConfirm.balanceUnknown')}
           </div>
           <div style={S.hint}>{t('community.briefConfirm.idempotent')}</div>
-          <div style={S.footer}>
+          <div className="cf-footer" style={S.footer}>
             <span style={{ flex: '1 1 auto' }} />
-            <button type="button" style={S.ghostBtn} onClick={onCancel}>
+            <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={onCancel}>
               {t('community.action.cancel')}
             </button>
-            <button type="button" style={S.primaryBtn} onClick={onConfirm}>
+            <button type="button" className="cf-btn-primary" style={S.primaryBtn} onClick={onConfirm}>
               {t('community.briefConfirm.confirm')}
             </button>
           </div>
@@ -3597,11 +3617,12 @@ export function AcceptConfirmDialog({
   const levelText = paperLevelText(level)
   return (
     <div
+      className="cf-overlay"
       style={S.overlay}
       role="dialog"
       aria-modal="true"
     >
-      <div style={{ ...S.card, width: 'min(460px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
+      <div className="cf-card cf-dialog-card" style={{ ...S.card, width: 'min(460px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
         <div className="workbench-card-heading" style={S.cardHead}>
           {t(iPayer ? 'community.mentor.acceptConfirmTitle' : 'community.mentor.acceptConfirmTitleOther')}
           <span style={{ flex: '1 1 auto' }} />
@@ -3662,13 +3683,14 @@ export function AcceptConfirmDialog({
               })}
             </div>
           ) : null}
-          <div style={S.footer}>
+          <div className="cf-footer" style={S.footer}>
             <span style={{ flex: '1 1 auto' }} />
-            <button type="button" style={S.ghostBtn} onClick={onCancel}>
+            <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={onCancel}>
               {t('community.action.cancel')}
             </button>
             <button
               type="button"
+              className="cf-btn-primary"
               style={{ ...S.primaryBtn, opacity: short ? 0.55 : 1 }}
               disabled={short}
               onClick={onConfirm}
@@ -3730,7 +3752,7 @@ function TokenDonut({
       ? [{ value: Math.max(0, total - frozen), stroke: 'var(--dsw-alias-state-business-primary)' }]
       : [
           { value: funded, stroke: 'var(--dsw-alias-state-business-primary)' },
-          { value: grant, stroke: 'var(--dsw-alias-state-business-tertiary)' },
+          { value: grant, stroke: 'var(--cf-token-grant-arc, var(--dsw-alias-state-business-tertiary))' },
         ]
   if (frozen > 0) segments.push({ value: frozen, stroke: 'var(--dsw-alias-label-secondary)' })
 
@@ -3761,7 +3783,7 @@ function TokenDonut({
   return (
     <svg width={size} height={size} viewBox="0 0 160 160" aria-hidden="true">
       {/* 背景轨道（完整圆圈，淡色）：总余额为 0 时也能看出"这是个环" */}
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--dsw-alias-bg-layer-2)" strokeWidth={14} />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--cf-ring-track, var(--dsw-alias-bg-layer-3))" strokeWidth={14} />
       {arcs}
     </svg>
   )
@@ -3791,7 +3813,7 @@ function TokenLegendRow({
         }}
       />
       <span style={{ ...S.hint, flex: '0 0 auto' }}>{label}</span>
-      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--dsw-alias-label-primary)' }}>{value}</span>
+      <span style={{ fontSize: 'var(--cf-type-label, 12px)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--dsw-alias-label-primary)' }}>{value}</span>
       {hint ? <span style={S.hint}>{hint}</span> : null}
     </div>
   )
@@ -3829,7 +3851,7 @@ function UsageRing({
   return (
     <svg width={size} height={size} viewBox="0 0 160 160" aria-hidden="true" style={{ flex: '0 0 auto' }}>
       {/* 背景轨道：即使比例是 0 也能看出"这里有个表" */}
-      <circle cx={c} cy={c} r={r} fill="none" stroke="var(--dsw-alias-bg-layer-2)" strokeWidth={14} />
+      <circle cx={c} cy={c} r={r} fill="none" stroke="var(--cf-ring-track, var(--dsw-alias-bg-layer-3))" strokeWidth={14} />
       {f > 0 ? (
         <circle
           cx={c}
@@ -3869,17 +3891,17 @@ function DashTile({
   action?: React.ReactNode
 }): JSX.Element {
   return (
-    <div style={S.dashTile}>
+    <div className="cf-dash-tile" style={S.dashTile}>
       {chart}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-        <span style={S.dashTitle}>{title}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+        <span className="cf-dash-title" style={S.dashTitle}>{title}</span>
         {value ? (
-          <span style={S.dashValue}>
+          <span className="cf-dash-value" style={S.dashValue}>
             {value}
             {unit ? <span style={S.dashUnit}>{unit}</span> : null}
           </span>
         ) : null}
-        {sub ? <span style={S.dashSub}>{sub}</span> : null}
+        {sub ? <span className="cf-dash-sub" style={S.dashSub}>{sub}</span> : null}
         {action}
       </div>
     </div>
@@ -4005,6 +4027,7 @@ function StoragePurchaseDialog({
     <dialog
       ref={(node) => { if (node && !node.open) node.showModal() }}
       aria-labelledby={titleId}
+      className="cf-card cf-dialog-card"
       onCancel={(event) => {
         event.preventDefault()
         if (!inFlight.current) onClose()
@@ -4035,6 +4058,7 @@ function StoragePurchaseDialog({
                 value={amount}
                 disabled={submitting || pending !== null}
                 onChange={(event) => { setAmount(event.currentTarget.value); setError(null) }}
+                className="cf-input"
                 style={{ ...S.compactInput, width: 96, flex: '0 0 auto' }}
               />
             </label>
@@ -4058,12 +4082,12 @@ function StoragePurchaseDialog({
             ) : null}
           </>
         )}
-        <div style={S.footer}>
-          <button type="button" style={S.ghostBtn} disabled={submitting} onClick={onClose}>
+        <div className="cf-footer" style={S.footer}>
+          <button type="button" className="cf-btn-ghost" style={S.ghostBtn} disabled={submitting} onClick={onClose}>
             {t(receipt ? 'community.action.close' : 'community.action.cancel')}
           </button>
           {expired ? (
-            <button type="button" style={S.ghostBtn} onClick={() => {
+            <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={() => {
               saveStoragePurchase(key, null)
               setPending(null)
               setAmount('')
@@ -4073,7 +4097,7 @@ function StoragePurchaseDialog({
               {t('community.storagePurchase.startNew')}
             </button>
           ) : !receipt && (
-            <button type="button" style={{ ...S.primaryBtn, opacity: canSubmit ? 1 : 0.55 }}
+            <button type="button" className="cf-btn-primary" style={{ ...S.primaryBtn, opacity: canSubmit ? 1 : 0.55 }}
               disabled={!canSubmit} onClick={() => void submit()}>
               {t(submitting ? 'community.storagePurchase.buying'
                 : pending ? 'community.storagePurchase.retry' : 'community.storagePurchase.confirm')}
@@ -4152,20 +4176,20 @@ export function TokenDialog({
   const pools = tokens !== null && tokens.funded !== null && tokens.grant !== null
 
   return (
-    <div style={S.overlay} role="dialog" aria-modal="true">
-      <div style={{ ...S.card, width: 'min(460px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
+    <div className="cf-overlay" style={S.overlay} role="dialog" aria-modal="true">
+      <div className="cf-card cf-dialog-card" style={{ ...S.card, width: 'min(500px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
         <div className="workbench-card-heading" style={S.cardHead}>
           {t('community.token.dialogTitle')}
           <span style={{ flex: '1 1 auto' }} />
           <RefreshIconButton t={t} busy={loading} onClick={onRefresh} />
         </div>
-        <div style={{ ...S.cardBody, gap: 9 }}>
+        <div style={{ ...S.cardBody, gap: 12 }}>
           {/* ① 左侧：环形图 + **HTML** 图例（数字不放进 SVG，缩放后仍可读）；
               右侧：续费说明 + 申请表单 */}
           {tokens ? (
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <div className="cf-token-layout" style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
               {/* 左侧：环形图 + 图例 */}
-              <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <TokenDonut
                   funded={tokens.funded}
                   grant={tokens.grant}
@@ -4173,7 +4197,7 @@ export function TokenDialog({
                   total={tokens.total}
                   size={92}
                 />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                   {/* 两池已知就按池列（资金池 = 能付导师的那一份），否则退回旧的"可用 / 冻结" */}
                   {pools ? (
                     <>
@@ -4184,7 +4208,7 @@ export function TokenDialog({
                         hint={t('community.token.fundedHint')}
                       />
                       <TokenLegendRow
-                        color="var(--dsw-alias-state-business-tertiary)"
+                        color="var(--cf-token-grant-arc, var(--dsw-alias-state-business-tertiary))"
                         label={t('community.token.grant')}
                         value={String(tokens.grant)}
                         hint={t('community.token.grantHint')}
@@ -4212,7 +4236,7 @@ export function TokenDialog({
                 </div>
               </div>
               {/* 右侧：续费说明 + 申请表单 */}
-              <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ flex: '1 1 200px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {/* 续费说明 */}
                 <div style={S.hint}>{t('community.token.renewHint')}</div>
                 {/* 申请表单 */}
@@ -4225,6 +4249,7 @@ export function TokenDialog({
                     <div style={S.inlineRow}>
                       <span style={S.label}>{t('community.token.amountLabel')}</span>
                       <input
+                        className="cf-input"
                         style={S.compactInput}
                         type="text"
                         inputMode="numeric"
@@ -4238,6 +4263,7 @@ export function TokenDialog({
                     <div style={S.inlineRow}>
                       <span style={S.label}>{t('community.token.reasonLabel')}</span>
                       <input
+                        className="cf-input"
                         style={S.compactInput}
                         type="text"
                         spellCheck={false}
@@ -4258,24 +4284,25 @@ export function TokenDialog({
 
           {/* 失败原因 / 成功回执：都在**动作发生之后**才出现 */}
           {error ? (
-            <div style={{ fontSize: 11.5, lineHeight: 1.6, color: 'var(--dsw-alias-state-error-primary)' }}>
+            <div style={{ fontSize: 'var(--cf-type-label, 12px)', lineHeight: 1.6, color: 'var(--dsw-alias-state-error-primary)' }}>
               {error}
             </div>
           ) : null}
           {receipt ? (
-            <div style={{ fontSize: 11.5, lineHeight: 1.6, color: 'var(--dsw-alias-state-success-primary)' }}>
+            <div style={{ fontSize: 'var(--cf-type-label, 12px)', lineHeight: 1.6, color: 'var(--dsw-alias-state-success-primary)' }}>
               {receipt}
             </div>
           ) : null}
 
-          <div style={S.footer}>
+          <div className="cf-footer" style={S.footer}>
             <span style={{ flex: '1 1 auto' }} />
-            <button type="button" style={S.ghostBtn} onClick={onClose}>
+            <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={onClose}>
               {t('community.token.close')}
             </button>
             {!pending ? (
               <button
                 type="button"
+                className="cf-btn-primary"
                 style={{ ...S.primaryBtn, opacity: canApply ? 1 : 0.55 }}
                 disabled={!canApply}
                 onClick={onApply}
@@ -4383,11 +4410,12 @@ function ProposeDialog({
 
   return (
     <div
+      className="cf-overlay"
       style={S.overlay}
       role="dialog"
       aria-modal="true"
     >
-      <div style={{ ...S.card, width: 'min(400px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
+      <div className="cf-card cf-dialog-card" style={{ ...S.card, width: 'min(420px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
         <div className="workbench-card-heading" style={S.cardHead}>
           {t(variant === 'researcher' ? 'community.mentor.bidTitle' : 'community.mentor.proposeTitle')}
           <span style={{ flex: '1 1 auto' }} />
@@ -4395,12 +4423,13 @@ function ProposeDialog({
           {levelText ? <Badge tone="neutral">{t(levelText.key, levelText.params)}</Badge> : null}
           <Badge tone="neutral">{t('community.mentor.proposeFree')}</Badge>
         </div>
-        <div style={{ ...S.cardBody, gap: 9 }}>
+        <div style={{ ...S.cardBody, gap: 10 }}>
           <div style={S.listTitle}>{title}</div>
 
           <div style={S.inlineRow}>
             <span style={S.label}>{t('community.mentor.conditionLabel')}</span>
             <select
+              className="cf-select"
               style={input}
               value={condition}
               onChange={(e) => {
@@ -4422,6 +4451,7 @@ function ProposeDialog({
             <div style={S.inlineRow}>
               <span style={S.label}>{t('community.mentor.levelLabel')}</span>
               <select
+                className="cf-select"
                 style={input}
                 value={levelKey}
                 onChange={(e) => {
@@ -4456,6 +4486,7 @@ function ProposeDialog({
           <div style={S.inlineRow}>
             <span style={S.label}>{t('community.mentor.feeTotal')}</span>
             <input
+              className="cf-input"
               style={input}
               value={total}
               inputMode="numeric"
@@ -4483,13 +4514,14 @@ function ProposeDialog({
             <div style={{ ...S.hint, color: 'var(--dsw-alias-state-error-primary)' }}>{error}</div>
           ) : null}
 
-          <div style={S.footer}>
+          <div className="cf-footer" style={S.footer}>
             <span style={{ flex: '1 1 auto' }} />
-            <button type="button" style={S.ghostBtn} onClick={onCancel}>
+            <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={onCancel}>
               {t('community.action.cancel')}
             </button>
             <button
               type="button"
+              className="cf-btn-primary"
               style={{ ...S.primaryBtn, opacity: valid && !busy && !feeLoading ? 1 : 0.55 }}
               disabled={!valid || busy || feeLoading}
               onClick={() =>
@@ -4553,14 +4585,14 @@ function PartyProfileDialog({
     ) : null
 
   return (
-    <div style={S.overlay} role="dialog" aria-modal="true" aria-label={title}>
-      <div style={{ ...S.card, width: 'min(430px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
+    <div className="cf-overlay" style={S.overlay} role="dialog" aria-modal="true" aria-label={title}>
+      <div className="cf-card cf-dialog-card" style={{ ...S.card, width: 'min(440px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
         <div className="workbench-card-heading" style={S.cardHead}>
           {title}
           <span style={{ flex: '1 1 auto' }} />
           <Badge tone={proposalTone(status)}>{enumText(t, PROPOSAL_STATUS_KEYS, status)}</Badge>
         </div>
-        <div style={{ ...S.cardBody, gap: 9 }}>
+        <div style={{ ...S.cardBody, gap: 10 }}>
           <div style={S.listTitle}>{party.displayName || t('community.mentor.unknownParty')}</div>
           {affiliation ? <div style={S.hint}>{affiliation}</div> : null}
           {profile ? (
@@ -4577,9 +4609,9 @@ function PartyProfileDialog({
                 : t(isMentor ? 'community.mentor.profileEmpty' : 'community.mentor.profileEmptyResearcher')}
             </div>
           )}
-          <div style={S.footer}>
+          <div className="cf-footer" style={S.footer}>
             <span style={{ flex: '1 1 auto' }} />
-            <button type="button" style={S.ghostBtn} onClick={onClose}>
+            <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={onClose}>
               {t('community.action.close')}
             </button>
           </div>
@@ -4842,6 +4874,7 @@ export function DownloadDialog({
     <label style={S.field}>
       <span style={S.label}>{label}</span>
       <select
+        className="cf-select"
         style={{ ...S.select, minWidth: 0, boxSizing: 'border-box', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
         title={options.find((w) => w.id === selection)?.title}
         value={options.some((w) => w.id === selection) ? selection : ''}
@@ -4869,8 +4902,8 @@ export function DownloadDialog({
     ? Math.min(100, Math.round((received / totalBytes) * 100))
     : null
   return (
-    <div style={S.overlay} role="dialog" aria-modal="true">
-      <div style={{ ...S.card, width: 'min(520px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
+    <div className="cf-overlay" style={S.overlay} role="dialog" aria-modal="true">
+      <div className="cf-card cf-dialog-card" style={{ ...S.card, width: 'min(520px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
         <div className="workbench-card-heading" style={S.cardHead}>
           {t('community.exchange.downloadTitle')}
           <span style={{ flex: '1 1 auto' }} />
@@ -4878,7 +4911,7 @@ export function DownloadDialog({
             <Badge tone="neutral">{t('community.exchange.sizeBadge', { files, size: formatBytes(bytes ?? 0) })}</Badge>
           )}
         </div>
-        <div style={{ ...S.cardBody, gap: 9 }}>
+        <div style={{ ...S.cardBody, gap: 10 }}>
           <div style={S.listTitle}>
             {proposalWorkLabel(proposal) ?? t('community.mentor.untitledProject')}
           </div>
@@ -4912,7 +4945,7 @@ export function DownloadDialog({
                 <div style={{ ...S.inlineRow, alignItems: 'flex-end' }}>
                   {matching.length > 0 && workspaceSelect(matching, t('community.exchange.matchingDestinations'))}
                   {onBrowse && (
-                    <button type="button" style={S.ghostBtn} disabled={busy || pickingFolder} onClick={onBrowse}>
+                    <button type="button" className="cf-btn-ghost" style={S.ghostBtn} disabled={busy || pickingFolder} onClick={onBrowse}>
                       {t('community.exchange.otherDestinations')}
                     </button>
                   )}
@@ -4920,7 +4953,7 @@ export function DownloadDialog({
               )}
               {onBrowse && pickingFolder ? <div role="status" style={S.hint}>{t('community.exchange.pickingFolder')}</div> : null}
               {!onBrowse && other.length > 0 ? (
-                <details>
+                <details className="cf-details">
                   <summary style={{ ...S.label, cursor: 'pointer', marginBottom: 5 }}>
                     {t('community.exchange.otherDestinations')}
                   </summary>
@@ -5026,20 +5059,20 @@ export function DownloadDialog({
               {notice.text}
             </div>
           ) : null}
-          <div style={S.footer}>
+          <div className="cf-footer" style={S.footer}>
             <span style={{ flex: '1 1 auto' }} />
-            {busy && onCancel ? <button type="button" style={S.ghostBtn} onClick={onCancel} disabled={phase === 'cancelling' || phase === 'finalizing'}>{t('community.download.cancel')}</button> : null}
-            <button type="button" style={S.ghostBtn} onClick={onClose}>
+            {busy && onCancel ? <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={onCancel} disabled={phase === 'cancelling' || phase === 'finalizing'}>{t('community.download.cancel')}</button> : null}
+            <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={onClose}>
               {t(busy && onCancel && phase !== 'checking' && phase !== 'reconnecting' ? 'community.download.close' : 'community.action.close')}
             </button>
             {done ? (
               <>
-                <button type="button" style={S.ghostBtn} onClick={onCopy}>
+                <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={onCopy}>
                   {t('community.merge.copy')}
                 </button>
-                {onRequest && done.phase === 'ready' && !busy ? <button type="button" style={S.primaryBtn} onClick={onRequest}>{t('community.merge.prepare')}</button> : null}
+                {onRequest && done.phase === 'ready' && !busy ? <button type="button" className="cf-btn-primary" style={S.primaryBtn} onClick={onRequest}>{t('community.merge.prepare')}</button> : null}
                 {done.canFill && !done.filled ? (
-                  <button type="button" style={S.primaryBtn} onClick={onFill}>
+                  <button type="button" className="cf-btn-primary" style={S.primaryBtn} onClick={onFill}>
                     {t('community.merge.fill')}
                   </button>
                 ) : null}
@@ -5047,6 +5080,7 @@ export function DownloadDialog({
             ) : (
               <button
                 type="button"
+                className="cf-btn-primary"
                 style={{ ...S.primaryBtn, opacity: ready ? 1 : 0.55 }}
                 disabled={!ready}
                 onClick={onDownload}
@@ -5147,8 +5181,9 @@ function UploadDialog({
       ? Math.min(100, Math.round((progress.sentBytes / progress.totalBytes) * 100))
       : null
   return (
-    <div style={S.overlay} role="dialog" aria-modal="true">
+    <div className="cf-overlay" style={S.overlay} role="dialog" aria-modal="true">
       <div
+        className="cf-card cf-dialog-card"
         style={{
           ...S.card,
           width: 'min(760px, 96vw)',
@@ -5179,6 +5214,7 @@ function UploadDialog({
               <span style={S.label} aria-hidden="true">{t('community.exchange.workspaceLabel')}</span>
               <select
                 aria-label={t('community.exchange.workspaceLabel')}
+                className="cf-select"
                 style={{ ...S.compactInput, flex: '1 1 auto' }}
                 value={workspaceId}
                 disabled={busy}
@@ -5254,7 +5290,7 @@ function UploadDialog({
             </div>
           ) : null}
 
-          <div style={S.footer}>
+          <div className="cf-footer" style={S.footer}>
             {/* 还没选工作区时不显示"0 个文件 · 0 B"（那只是噪声） */}
             <span style={{ ...S.hint, marginRight: 'auto' }}>
               {plan
@@ -5265,14 +5301,15 @@ function UploadDialog({
                   })
                 : ''}
             </span>
-            {onCancelUpload ? <button type="button" style={S.ghostBtn} onClick={onCancelUpload}>
+            {onCancelUpload ? <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={onCancelUpload}>
               {t('community.upload.cancel')}
             </button> : null}
-            <button type="button" style={S.ghostBtn} onClick={onClose}>
+            <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={onClose}>
               {t('community.action.close')}
             </button>
             <button
               type="button"
+              className="cf-btn-primary"
               style={{ ...S.primaryBtn, opacity: ready ? 1 : 0.55 }}
               disabled={!ready}
               onClick={onUpload}
@@ -5307,6 +5344,7 @@ function RefreshIconButton({
   return (
     <button
       type="button"
+      className="cf-btn-icon"
       style={{ ...S.iconBtn, flex: '0 0 auto', opacity: busy ? 0.55 : 1 }}
       disabled={busy}
       title={busy ? t('community.action.loading') : t('community.action.refresh')}
@@ -5406,9 +5444,13 @@ function ServerPresetButton({
           : active
             ? S.iconBtnActive
             : S.iconBtn
+  const stateAttr =
+    result.state === 'ok' ? 'ok' : result.state === 'idle' && active ? 'active' : undefined
   return (
     <button
       type="button"
+      className="cf-btn-icon"
+      data-state={stateAttr}
       style={{ ...S.iconBtn, flex: '0 0 auto', ...skin }}
       title={title}
       aria-label={label}
@@ -7576,6 +7618,7 @@ export function CommunityTab({
       <div style={S.inlineRow}>
         <span style={S.label}>{t('community.server.address')}</span>
         <input
+          className="cf-input"
           style={S.compactInput}
           type="text"
           spellCheck={false}
@@ -7592,50 +7635,54 @@ export function CommunityTab({
          * 两个文字按钮会把这一行挤成两行；`title` 里带完整地址，悬停即知会填什么。
          * 旧宿主不返回 `serverPresets` → 整组不显示（不做假的）。
          */}
-        {state?.serverPresets ? (
-          <>
-            <ServerPresetButton
-              t={t}
-              icon={<DevServerGlyph />}
-              label={t('community.server.presetDev')}
-              url={state.serverPresets.development}
-              result={serverProbes.development ?? { state: 'idle', reason: null }}
-              active={activeServerUrl === stripSlash(state.serverPresets.development)}
-              onPick={(url) => void pickServerPreset('development', url)}
-            />
-            <ServerPresetButton
-              t={t}
-              icon={<InternetGlyph />}
-              label={t('community.server.presetProd')}
-              url={state.serverPresets.production}
-              result={serverProbes.production ?? { state: 'idle', reason: null }}
-              active={activeServerUrl === stripSlash(state.serverPresets.production)}
-              onPick={(url) => void pickServerPreset('production', url)}
-            />
-          </>
-        ) : null}
-        {/*
-         * 邀请码：在浏览器打开服务器首页（申请邀请码）。图标式，与两个快捷按钮
-         * 同一规格；`title` 带上完整地址，悬停即知会打开什么。旧宿主没有
-         * `serverPresets` 时它**照常显示** —— 打开首页不依赖那两份预设地址。
-         */}
-        <button
-          type="button"
-          style={{ ...S.iconBtn, flex: '0 0 auto' }}
-          title={`${t('community.server.inviteCode')} · ${t('community.action.applyInviteTip')} · ${serverUrl}`}
-          aria-label={t('community.server.inviteCode')}
-          onClick={openServerHome}
-        >
-          <InviteCodeGlyph />
-        </button>
+        <span className="cf-action-group">
+          {state?.serverPresets ? (
+            <>
+              <ServerPresetButton
+                t={t}
+                icon={<DevServerGlyph />}
+                label={t('community.server.presetDev')}
+                url={state.serverPresets.development}
+                result={serverProbes.development ?? { state: 'idle', reason: null }}
+                active={activeServerUrl === stripSlash(state.serverPresets.development)}
+                onPick={(url) => void pickServerPreset('development', url)}
+              />
+              <ServerPresetButton
+                t={t}
+                icon={<InternetGlyph />}
+                label={t('community.server.presetProd')}
+                url={state.serverPresets.production}
+                result={serverProbes.production ?? { state: 'idle', reason: null }}
+                active={activeServerUrl === stripSlash(state.serverPresets.production)}
+                onPick={(url) => void pickServerPreset('production', url)}
+              />
+            </>
+          ) : null}
+          {/*
+           * 邀请码：在浏览器打开服务器首页（申请邀请码）。图标式，与两个快捷按钮
+           * 同一规格；`title` 带上完整地址，悬停即知会打开什么。旧宿主没有
+           * `serverPresets` 时它**照常显示** —— 打开首页不依赖那两份预设地址。
+           */}
+          <button
+            type="button"
+            className="cf-btn-icon"
+            style={{ ...S.iconBtn, flex: '0 0 auto' }}
+            title={`${t('community.server.inviteCode')} · ${t('community.action.applyInviteTip')} · ${serverUrl}`}
+            aria-label={t('community.server.inviteCode')}
+            onClick={openServerHome}
+          >
+            <InviteCodeGlyph />
+          </button>
+        </span>
       </div>
       {/* 地址**还没保存**时才出现这一行：说清后果 + 一个明确的保存动作 */}
       {serverChanged ? (
-        <div style={S.inlineRow}>
+        <div className="cf-banner" data-tone="warn" style={S.inlineRow}>
           <Badge tone="warn">{t('community.badge.addressChanged')}</Badge>
           <span style={{ ...S.hint, flex: '1 1 auto' }}>{t('community.hint.addressChanged')}</span>
           <button
             type="button"
+            className="cf-btn-primary"
             style={{ ...S.primaryBtn, flex: '0 0 auto', opacity: busy ? 0.55 : 1 }}
             disabled={busy}
             onClick={() => void saveServerAddress()}
@@ -7645,7 +7692,7 @@ export function CommunityTab({
         </div>
       ) : null}
       {state?.serverUrlMismatch ? (
-        <div style={{ fontSize: 11.5, lineHeight: 1.6, color: 'var(--dsw-alias-state-warn-primary)' }}>
+        <div className="cf-banner" data-tone="warn" style={{ fontSize: 'var(--cf-type-label, 12px)', lineHeight: 1.6, color: 'var(--dsw-alias-state-warn-primary)' }}>
           {state.environment === 'production'
             ? t('community.hint.mismatchProduction')
             : t('community.hint.mismatchDevelopment')}
@@ -7654,12 +7701,12 @@ export function CommunityTab({
     </>
   )
   const accountFailure = failure ? (
-    <div style={S.inlineRow}>
+    <div className="cf-banner" data-tone="error" style={S.inlineRow}>
       <Badge tone="error">{failure.code}</Badge>
       <span
         style={{
           color: 'var(--dsw-alias-state-error-primary)',
-          fontSize: 12,
+          fontSize: 'var(--cf-type-label, 12px)',
           lineHeight: 1.6,
           flex: '1 1 320px',
           minWidth: 0,
@@ -7670,6 +7717,7 @@ export function CommunityTab({
       {configured ? (
         <button
           type="button"
+          className="cf-btn-ghost"
           style={{ ...S.ghostBtn, opacity: busy ? 0.55 : 1 }}
           disabled={busy}
           onClick={() => void verify()}
@@ -7691,7 +7739,7 @@ export function CommunityTab({
 
   if (view === 'server-settings') {
     return (
-      <div style={S.card}>
+      <div className="cf-card" style={S.card}>
         <div style={S.cardBody}>
           {phase === 'loading' ? <div role="status" style={S.hint}>{t('community.badge.checking')}</div> : serverSettings}
           {accountFailure}
@@ -7702,11 +7750,11 @@ export function CommunityTab({
 
   if (view === 'user-settings') {
     return (
-      <div style={S.card}>
+      <div className="cf-card" style={S.card}>
         <div style={S.cardBody}>
           {phase === 'loading' ? <div role="status" style={S.hint}>{t('community.badge.checking')}</div> : emailNotifications ?? (
             <>
-              <div style={S.label}>{t('community.emailNotifications.title')}</div>
+              <div className="preferences-row-title" style={S.label}>{t('community.emailNotifications.title')}</div>
               <div style={S.hint}>{t('workbench.settings.notificationsSignIn')}</div>
             </>
           )}
@@ -7719,7 +7767,7 @@ export function CommunityTab({
   return (
     <>
       {/* ══ 用户信息区（内部 Tabs：账号 / 服务器设置）══════════════════════ */}
-      <div style={S.card}>
+      <div className="cf-card" style={S.card}>
         {/*
          * 卡片头 = **折叠开关**（2026-10 用户要求：默认折叠）。
          *
@@ -7759,6 +7807,7 @@ export function CommunityTab({
               {tokens ? (
                 <button
                   type="button"
+                  className="cf-token-badge"
                   style={{ ...S.tokenBadge, flex: '0 0 auto', opacity: busy ? 0.55 : 1 }}
                   disabled={busy}
                   title={t('community.tip.balance')}
@@ -7845,6 +7894,7 @@ export function CommunityTab({
                   <span
                     style={{
                       ...S.mono,
+                      color: 'var(--dsw-alias-label-secondary)',
                       flex: '0 1 auto',
                       minWidth: 0,
                       overflow: 'hidden',
@@ -7863,6 +7913,7 @@ export function CommunityTab({
                   {state?.tokens ? (
                     <button
                       type="button"
+                      className="cf-token-badge"
                       style={{
                         ...S.tokenBadge,
                         flex: '0 0 auto',
@@ -7887,26 +7938,29 @@ export function CommunityTab({
                       ◎ {state.tokens.available} Token
                       {/* 冻结部分只留最短标记（完整解释在悬浮提示里）——它曾经把整行挤成两行 */}
                       {state.tokens.frozen > 0 ? (
-                        <span style={{ fontWeight: 400, opacity: 0.7 }}>
+                        <span style={{ fontWeight: 400, opacity: 0.78 }}>
                           {t('community.balance.frozenNote', { count: state.tokens.frozen })}
                         </span>
                       ) : null}
                     </button>
                   ) : null}
                   <span style={{ flex: '1 1 auto' }} />
-                  {/* 刷新：与研究工作三个 Tab 同一个组件（图标 + 悬浮说明） */}
-                  <RefreshIconButton t={t} busy={busy} onClick={() => void verify()} />
-                  <button
-                    type="button"
-                    style={{ ...S.iconBtn, flex: '0 0 auto', opacity: busy || fromEnv ? 0.55 : 1 }}
-                    disabled={busy || fromEnv}
-                    // 凭据来自环境变量时无法在界面里清除 —— 悬浮说明说出原因
-                    title={fromEnv ? t('community.tip.envKey') : t('community.action.signOut')}
-                    aria-label={t('community.action.signOut')}
-                    onClick={() => void logout()}
-                  >
-                    ⏏
-                  </button>
+                  <span className="cf-action-group">
+                    {/* 刷新：与研究工作三个 Tab 同一个组件（图标 + 悬浮说明） */}
+                    <RefreshIconButton t={t} busy={busy} onClick={() => void verify()} />
+                    <button
+                      type="button"
+                      className="cf-btn-icon"
+                      style={{ ...S.iconBtn, flex: '0 0 auto', opacity: busy || fromEnv ? 0.55 : 1 }}
+                      disabled={busy || fromEnv}
+                      // 凭据来自环境变量时无法在界面里清除 —— 悬浮说明说出原因
+                      title={fromEnv ? t('community.tip.envKey') : t('community.action.signOut')}
+                      aria-label={t('community.action.signOut')}
+                      onClick={() => void logout()}
+                    >
+                      ⏏
+                    </button>
+                  </span>
                 </div>
 
                 {!view && emailNotifications}
@@ -7916,7 +7970,7 @@ export function CommunityTab({
                  * 装不装得下、发布要花多少"。数据来自 `state.tokens`（已验证的余额）
                  * 与 `account/usage`（联网一次）；读不到就画 `—`，**绝不**画 0。
                  */}
-                <div style={S.dash}>
+                <div className="cf-dash" style={S.dash}>
                   <DashTile
                     title={t('community.dash.token')}
                     chart={<UsageRing fraction={tokenFraction} />}
@@ -7962,6 +8016,7 @@ export function CommunityTab({
                     action={
                       <button
                         type="button"
+                        className="cf-btn-link"
                         style={{ ...S.linkBtn, alignSelf: 'flex-start', paddingLeft: 0 }}
                         disabled={busy}
                         onClick={() => {
@@ -7996,6 +8051,7 @@ export function CommunityTab({
                   <div style={S.inlineRow}>
                     <span style={S.label}>{t('community.login.keyLabel')}</span>
                     <input
+                      className="cf-input"
                       style={S.compactInput}
                       type="password"
                       autoComplete="off"
@@ -8011,6 +8067,7 @@ export function CommunityTab({
                     />
                     <button
                       type="button"
+                      className="cf-btn-primary"
                       style={{ ...S.primaryBtn, opacity: apiKey.trim() && !busy ? 1 : 0.55 }}
                       disabled={!apiKey.trim() || busy}
                       onClick={() => void login()}
@@ -8019,6 +8076,7 @@ export function CommunityTab({
                     </button>
                     <button
                       type="button"
+                      className="cf-btn-link"
                       style={S.linkBtn}
                       onClick={() => setInviteOpen((v) => !v)}
                       aria-expanded={inviteOpen}
@@ -8032,6 +8090,7 @@ export function CommunityTab({
                     <>
                       <div style={S.inlineRow}>
                         <input
+                          className="cf-input"
                           style={S.compactInput}
                           type="password"
                           autoComplete="off"
@@ -8041,6 +8100,7 @@ export function CommunityTab({
                           onChange={(e) => setInvite({ ...invite, code: e.target.value })}
                         />
                         <input
+                          className="cf-input"
                           style={S.compactInput}
                           type="text"
                           autoComplete="off"
@@ -8050,6 +8110,7 @@ export function CommunityTab({
                           onChange={(e) => setInvite({ ...invite, email: e.target.value })}
                         />
                         <input
+                          className="cf-input"
                           style={S.compactInput}
                           type="text"
                           autoComplete="off"
@@ -8060,6 +8121,7 @@ export function CommunityTab({
                         />
                         <button
                           type="button"
+                          className="cf-btn-primary"
                           style={{
                             ...S.primaryBtn,
                             opacity:
@@ -8076,6 +8138,7 @@ export function CommunityTab({
                         </button>
                         <button
                           type="button"
+                          className="cf-btn-ghost"
                           style={S.ghostBtn}
                           title={`${t('community.action.applyInviteTip')}（${serverUrl}）`}
                           onClick={openServerHome}
@@ -8214,6 +8277,7 @@ export function CommunityTab({
             onClick={() => setMenuFor(null)}
           />
           <div
+            className="cf-menu"
             style={{
               position: 'fixed',
               left: Math.max(8, menuFor.x - 110),
@@ -8449,7 +8513,7 @@ export function CommunityTab({
        * v0.6.0（用户拍板）：Tab 按角色定 —— 研究者只看得到【我的】【可加入】【指导中】，
        * 导师四个都看得到。没有导师角色时**不显示**【可指导】（此前是"显示但说明需要角色"）。
        */}
-      <div style={S.card}>
+      <div className="cf-card" style={S.card}>
         <div className="workbench-card-heading network-work-header" style={S.cardHead}>
           {/* 卡片标题：只说"这一片是什么"，视图的名字交给后面的 Tab */}
           <span style={{ marginRight: 4 }}>{t('community.work.title')}</span>
@@ -8500,7 +8564,7 @@ export function CommunityTab({
            */}
           {/* 列表级失败（列表 / 摘要 / 简报共用一处提示，按 code 给出不同说法） */}
           {publishNotice ? (
-            <div style={S.inlineRow}>
+            <div className="cf-banner" data-tone={publishNotice.tone === 'success' ? 'success' : 'error'} style={S.inlineRow}>
               {/* 徽章保留（用户觉得效果好）：成功 = 「已发布」，失败 = 错误码。
                   因此文案里不再重复写"已发布"，避免同一行说两遍。 */}
               <Badge tone={publishNotice.tone === 'success' ? 'success' : 'error'}>
@@ -8514,7 +8578,7 @@ export function CommunityTab({
                     publishNotice.tone === 'success'
                       ? 'var(--dsw-alias-label-secondary)'
                       : 'var(--dsw-alias-state-error-primary)',
-                  fontSize: 12,
+                  fontSize: 'var(--cf-type-label, 12px)',
                   lineHeight: 1.6,
                   flex: '1 1 320px',
                   minWidth: 0,
@@ -8528,14 +8592,14 @@ export function CommunityTab({
             </div>
           ) : null}
           {chargeNotice ? (
-            <div style={S.inlineRow}>
+            <div className="cf-banner" data-tone="brand" style={S.inlineRow}>
               <Badge tone="brand">{t('community.badge.charged')}</Badge>
-              <span style={S.hint}>{chargeNotice}</span>
+              <span style={{ ...S.hint, color: 'var(--dsw-alias-label-secondary)' }}>{chargeNotice}</span>
             </div>
           ) : null}
           {/* 指导关系的业务回执（接受成功 → 押金已冻结；失败 → 说清原因） */}
           {mentorNotice ? (
-            <div style={S.inlineRow}>
+            <div className="cf-banner" data-tone={mentorNotice.tone === 'success' ? 'success' : 'error'} style={S.inlineRow}>
               <Badge tone={mentorNotice.tone === 'success' ? 'success' : 'error'}>
                 {mentorNotice.tone === 'success'
                   ? t('community.mentor.badgeDone')
@@ -8554,12 +8618,12 @@ export function CommunityTab({
           ) : null}
           {/* 列表级失败：【可指导】与【可加入】各一处，一个失败不染红另一个 */}
           {worksError ? (
-            <div style={S.inlineRow}>
+            <div className="cf-banner" data-tone="error" style={S.inlineRow}>
               <Badge tone="error">{worksError.code}</Badge>
               <span
                 style={{
                   color: 'var(--dsw-alias-state-error-primary)',
-                  fontSize: 12,
+                  fontSize: 'var(--cf-type-label, 12px)',
                   lineHeight: 1.6,
                   flex: '1 1 320px',
                   minWidth: 0,
@@ -8570,12 +8634,12 @@ export function CommunityTab({
             </div>
           ) : null}
           {joinableError ? (
-            <div style={S.inlineRow}>
+            <div className="cf-banner" data-tone="error" style={S.inlineRow}>
               <Badge tone="error">{joinableError.code}</Badge>
               <span
                 style={{
                   color: 'var(--dsw-alias-state-error-primary)',
-                  fontSize: 12,
+                  fontSize: 'var(--cf-type-label, 12px)',
                   lineHeight: 1.6,
                   flex: '1 1 320px',
                   minWidth: 0,
@@ -8597,17 +8661,17 @@ export function CommunityTab({
              * （导师简介留在「接受指导」的确认框里 —— 那是真正要做判断的地方）。
              */
             !account ? (
-              <div style={S.inlineRow}>
+              <div className="cf-banner" data-tone="warn" style={S.inlineRow}>
                 <Badge tone="warn">{t('community.badge.signInRequired')}</Badge>
                 <span style={S.hint}>{t('community.hint.mentorSignIn')}</span>
               </div>
             ) : proposalsError ? (
-              <div style={S.inlineRow}>
+              <div className="cf-banner" data-tone="error" style={S.inlineRow}>
                 <Badge tone="error">{proposalsError.code}</Badge>
                 <span
                   style={{
                     color: 'var(--dsw-alias-state-error-primary)',
-                    fontSize: 12,
+                    fontSize: 'var(--cf-type-label, 12px)',
                     lineHeight: 1.6,
                     flex: '1 1 320px',
                     minWidth: 0,
@@ -8615,7 +8679,7 @@ export function CommunityTab({
                 >
                   {proposalsError.message}
                 </span>
-                <button type="button" style={S.ghostBtn} onClick={() => void loadProposals()}>
+                <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={() => void loadProposals()}>
                   {t('community.action.retry')}
                 </button>
               </div>
@@ -8626,7 +8690,7 @@ export function CommunityTab({
             ) : trackItems.length === 0 ? (
               <div style={S.hint}>{t('community.hint.mentorEmpty')}</div>
             ) : (
-              <div style={S.list}>
+              <div className="cf-list" style={S.list}>
                 {trackItems.map(({ p, view }, i) => (
                   <div
                     key={p.id}
@@ -8639,14 +8703,14 @@ export function CommunityTab({
                       【下载】【上传】被挤到第二行（2026-09 用户反馈）。竖排后左侧
                       自己消化宽度，右侧按钮永远一行。
                     */}
-                    <div style={S.listRow}>
+                    <div className="cf-list-row" style={S.listRow}>
                       <div
                         style={{
                           minWidth: 0,
                           flex: '1 1 auto',
                           display: 'flex',
                           flexDirection: 'column',
-                          gap: 2,
+                          gap: 3,
                         }}
                       >
                         {/*
@@ -8670,7 +8734,7 @@ export function CommunityTab({
                         <div style={S.listTitle}>
                           {proposalWorkLabel(p) ?? t('community.mentor.untitledProject')}
                         </div>
-                        <div style={S.hint}>
+                        <div style={{ ...S.hint, fontSize: 'var(--cf-type-label, 12px)', fontWeight: 560, color: 'var(--dsw-alias-label-secondary)' }}>
                           {view.counterparty?.displayName ?? t('community.mentor.unknownParty')}
                         </div>
                         {/*
@@ -8730,6 +8794,7 @@ export function CommunityTab({
                       {canDownloadProposal(p, view) ? (
                         <button
                           type="button"
+                          className="cf-btn-ghost"
                           style={S.ghostBtn}
                           title={t('community.tip.download')}
                           onClick={() => void requestDownload(p)}
@@ -8740,6 +8805,7 @@ export function CommunityTab({
                       {p.status === 'ACCEPTED' && !view.iAmOwner ? (
                         <button
                           type="button"
+                          className="cf-btn-accent"
                           style={{ ...S.accentBtn, opacity: 0.85 }}
                           title={t('community.tip.upload')}
                           onClick={() => void openExchange(p)}
@@ -8751,6 +8817,7 @@ export function CommunityTab({
                       {view.counterparty ? (
                         <button
                           type="button"
+                          className="cf-btn-ghost"
                           style={S.ghostBtn}
                           title={t(
                             view.counterpartyIsMentor
@@ -8785,6 +8852,7 @@ export function CommunityTab({
                         <div style={{ display: 'inline-flex', alignItems: 'stretch' }}>
                           <button
                             type="button"
+                            className="cf-btn-accent"
                             style={{
                               ...S.accentBtn,
                               borderTopRightRadius: 0,
@@ -8803,8 +8871,10 @@ export function CommunityTab({
                           </button>
                           <button
                             type="button"
+                            className="cf-btn-accent"
                             style={{
                               ...S.accentBtn,
+                              borderLeft: 'none',
                               borderTopLeftRadius: 0,
                               borderBottomLeftRadius: 0,
                               // 纵向 padding 归零（高度靠 stretch 撑），横向加宽到近方形，
@@ -8838,12 +8908,12 @@ export function CommunityTab({
           ) : workTab === 'mine' ? (
             /* ── 我的：本机研究项目 ── */
             mineError ? (
-              <div style={S.inlineRow}>
+              <div className="cf-banner" data-tone="error" style={S.inlineRow}>
                 <Badge tone="error">{mineError.code}</Badge>
                 <span
                   style={{
                     color: 'var(--dsw-alias-state-error-primary)',
-                    fontSize: 12,
+                    fontSize: 'var(--cf-type-label, 12px)',
                     lineHeight: 1.6,
                     flex: '1 1 320px',
                     minWidth: 0,
@@ -8851,13 +8921,13 @@ export function CommunityTab({
                 >
                   {mineError.message}
                 </span>
-                <button type="button" style={S.ghostBtn} onClick={() => void loadMine()}>
+                <button type="button" className="cf-btn-ghost" style={S.ghostBtn} onClick={() => void loadMine()}>
 
                   {t('community.action.retry')}</button>
               </div>
             ) : mineRegistry && !mineRegistry.available ? (
               // 注册表读不到（≠ 没有研究项目）：把原因原样说出来，便于定位
-              <div style={S.inlineRow}>
+              <div className="cf-banner" data-tone="warn" style={S.inlineRow}>
                 <Badge tone="warn">{t('community.badge.registryUnavailable')}</Badge>
                 <span style={S.hint}>
                   {mineRegistry.reason ?? t('community.hint.registryUnavailable')}
@@ -8870,14 +8940,14 @@ export function CommunityTab({
 
                 {t('community.hint.mineEmpty')}</div>
             ) : (
-              <div style={S.list}>
+              <div className="cf-list" style={S.list}>
                 {mine.map((w, i) => (
                   <div
                     key={w.id}
                     style={i === 0 ? undefined : { borderTop: '1px solid var(--dsw-alias-border-l1)' }}
                   >
-                    <div style={{ ...S.listRow, alignItems: 'flex-start' }}>
-                      <div style={{ minWidth: 0, flex: '1 1 auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div className="cf-list-row" style={{ ...S.listRow, alignItems: 'flex-start' }}>
+                      <div style={{ minWidth: 0, flex: '1 1 auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
                         {/* 研究工作**自己的名字**（与【指导中】同一个取值规则，见 workLabelOf） */}
                         <div style={S.listTitle}>{workLabelOf(w)}</div>
                         <div style={{ ...S.hint, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -9009,7 +9079,7 @@ export function CommunityTab({
              */
             !account ? (
               <>
-                <div style={S.list}>
+                <div className="cf-list" style={S.list}>
                   {SAMPLE_WORKS.map((w, i) => (
                     <div
                       key={w.titleKey}
@@ -9037,7 +9107,7 @@ export function CommunityTab({
             ) : joinable.length === 0 ? (
               <div style={S.hint}>{t('community.hint.noJoinable')}</div>
             ) : (
-              <div style={S.list}>
+              <div className="cf-list" style={S.list}>
                 {joinable.map((w, i) => {
                   const expanded = open?.projectId === w.projectId
                   const busyKind = detailBusy?.projectId === w.projectId ? detailBusy.kind : null
@@ -9079,6 +9149,7 @@ export function CommunityTab({
                             {canBid ? (
                               <button
                                 type="button"
+                                className="cf-btn-accent"
                                 style={{ ...S.accentBtn, opacity: bidded ? 0.55 : 1 }}
                                 disabled={Boolean(bidded) || proposeBusy}
                                 title={bidded ? t('community.tip.bidded') : t('community.tip.bid')}
@@ -9104,7 +9175,7 @@ export function CommunityTab({
           ) : works.length === 0 ? (
             <div style={S.hint}>{t('community.hint.noDiscoverable')}</div>
           ) : (
-            <div style={S.list}>
+            <div className="cf-list" style={S.list}>
               {works.map((w, i) => {
                 const expanded = open?.projectId === w.projectId
                 const busyKind = detailBusy?.projectId === w.projectId ? detailBusy.kind : null
@@ -9162,6 +9233,7 @@ export function CommunityTab({
                           {canPropose ? (
                             <button
                               type="button"
+                              className="cf-btn-accent"
                               style={{ ...S.accentBtn, opacity: proposed ? 0.55 : 1 }}
                               disabled={Boolean(proposed) || proposeBusy}
                               title={proposed ? t('community.tip.proposed') : t('community.tip.propose')}
@@ -9290,9 +9362,9 @@ function SystemTab({
   return (
     <>
       {/* ── 本地依赖：tectonic ─────────────────────────────────────── */}
-      <div style={S.card}>
+      <div className="cf-card" style={S.card}>
         <div className="workbench-card-heading" style={S.cardHead}>
-          🧩 {t('system.dependency.title')}
+          {t('system.dependency.title')}
           <span style={{ flex: '1 1 auto' }} />
           {dep === null ? (
             <Badge tone="neutral">{t('system.status.unknown')}</Badge>
@@ -9304,16 +9376,17 @@ function SystemTab({
         </div>
         <div style={S.cardBody}>
           {/* 状态行：名称 · 版本 · 路径 · 重新检查 —— 已安装时本卡片就只有这一行 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={S.mono}>tectonic</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ ...S.mono, fontWeight: 600, color: 'var(--dsw-alias-label-primary)' }}>tectonic</span>
             {dep?.version ? <span style={S.hint}>{dep.version}</span> : null}
-            {dep?.path ? <span style={{ ...S.hint, opacity: 0.7 }}>{dep.path}</span> : null}
+            {dep?.path ? <span style={{ ...S.hint, ...S.mono, opacity: 0.85 }}>{dep.path}</span> : null}
             {dep?.viaEnv ? (
               <span style={S.hint}>{t('system.dependency.viaEnv', { envVar: dep.envVar })}</span>
             ) : null}
             <span style={{ flex: '1 1 auto' }} />
             <button
               type="button"
+              className="cf-btn-ghost"
               style={{ ...S.ghostBtn, opacity: checking ? 0.55 : 1 }}
               disabled={checking}
               onClick={() => void recheck()}
@@ -9349,9 +9422,9 @@ function SystemTab({
       </div>
 
       {/* ── 文献检索凭据：OpenAlex ─────────────────────────────────── */}
-      <div style={S.card}>
+      <div className="cf-card" style={S.card}>
         <div className="workbench-card-heading" style={S.cardHead}>
-          ⌕ {t('system.retrieval.title')}
+          {t('system.retrieval.title')}
           <span style={{ flex: '1 1 auto' }} />
           {configured ? (
             <Badge tone="success">{t('system.status.configured')}</Badge>
@@ -9364,6 +9437,7 @@ function SystemTab({
             <label htmlFor={keyInputId} style={S.label}>OpenAlex API Key</label>
             <input
               id={keyInputId}
+              className="cf-input"
               style={S.input}
               type="password"
               autoComplete="off"
@@ -9387,11 +9461,11 @@ function SystemTab({
             ) : null}
           </div>
 
-          <div style={S.footer}>
+          <div className="cf-footer" style={S.footer}>
             {notice ? (
               <span
                 role={notice.tone === 'error' ? 'alert' : 'status'}
-                style={{ marginRight: 'auto', fontSize: 12, color: `var(--dsw-alias-state-${notice.tone}-primary)` }}
+                style={{ marginRight: 'auto', fontSize: 'var(--cf-type-label, 12px)', color: `var(--dsw-alias-state-${notice.tone}-primary)` }}
               >
                 {notice.text}
               </span>
@@ -9399,6 +9473,7 @@ function SystemTab({
             {source === 'settings' ? (
               <button
                 type="button"
+                className="cf-btn-ghost"
                 style={{ ...S.ghostBtn, opacity: busy ? 0.55 : 1 }}
                 disabled={busy !== null}
                 onClick={() => void clear()}
@@ -9408,6 +9483,7 @@ function SystemTab({
             ) : null}
             <button
               type="button"
+              className="cf-btn-primary"
               style={{ ...S.primaryBtn, opacity: draft.trim() && !busy ? 1 : 0.55 }}
               disabled={!draft.trim() || busy !== null}
               onClick={() => void save()}
