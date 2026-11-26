@@ -104,19 +104,34 @@ export function GpuHostsPanel({ send, t }: { send: SettingsSend; t: Translate })
             <button type="button" aria-disabled={Boolean(actionHost) || undefined}
               onClick={() => { void workspaceAction(host, true) }}>{t('gpu.workspace.request')}</button>
           </div>}
-          {canUseWorkspace && <>
-            <div className="gpu-host-codex-guide">
-              <h4>{t('gpu.workspace.codexTitle')}</h4>
-              <p>{t('gpu.workspace.codexHint')}</p>
-              <p className="gpu-host-codex-example">{t('gpu.workspace.codexExample', { host: host.name })}</p>
+          {canUseWorkspace && <div className="gpu-host-actions">
+            <details className="gpu-host-codex-guide">
+              <summary className="gpu-host-codex-summary">
+                <span className="gpu-host-codex-heading">
+                  <span className="gpu-host-codex-title">{t('gpu.workspace.codexTitle')}</span>
+                  <span className="gpu-host-tag gpu-host-tag-recommended">{t('gpu.workspace.recommended')}</span>
+                </span>
+                <svg className="gpu-host-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M4.25 6.25 8 10l3.75-3.75" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </summary>
+              <div className="gpu-host-codex-body">
+                <p>{t('gpu.workspace.codexHint')}</p>
+                <p className="gpu-host-codex-example">{t('gpu.workspace.codexExample', { host: host.name })}</p>
+              </div>
+            </details>
+            <div className="gpu-host-ssh-section">
+              <button type="button" className="gpu-host-ssh-toggle"
+                aria-disabled={Boolean(actionHost) || undefined} aria-expanded={command !== null}
+                onClick={() => toggleConnection(host)}>
+                <span className="gpu-host-ssh-label">
+                  {t(command === null ? 'gpu.workspace.connect' : 'gpu.workspace.hideConnection')}
+                </span>
+                <span className="gpu-host-tag gpu-host-tag-discouraged">{t('gpu.workspace.notRecommended')}</span>
+              </button>
+              {command !== null && <p className="gpu-host-ssh-command" role="status"><code>{command}</code></p>}
             </div>
-            <button type="button" className="gpu-host-ssh-toggle cf-btn-link"
-              aria-disabled={Boolean(actionHost) || undefined} aria-expanded={command !== null}
-              onClick={() => toggleConnection(host)}>
-              {t(command === null ? 'gpu.workspace.connect' : 'gpu.workspace.hideConnection')}
-            </button>
-            {command !== null && <p className="gpu-host-ssh-command" role="status"><code>{command}</code></p>}
-          </>}
+          </div>}
         </li>
       })}
     </ul>}

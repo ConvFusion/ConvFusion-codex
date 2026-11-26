@@ -1275,34 +1275,163 @@ dialog::backdrop {
   font-size: var(--cf-type-code);
 }
 
-.gpu-host-codex-guide {
+.gpu-host-actions {
   display: grid;
-  gap: 6px;
-  padding: 12px 14px;
-  border-radius: 9px;
+  gap: 10px;
+}
+
+.gpu-host-codex-guide {
+  border: 1px solid var(--cf-accent-border);
+  border-inline-start: 3px solid var(--dsw-alias-state-business-primary);
+  border-radius: 10px;
   background: var(--dsw-alias-state-business-tertiary);
+  box-shadow: var(--cf-shadow-subtle);
+  overflow: hidden;
+  transition: border-color var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+.gpu-host-codex-guide:hover {
+  border-color: color-mix(in srgb, var(--dsw-alias-state-business-primary) 52%, transparent);
+  border-inline-start-color: var(--dsw-alias-state-business-primary);
+}
+
+.gpu-host-codex-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  list-style: none;
+  color: var(--dsw-alias-state-business-primary);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+.gpu-host-codex-summary::-webkit-details-marker {
+  display: none;
+}
+
+.gpu-host-codex-summary:hover {
+  background: var(--cf-accent-hover);
+}
+
+.gpu-host-codex-summary:focus-visible {
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
+.gpu-host-codex-heading {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-inline-size: 0;
+}
+
+.gpu-host-codex-title {
+  font-size: var(--cf-type-body);
+  font-weight: 680;
+  line-height: 1.35;
+}
+
+.gpu-host-chevron {
+  inline-size: 16px;
+  block-size: 16px;
+  flex: none;
+  color: var(--dsw-alias-state-business-primary);
+  transition: transform var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+.gpu-host-codex-guide[open] .gpu-host-chevron {
+  transform: rotate(180deg);
+}
+
+.gpu-host-codex-body {
+  display: grid;
+  gap: 8px;
+  padding: 11px 14px 13px;
+  border-block-start: 1px solid var(--cf-subnav-border);
   color: var(--dsw-alias-label-primary);
   font-size: var(--cf-type-body);
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
-.gpu-host-codex-guide h4 {
-  color: var(--dsw-alias-state-business-primary);
-}
-
-.gpu-host-codex-guide .gpu-host-codex-example {
+.gpu-host-codex-example {
+  padding: 8px 11px;
+  border: 1px solid var(--cf-subnav-border);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font-size: var(--cf-type-label);
   font-weight: 600;
 }
 
+.gpu-host-tag {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  block-size: 20px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: var(--cf-type-badge);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.gpu-host-tag-recommended {
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--cf-on-primary);
+}
+
+.gpu-host-tag-discouraged {
+  background: var(--dsw-alias-bg-layer-2);
+  border-color: var(--dsw-alias-border-l1);
+  color: var(--dsw-alias-label-tertiary);
+  font-weight: 500;
+  transition:
+    border-color var(--ds-transition-duration) var(--ds-ease-in-out),
+    color var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+.gpu-host-ssh-section {
+  display: grid;
+  gap: 8px;
+}
+
 button.gpu-host-ssh-toggle {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
   justify-self: start;
   min-block-size: 28px;
   padding: 2px 0;
   border: 0;
+  border-radius: 6px;
   background: transparent;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-tertiary);
   font-size: var(--cf-type-label);
+  font-weight: 500;
   text-align: start;
+  cursor: pointer;
+  transition: color var(--ds-transition-duration) var(--ds-ease-in-out);
+}
+
+button.gpu-host-ssh-toggle:hover:not([aria-disabled="true"]) {
+  color: var(--dsw-alias-label-secondary);
+}
+
+button.gpu-host-ssh-toggle:hover:not([aria-disabled="true"]) .gpu-host-ssh-label {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+button.gpu-host-ssh-toggle:hover:not([aria-disabled="true"]) .gpu-host-tag-discouraged {
+  border-color: var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-secondary);
 }
 
 .gpu-host-ssh-toggle[aria-disabled="true"] {
@@ -1310,7 +1439,7 @@ button.gpu-host-ssh-toggle {
   cursor: wait;
 }
 
-.gpu-host-list > li > .gpu-host-ssh-command {
+.gpu-host-list .gpu-host-ssh-command {
   padding: 10px 12px;
   border: 1px solid var(--dsw-alias-border-l1);
   border-radius: 9px;

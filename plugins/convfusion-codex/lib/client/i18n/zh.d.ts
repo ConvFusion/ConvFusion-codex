@@ -24,10 +24,12 @@ export declare const zh: {
     'gpu.workspace.keyMissing': string;
     'gpu.workspace.request': string;
     'gpu.workspace.codexTitle': string;
+    'gpu.workspace.recommended': string;
     'gpu.workspace.codexHint': string;
     'gpu.workspace.codexExample': string;
     'gpu.workspace.connect': string;
     'gpu.workspace.hideConnection': string;
+    'gpu.workspace.notRecommended': string;
     'gpu.workspace.actionError': string;
     'workbench.settings.categories': string;
     'workbench.settings.category.user': string;

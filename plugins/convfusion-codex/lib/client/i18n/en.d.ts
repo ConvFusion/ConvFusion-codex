@@ -24,10 +24,12 @@ export declare const en: {
     readonly 'gpu.workspace.keyMissing': "This device does not have the registered key. Contact your administrator.";
     readonly 'gpu.workspace.request': "Request Docker workspace";
     readonly 'gpu.workspace.codexTitle': "Use this host with Codex";
+    readonly 'gpu.workspace.recommended': "Recommended";
     readonly 'gpu.workspace.codexHint': "Keep Tailscale connected and tell Codex in your project chat what to run. Codex will connect to your Docker workspace.";
     readonly 'gpu.workspace.codexExample': "“Run this experiment on {host}.”";
-    readonly 'gpu.workspace.connect': "Connect manually (SSH)";
-    readonly 'gpu.workspace.hideConnection': "Hide manual connection";
+    readonly 'gpu.workspace.connect': "Manual SSH connection";
+    readonly 'gpu.workspace.hideConnection': "Hide manual SSH connection";
+    readonly 'gpu.workspace.notRecommended': "Not recommended";
     readonly 'gpu.workspace.actionError': "Could not complete the request. Try again.";
     readonly 'workbench.settings.categories': "Settings categories";
     readonly 'workbench.settings.category.user': "User preferences";
