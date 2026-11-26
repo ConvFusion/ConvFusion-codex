@@ -113,6 +113,7 @@ window.__ModuleLoader__.load({
 		  "gpu.workspace.keyMissing": "This device does not have the registered key. Contact your administrator.",
 		  "gpu.workspace.request": "Request Docker workspace",
 		  "gpu.workspace.connect": "Show SSH command",
+		  "gpu.workspace.hideConnection": "Hide SSH command",
 		  "gpu.workspace.actionError": "Could not complete the request. Try again.",
 		  "workbench.settings.categories": "Settings categories",
 		  "workbench.settings.category.user": "User preferences",
@@ -964,6 +965,7 @@ window.__ModuleLoader__.load({
 		  "gpu.workspace.keyMissing": "当前设备没有已登记的密钥，请联系管理员。",
 		  "gpu.workspace.request": "申请 Docker 实验环境",
 		  "gpu.workspace.connect": "显示 SSH 命令",
+		  "gpu.workspace.hideConnection": "隐藏 SSH 命令",
 		  "gpu.workspace.actionError": "无法完成请求，请重试。",
 		  "workbench.settings.categories": "设置分类",
 		  "workbench.settings.category.user": "用户设置",
@@ -2481,18 +2483,18 @@ window.__ModuleLoader__.load({
 		  }
 		}
 		var S = {
-		  page: { display: "flex", flexDirection: "column", gap: 14 },
+		  page: { display: "flex", flexDirection: "column", gap: "var(--cf-section-gap, 14px)" },
 		  hero: {
 		    display: "flex",
 		    alignItems: "center",
 		    gap: 14,
-		    padding: "16px 18px",
+		    padding: "var(--cf-card-padding, 16px 18px)",
 		    borderRadius: 14,
 		    border: "1px solid var(--dsw-alias-border-l1)",
-		    background: "linear-gradient(120deg, var(--dsw-alias-state-business-tertiary), var(--dsw-alias-bg-layer-1))"
+		    background: "var(--cf-method-intro, linear-gradient(120deg, var(--dsw-alias-state-business-tertiary), var(--dsw-alias-bg-layer-1)))"
 		  },
 		  heroSub: {
-		    fontSize: 12,
+		    fontSize: "var(--cf-type-body, 12px)",
 		    color: "var(--dsw-alias-label-secondary)",
 		    marginTop: 2,
 		    lineHeight: 1.5
@@ -2506,7 +2508,7 @@ window.__ModuleLoader__.load({
 		  },
 		  card: {
 		    border: "1px solid var(--dsw-alias-border-l1)",
-		    borderRadius: 12,
+		    borderRadius: "var(--cf-card-radius, 12px)",
 		    background: "var(--dsw-alias-bg-layer-1)",
 		    overflow: "hidden"
 		  },
@@ -2524,13 +2526,14 @@ window.__ModuleLoader__.load({
 		    display: "flex",
 		    alignItems: "center",
 		    gap: 8,
-		    padding: "10px 14px",
+		    padding: "var(--cf-card-head-padding, 10px 14px)",
+		    background: "var(--cf-card-head, transparent)",
 		    borderBottom: "1px solid var(--dsw-alias-border-l1)",
-		    fontSize: 12.5,
+		    fontSize: "var(--cf-type-card, 12.5px)",
 		    fontWeight: 700,
 		    color: "var(--dsw-alias-label-primary)"
 		  },
-		  cardBody: { padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 },
+		  cardBody: { padding: "var(--cf-card-padding, 12px 14px)", display: "flex", flexDirection: "column", gap: "var(--cf-card-gap, 10px)" },
 		  list: {
 		    display: "flex",
 		    flexDirection: "column",
@@ -2546,7 +2549,7 @@ window.__ModuleLoader__.load({
 		    background: "var(--dsw-alias-bg-layer-1)"
 		  },
 		  listTitle: {
-		    fontSize: 12.5,
+		    fontSize: "var(--cf-type-body, 12.5px)",
 		    fontWeight: 600,
 		    color: "var(--dsw-alias-label-primary)",
 		    overflow: "hidden",
@@ -2555,27 +2558,27 @@ window.__ModuleLoader__.load({
 		  },
 		  row: { display: "flex", gap: 12, flexWrap: "wrap" },
 		  field: { display: "flex", flexDirection: "column", gap: 5, flex: "1 1 200px", minWidth: 0 },
-		  label: { fontSize: 11.5, fontWeight: 600, color: "var(--dsw-alias-label-secondary)" },
+		  label: { fontSize: "var(--cf-type-label, 11.5px)", fontWeight: 600, color: "var(--dsw-alias-label-secondary)" },
 		  /** 分区标题（指导中的「我收到的」/「我发起的」）：一行字 + 计数徽章。 */
 		  sectionLabel: {
 		    display: "flex",
 		    alignItems: "center",
 		    gap: 8,
-		    fontSize: 11.5,
+		    fontSize: "var(--cf-type-label, 11.5px)",
 		    fontWeight: 700,
 		    color: "var(--dsw-alias-label-secondary)",
 		    marginTop: 6
 		  },
-		  hint: { fontSize: 11, color: "var(--dsw-alias-label-tertiary)", lineHeight: 1.5 },
+		  hint: { fontSize: "var(--cf-type-meta, 11px)", color: "var(--dsw-alias-label-tertiary)", lineHeight: 1.5 },
 		  select: {
 		    appearance: "none",
 		    width: "100%",
 		    padding: "7px 28px 7px 10px",
 		    borderRadius: 8,
-		    border: "1px solid var(--dsw-alias-border-l2)",
+		    border: "1px solid var(--cf-control-border, var(--dsw-alias-border-l2))",
 		    background: "var(--dsw-alias-bg-layer-2)",
 		    color: "var(--dsw-alias-label-primary)",
-		    fontSize: 12.5,
+		    fontSize: "var(--cf-type-body, 12.5px)",
 		    fontWeight: 600,
 		    backgroundImage: "linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%)",
 		    backgroundPosition: "calc(100% - 15px) 52%, calc(100% - 10px) 52%",
@@ -2586,10 +2589,10 @@ window.__ModuleLoader__.load({
 		    width: "100%",
 		    padding: "7px 10px",
 		    borderRadius: 8,
-		    border: "1px solid var(--dsw-alias-border-l2)",
+		    border: "1px solid var(--cf-control-border, var(--dsw-alias-border-l2))",
 		    background: "var(--dsw-alias-bg-layer-2)",
 		    color: "var(--dsw-alias-label-primary)",
-		    fontSize: 12.5,
+		    fontSize: "var(--cf-type-body, 12.5px)",
 		    fontWeight: 600
 		  },
 		  textarea: {
@@ -2598,10 +2601,10 @@ window.__ModuleLoader__.load({
 		    resize: "vertical",
 		    padding: 11,
 		    borderRadius: 9,
-		    border: "1px solid var(--dsw-alias-border-l2)",
+		    border: "1px solid var(--cf-control-border, var(--dsw-alias-border-l2))",
 		    background: "var(--dsw-alias-bg-layer-2)",
 		    color: "var(--dsw-alias-label-primary)",
-		    fontSize: 12.5,
+		    fontSize: "var(--cf-type-body, 12.5px)",
 		    lineHeight: 1.65,
 		    fontFamily: "var(--ds-font-family-code)"
 		  },
@@ -2614,7 +2617,7 @@ window.__ModuleLoader__.load({
 		    border: "1px solid var(--dsw-alias-border-l1)",
 		    background: "var(--dsw-alias-bg-layer-3)",
 		    color: "var(--dsw-alias-label-secondary)",
-		    fontSize: 11.5,
+		    fontSize: "var(--cf-type-label, 11.5px)",
 		    lineHeight: 1.6,
 		    fontFamily: "var(--ds-font-family-code)"
 		  },
@@ -2677,10 +2680,10 @@ window.__ModuleLoader__.load({
 		    minWidth: 110,
 		    padding: "5px 9px",
 		    borderRadius: 8,
-		    border: "1px solid var(--dsw-alias-border-l2)",
+		    border: "1px solid var(--cf-control-border, var(--dsw-alias-border-l2))",
 		    background: "var(--dsw-alias-bg-layer-2)",
 		    color: "var(--dsw-alias-label-primary)",
-		    fontSize: 12
+		    fontSize: "var(--cf-type-body, 12px)"
 		  },
 		  /** Token 余额徽章：既是数字也是按钮（点了打开余额弹窗）。 */
 		  tokenBadge: {
@@ -2772,7 +2775,7 @@ window.__ModuleLoader__.load({
 		    border: "none",
 		    background: "transparent",
 		    color: "var(--dsw-alias-state-business-primary)",
-		    fontSize: 11.5,
+		    fontSize: "var(--cf-type-label, 11.5px)",
 		    fontWeight: 600,
 		    cursor: "pointer"
 		  },
@@ -2936,10 +2939,10 @@ window.__ModuleLoader__.load({
 		      style: {
 		        padding: "3px 10px",
 		        borderRadius: 6,
-		        border: "1px solid transparent",
-		        background: active ? "var(--dsw-alias-bg-layer-1)" : "transparent",
+		        border: active ? "1px solid var(--cf-subnav-border, transparent)" : "1px solid transparent",
+		        background: active ? "var(--cf-subnav-active, var(--dsw-alias-bg-layer-1))" : "transparent",
 		        color: active ? "var(--dsw-alias-label-primary)" : "var(--dsw-alias-label-tertiary)",
-		        fontSize: 11.5,
+		        fontSize: "var(--cf-type-label, 11.5px)",
 		        fontWeight: active ? 700 : 500,
 		        cursor: "pointer"
 		      },
@@ -3188,7 +3191,7 @@ window.__ModuleLoader__.load({
 		      ] })
 		    ] }),
 		    staleHost ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		        t("settings.stale.title"),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "warn", children: t("settings.stale.badge") })
@@ -3200,7 +3203,7 @@ window.__ModuleLoader__.load({
 		      ] }) })
 		    ] }) : null,
 		    error ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		        t("settings.error.title"),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "error", children: t("settings.error.badge") })
@@ -3236,7 +3239,7 @@ window.__ModuleLoader__.load({
 		    ) : null,
 		    state && activeTab === "local" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		          t("settings.library.title"),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("settings.library.localOnly") }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
@@ -3275,7 +3278,7 @@ window.__ModuleLoader__.load({
 		        ] }) })
 		      ] }),
 		      skill && point ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { style: { minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }, children: [
 		            skill.code ? `${skill.code} · ` : "",
 		            skillText(t, skill.skillId, skill.skillName),
@@ -4161,7 +4164,7 @@ window.__ModuleLoader__.load({
 		            background: "var(--dsw-alias-bg-layer-1)"
 		          },
 		          children: [
-		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		              t("community.publish.title", { title: data.title }),
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t(data.direction === "SEEK_STUDENT" ? "community.action.seekStudent" : "community.action.seekMentor") }),
 		              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
@@ -4258,7 +4261,7 @@ window.__ModuleLoader__.load({
 		      role: "dialog",
 		      "aria-modal": "true",
 		      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(430px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		          t("community.briefConfirm.title"),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "brand", children: t("community.briefState.cost") })
@@ -4306,7 +4309,7 @@ window.__ModuleLoader__.load({
 		      role: "dialog",
 		      "aria-modal": "true",
 		      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(460px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		          t(iPayer ? "community.mentor.acceptConfirmTitle" : "community.mentor.acceptConfirmTitleOther"),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		          levelText ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t(levelText.key, levelText.params) }) : null,
@@ -4586,7 +4589,7 @@ window.__ModuleLoader__.load({
 		        color: "var(--dsw-alias-label-primary)"
 		      },
 		      children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { id: titleId, style: S.cardHead, children: t("community.storagePurchase.title") }),
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { id: titleId, className: "workbench-card-heading", style: S.cardHead, children: t("community.storagePurchase.title") }),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardBody, children: [
 		          receipt ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { role: "status", children: t("community.storagePurchase.receipt", {
 		            gb: receipt.purchasedGb,
@@ -4667,7 +4670,7 @@ window.__ModuleLoader__.load({
 		  const canApply = !pending && amountValid && !submitting && !loading;
 		  const pools = tokens !== null && tokens.funded !== null && tokens.grant !== null;
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(460px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		      t("community.token.dialogTitle"),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(RefreshIconButton, { t, busy: loading, onClick: onRefresh })
@@ -4824,7 +4827,7 @@ window.__ModuleLoader__.load({
 		      role: "dialog",
 		      "aria-modal": "true",
 		      children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(400px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		          t(variant === "researcher" ? "community.mentor.bidTitle" : "community.mentor.proposeTitle"),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		          levelText ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t(levelText.key, levelText.params) }) : null,
@@ -4933,7 +4936,7 @@ window.__ModuleLoader__.load({
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { ...S.hint, flex: "1 1 auto", minWidth: 0 }, children: value })
 		  ] }) : null;
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", "aria-label": title, children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(430px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		      title,
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: proposalTone(status), children: enumText(t, PROPOSAL_STATUS_KEYS, status) })
@@ -5101,7 +5104,7 @@ window.__ModuleLoader__.load({
 		  ] });
 		  const pct2 = busy && totalBytes && totalBytes > 0 && received !== null ? Math.min(100, Math.round(received / totalBytes * 100)) : null;
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: S.overlay, role: "dialog", "aria-modal": "true", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { ...S.card, width: "min(520px, 94vw)", background: "var(--dsw-alias-bg-layer-1)" }, children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		      t("community.exchange.downloadTitle"),
 		      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		      files === null ? null : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("community.exchange.sizeBadge", { files, size: formatBytes(bytes ?? 0) }) })
@@ -5257,7 +5260,7 @@ window.__ModuleLoader__.load({
 		        background: "var(--dsw-alias-bg-layer-1)"
 		      },
 		      children: [
-		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		          t("community.exchange.uploadTitle"),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
 		          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Badge, { tone: "neutral", children: t("community.mentor.status.ACCEPTED") })
@@ -6827,6 +6830,7 @@ window.__ModuleLoader__.load({
 		          role: "button",
 		          tabIndex: 0,
 		          "aria-expanded": userOpen,
+		          className: "workbench-card-heading",
 		          style: { ...S.cardHead, cursor: "pointer" },
 		          title: view === "network" ? t(userOpen ? "workbench.account.collapse" : "workbench.account.expand") : t(userOpen ? "community.tip.collapse" : "community.tip.expand"),
 		          onClick: () => setUserOpen((v) => !v),
@@ -7444,7 +7448,7 @@ window.__ModuleLoader__.load({
 		      }
 		    ) : null,
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading network-work-header", style: S.cardHead, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { marginRight: 4 }, children: t("community.work.title") }),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MiniTab, { active: workTab === "mine", count: mine?.length ?? null, onClick: () => setWorkTab("mine"), children: t("community.tab.mine") }),
 		        canMentor ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(MiniTab, { active: workTab === "mentor", count: works?.length ?? null, onClick: () => setWorkTab("mentor"), children: t("community.tab.mentor") }) : null,
@@ -8004,7 +8008,7 @@ window.__ModuleLoader__.load({
 		  };
 		  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		        "🧩 ",
 		        t("system.dependency.title"),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
@@ -8050,7 +8054,7 @@ window.__ModuleLoader__.load({
 		      ] })
 		    ] }),
 		    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.card, children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: S.cardHead, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "workbench-card-heading", style: S.cardHead, children: [
 		        "⌕ ",
 		        t("system.retrieval.title"),
 		        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { style: { flex: "1 1 auto" } }),
@@ -8437,10 +8441,10 @@ window.__ModuleLoader__.load({
 		    {
 		      style: {
 		        display: "inline-block",
-		        width: "88px",
+		        width: "var(--cf-progress-bar-width, 88px)",
 		        height: "7px",
 		        borderRadius: "4px",
-		        background: "var(--dsw-alias-interactive-bg-hover, rgba(15,17,21,0.08))",
+		        background: "var(--cf-progress-track, var(--dsw-alias-interactive-bg-hover, rgba(15,17,21,0.08)))",
 		        overflow: "hidden",
 		        verticalAlign: "middle"
 		      },
@@ -8615,7 +8619,7 @@ window.__ModuleLoader__.load({
 		  const refreshError = refreshFailed && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { role: "status", style: { color: muted, margin: "6px 0" }, children: t("progress.refreshFailed") });
 		  if (probe.kind !== "shown") {
 		    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { "data-convfusion-progress-view": "1", children: [
-		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
+		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-heading", style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("strong", { children: t("progress.name") }),
 		        refreshButton
 		      ] }),
@@ -8628,23 +8632,23 @@ window.__ModuleLoader__.load({
 		  const multi = works.length > 1;
 		  const work = multi ? works.find((w) => w.id === workId) ?? null : null;
 		  const section = {
-		    marginTop: "10px",
-		    padding: "9px 11px 10px",
-		    borderRadius: "9px",
-		    border: "1px solid var(--dsw-alias-border-l2, rgba(15,17,21,0.10))",
-		    background: "var(--dsw-alias-interactive-bg-hover, rgba(15,17,21,0.035))"
+		    marginTop: "var(--cf-section-gap, 10px)",
+		    padding: "var(--cf-card-padding, 9px 11px 10px)",
+		    borderRadius: "var(--cf-card-radius, 9px)",
+		    border: "var(--cf-progress-border, 1px solid var(--dsw-alias-border-l2, rgba(15,17,21,0.10)))",
+		    background: "var(--cf-progress-surface, var(--dsw-alias-interactive-bg-hover, rgba(15,17,21,0.035)))"
 		  };
 		  const sectionTitle = {
-		    color: muted,
-		    letterSpacing: "0.04em",
-		    fontWeight: 600,
-		    marginBottom: "7px"
+		    color: "var(--cf-progress-heading, var(--dsw-alias-label-tertiary, #81858c))",
+		    letterSpacing: "var(--cf-progress-heading-tracking, 0.04em)",
+		    fontWeight: "var(--cf-progress-heading-weight, 600)",
+		    marginBottom: "var(--cf-progress-heading-gap, 7px)"
 		  };
 		  const tabStrip = {
 		    display: "flex",
 		    flexWrap: "wrap",
 		    gap: "2px",
-		    marginTop: "8px",
+		    marginTop: "var(--cf-section-gap, 8px)",
 		    borderBottom: "1px solid var(--dsw-alias-border-l2, rgba(15,17,21,0.10))"
 		  };
 		  const tab = (active) => ({
@@ -8709,10 +8713,10 @@ window.__ModuleLoader__.load({
 		    ] }, row ? row.id : "totals");
 		  };
 		  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { "data-convfusion-progress-view": "1", children: [
-		    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-heading", style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
 		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "baseline", gap: "4px 8px", flexWrap: "wrap", minWidth: 0 }, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("strong", { children: t("progress.name") }),
-		        report ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { style: { color: muted, ...mono }, children: [
+		        report ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { className: "progress-summary", style: { color: muted, ...mono }, children: [
 		          t("progress.summary", { percent: pct(work ? work.overall : report.overall) }),
 		          work ? ` · ${t("progress.work.meta", { version: work.version, status: work.status })}` : report.progress.stage ? t("progress.currentStage", { stage: stageText(t, report.progress.stage) }) : ""
 		        ] }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted }, children: t("progress.noData") })
@@ -8720,7 +8724,7 @@ window.__ModuleLoader__.load({
 		      refreshButton
 		    ] }),
 		    refreshError,
-		    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { color: muted, ...mono }, children: [
+		    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "progress-path", style: { color: muted, ...mono }, children: [
 		      shortenPath(probe.workspace),
 		      work ? ` · ${work.id}` : ""
 		    ] }),
@@ -8757,7 +8761,7 @@ window.__ModuleLoader__.load({
 		          t("progress.work.section.maturity"),
 		          work.maturitySource === "derived" ? t("progress.work.maturityDerived") : ""
 		        ] }),
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "2px 16px" }, children: work.maturity.map((d) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))", gap: "2px 16px" }, children: work.maturity.map((d) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { minWidth: "92px", whiteSpace: "nowrap", ...mono }, children: translateOr(t, `maturity.paper.${d.dimension}`, d.dimension) }),
 		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Bar, { scale: d.scale }),
 		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted, whiteSpace: "nowrap", ...mono }, children: maturityLevelText(t, d.level) })
@@ -8765,7 +8769,7 @@ window.__ModuleLoader__.load({
 		      ] }),
 		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: section, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: sectionTitle, children: t("progress.work.section.assets") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "2px 16px" }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))", gap: "2px 16px" }, children: [
 		          workRow(
 		            t("progress.work.count.sections"),
 		            `${work.counts.sectionsWithContent}/${work.counts.sections}`
@@ -8822,7 +8826,7 @@ window.__ModuleLoader__.load({
 		      ] }) : null,
 		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: section, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: sectionTitle, children: t("progress.section.maturity") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "2px 16px" }, children: report.progress.dimensions.map((d) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))", gap: "2px 16px" }, children: report.progress.dimensions.map((d) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px" }, children: [
 		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { minWidth: "92px", whiteSpace: "nowrap", ...mono }, children: maturityDimensionText(t, d.dimension) }),
 		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(Bar, { scale: d.scale }),
 		          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { color: muted, whiteSpace: "nowrap", ...mono }, children: maturityLevelText(t, d.level) })
@@ -8830,7 +8834,7 @@ window.__ModuleLoader__.load({
 		      ] }),
 		      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: section, children: [
 		        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { style: sectionTitle, children: t("progress.section.assets") }),
-		        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "2px 16px" }, children: [
+		        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))", gap: "2px 16px" }, children: [
 		          report.counts.map((row) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { style: { display: "flex", gap: "8px" }, children: [
 		            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: { minWidth: "92px", whiteSpace: "nowrap", ...mono }, children: progressCountText(t, row.key) }),
 		            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { style: mono, children: row.value }),

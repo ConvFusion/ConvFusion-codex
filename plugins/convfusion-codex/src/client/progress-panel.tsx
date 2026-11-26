@@ -250,10 +250,10 @@ function Bar({ scale }: { scale: number }): JSX.Element {
     <span
       style={{
         display: 'inline-block',
-        width: '88px',
+        width: 'var(--cf-progress-bar-width, 88px)',
         height: '7px',
         borderRadius: '4px',
-        background: 'var(--dsw-alias-interactive-bg-hover, rgba(15,17,21,0.08))',
+        background: 'var(--cf-progress-track, var(--dsw-alias-interactive-bg-hover, rgba(15,17,21,0.08)))',
         overflow: 'hidden',
         verticalAlign: 'middle',
       }}
@@ -471,7 +471,7 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
   if (probe.kind !== 'shown') {
     return (
       <div data-convfusion-progress-view="1">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="progress-heading" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <strong>{t('progress.name')}</strong>
           {refreshButton}
         </div>
@@ -497,24 +497,24 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
    * 而 `--dsw-alias-bg-layer-2` 是**不透明的 #fff**，用它做卡片底会与面板底色重复、看不出卡片边界。
    */
   const section: React.CSSProperties = {
-    marginTop: '10px',
-    padding: '9px 11px 10px',
-    borderRadius: '9px',
-    border: '1px solid var(--dsw-alias-border-l2, rgba(15,17,21,0.10))',
-    background: 'var(--dsw-alias-interactive-bg-hover, rgba(15,17,21,0.035))',
+    marginTop: 'var(--cf-section-gap, 10px)',
+    padding: 'var(--cf-card-padding, 9px 11px 10px)',
+    borderRadius: 'var(--cf-card-radius, 9px)',
+    border: 'var(--cf-progress-border, 1px solid var(--dsw-alias-border-l2, rgba(15,17,21,0.10)))',
+    background: 'var(--cf-progress-surface, var(--dsw-alias-interactive-bg-hover, rgba(15,17,21,0.035)))',
   }
   const sectionTitle: React.CSSProperties = {
-    color: muted,
-    letterSpacing: '0.04em',
-    fontWeight: 600,
-    marginBottom: '7px',
+    color: 'var(--cf-progress-heading, var(--dsw-alias-label-tertiary, #81858c))',
+    letterSpacing: 'var(--cf-progress-heading-tracking, 0.04em)',
+    fontWeight: 'var(--cf-progress-heading-weight, 600)',
+    marginBottom: 'var(--cf-progress-heading-gap, 7px)',
   }
-  /* 工作 tab 条：紧凑一条，下边框表示选中（不引入新的主题 token）。 */
+  /* 工作 tab 条：紧凑一条，下边框表示选中。 */
   const tabStrip: React.CSSProperties = {
     display: 'flex',
     flexWrap: 'wrap',
     gap: '2px',
-    marginTop: '8px',
+    marginTop: 'var(--cf-section-gap, 8px)',
     borderBottom: '1px solid var(--dsw-alias-border-l2, rgba(15,17,21,0.10))',
   }
   const tab = (active: boolean): React.CSSProperties => ({
@@ -618,11 +618,11 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
 
   return (
     <div data-convfusion-progress-view="1">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="progress-heading" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px 8px', flexWrap: 'wrap', minWidth: 0 }}>
           <strong>{t('progress.name')}</strong>
           {report ? (
-            <span style={{ color: muted, ...mono }}>
+            <span className="progress-summary" style={{ color: muted, ...mono }}>
               {t('progress.summary', { percent: pct(work ? work.overall : report.overall) })}
               {work
                 ? ` · ${t('progress.work.meta', { version: work.version, status: work.status })}`
@@ -637,7 +637,7 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
         {refreshButton}
       </div>
       {refreshError}
-      <div style={{ color: muted, ...mono }}>
+      <div className="progress-path" style={{ color: muted, ...mono }}>
         {shortenPath(probe.workspace)}
         {work ? ` · ${work.id}` : ''}
       </div>
@@ -679,7 +679,7 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
               {t('progress.work.section.maturity')}
               {work.maturitySource === 'derived' ? t('progress.work.maturityDerived') : ''}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2px 16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))', gap: '2px 16px' }}>
               {work.maturity.map((d) => (
                 <div key={d.dimension} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ minWidth: '92px', whiteSpace: 'nowrap', ...mono }}>
@@ -695,7 +695,7 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
           {/* A2. 这个工作自己的可数资产（真实计数） */}
           <div style={section}>
             <div style={sectionTitle}>{t('progress.work.section.assets')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2px 16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))', gap: '2px 16px' }}>
               {workRow(
                 t('progress.work.count.sections'),
                 `${work.counts.sectionsWithContent}/${work.counts.sections}`,
@@ -770,7 +770,7 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
           {/* A. 研究现在到了哪里 */}
           <div style={section}>
             <div style={sectionTitle}>{t('progress.section.maturity')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2px 16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))', gap: '2px 16px' }}>
               {report.progress.dimensions.map((d) => (
                 <div key={d.dimension} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ minWidth: '92px', whiteSpace: 'nowrap', ...mono }}>{maturityDimensionText(t, d.dimension)}</span>
@@ -784,7 +784,7 @@ export function ResearchProgressPanel({ sessionId, t, send = fetchSettingsSend, 
           {/* 可数资产（真实计数，不给百分比） */}
           <div style={section}>
             <div style={sectionTitle}>{t('progress.section.assets')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2px 16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(var(--cf-progress-column-min, 200px), 1fr))', gap: '2px 16px' }}>
               {report.counts.map((row) => (
                 <div key={row.key} style={{ display: 'flex', gap: '8px' }}>
                   <span style={{ minWidth: '92px', whiteSpace: 'nowrap', ...mono }}>{progressCountText(t, row.key)}</span>

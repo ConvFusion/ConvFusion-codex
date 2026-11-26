@@ -29,6 +29,7 @@ export declare const dictionaries: {
         'gpu.workspace.keyMissing': string;
         'gpu.workspace.request': string;
         'gpu.workspace.connect': string;
+        'gpu.workspace.hideConnection': string;
         'gpu.workspace.actionError': string;
         'workbench.settings.categories': string;
         'workbench.settings.category.user': string;
@@ -820,6 +821,7 @@ export declare const dictionaries: {
         readonly 'gpu.workspace.keyMissing': "This device does not have the registered key. Contact your administrator.";
         readonly 'gpu.workspace.request': "Request Docker workspace";
         readonly 'gpu.workspace.connect': "Show SSH command";
+        readonly 'gpu.workspace.hideConnection': "Hide SSH command";
         readonly 'gpu.workspace.actionError': "Could not complete the request. Try again.";
         readonly 'workbench.settings.categories': "Settings categories";
         readonly 'workbench.settings.category.user': "User preferences";

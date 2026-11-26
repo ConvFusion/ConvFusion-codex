@@ -24,6 +24,7 @@ export declare const zh: {
     'gpu.workspace.keyMissing': string;
     'gpu.workspace.request': string;
     'gpu.workspace.connect': string;
+    'gpu.workspace.hideConnection': string;
     'gpu.workspace.actionError': string;
     'workbench.settings.categories': string;
     'workbench.settings.category.user': string;

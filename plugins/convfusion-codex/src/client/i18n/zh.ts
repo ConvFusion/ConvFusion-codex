@@ -26,6 +26,7 @@ export const zh = {
   'gpu.workspace.keyMissing': '当前设备没有已登记的密钥，请联系管理员。',
   'gpu.workspace.request': '申请 Docker 实验环境',
   'gpu.workspace.connect': '显示 SSH 命令',
+  'gpu.workspace.hideConnection': '隐藏 SSH 命令',
   'gpu.workspace.actionError': '无法完成请求，请重试。',
   'workbench.settings.categories': '设置分类',
   'workbench.settings.category.user': '用户设置',

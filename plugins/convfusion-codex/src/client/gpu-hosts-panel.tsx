@@ -60,6 +60,13 @@ export function GpuHostsPanel({ send, t }: { send: SettingsSend; t: Translate })
       setActionHost(null)
     }
   }
+  const toggleConnection = (host: GpuWorkspaceSummary) => {
+    if (connection?.hostId === host.id) {
+      setConnection(null)
+      return
+    }
+    void workspaceAction(host, false)
+  }
   const status = state.status === 'ready'
     ? state.hosts.length ? t('gpu.assigned', { count: state.hosts.length }) : t('gpu.empty')
     : t(`gpu.${state.status}`)
@@ -94,7 +101,10 @@ export function GpuHostsPanel({ send, t }: { send: SettingsSend; t: Translate })
             onClick={() => { void workspaceAction(host, true) }}>{t('gpu.workspace.request')}</button>}
           {host.workspaceStatus === 'ready' && host.localIdentity && ['existing', 'accepted'].includes(host.networkAccess)
             && <button type="button" aria-disabled={Boolean(actionHost) || undefined}
-              onClick={() => { void workspaceAction(host, false) }}>{t('gpu.workspace.connect')}</button>}
+              aria-expanded={connection?.hostId === host.id}
+              onClick={() => toggleConnection(host)}>
+              {t(connection?.hostId === host.id ? 'gpu.workspace.hideConnection' : 'gpu.workspace.connect')}
+            </button>}
         </div>
         {connection?.hostId === host.id && <p role="status"><code>{connection.command}</code></p>}
       </li>)}

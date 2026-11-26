@@ -442,19 +442,19 @@ export async function loadSettingsState(
  * ════════════════════════════════════════════════════════════════════════ */
 
 const S = {
-  page: { display: 'flex', flexDirection: 'column', gap: 14 } as React.CSSProperties,
+  page: { display: 'flex', flexDirection: 'column', gap: 'var(--cf-section-gap, 14px)' } as React.CSSProperties,
   hero: {
     display: 'flex',
     alignItems: 'center',
     gap: 14,
-    padding: '16px 18px',
+    padding: 'var(--cf-card-padding, 16px 18px)',
     borderRadius: 14,
     border: '1px solid var(--dsw-alias-border-l1)',
     background:
-      'linear-gradient(120deg, var(--dsw-alias-state-business-tertiary), var(--dsw-alias-bg-layer-1))',
+      'var(--cf-method-intro, linear-gradient(120deg, var(--dsw-alias-state-business-tertiary), var(--dsw-alias-bg-layer-1)))',
   } as React.CSSProperties,
   heroSub: {
-    fontSize: 12,
+    fontSize: 'var(--cf-type-body, 12px)',
     color: 'var(--dsw-alias-label-secondary)',
     marginTop: 2,
     lineHeight: 1.5,
@@ -468,7 +468,7 @@ const S = {
   } as React.CSSProperties,
   card: {
     border: '1px solid var(--dsw-alias-border-l1)',
-    borderRadius: 12,
+    borderRadius: 'var(--cf-card-radius, 12px)',
     background: 'var(--dsw-alias-bg-layer-1)',
     overflow: 'hidden',
   } as React.CSSProperties,
@@ -486,13 +486,14 @@ const S = {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    padding: '10px 14px',
+    padding: 'var(--cf-card-head-padding, 10px 14px)',
+    background: 'var(--cf-card-head, transparent)',
     borderBottom: '1px solid var(--dsw-alias-border-l1)',
-    fontSize: 12.5,
+    fontSize: 'var(--cf-type-card, 12.5px)',
     fontWeight: 700,
     color: 'var(--dsw-alias-label-primary)',
   } as React.CSSProperties,
-  cardBody: { padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 } as React.CSSProperties,
+  cardBody: { padding: 'var(--cf-card-padding, 12px 14px)', display: 'flex', flexDirection: 'column', gap: 'var(--cf-card-gap, 10px)' } as React.CSSProperties,
   list: {
     display: 'flex',
     flexDirection: 'column',
@@ -508,7 +509,7 @@ const S = {
     background: 'var(--dsw-alias-bg-layer-1)',
   } as React.CSSProperties,
   listTitle: {
-    fontSize: 12.5,
+    fontSize: 'var(--cf-type-body, 12.5px)',
     fontWeight: 600,
     color: 'var(--dsw-alias-label-primary)',
     overflow: 'hidden',
@@ -517,27 +518,27 @@ const S = {
   } as React.CSSProperties,
   row: { display: 'flex', gap: 12, flexWrap: 'wrap' } as React.CSSProperties,
   field: { display: 'flex', flexDirection: 'column', gap: 5, flex: '1 1 200px', minWidth: 0 } as React.CSSProperties,
-  label: { fontSize: 11.5, fontWeight: 600, color: 'var(--dsw-alias-label-secondary)' } as React.CSSProperties,
+  label: { fontSize: 'var(--cf-type-label, 11.5px)', fontWeight: 600, color: 'var(--dsw-alias-label-secondary)' } as React.CSSProperties,
   /** 分区标题（指导中的「我收到的」/「我发起的」）：一行字 + 计数徽章。 */
   sectionLabel: {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
-    fontSize: 11.5,
+    fontSize: 'var(--cf-type-label, 11.5px)',
     fontWeight: 700,
     color: 'var(--dsw-alias-label-secondary)',
     marginTop: 6,
   } as React.CSSProperties,
-  hint: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary)', lineHeight: 1.5 } as React.CSSProperties,
+  hint: { fontSize: 'var(--cf-type-meta, 11px)', color: 'var(--dsw-alias-label-tertiary)', lineHeight: 1.5 } as React.CSSProperties,
   select: {
     appearance: 'none',
     width: '100%',
     padding: '7px 28px 7px 10px',
     borderRadius: 8,
-    border: '1px solid var(--dsw-alias-border-l2)',
+    border: '1px solid var(--cf-control-border, var(--dsw-alias-border-l2))',
     background: 'var(--dsw-alias-bg-layer-2)',
     color: 'var(--dsw-alias-label-primary)',
-    fontSize: 12.5,
+    fontSize: 'var(--cf-type-body, 12.5px)',
     fontWeight: 600,
     backgroundImage:
       'linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%)',
@@ -549,10 +550,10 @@ const S = {
     width: '100%',
     padding: '7px 10px',
     borderRadius: 8,
-    border: '1px solid var(--dsw-alias-border-l2)',
+    border: '1px solid var(--cf-control-border, var(--dsw-alias-border-l2))',
     background: 'var(--dsw-alias-bg-layer-2)',
     color: 'var(--dsw-alias-label-primary)',
-    fontSize: 12.5,
+    fontSize: 'var(--cf-type-body, 12.5px)',
     fontWeight: 600,
   } as React.CSSProperties,
   textarea: {
@@ -561,10 +562,10 @@ const S = {
     resize: 'vertical',
     padding: 11,
     borderRadius: 9,
-    border: '1px solid var(--dsw-alias-border-l2)',
+    border: '1px solid var(--cf-control-border, var(--dsw-alias-border-l2))',
     background: 'var(--dsw-alias-bg-layer-2)',
     color: 'var(--dsw-alias-label-primary)',
-    fontSize: 12.5,
+    fontSize: 'var(--cf-type-body, 12.5px)',
     lineHeight: 1.65,
     fontFamily: 'var(--ds-font-family-code)',
   } as React.CSSProperties,
@@ -577,7 +578,7 @@ const S = {
     border: '1px solid var(--dsw-alias-border-l1)',
     background: 'var(--dsw-alias-bg-layer-3)',
     color: 'var(--dsw-alias-label-secondary)',
-    fontSize: 11.5,
+    fontSize: 'var(--cf-type-label, 11.5px)',
     lineHeight: 1.6,
     fontFamily: 'var(--ds-font-family-code)',
   } as React.CSSProperties,
@@ -640,10 +641,10 @@ const S = {
     minWidth: 110,
     padding: '5px 9px',
     borderRadius: 8,
-    border: '1px solid var(--dsw-alias-border-l2)',
+    border: '1px solid var(--cf-control-border, var(--dsw-alias-border-l2))',
     background: 'var(--dsw-alias-bg-layer-2)',
     color: 'var(--dsw-alias-label-primary)',
-    fontSize: 12,
+    fontSize: 'var(--cf-type-body, 12px)',
   } as React.CSSProperties,
   /** Token 余额徽章：既是数字也是按钮（点了打开余额弹窗）。 */
   tokenBadge: {
@@ -735,7 +736,7 @@ const S = {
     border: 'none',
     background: 'transparent',
     color: 'var(--dsw-alias-state-business-primary)',
-    fontSize: 11.5,
+    fontSize: 'var(--cf-type-label, 11.5px)',
     fontWeight: 600,
     cursor: 'pointer',
   } as React.CSSProperties,
@@ -925,10 +926,10 @@ function MiniTab({
       style={{
         padding: '3px 10px',
         borderRadius: 6,
-        border: '1px solid transparent',
-        background: active ? 'var(--dsw-alias-bg-layer-1)' : 'transparent',
+        border: active ? '1px solid var(--cf-subnav-border, transparent)' : '1px solid transparent',
+        background: active ? 'var(--cf-subnav-active, var(--dsw-alias-bg-layer-1))' : 'transparent',
         color: active ? 'var(--dsw-alias-label-primary)' : 'var(--dsw-alias-label-tertiary)',
-        fontSize: 11.5,
+        fontSize: 'var(--cf-type-label, 11.5px)',
         fontWeight: active ? 700 : 500,
         cursor: 'pointer',
       }}
@@ -1266,7 +1267,7 @@ export function ConvFusionProjectSettings({
 
       {staleHost ? (
         <div style={S.card}>
-          <div style={S.cardHead}>
+          <div className="workbench-card-heading" style={S.cardHead}>
             {t('settings.stale.title')}
             <span style={{ flex: '1 1 auto' }} />
             <Badge tone="warn">{t('settings.stale.badge')}</Badge>
@@ -1283,7 +1284,7 @@ export function ConvFusionProjectSettings({
 
       {error ? (
         <div style={S.card}>
-          <div style={S.cardHead}>
+          <div className="workbench-card-heading" style={S.cardHead}>
             {t('settings.error.title')}
             <span style={{ flex: '1 1 auto' }} />
             <Badge tone="error">{t('settings.error.badge')}</Badge>
@@ -1337,7 +1338,7 @@ export function ConvFusionProjectSettings({
         <>
           {/* ── 选择区（能力类别 → 能力 → 章节）──────────────────── */}
           <div style={S.card}>
-            <div style={S.cardHead}>
+            <div className="workbench-card-heading" style={S.cardHead}>
               {t('settings.library.title')}
               {/* 与 ConvFusion.com 的边界：方法留在本机，不随研究进展上传 */}
               <Badge tone="neutral">{t('settings.library.localOnly')}</Badge>
@@ -1407,7 +1408,7 @@ export function ConvFusionProjectSettings({
           {/* ── 编辑器 ───────────────────────────────────────────── */}
           {skill && point ? (
             <div style={S.card}>
-              <div style={S.cardHead}>
+              <div className="workbench-card-heading" style={S.cardHead}>
                 <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {skill.code ? `${skill.code} · ` : ''}
                   {skillText(t, skill.skillId, skill.skillName)} · {sectionText(t, point.section)}
@@ -3338,7 +3339,7 @@ export function PublishDialog({
           background: 'var(--dsw-alias-bg-layer-1)',
         }}
       >
-        <div style={S.cardHead}>
+        <div className="workbench-card-heading" style={S.cardHead}>
           {/*
             标题里是**要发布到网络的名字**（这项工作自己的名字：有论文就是论文标题），
             而不是本机工作区名 —— 用户点完就能对上网络里会出现什么。
@@ -3498,7 +3499,7 @@ function BriefConfirmDialog({
       aria-modal="true"
     >
       <div style={{ ...S.card, width: 'min(430px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
-        <div style={S.cardHead}>
+        <div className="workbench-card-heading" style={S.cardHead}>
           {t('community.briefConfirm.title')}
           <span style={{ flex: '1 1 auto' }} />
           <Badge tone="brand">{t('community.briefState.cost')}</Badge>
@@ -3601,7 +3602,7 @@ export function AcceptConfirmDialog({
       aria-modal="true"
     >
       <div style={{ ...S.card, width: 'min(460px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
-        <div style={S.cardHead}>
+        <div className="workbench-card-heading" style={S.cardHead}>
           {t(iPayer ? 'community.mentor.acceptConfirmTitle' : 'community.mentor.acceptConfirmTitleOther')}
           <span style={{ flex: '1 1 auto' }} />
           {/* 论文类条件把等级摆出来：接受的是"按这个等级定价"的约定，不该只看到总数 */}
@@ -4013,7 +4014,7 @@ function StoragePurchaseDialog({
         color: 'var(--dsw-alias-label-primary)',
       }}
     >
-      <div id={titleId} style={S.cardHead}>{t('community.storagePurchase.title')}</div>
+      <div id={titleId} className="workbench-card-heading" style={S.cardHead}>{t('community.storagePurchase.title')}</div>
       <div style={S.cardBody}>
         {receipt ? (
           <div role="status">
@@ -4153,7 +4154,7 @@ export function TokenDialog({
   return (
     <div style={S.overlay} role="dialog" aria-modal="true">
       <div style={{ ...S.card, width: 'min(460px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
-        <div style={S.cardHead}>
+        <div className="workbench-card-heading" style={S.cardHead}>
           {t('community.token.dialogTitle')}
           <span style={{ flex: '1 1 auto' }} />
           <RefreshIconButton t={t} busy={loading} onClick={onRefresh} />
@@ -4387,7 +4388,7 @@ function ProposeDialog({
       aria-modal="true"
     >
       <div style={{ ...S.card, width: 'min(400px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
-        <div style={S.cardHead}>
+        <div className="workbench-card-heading" style={S.cardHead}>
           {t(variant === 'researcher' ? 'community.mentor.bidTitle' : 'community.mentor.proposeTitle')}
           <span style={{ flex: '1 1 auto' }} />
           {/* 选了等级就把等级摆在标题行：这一份提案按什么定价，一眼可见 */}
@@ -4554,7 +4555,7 @@ function PartyProfileDialog({
   return (
     <div style={S.overlay} role="dialog" aria-modal="true" aria-label={title}>
       <div style={{ ...S.card, width: 'min(430px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
-        <div style={S.cardHead}>
+        <div className="workbench-card-heading" style={S.cardHead}>
           {title}
           <span style={{ flex: '1 1 auto' }} />
           <Badge tone={proposalTone(status)}>{enumText(t, PROPOSAL_STATUS_KEYS, status)}</Badge>
@@ -4870,7 +4871,7 @@ export function DownloadDialog({
   return (
     <div style={S.overlay} role="dialog" aria-modal="true">
       <div style={{ ...S.card, width: 'min(520px, 94vw)', background: 'var(--dsw-alias-bg-layer-1)' }}>
-        <div style={S.cardHead}>
+        <div className="workbench-card-heading" style={S.cardHead}>
           {t('community.exchange.downloadTitle')}
           <span style={{ flex: '1 1 auto' }} />
           {files === null ? null : (
@@ -5156,7 +5157,7 @@ function UploadDialog({
           background: 'var(--dsw-alias-bg-layer-1)',
         }}
       >
-        <div style={S.cardHead}>
+        <div className="workbench-card-heading" style={S.cardHead}>
           {t('community.exchange.uploadTitle')}
           <span style={{ flex: '1 1 auto' }} />
           <Badge tone="neutral">{t('community.mentor.status.ACCEPTED')}</Badge>
@@ -7731,6 +7732,7 @@ export function CommunityTab({
           role="button"
           tabIndex={0}
           aria-expanded={userOpen}
+          className="workbench-card-heading"
           style={{ ...S.cardHead, cursor: 'pointer' }}
           title={view === 'network'
             ? t(userOpen ? 'workbench.account.collapse' : 'workbench.account.expand')
@@ -8448,7 +8450,7 @@ export function CommunityTab({
        * 导师四个都看得到。没有导师角色时**不显示**【可指导】（此前是"显示但说明需要角色"）。
        */}
       <div style={S.card}>
-        <div style={S.cardHead}>
+        <div className="workbench-card-heading network-work-header" style={S.cardHead}>
           {/* 卡片标题：只说"这一片是什么"，视图的名字交给后面的 Tab */}
           <span style={{ marginRight: 4 }}>{t('community.work.title')}</span>
           {/*
@@ -9289,7 +9291,7 @@ function SystemTab({
     <>
       {/* ── 本地依赖：tectonic ─────────────────────────────────────── */}
       <div style={S.card}>
-        <div style={S.cardHead}>
+        <div className="workbench-card-heading" style={S.cardHead}>
           🧩 {t('system.dependency.title')}
           <span style={{ flex: '1 1 auto' }} />
           {dep === null ? (
@@ -9348,7 +9350,7 @@ function SystemTab({
 
       {/* ── 文献检索凭据：OpenAlex ─────────────────────────────────── */}
       <div style={S.card}>
-        <div style={S.cardHead}>
+        <div className="workbench-card-heading" style={S.cardHead}>
           ⌕ {t('system.retrieval.title')}
           <span style={{ flex: '1 1 auto' }} />
           {configured ? (

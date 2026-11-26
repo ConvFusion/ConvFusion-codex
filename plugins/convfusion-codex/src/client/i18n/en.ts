@@ -24,6 +24,7 @@ export const en = {
   'gpu.workspace.keyMissing': 'This device does not have the registered key. Contact your administrator.',
   'gpu.workspace.request': 'Request Docker workspace',
   'gpu.workspace.connect': 'Show SSH command',
+  'gpu.workspace.hideConnection': 'Hide SSH command',
   'gpu.workspace.actionError': 'Could not complete the request. Try again.',
   'workbench.settings.categories': 'Settings categories',
   'workbench.settings.category.user': 'User preferences',

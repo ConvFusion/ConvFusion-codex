@@ -24,6 +24,7 @@ export declare const en: {
     readonly 'gpu.workspace.keyMissing': "This device does not have the registered key. Contact your administrator.";
     readonly 'gpu.workspace.request': "Request Docker workspace";
     readonly 'gpu.workspace.connect': "Show SSH command";
+    readonly 'gpu.workspace.hideConnection': "Hide SSH command";
     readonly 'gpu.workspace.actionError': "Could not complete the request. Try again.";
     readonly 'workbench.settings.categories': "Settings categories";
     readonly 'workbench.settings.category.user': "User preferences";
