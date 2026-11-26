@@ -28,6 +28,9 @@ export declare const dictionaries: {
         'gpu.workspace.ready': string;
         'gpu.workspace.keyMissing': string;
         'gpu.workspace.request': string;
+        'gpu.workspace.codexTitle': string;
+        'gpu.workspace.codexHint': string;
+        'gpu.workspace.codexExample': string;
         'gpu.workspace.connect': string;
         'gpu.workspace.hideConnection': string;
         'gpu.workspace.actionError': string;
@@ -820,8 +823,11 @@ export declare const dictionaries: {
         readonly 'gpu.workspace.ready': "Docker workspace provisioned.";
         readonly 'gpu.workspace.keyMissing': "This device does not have the registered key. Contact your administrator.";
         readonly 'gpu.workspace.request': "Request Docker workspace";
-        readonly 'gpu.workspace.connect': "Show SSH command";
-        readonly 'gpu.workspace.hideConnection': "Hide SSH command";
+        readonly 'gpu.workspace.codexTitle': "Use this host with Codex";
+        readonly 'gpu.workspace.codexHint': "Keep Tailscale connected and tell Codex in your project chat what to run. Codex will connect to your Docker workspace.";
+        readonly 'gpu.workspace.codexExample': "“Run this experiment on {host}.”";
+        readonly 'gpu.workspace.connect': "Connect manually (SSH)";
+        readonly 'gpu.workspace.hideConnection': "Hide manual connection";
         readonly 'gpu.workspace.actionError': "Could not complete the request. Try again.";
         readonly 'workbench.settings.categories': "Settings categories";
         readonly 'workbench.settings.category.user': "User preferences";

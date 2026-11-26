@@ -23,6 +23,9 @@ export declare const zh: {
     'gpu.workspace.ready': string;
     'gpu.workspace.keyMissing': string;
     'gpu.workspace.request': string;
+    'gpu.workspace.codexTitle': string;
+    'gpu.workspace.codexHint': string;
+    'gpu.workspace.codexExample': string;
     'gpu.workspace.connect': string;
     'gpu.workspace.hideConnection': string;
     'gpu.workspace.actionError': string;

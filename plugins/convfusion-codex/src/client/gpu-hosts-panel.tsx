@@ -79,35 +79,46 @@ export function GpuHostsPanel({ send, t }: { send: SettingsSend; t: Translate })
     <p role="status">{status}</p>
     {actionError && <p role="alert">{actionError}</p>}
     {state.status === 'ready' && state.hosts.length > 0 && <ul className="gpu-host-list">
-      {state.hosts.map((host) => <li className="preferences-card" key={host.id}>
-        <h3>{host.name}</h3>
-        <p className="gpu-host-status">{t(`gpu.network.${host.networkAccess}`)}</p>
-        <dl>
-          {(host.gpuModel || host.gpuCount !== null) && <>
-            <dt>GPU</dt>
-            <dd>{host.gpuModel}{host.gpuCount !== null && (host.gpuModel ? ` × ${host.gpuCount}` : host.gpuCount)}</dd>
-          </>}
-          <dt>Tailscale IP</dt><dd><code>{host.tailscaleIp}</code></dd>
-          {host.tailscaleDnsName && <><dt>MagicDNS</dt><dd><code>{host.tailscaleDnsName}</code></dd></>}
-          {host.workspaceStatus === 'unsupported' && <>
-            <dt>{t('gpu.sshUser')}</dt><dd><code>{host.sshUsername}</code></dd>
-            <dt>{t('gpu.sshPort')}</dt><dd>{host.sshPort}</dd>
-          </>}
-        </dl>
-        <p className="gpu-host-status">{t(`gpu.workspace.${host.workspaceStatus}`)}</p>
-        {host.workspaceStatus === 'ready' && !host.localIdentity && <p className="gpu-host-warning">{t('gpu.workspace.keyMissing')}</p>}
-        <div className="plugin-update-actions">
-          {host.workspaceStatus === 'unrequested' && <button type="button" aria-disabled={Boolean(actionHost) || undefined}
-            onClick={() => { void workspaceAction(host, true) }}>{t('gpu.workspace.request')}</button>}
-          {host.workspaceStatus === 'ready' && host.localIdentity && ['existing', 'accepted'].includes(host.networkAccess)
-            && <button type="button" aria-disabled={Boolean(actionHost) || undefined}
-              aria-expanded={connection?.hostId === host.id}
+      {state.hosts.map((host) => {
+        const canUseWorkspace = host.workspaceStatus === 'ready' && host.localIdentity
+          && (host.networkAccess === 'existing' || host.networkAccess === 'accepted')
+        const command = connection?.hostId === host.id ? connection.command : null
+        return <li className="preferences-card" key={host.id}>
+          <h3>{host.name}</h3>
+          <p className="gpu-host-status">{t(`gpu.network.${host.networkAccess}`)}</p>
+          <dl>
+            {(host.gpuModel || host.gpuCount !== null) && <>
+              <dt>GPU</dt>
+              <dd>{host.gpuModel}{host.gpuCount !== null && (host.gpuModel ? ` × ${host.gpuCount}` : host.gpuCount)}</dd>
+            </>}
+            <dt>Tailscale IP</dt><dd><code>{host.tailscaleIp}</code></dd>
+            {host.tailscaleDnsName && <><dt>MagicDNS</dt><dd><code>{host.tailscaleDnsName}</code></dd></>}
+            {host.workspaceStatus === 'unsupported' && <>
+              <dt>{t('gpu.sshUser')}</dt><dd><code>{host.sshUsername}</code></dd>
+              <dt>{t('gpu.sshPort')}</dt><dd>{host.sshPort}</dd>
+            </>}
+          </dl>
+          <p className="gpu-host-status">{t(`gpu.workspace.${host.workspaceStatus}`)}</p>
+          {host.workspaceStatus === 'ready' && !host.localIdentity && <p className="gpu-host-warning">{t('gpu.workspace.keyMissing')}</p>}
+          {host.workspaceStatus === 'unrequested' && <div className="plugin-update-actions">
+            <button type="button" aria-disabled={Boolean(actionHost) || undefined}
+              onClick={() => { void workspaceAction(host, true) }}>{t('gpu.workspace.request')}</button>
+          </div>}
+          {canUseWorkspace && <>
+            <div className="gpu-host-codex-guide">
+              <h4>{t('gpu.workspace.codexTitle')}</h4>
+              <p>{t('gpu.workspace.codexHint')}</p>
+              <p className="gpu-host-codex-example">{t('gpu.workspace.codexExample', { host: host.name })}</p>
+            </div>
+            <button type="button" className="gpu-host-ssh-toggle cf-btn-link"
+              aria-disabled={Boolean(actionHost) || undefined} aria-expanded={command !== null}
               onClick={() => toggleConnection(host)}>
-              {t(connection?.hostId === host.id ? 'gpu.workspace.hideConnection' : 'gpu.workspace.connect')}
-            </button>}
-        </div>
-        {connection?.hostId === host.id && <p role="status"><code>{connection.command}</code></p>}
-      </li>)}
+              {t(command === null ? 'gpu.workspace.connect' : 'gpu.workspace.hideConnection')}
+            </button>
+            {command !== null && <p className="gpu-host-ssh-command" role="status"><code>{command}</code></p>}
+          </>}
+        </li>
+      })}
     </ul>}
   </section>
 }
