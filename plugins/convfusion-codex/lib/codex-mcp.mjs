@@ -1,15 +1,15 @@
 import { createRequire as __codexCreateRequire } from 'node:module'; const require = __codexCreateRequire(import.meta.url);
 
 // scripts/convfusion-mcp.mjs
-import { readFileSync as readFileSync31 } from "node:fs";
-import { isAbsolute as isAbsolute12, resolve as resolve11 } from "node:path";
+import { readFileSync as readFileSync32 } from "node:fs";
+import { isAbsolute as isAbsolute12, resolve as resolve12 } from "node:path";
 import { pathToFileURL } from "node:url";
 
 // scripts/codex-ui-server.mjs
 import { createServer } from "node:http";
-import { createHash as createHash5, randomBytes as randomBytes4 } from "node:crypto";
-import { accessSync, constants, existsSync as existsSync31, readFileSync as readFileSync27, realpathSync as realpathSync5, statSync as statSync12 } from "node:fs";
-import { basename as basename5, dirname as dirname15, isAbsolute as isAbsolute9, join as join30, resolve as resolve10, relative as relative7, sep as sep5 } from "node:path";
+import { createHash as createHash6, randomBytes as randomBytes4 } from "node:crypto";
+import { accessSync, constants, existsSync as existsSync32, readFileSync as readFileSync28, realpathSync as realpathSync5, statSync as statSync12 } from "node:fs";
+import { basename as basename5, dirname as dirname16, isAbsolute as isAbsolute9, join as join31, resolve as resolve11, relative as relative7, sep as sep5 } from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 
 // lib/codex/uploads.js
@@ -1025,8 +1025,8 @@ function validateVolatileSchema(schema, path = [], blocked = false, seen = /* @_
   if (schema.inner && (schema.type !== "lazy" || schema.inner[kSchema])) validateVolatileSchema(schema.inner, [...path, "*"], true, seen);
   if (schema.list) for (let index = 0; index < schema.list.length; index++) validateVolatileSchema(schema.list[index], [...path, String(index)], true, seen);
 }
-Schema.extend = function extend(type, resolve12) {
-  resolvers[type] = resolve12;
+Schema.extend = function extend(type, resolve13) {
+  resolvers[type] = resolve13;
 };
 Schema.resolve = function resolve2(data, schema, options = {}, strict = false) {
   if (!schema) return [data];
@@ -2286,9 +2286,47 @@ async function fetchAssignedGpuHosts(base, apiKey, options = {}) {
       tailscaleDnsName: asString2(host.tailscale_dns_name) || null,
       gpuModel: asString2(host.gpu_model) || null,
       gpuCount: optionalNumber(host.gpu_count),
-      networkAccess
+      networkAccess,
+      ..."workspace" in host ? { workspace: parseGpuWorkspace(host.workspace) } : {}
     };
   });
+}
+function parseGpuWorkspace(value) {
+  if (value === null)
+    return null;
+  const workspace = asObject(value, "GPU \u5B9E\u9A8C\u73AF\u5883");
+  const id = asString2(workspace.id);
+  const status = workspace.status;
+  const keyFingerprint = asString2(workspace.key_fingerprint);
+  if (!id || !keyFingerprint || status !== "requested" && status !== "ready") {
+    throw new ServerError("bad-response", "GPU \u5B9E\u9A8C\u73AF\u5883\u4FE1\u606F\u6709\u8BEF\u3002");
+  }
+  return {
+    id,
+    status,
+    keyFingerprint,
+    sshPort: optionalNumber(workspace.ssh_port),
+    hostPublicKey: asString2(workspace.host_public_key) || null
+  };
+}
+async function requestGpuWorkspace(base, apiKey, hostId, publicKey, options = {}) {
+  await requestJson(base, `/gpu/hosts/${encodeURIComponent(hostId)}/workspace`, {
+    method: "PUT",
+    apiKey: requireKey(apiKey),
+    body: { public_key: publicKey }
+  }, options, "\u7533\u8BF7 GPU \u5B9E\u9A8C\u73AF\u5883");
+}
+async function fetchGpuActivity(base, apiKey, hostId, options = {}) {
+  const label = "\u67E5\u8BE2 GPU \u4F7F\u7528\u60C5\u51B5";
+  try {
+    const data = asObject(await requestJson(base, `/gpu/hosts/${encodeURIComponent(hostId)}/activity`, {
+      method: "GET",
+      apiKey: requireKey(apiKey)
+    }, options, label), label);
+    return data.status === "busy" || data.status === "idle" ? data.status : "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 function parseRechargeRequest(raw) {
   const b = asObject(raw, "\u7EED\u8D39\u7533\u8BF7");
@@ -5920,8 +5958,8 @@ var Fiber = class {
     let inFlight;
     let removeWrapper = () => false;
     const waitForSetup = () => {
-      setupBarrier ??= new Promise((resolve12, reject) => {
-        resolveSetup = resolve12;
+      setupBarrier ??= new Promise((resolve13, reject) => {
+        resolveSetup = resolve13;
         rejectSetup = reject;
       });
       return setupBarrier;
@@ -6181,16 +6219,16 @@ function Inject(name, config) {
   };
 }
 (function(Inject2) {
-  function resolve12(inject, result = /* @__PURE__ */ Object.create(null)) {
+  function resolve13(inject, result = /* @__PURE__ */ Object.create(null)) {
     if (!inject) return result;
     if (Array.isArray(inject)) for (const name of inject) result[name] = null;
     else if (Reflect.has(inject, symbols.checkProto)) {
-      Object.assign(result, resolve12(Object.getPrototypeOf(inject)));
+      Object.assign(result, resolve13(Object.getPrototypeOf(inject)));
       for (const name of Object.keys(inject)) result[name] = inject[name] ?? null;
     } else for (const name of Object.keys(inject)) result[name] = inject[name] ?? null;
     return result;
   }
-  Inject2.resolve = resolve12;
+  Inject2.resolve = resolve13;
 })(Inject || (Inject = {}));
 var RegistryService = class {
   ctx;
@@ -13722,10 +13760,10 @@ function buildSettingsState(config, store, resolvePath = resolveCustomizationPat
   };
 }
 async function fileDigest(absPath) {
-  const { createHash: createHash7 } = await import("node:crypto");
+  const { createHash: createHash8 } = await import("node:crypto");
   const { readFile: readFile2 } = await import("node:fs/promises");
   const buf = await readFile2(absPath);
-  return `sha256:${createHash7("sha256").update(buf).digest("hex")}`;
+  return `sha256:${createHash8("sha256").update(buf).digest("hex")}`;
 }
 var MIN_UPLOAD_BYTES_PER_SEC = 50 * 1024;
 var UPLOAD_TIMEOUT_MAX_MS = 30 * 60 * 1e3;
@@ -15942,7 +15980,7 @@ function createSettingsRpcHandler(deps) {
       if (!current.cancellation) {
         const cleanup = async () => {
           while (!current.result)
-            await new Promise((resolve12) => setTimeout(resolve12, 50));
+            await new Promise((resolve13) => setTimeout(resolve13, 50));
           if (current.control.cancelRemote) {
             try {
               const remote = await current.control.cancelRemote();
@@ -17512,9 +17550,157 @@ async function pickDownloadFolder() {
   throw new Error("No local desktop folder picker is available");
 }
 
+// lib/codex/gpu-workspaces.js
+import { spawnSync as spawnSync2 } from "node:child_process";
+import { createHash as createHash5 } from "node:crypto";
+import { existsSync as existsSync31, lstatSync as lstatSync2, mkdtempSync, readFileSync as readFileSync27, renameSync as renameSync7, rmSync as rmSync9, writeFileSync as writeFileSync20 } from "node:fs";
+import { isIP } from "node:net";
+import { homedir as homedir4 } from "node:os";
+import { dirname as dirname15, join as join30, resolve as resolve10 } from "node:path";
+var uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+var ed25519 = /^ssh-ed25519 [A-Za-z0-9+/]{68}$/;
+async function gpuWorkspaceAccess(config, env, options, action, hostId) {
+  const failure2 = (code, message) => ({ ok: false, error: { code, message } });
+  const apiKey = resolveConvFusionApiKey(config, env);
+  if (!apiKey)
+    return failure2("not-configured", "\u5C1A\u672A\u767B\u5F55 ConvFusion.com\u3002");
+  const base = resolveServerUrl(config, env).url;
+  const hosts = await fetchAssignedGpuHosts(base, apiKey, options);
+  const account = hosts.some((host2) => host2.workspace !== void 0) ? await fetchAccount(base, apiKey, options) : null;
+  const directory = account ? identityDirectory(env, base, account.id) : null;
+  const identity = directory ? readIdentity(directory) : null;
+  if (action === "list")
+    return { ok: true, value: hosts.map(({ workspace: workspace2, ...host2 }) => ({
+      ...host2,
+      workspaceStatus: workspace2 === void 0 ? "unsupported" : workspace2?.status ?? "unrequested",
+      localIdentity: Boolean(workspace2 && identity?.fingerprint === workspace2.keyFingerprint)
+    })) };
+  const host = typeof hostId === "string" && uuid.test(hostId) ? hosts.find((item) => item.id === hostId) : void 0;
+  if (!host)
+    return failure2("gpu-host-missing", "\u5F53\u524D\u8D26\u53F7\u6CA1\u6709\u8FD9\u53F0 GPU \u4E3B\u673A\u3002");
+  if (!directory || host.workspace === void 0)
+    return failure2("gpu-workspace-unsupported", "\u5F53\u524D\u670D\u52A1\u7AEF\u6682\u4E0D\u652F\u6301 Docker \u5B9E\u9A8C\u73AF\u5883\u3002");
+  const workspace = host.workspace;
+  if (action === "request") {
+    if (workspace) {
+      if (identity?.fingerprint !== workspace.keyFingerprint) {
+        return failure2("gpu-key-mismatch", "\u5F53\u524D\u8BBE\u5907\u6CA1\u6709\u8FD9\u5957\u5B9E\u9A8C\u73AF\u5883\u5DF2\u767B\u8BB0\u7684\u5BC6\u94A5\u3002");
+      }
+      return { ok: true, value: { requested: true } };
+    }
+    const key = ensureIdentity(directory);
+    await requestGpuWorkspace(base, apiKey, host.id, key.publicKey, options);
+    return { ok: true, value: { requested: true } };
+  }
+  if (host.networkAccess !== "existing" && host.networkAccess !== "accepted") {
+    return failure2("gpu-network-pending", "\u8BF7\u5148\u5B8C\u6210 Tailscale \u8BBE\u5907\u5171\u4EAB\u3002");
+  }
+  if (workspace?.status !== "ready" || !workspace.sshPort || !workspace.hostPublicKey) {
+    return failure2("gpu-workspace-pending", "Docker \u5B9E\u9A8C\u73AF\u5883\u5C1A\u672A\u5F00\u901A\u3002");
+  }
+  if (identity?.fingerprint !== workspace.keyFingerprint) {
+    return failure2("gpu-key-mismatch", "\u5F53\u524D\u8BBE\u5907\u6CA1\u6709\u8FD9\u5957\u5B9E\u9A8C\u73AF\u5883\u5DF2\u767B\u8BB0\u7684\u5BC6\u94A5\u3002");
+  }
+  if (action === "activity") {
+    const status = await fetchGpuActivity(base, apiKey, host.id, { ...options, timeoutMs: 1e4 });
+    return { ok: true, value: { status } };
+  }
+  const address = host.tailscaleDnsName ?? host.tailscaleIp;
+  const port = workspace.sshPort;
+  if (!uuid.test(workspace.id) || !ed25519.test(workspace.hostPublicKey) || !Number.isInteger(port) || port < 1024 || port > 65535 || !isIP(address) && !/^[a-z0-9.-]+\.ts\.net$/i.test(address)) {
+    return failure2("gpu-workspace-invalid", "Docker \u5B9E\u9A8C\u73AF\u5883\u7684 SSH \u4FE1\u606F\u65E0\u6548\u3002");
+  }
+  const alias = `convfusion-gpu-${workspace.id}`;
+  const connection = join30(directory, "workspaces", workspace.id);
+  const configPath = join30(connection, "ssh-config");
+  const knownHosts = join30(connection, "known_hosts");
+  const privateKey = join30(directory, "id_ed25519");
+  withPrivateLock(configPath, () => {
+    writeFileSync20(knownHosts, `${alias} ${workspace.hostPublicKey}
+`, { mode: 384 });
+    writeFileSync20(configPath, [
+      `Host ${alias}`,
+      `  HostName ${address}`,
+      `  Port ${port}`,
+      "  User research",
+      `  IdentityFile ${sshPath(privateKey)}`,
+      "  IdentitiesOnly yes",
+      "  IdentityAgent none",
+      `  UserKnownHostsFile ${sshPath(knownHosts)}`,
+      "  GlobalKnownHostsFile none",
+      `  HostKeyAlias ${alias}`,
+      "  StrictHostKeyChecking yes",
+      "  HostKeyAlgorithms ssh-ed25519",
+      "  UpdateHostKeys no",
+      "  BatchMode yes",
+      "  PasswordAuthentication no",
+      "  KbdInteractiveAuthentication no",
+      "  ConnectTimeout 10",
+      ""
+    ].join("\n"), { mode: 384 });
+  });
+  const quotedPath = process.platform === "win32" ? `'${configPath.replaceAll("'", "''")}'` : `'${configPath.replaceAll("'", "'\\''")}'`;
+  return { ok: true, value: {
+    hostId: host.id,
+    hostName: host.name,
+    alias,
+    configPath,
+    remoteWorkspace: "/workspace",
+    sshArgv: ["ssh", "-F", configPath, alias],
+    command: `ssh -F ${quotedPath} ${alias}`
+  } };
+}
+function identityDirectory(env, base, accountId) {
+  const root = resolve10(env.CONVFUSION_GPU_SSH_HOME || join30(homedir4(), ".convfusion", "gpu-ssh"));
+  const server = new URL(base).href.replace(/\/+$/, "");
+  return join30(root, stateKey(JSON.stringify([server, accountId])));
+}
+function readIdentity(directory) {
+  const path = join30(directory, "id_ed25519");
+  if (!existsSync31(path) || !existsSync31(`${path}.pub`))
+    return null;
+  const file = lstatSync2(path);
+  if (!lstatSync2(directory).isDirectory() || !file.isFile() || !lstatSync2(`${path}.pub`).isFile() || process.platform !== "win32" && (file.mode & 63) !== 0)
+    return null;
+  const publicKey = readFileSync27(`${path}.pub`, "utf8").trim().split(/\s+/).slice(0, 2).join(" ");
+  if (!ed25519.test(publicKey))
+    return null;
+  const fingerprint = createHash5("sha256").update(Buffer.from(publicKey.split(" ")[1], "base64")).digest("base64").replace(/=+$/, "");
+  return { publicKey, fingerprint: `SHA256:${fingerprint}` };
+}
+function ensureIdentity(directory) {
+  return withPrivateLock(directory, () => {
+    const existing = readIdentity(directory);
+    if (existing)
+      return existing;
+    if (existsSync31(directory))
+      throw new Error("\u73B0\u6709 ConvFusion SSH \u5BC6\u94A5\u4E0D\u5B8C\u6574\u6216\u6743\u9650\u4E0D\u6B63\u786E\u3002");
+    const temp = mkdtempSync(join30(dirname15(directory), "gpu-key-"));
+    try {
+      const generated = spawnSync2("ssh-keygen", ["-q", "-t", "ed25519", "-N", "", "-C", "ConvFusion GPU workspace", "-f", join30(temp, "id_ed25519")], {
+        stdio: "ignore",
+        timeout: 5e3,
+        windowsHide: true
+      });
+      const key = generated.status === 0 ? readIdentity(temp) : null;
+      if (!key)
+        throw new Error("\u65E0\u6CD5\u521B\u5EFA GPU SSH \u5BC6\u94A5\uFF0C\u8BF7\u786E\u8BA4\u7CFB\u7EDF\u5DF2\u5B89\u88C5 OpenSSH\u3002");
+      renameSync7(temp, directory);
+      return key;
+    } finally {
+      rmSync9(temp, { recursive: true, force: true });
+    }
+  });
+}
+function sshPath(path) {
+  if (/[\r\n]/.test(path))
+    throw new Error("SSH file path contains a line break.");
+  return `"${path.replaceAll("\\", "/").replaceAll('"', '\\"').replaceAll("%", "%%")}"`;
+}
+
 // scripts/codex-ui-server.mjs
-var pluginRoot = resolve10(dirname15(fileURLToPath4(new URL("../scripts/codex-ui-server.mjs", import.meta.url).href)), "..");
-var pkg = JSON.parse(readFileSync27(join30(pluginRoot, "package.json"), "utf8"));
+var pluginRoot = resolve11(dirname16(fileURLToPath4(new URL("../scripts/codex-ui-server.mjs", import.meta.url).href)), "..");
+var pkg = JSON.parse(readFileSync28(join31(pluginRoot, "package.json"), "utf8"));
 var UI_URI = "ui://convfusion/workbench-v1.html";
 var UI_MIME = "text/html;profile=mcp-app";
 var failure = (code, message) => ({ ok: false, error: { code, message, details: {} } });
@@ -17525,22 +17711,22 @@ var inside = (parent, child) => {
 };
 function createCodexUiHost(options = {}) {
   const env = options.env ?? process.env;
-  const home = resolve10(options.home ?? codexHome(env));
-  const path = (name) => join30(home, name);
+  const home = resolve11(options.home ?? codexHome(env));
+  const path = (name) => join31(home, name);
   const workspaces = /* @__PURE__ */ new Map();
   const downloads = createDownloadJobs(home);
   const pickFolder = options.pickDownloadFolder ?? pickDownloadFolder;
   let pickerOpen = false;
   const saved = readPrivateJson(path("workspaces.json"), []);
   if (Array.isArray(saved)) for (const row of saved) {
-    if (typeof row?.path === "string" && isAbsolute9(row.path) && existsSync31(row.path)) workspaces.set(row.id, row);
+    if (typeof row?.path === "string" && isAbsolute9(row.path) && existsSync32(row.path)) workspaces.set(row.id, row);
   }
   const store = createFileCustomizationStore(() => path("skill-customizations.json"));
   const syncNotes = createFileSyncNoteStore(() => path("sync-notes.json"));
   const workIdentity = createFileWorkIdentityStore(() => path("work-identities.json"));
   let server;
   let launch;
-  const sessionPath = (token) => typeof token === "string" && /^[a-f0-9]{64}$/.test(token) ? path(join30("ui-sessions", `${createHash5("sha256").update(token).digest("hex")}.json`)) : null;
+  const sessionPath = (token) => typeof token === "string" && /^[a-f0-9]{64}$/.test(token) ? path(join31("ui-sessions", `${createHash6("sha256").update(token).digest("hex")}.json`)) : null;
   const readSession = (token) => {
     const file = sessionPath(token);
     if (!file) return null;
@@ -17555,7 +17741,7 @@ function createCodexUiHost(options = {}) {
     }
   };
   const saveSession = (token, state) => writePrivateJson(sessionPath(token), { version: 1, ...state });
-  const pickedPath = (token, scope) => token && path(join30("download-destinations", `${stateKey(JSON.stringify([token, scope]))}.json`));
+  const pickedPath = (token, scope) => token && path(join31("download-destinations", `${stateKey(JSON.stringify([token, scope]))}.json`));
   const downloadScope = (config, key, payload) => [
     resolveServerUrl(config, env).url,
     stateKey(key),
@@ -17593,7 +17779,7 @@ function createCodexUiHost(options = {}) {
       try {
         if (typeof picked !== "string" || !isAbsolute9(picked)) throw new Error("Invalid path");
         const directory = realpathSync5(picked);
-        if (inside(realpathSync5(pluginRoot), directory) || inside(existsSync31(home) ? realpathSync5(home) : home, directory)) {
+        if (inside(realpathSync5(pluginRoot), directory) || inside(existsSync32(home) ? realpathSync5(home) : home, directory)) {
           throw new Error("Private plugin directory");
         }
         const identity = researchDirectoryIdentity(directory);
@@ -17682,7 +17868,7 @@ function createCodexUiHost(options = {}) {
   const exportMethods = (root, full = false) => {
     const researchRoot2 = researchWorkspaceOf(root);
     const { markdown, ...result } = writeMethodsExport(researchRoot2, { store, full });
-    return { ...result, path: isAbsolute9(result.path) ? result.path : join30(researchRoot2, result.path) };
+    return { ...result, path: isAbsolute9(result.path) ? result.path : join31(researchRoot2, result.path) };
   };
   const bootstrap = (root) => {
     const row = root ? registerWorkspace(root) : null;
@@ -17708,6 +17894,24 @@ function createCodexUiHost(options = {}) {
     if (root) registerWorkspace(root);
     if (endpoint === "codex/bootstrap") return { ok: true, value: bootstrap(root) };
     if (endpoint === "version/check") return checkForUpdates(payload?.manual === true);
+    const gpuAction = {
+      "gpu/workspaces": "list",
+      "gpu/workspace-request": "request",
+      "gpu/workspace-connection": "connection",
+      "gpu/workspace-activity": "activity"
+    };
+    if (Object.hasOwn(gpuAction, endpoint)) {
+      try {
+        return await gpuWorkspaceAccess(getConfig(), env, { fetchImpl: options.fetchImpl }, gpuAction[endpoint], payload?.hostId);
+      } catch (error2) {
+        if (error2 instanceof ServerError) {
+          if (error2.httpStatus === 404) return failure("gpu-hosts-unavailable", "\u5F53\u524D\u670D\u52A1\u5668\u6682\u4E0D\u652F\u6301\u6B64 GPU \u529F\u80FD\u3002");
+          if (error2.code === "invalid-key") return failure("invalid-key", "\u8BF7\u91CD\u65B0\u767B\u5F55 ConvFusion.com\u3002");
+          return failure(error2.code, "\u65E0\u6CD5\u5B8C\u6210 GPU \u5B9E\u9A8C\u73AF\u5883\u8BF7\u6C42\u3002");
+        }
+        return failure("gpu-local-error", error2 instanceof Error ? error2.message : "GPU \u5B9E\u9A8C\u73AF\u5883\u672C\u673A\u914D\u7F6E\u5931\u8D25\u3002");
+      }
+    }
     if (endpoint === "codex/settings") {
       if (payload?.field === "autoContinue" && typeof payload.value === "boolean") await setConfig({ autoContinue: payload.value });
       else if (payload?.field === "autoContinueMaxRounds" && Number.isInteger(payload.value) && payload.value >= 0 && payload.value <= 100) await setConfig({ autoContinueMaxRounds: payload.value });
@@ -17732,7 +17936,7 @@ function createCodexUiHost(options = {}) {
       const directory = realpathSync5(target.path);
       const source = fileSide(payload.source);
       const intent = typeof payload.intent === "string" && /^[a-zA-Z0-9-]{1,128}$/.test(payload.intent) ? payload.intent : void 0;
-      const scope = JSON.stringify([resolveServerUrl(config, env).url, createHash5("sha256").update(apiKey).digest("hex"), payload.projectId, source, directory]);
+      const scope = JSON.stringify([resolveServerUrl(config, env).url, createHash6("sha256").update(apiKey).digest("hex"), payload.projectId, source, directory]);
       if (endpoint === "mentor/downloadCancel") {
         if (typeof payload.jobId !== "string" && !intent) return failure("bad-request", "\u7F3A\u5C11\u4E0B\u8F7D\u4EFB\u52A1\u6807\u8BC6\u3002");
         return { ok: true, value: { job: downloads.cancel(scope, payload.jobId, intent) } };
@@ -17780,7 +17984,7 @@ function createCodexUiHost(options = {}) {
     const facts = collectSyncFacts({ zip: resolved.path, sessionWorkspace: root, researchRoot: researchWorkspaceOf(root), noteStore: syncNotes, identityStore: workIdentity });
     return { ok: facts.zipOk, facts, instructions: buildSyncText(facts, researchWorkspaceOf(root) === root ? "" : "workspace") };
   };
-  const uiHtml = () => readFileSync27(join30(pluginRoot, "lib/codex-ui.html"), "utf8");
+  const uiHtml = () => readFileSync28(join31(pluginRoot, "lib/codex-ui.html"), "utf8");
   const sessionInfo = (token, state) => ({
     ...bootstrap(state.root),
     uiScope: state.selectable ? "global" : "workspace",
@@ -17839,9 +18043,9 @@ function createCodexUiHost(options = {}) {
           finish2(500, failure("request", "Request failed; check the local configuration and retry"));
         }
       });
-      await new Promise((resolve12, reject) => {
+      await new Promise((resolve13, reject) => {
         server.once("error", reject);
-        server.listen(0, "127.0.0.1", resolve12);
+        server.listen(0, "127.0.0.1", resolve13);
       });
       origin = `http://127.0.0.1:${server.address().port}`;
       server.unref();
@@ -17876,7 +18080,7 @@ function createCodexUiHost(options = {}) {
     },
     async close() {
       await downloads.close();
-      if (server) await new Promise((resolve12) => server.close(resolve12));
+      if (server) await new Promise((resolve13) => server.close(resolve13));
       server = void 0;
       launch = void 0;
     },
@@ -17885,11 +18089,11 @@ function createCodexUiHost(options = {}) {
     }
   };
 }
-if (process.argv[1] && resolve10(process.argv[1]) === fileURLToPath4(new URL("../scripts/codex-ui-server.mjs", import.meta.url).href)) {
+if (process.argv[1] && resolve11(process.argv[1]) === fileURLToPath4(new URL("../scripts/codex-ui-server.mjs", import.meta.url).href)) {
   const flag = process.argv.indexOf("--workspace");
   if (flag < 0 || !process.argv[flag + 1]) throw new Error("Usage: node scripts/codex-ui-server.mjs --workspace /absolute/task/path");
   const host = createCodexUiHost();
-  const result = await host.open(resolve10(process.argv[flag + 1]));
+  const result = await host.open(resolve11(process.argv[flag + 1]));
   host.ref();
   process.stdout.write(JSON.stringify(result) + "\n");
   for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, () => host.close().then(() => process.exit(0)));
@@ -19199,8 +19403,8 @@ function createRunCodeTool(registry, options) {
         driverRun = (async () => {
           try {
             for (; ; ) {
-              const signal = new Promise((resolve12) => {
-                wake = resolve12;
+              const signal = new Promise((resolve13) => {
+                wake = resolve13;
               });
               const commitHead = commitQueue[0];
               if (commitHead !== void 0 && commitHead.settled) {
@@ -19263,10 +19467,10 @@ function createRunCodeTool(registry, options) {
           signal: runController.signal
         };
         const scheduler = registry[TOOL_RUNTIME_SCHEDULER];
-        const outcome = await new Promise((resolve12, reject) => {
+        const outcome = await new Promise((resolve13, reject) => {
           let parked;
           const settle = (result) => {
-            resolve12(result.isError ? {
+            resolve13(result.isError ? {
               isError: true,
               message: result.error.message
             } : {
@@ -22078,12 +22282,12 @@ function escapeSectionTitle(title) {
 }
 
 // lib/research/research-tools.js
-import { existsSync as existsSync37, mkdirSync as mkdirSync25, readFileSync as readFileSync30, readdirSync as readdirSync20, renameSync as renameSync7, statSync as statSync17, writeFileSync as writeFileSync23 } from "node:fs";
-import { isAbsolute as isAbsolute11, join as join37 } from "node:path";
+import { existsSync as existsSync38, mkdirSync as mkdirSync25, readFileSync as readFileSync31, readdirSync as readdirSync20, renameSync as renameSync8, statSync as statSync17, writeFileSync as writeFileSync24 } from "node:fs";
+import { isAbsolute as isAbsolute11, join as join38 } from "node:path";
 
 // lib/research/state-sync.js
-import { readdirSync as readdirSync17, statSync as statSync13, writeFileSync as writeFileSync20 } from "node:fs";
-import { join as join31 } from "node:path";
+import { readdirSync as readdirSync17, statSync as statSync13, writeFileSync as writeFileSync21 } from "node:fs";
+import { join as join32 } from "node:path";
 var STATE_AUTO_HEADING = "### Auto-synced artifacts";
 var AUTO_NOTE = "*Auto-maintained by ConvFusion: everything from this heading to the end of this section is rewritten on every sync. Keep hand-written content above this line.*";
 var STATE_AUTO_MAX_ITEMS = 40;
@@ -22096,7 +22300,7 @@ function firstLine2(input) {
   return oneLine(input.split(/\r?\n/).find((l) => l.trim()) ?? "");
 }
 function countResultFiles(workspace, experiment) {
-  const dir = join31(workspace, "experiments", experiment, "results");
+  const dir = join32(workspace, "experiments", experiment, "results");
   try {
     return readdirSync17(dir, { withFileTypes: true }).filter((e) => e.isFile()).length;
   } catch {
@@ -22105,14 +22309,14 @@ function countResultFiles(workspace, experiment) {
 }
 function listExperimentDirs(workspace) {
   try {
-    return readdirSync17(join31(workspace, "experiments"), { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith(".")).map((e) => e.name).sort();
+    return readdirSync17(join32(workspace, "experiments"), { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith(".")).map((e) => e.name).sort();
   } catch {
     return [];
   }
 }
 function countFulltexts(workspace) {
   try {
-    return readdirSync17(join31(workspace, FULLTEXT_DIR)).filter((f) => /\.(pdf|html|txt)$/i.test(f)).length;
+    return readdirSync17(join32(workspace, FULLTEXT_DIR)).filter((f) => /\.(pdf|html|txt)$/i.test(f)).length;
   } catch {
     return 0;
   }
@@ -22227,7 +22431,7 @@ function syncStateFromArtifacts(workspace, options = {}) {
   const archived = archiveStateVersion(workspace, current, options.reason ?? `auto-sync ${synced.join(", ")}`);
   const from2 = current.version;
   const to = bumpStateVersion(from2);
-  writeFileSync20(current.path, serializeResearchState({
+  writeFileSync21(current.path, serializeResearchState({
     version: to,
     dimensions,
     // ⚠️ 成熟度**不动**：它是研究方法的判断，不是产物清单能推出来的
@@ -22269,7 +22473,7 @@ function reconcileStateWithArtifacts(workspace) {
 function artifactPathsFor(workspace, dimension2) {
   const dirOf = (rel) => {
     try {
-      return readdirSync17(join31(workspace, rel)).map((f) => join31(workspace, rel, f));
+      return readdirSync17(join32(workspace, rel)).map((f) => join32(workspace, rel, f));
     } catch {
       return [];
     }
@@ -22284,7 +22488,7 @@ function artifactPathsFor(workspace, dimension2) {
     case "Literature":
       return dirOf("research/literature");
     case "Experiments":
-      return listExperimentDirs(workspace).map((d) => join31(workspace, "experiments", d));
+      return listExperimentDirs(workspace).map((d) => join32(workspace, "experiments", d));
     default:
       return [];
   }
@@ -24996,8 +25200,8 @@ function renderEdgeLabel(text, pos, anchor) {
 }
 
 // lib/research/diagram/store.js
-import { existsSync as existsSync32, mkdirSync as mkdirSync23, readFileSync as readFileSync28, readdirSync as readdirSync18, statSync as statSync14, writeFileSync as writeFileSync21 } from "node:fs";
-import { join as join32 } from "node:path";
+import { existsSync as existsSync33, mkdirSync as mkdirSync23, readFileSync as readFileSync29, readdirSync as readdirSync18, statSync as statSync14, writeFileSync as writeFileSync22 } from "node:fs";
+import { join as join33 } from "node:path";
 var FIGURES_SUBDIR = "figures";
 var LAST_GOOD_SUBDIR = ".last-good";
 var NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
@@ -25018,53 +25222,53 @@ function sanitizeDiagramName(raw) {
   return { ok: true, name: trimmed };
 }
 function figuresDir(paperDir2) {
-  return join32(paperDir2, FIGURES_SUBDIR);
+  return join33(paperDir2, FIGURES_SUBDIR);
 }
 function diagramPaths(ws, paperId, name) {
-  const paperDir2 = join32(ws, "papers", paperId);
+  const paperDir2 = join33(ws, "papers", paperId);
   const dir = figuresDir(paperDir2);
   return {
     dir,
-    irPath: join32(dir, `${name}.json`),
-    svgPath: join32(dir, `${name}.svg`),
-    lastGoodIrPath: join32(dir, LAST_GOOD_SUBDIR, `${name}.json`),
-    lastGoodSvgPath: join32(dir, LAST_GOOD_SUBDIR, `${name}.svg`),
+    irPath: join33(dir, `${name}.json`),
+    svgPath: join33(dir, `${name}.svg`),
+    lastGoodIrPath: join33(dir, LAST_GOOD_SUBDIR, `${name}.json`),
+    lastGoodSvgPath: join33(dir, LAST_GOOD_SUBDIR, `${name}.svg`),
     relIr: `papers/${paperId}/${FIGURES_SUBDIR}/${name}.json`,
     relSvg: `papers/${paperId}/${FIGURES_SUBDIR}/${name}.svg`
   };
 }
 function readDiagramIr(paths) {
-  if (!existsSync32(paths.irPath))
+  if (!existsSync33(paths.irPath))
     return { ok: false, error: `No diagram at ${paths.relIr}.` };
   try {
-    const text = readFileSync28(paths.irPath, "utf8");
+    const text = readFileSync29(paths.irPath, "utf8");
     return { ok: true, raw: JSON.parse(text), text };
   } catch (e) {
     return { ok: false, error: `Cannot read ${paths.relIr}: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
 function writeDiagramIr(paths, raw) {
-  if (!existsSync32(paths.dir))
+  if (!existsSync33(paths.dir))
     mkdirSync23(paths.dir, { recursive: true });
-  writeFileSync21(paths.irPath, `${JSON.stringify(raw, null, 2)}
+  writeFileSync22(paths.irPath, `${JSON.stringify(raw, null, 2)}
 `, "utf8");
 }
 function writeDiagramSvg(paths, svg) {
-  if (!existsSync32(paths.dir))
+  if (!existsSync33(paths.dir))
     mkdirSync23(paths.dir, { recursive: true });
-  writeFileSync21(paths.svgPath, svg, "utf8");
+  writeFileSync22(paths.svgPath, svg, "utf8");
 }
 function saveLastGood(paths, raw, svg) {
-  const dir = join32(paths.dir, LAST_GOOD_SUBDIR);
-  if (!existsSync32(dir))
+  const dir = join33(paths.dir, LAST_GOOD_SUBDIR);
+  if (!existsSync33(dir))
     mkdirSync23(dir, { recursive: true });
-  writeFileSync21(paths.lastGoodIrPath, `${JSON.stringify(raw, null, 2)}
+  writeFileSync22(paths.lastGoodIrPath, `${JSON.stringify(raw, null, 2)}
 `, "utf8");
-  writeFileSync21(paths.lastGoodSvgPath, svg, "utf8");
+  writeFileSync22(paths.lastGoodSvgPath, svg, "utf8");
 }
 function listDiagramArtifacts(ws, paperId) {
-  const dir = figuresDir(join32(ws, "papers", paperId));
-  if (!existsSync32(dir))
+  const dir = figuresDir(join33(ws, "papers", paperId));
+  if (!existsSync33(dir))
     return [];
   const names = /* @__PURE__ */ new Set();
   for (const f of readdirSync18(dir)) {
@@ -25077,17 +25281,17 @@ function listDiagramArtifacts(ws, paperId) {
   const out = [];
   for (const name of [...names].sort()) {
     const stat = (p) => {
-      if (!existsSync32(p))
+      if (!existsSync33(p))
         return null;
       const s = statSync14(p);
       return { path: p.slice(p.indexOf(FIGURES_SUBDIR)), bytes: s.size, mtimeMs: s.mtimeMs };
     };
-    const ir = stat(join32(dir, `${name}.json`));
-    const svg = stat(join32(dir, `${name}.svg`));
+    const ir = stat(join33(dir, `${name}.json`));
+    const svg = stat(join33(dir, `${name}.svg`));
     let type = null;
     if (ir !== null) {
       try {
-        const parsed = JSON.parse(readFileSync28(join32(dir, `${name}.json`), "utf8"));
+        const parsed = JSON.parse(readFileSync29(join33(dir, `${name}.json`), "utf8"));
         if (typeof parsed.type === "string")
           type = parsed.type;
       } catch {
@@ -25101,24 +25305,24 @@ function listDiagramArtifacts(ws, paperId) {
 
 // lib/research/diagram/export.js
 import { execFileSync } from "node:child_process";
-import { existsSync as existsSync33, statSync as statSync15 } from "node:fs";
-import { dirname as dirname16, join as join33 } from "node:path";
+import { existsSync as existsSync34, statSync as statSync15 } from "node:fs";
+import { dirname as dirname17, join as join34 } from "node:path";
 import { fileURLToPath as fileURLToPath5 } from "node:url";
-var SVG2PDF_SCRIPT = join33("assets", "diagram", "svg2pdf.py");
+var SVG2PDF_SCRIPT = join34("assets", "diagram", "svg2pdf.py");
 var PYTHON_ENV = "CONVFUSION_PYTHON";
 var EXPORT_TIMEOUT_MS = 3e4;
 var RESULT_PREFIX = "@@SVG2PDF@@ ";
 var COLUMN_WIDTH_PT = 252;
 var MIN_LEGIBLE_PT = 7;
 function findSvg2PdfScript() {
-  const here2 = dirname16(fileURLToPath5(new URL("./research/diagram/export.js", import.meta.url).href));
+  const here2 = dirname17(fileURLToPath5(new URL("./research/diagram/export.js", import.meta.url).href));
   const candidates = [
-    join33(here2, "..", "..", "..", SVG2PDF_SCRIPT),
-    join33(here2, "..", "..", SVG2PDF_SCRIPT),
-    join33(process.cwd(), SVG2PDF_SCRIPT)
+    join34(here2, "..", "..", "..", SVG2PDF_SCRIPT),
+    join34(here2, "..", "..", SVG2PDF_SCRIPT),
+    join34(process.cwd(), SVG2PDF_SCRIPT)
   ];
   for (const candidate of candidates) {
-    if (existsSync33(candidate))
+    if (existsSync34(candidate))
       return candidate;
   }
   return null;
@@ -25194,7 +25398,7 @@ function exportDiagramPdf(options) {
   if (script === null) {
     return { ok: false, error: `Bundled converter not found (expected ${SVG2PDF_SCRIPT}).`, ...base };
   }
-  if (!existsSync33(options.svgPath)) {
+  if (!existsSync34(options.svgPath)) {
     return { ok: false, error: `SVG not found: ${options.svgPath}. Render the diagram first.`, ...base };
   }
   const probe = findDiagramPython();
@@ -25218,7 +25422,7 @@ function exportDiagramPdf(options) {
   if (parsed.ok !== true) {
     return { ok: false, error: parsed.error ?? "converter reported failure", ...base };
   }
-  if (!existsSync33(options.pdfPath)) {
+  if (!existsSync34(options.pdfPath)) {
     return { ok: false, error: `converter reported success but ${options.pdfPath} does not exist.`, ...base };
   }
   const size = statSync15(options.pdfPath).size;
@@ -25354,21 +25558,21 @@ function formatDiagnostics(report, limit = 12) {
 
 // lib/research/schematic/index.js
 import { execFileSync as execFileSync2 } from "node:child_process";
-import { existsSync as existsSync34, statSync as statSync16 } from "node:fs";
-import { dirname as dirname17, join as join34 } from "node:path";
+import { existsSync as existsSync35, statSync as statSync16 } from "node:fs";
+import { dirname as dirname18, join as join35 } from "node:path";
 import { fileURLToPath as fileURLToPath6 } from "node:url";
-var SCHEMATIC_SCRIPT = join34("assets", "figures_kit", "render_schematic.py");
+var SCHEMATIC_SCRIPT = join35("assets", "figures_kit", "render_schematic.py");
 var RENDER_TIMEOUT_MS = 6e4;
 var RESULT_PREFIX2 = "@@SCHEMATIC@@ ";
 function findSchematicScript() {
-  const here2 = dirname17(fileURLToPath6(new URL("./research/schematic/index.js", import.meta.url).href));
+  const here2 = dirname18(fileURLToPath6(new URL("./research/schematic/index.js", import.meta.url).href));
   const candidates = [
-    join34(here2, "..", "..", "..", SCHEMATIC_SCRIPT),
-    join34(here2, "..", "..", SCHEMATIC_SCRIPT),
-    join34(process.cwd(), SCHEMATIC_SCRIPT)
+    join35(here2, "..", "..", "..", SCHEMATIC_SCRIPT),
+    join35(here2, "..", "..", SCHEMATIC_SCRIPT),
+    join35(process.cwd(), SCHEMATIC_SCRIPT)
   ];
   for (const candidate of candidates) {
-    if (existsSync34(candidate))
+    if (existsSync35(candidate))
       return candidate;
   }
   return null;
@@ -25968,8 +26172,8 @@ function summarizeDelta(delta) {
 }
 
 // lib/research/ir/store.js
-import { existsSync as existsSync35, mkdirSync as mkdirSync24, readFileSync as readFileSync29, readdirSync as readdirSync19, writeFileSync as writeFileSync22 } from "node:fs";
-import { join as join35 } from "node:path";
+import { existsSync as existsSync36, mkdirSync as mkdirSync24, readFileSync as readFileSync30, readdirSync as readdirSync19, writeFileSync as writeFileSync23 } from "node:fs";
+import { join as join36 } from "node:path";
 var IR_DIR = `${RESEARCH_DIR}/ir`;
 var IR_HISTORY_DIR = `${IR_DIR}/.history`;
 var IR_STATES_DIR = `${IR_DIR}/states`;
@@ -25992,17 +26196,17 @@ function isIRWriteError(v) {
   return Boolean(v) && typeof v === "object" && typeof v.error === "string";
 }
 function irFile(workspace, id) {
-  return join35(workspace, IR_DIR, `${id.toUpperCase()}.json`);
+  return join36(workspace, IR_DIR, `${id.toUpperCase()}.json`);
 }
 function historyFile(workspace, id, revision) {
-  return join35(workspace, IR_HISTORY_DIR, `${id.toUpperCase()}.rev-${String(revision).padStart(3, "0")}.json`);
+  return join36(workspace, IR_HISTORY_DIR, `${id.toUpperCase()}.rev-${String(revision).padStart(3, "0")}.json`);
 }
 function stateFile(workspace, stateId) {
-  return join35(workspace, IR_STATES_DIR, `${stateId.toUpperCase()}.json`);
+  return join36(workspace, IR_STATES_DIR, `${stateId.toUpperCase()}.json`);
 }
 function readJson(path) {
   try {
-    return JSON.parse(readFileSync29(path, "utf8"));
+    return JSON.parse(readFileSync30(path, "utf8"));
   } catch {
     return void 0;
   }
@@ -26015,9 +26219,9 @@ function listJson(dir, pattern2) {
   }
 }
 function listIRs(workspace) {
-  const dir = join35(workspace, IR_DIR);
+  const dir = join36(workspace, IR_DIR);
   return listJson(dir, /^IR\d{3,4}\.json$/i).flatMap((f) => {
-    const ir = readJson(join35(dir, f));
+    const ir = readJson(join36(dir, f));
     if (!ir?.id)
       return [];
     const satisfied = ir.evidenceRequirements.filter((r) => (r.satisfiedBy ?? []).length > 0).length;
@@ -26044,52 +26248,52 @@ function readIRRevision(workspace, id, revision) {
 }
 function listIRRevisions(workspace, id) {
   const norm2 = id.trim().toUpperCase();
-  return listJson(join35(workspace, IR_HISTORY_DIR), new RegExp(`^${norm2}\\.rev-\\d{3,4}\\.json$`, "i")).flatMap((f) => {
+  return listJson(join36(workspace, IR_HISTORY_DIR), new RegExp(`^${norm2}\\.rev-\\d{3,4}\\.json$`, "i")).flatMap((f) => {
     const m = f.match(/\.rev-(\d{3,4})\.json$/i);
     return m ? [Number(m[1])] : [];
   });
 }
 function saveIR(workspace, ir) {
-  const dir = join35(workspace, IR_DIR);
+  const dir = join36(workspace, IR_DIR);
   mkdirSync24(dir, { recursive: true });
-  mkdirSync24(join35(workspace, IR_HISTORY_DIR), { recursive: true });
+  mkdirSync24(join36(workspace, IR_HISTORY_DIR), { recursive: true });
   const existing = ir.id ? readIR(workspace, ir.id) : void 0;
   const id = ir.id?.trim().toUpperCase() || nextIrId(workspace);
   if (!parseIrId(id))
     return { error: `\u975E\u6CD5 IR id\uFF1A${ir.id}\uFF08\u5E94\u4E3A IR001 \u5F62\u5F0F\uFF09` };
   if (existing) {
-    writeFileSync22(historyFile(workspace, id, existing.revision), `${JSON.stringify(existing, null, 2)}
+    writeFileSync23(historyFile(workspace, id, existing.revision), `${JSON.stringify(existing, null, 2)}
 `, "utf8");
   }
   const saved = { ...ir, id };
-  writeFileSync22(irFile(workspace, id), `${JSON.stringify(saved, null, 2)}
+  writeFileSync23(irFile(workspace, id), `${JSON.stringify(saved, null, 2)}
 `, "utf8");
   return saved;
 }
 function nextIrId(workspace) {
-  const nums = listJson(join35(workspace, IR_DIR), /^IR\d{3,4}\.json$/i).map((f) => {
+  const nums = listJson(join36(workspace, IR_DIR), /^IR\d{3,4}\.json$/i).map((f) => {
     const m = f.match(/^IR(\d{3,4})\.json$/i);
     return m ? Number(m[1]) : 0;
   });
   return makeIrId(Math.max(0, ...nums) + 1);
 }
 function writeState(workspace, state) {
-  const dir = join35(workspace, IR_STATES_DIR);
+  const dir = join36(workspace, IR_STATES_DIR);
   mkdirSync24(dir, { recursive: true });
   const norm2 = state.stateId.trim().toUpperCase();
   if (!parseStateId(norm2))
     return { error: `\u975E\u6CD5 State id\uFF1A${state.stateId}\uFF08\u5E94\u4E3A S001 \u5F62\u5F0F\uFF09` };
   const file = stateFile(workspace, norm2);
-  if (existsSync35(file))
+  if (existsSync36(file))
     return { error: `State \`${norm2}\` \u5DF2\u5B58\u5728\uFF08\u72B6\u6001\u4E0D\u53EF\u8986\u76D6\uFF09\u3002` };
-  writeFileSync22(file, `${JSON.stringify({ ...state, stateId: norm2 }, null, 2)}
+  writeFileSync23(file, `${JSON.stringify({ ...state, stateId: norm2 }, null, 2)}
 `, "utf8");
   return { ...state, stateId: norm2 };
 }
 function listStates(workspace) {
-  const dir = join35(workspace, IR_STATES_DIR);
+  const dir = join36(workspace, IR_STATES_DIR);
   return listJson(dir, /^S\d{3,4}\.json$/i).flatMap((f) => {
-    const s = readJson(join35(dir, f));
+    const s = readJson(join36(dir, f));
     return s?.stateId ? [s] : [];
   }).sort((a, b) => (parseStateId(a.stateId) ?? 0) - (parseStateId(b.stateId) ?? 0));
 }
@@ -26102,14 +26306,14 @@ function nextStateId(workspace) {
   return makeStateId(Math.max(0, ...nums) + 1);
 }
 function appendTrace(workspace, entry) {
-  const dir = join35(workspace, IR_DIR);
+  const dir = join36(workspace, IR_DIR);
   mkdirSync24(dir, { recursive: true });
-  writeFileSync22(join35(workspace, IR_TRACE_FILE), `${JSON.stringify(entry)}
+  writeFileSync23(join36(workspace, IR_TRACE_FILE), `${JSON.stringify(entry)}
 `, { encoding: "utf8", flag: "a" });
 }
 function readTrace(workspace) {
   try {
-    return readFileSync29(join35(workspace, IR_TRACE_FILE), "utf8").split("\n").filter((l) => l.trim()).flatMap((l) => {
+    return readFileSync30(join36(workspace, IR_TRACE_FILE), "utf8").split("\n").filter((l) => l.trim()).flatMap((l) => {
       try {
         return [JSON.parse(l)];
       } catch {
@@ -26122,8 +26326,8 @@ function readTrace(workspace) {
 }
 
 // lib/research/ir/transition.js
-import { existsSync as existsSync36 } from "node:fs";
-import { isAbsolute as isAbsolute10, join as join36 } from "node:path";
+import { existsSync as existsSync37 } from "node:fs";
+import { isAbsolute as isAbsolute10, join as join37 } from "node:path";
 function err2(code, field, message, repair) {
   return { code, layer: "transition", field, message, repair };
 }
@@ -26163,8 +26367,8 @@ function validateTransition(workspace, input) {
       continue;
     }
     if (artifact) {
-      const abs = isAbsolute10(artifact) ? artifact : join36(workspace, artifact);
-      if (!existsSync36(abs)) {
+      const abs = isAbsolute10(artifact) ? artifact : join37(workspace, artifact);
+      if (!existsSync37(abs)) {
         errors.push(err2("R203", `plan.steps.${step.id}`, `Recorded artifact "${artifact}" does not exist on disk.`, "fix_artifact_path"));
       }
     }
@@ -27702,12 +27906,12 @@ ${e.path ?? ""}${e.downloadedFrom ? `
       const a = args;
       const action = String(a.action ?? "status");
       const paperId = resolvePaperParameter(ws, typeof a.paperId === "string" ? a.paperId : void 0);
-      const paperDir2 = join37(ws, "papers", paperId);
-      const latexDir = join37(paperDir2, LATEX_SUBDIR);
-      const texPath = join37(latexDir, MAIN_TEX);
+      const paperDir2 = join38(ws, "papers", paperId);
+      const latexDir = join38(paperDir2, LATEX_SUBDIR);
+      const texPath = join38(latexDir, MAIN_TEX);
       try {
         if (action === "status") {
-          if (!existsSync37(latexDir)) {
+          if (!existsSync38(latexDir)) {
             return losslessJson({
               ok: true,
               action: "status",
@@ -27716,39 +27920,39 @@ ${e.path ?? ""}${e.downloadedFrom ? `
             });
           }
           const files = readdirSync20(latexDir).filter((f) => !f.startsWith(".")).map((f) => {
-            const st = statSync17(join37(latexDir, f));
+            const st = statSync17(join38(latexDir, f));
             return `${f} (${st.size} B, ${st.mtime.toISOString()})`;
           });
           return losslessJson({ ok: true, action: "status", files });
         }
         if (action === "compose") {
-          const mdPath = join37(paperDir2, "paper.md");
-          if (!existsSync37(mdPath))
+          const mdPath = join38(paperDir2, "paper.md");
+          if (!existsSync38(mdPath))
             return fail2(`\u8BBA\u6587\u6B63\u6587\u4E0D\u5B58\u5728\uFF1Apapers/${paperId}/paper.md`);
-          const source = readFileSync30(mdPath, "utf8");
+          const source = readFileSync31(mdPath, "utf8");
           const template = normalizeTemplate(typeof a.template === "string" ? a.template : void 0);
           const input = buildComposeInput(source, template, readPaperMeta(paperDir2));
           const result = composeDocument(input);
-          if (!existsSync37(latexDir))
+          if (!existsSync38(latexDir))
             mkdirSync25(latexDir, { recursive: true });
-          if (existsSync37(texPath)) {
+          if (existsSync38(texPath)) {
             const force = a.force === true || process.env.CONVFUSION_LATEX_COMPOSE_FORCE === "1";
             if (!force) {
-              const lost = detectComposeLoss(readFileSync30(texPath, "utf8"), result.latex);
+              const lost = detectComposeLoss(readFileSync31(texPath, "utf8"), result.latex);
               if (lost.length) {
                 return fail2("compose \u5DF2\u4E2D\u6B62\uFF1A\u91CD\u5199 main.tex \u4F1A\u4E22\u5931\u5176\u4E2D\u4EC5\u5B58\u5728\u4E8E .tex \u7684\u5185\u5BB9\uFF08\u672A\u5199\u76D8\uFF0C\u65E7\u6587\u4EF6\u4FDD\u6301\u539F\u6837\uFF09\u3002\n" + lost.map((l) => `  - ${l}`).join("\n") + "\n\u628A\u4E0A\u8FF0\u5185\u5BB9\u642C\u8FDB `paper.md`\uFF08compose \u7684\u6E90\uFF1B\u4E66\u76EE\u5199\u5728 `## References` \u4E00\u8282\uFF0C\u683C\u5F0F\u4E3A `- [key] \u8457\u5F55\u4FE1\u606F`\uFF09\u540E\u91CD\u8BD5\uFF1B\u786E\u8BA4\u53EF\u4EE5\u4E22\u5F03\u65F6\u7528 CONVFUSION_LATEX_COMPOSE_FORCE=1\u3002");
               }
             }
           }
           let backup;
-          if (existsSync37(texPath)) {
+          if (existsSync38(texPath)) {
             const ts = (/* @__PURE__ */ new Date()).toISOString().replace(/[-:T]/g, "").slice(0, 15);
-            const bak = join37(latexDir, `main_bak_${ts}.tex`);
-            renameSync7(texPath, bak);
+            const bak = join38(latexDir, `main_bak_${ts}.tex`);
+            renameSync8(texPath, bak);
             backup = `${LATEX_SUBDIR}/main_bak_${ts}.tex`;
           }
-          writeFileSync23(texPath, result.latex, "utf8");
-          writeFileSync23(join37(latexDir, INTERMEDIATE_TEX), result.latexIntermediate, "utf8");
+          writeFileSync24(texPath, result.latex, "utf8");
+          writeFileSync24(join38(latexDir, INTERMEDIATE_TEX), result.latexIntermediate, "utf8");
           return losslessJson({
             ok: true,
             action: "compose",
@@ -27761,10 +27965,10 @@ ${e.path ?? ""}${e.downloadedFrom ? `
           });
         }
         if (action === "compile") {
-          if (!existsSync37(texPath))
+          if (!existsSync38(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
-          const cacheDir = join37(ws, "harness", ".tectonic-cache");
-          if (!existsSync37(cacheDir))
+          const cacheDir = join38(ws, "harness", ".tectonic-cache");
+          if (!existsSync38(cacheDir))
             mkdirSync25(cacheDir, { recursive: true });
           const res = compileLatex(texPath, { cacheDir });
           return losslessJson({
@@ -27778,15 +27982,15 @@ ${e.path ?? ""}${e.downloadedFrom ? `
           });
         }
         if (action === "errors") {
-          if (!existsSync37(texPath))
+          if (!existsSync38(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
-          const logPath = join37(latexDir, "main.log");
-          if (!existsSync37(logPath))
+          const logPath = join38(latexDir, "main.log");
+          if (!existsSync38(logPath))
             return fail2("\u5C1A\u65E0 main.log \u2014\u2014 \u5148\u6267\u884C compile\u3002");
-          const errors = parseCompileErrors(readFileSync30(logPath, "utf8"));
+          const errors = parseCompileErrors(readFileSync31(logPath, "utf8"));
           const max = typeof a.maxErrors === "number" ? Math.max(1, Math.floor(a.maxErrors)) : 15;
           const ctxSize = typeof a.contextSize === "number" ? Math.max(1, Math.floor(a.contextSize)) : 6;
-          const tex = readFileSync30(texPath, "utf8");
+          const tex = readFileSync31(texPath, "utf8");
           const enriched = errors.slice(0, max).map((e) => ({
             ...e,
             context: e.line > 0 ? extractErrorContext(tex, e.line, ctxSize).text : ""
@@ -27794,16 +27998,16 @@ ${e.path ?? ""}${e.downloadedFrom ? `
           return losslessJson({ ok: true, action: "errors", errors: enriched });
         }
         if (action === "repair") {
-          if (!existsSync37(texPath))
+          if (!existsSync38(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
-          const logPath = join37(latexDir, "main.log");
-          if (!existsSync37(logPath))
+          const logPath = join38(latexDir, "main.log");
+          if (!existsSync38(logPath))
             return fail2("\u5C1A\u65E0 main.log \u2014\u2014 \u5148\u6267\u884C compile\uFF0C\u518D repair\u3002");
-          const errors = parseCompileErrors(readFileSync30(logPath, "utf8"));
-          const tex = readFileSync30(texPath, "utf8");
+          const errors = parseCompileErrors(readFileSync31(logPath, "utf8"));
+          const tex = readFileSync31(texPath, "utf8");
           const repaired = repairLatex(tex, errors);
           if (repaired.fixedCount > 0)
-            writeFileSync23(texPath, repaired.latex, "utf8");
+            writeFileSync24(texPath, repaired.latex, "utf8");
           return losslessJson({
             ok: true,
             action: "repair",
@@ -27813,9 +28017,9 @@ ${e.path ?? ""}${e.downloadedFrom ? `
           });
         }
         if (action === "validate") {
-          if (!existsSync37(texPath))
+          if (!existsSync38(texPath))
             return fail2("main.tex \u4E0D\u5B58\u5728 \u2014\u2014 \u5148\u6267\u884C compose\u3002");
-          const scan = scanUnsafeTokens(readFileSync30(texPath, "utf8"));
+          const scan = scanUnsafeTokens(readFileSync31(texPath, "utf8"));
           return losslessJson({
             ok: true,
             action: "validate",
@@ -27957,7 +28161,7 @@ ${JSON.stringify(v.ir ?? null, null, 2)}` }];
           return losslessJson({ ok: true, action, irPath: paths.relIr, ir: read.raw });
         }
         if (action === "export") {
-          if (!existsSync37(paths.svgPath)) {
+          if (!existsSync38(paths.svgPath)) {
             return fail2(`No rendered figure at ${paths.relSvg} \u2014 run \`render\` first (and fix any validation errors).`);
           }
           const columnWidthPt = typeof a.column_width_pt === "number" && a.column_width_pt > 0 ? a.column_width_pt : COLUMN_WIDTH_PT;
@@ -28033,7 +28237,7 @@ ${JSON.stringify(v.ir ?? null, null, 2)}` }];
           writeDiagramSvg(paths, build.svg);
           saveLastGood(paths, canonical, build.svg);
           svgWritten = true;
-        } else if (existsSync37(paths.svgPath)) {
+        } else if (existsSync38(paths.svgPath)) {
           const st = statSync17(paths.svgPath);
           keptPrevious = `${paths.relSvg} (from ${st.mtime.toISOString()})`;
         }
@@ -28164,7 +28368,7 @@ Do **not** use this tool for statistical charts (bar/line/scatter): those must b
         paperId,
         name,
         outDir: paths.dir,
-        latexFiguresDir: join37(paths.dir, "..", "latex", "figures")
+        latexFiguresDir: join38(paths.dir, "..", "latex", "figures")
       };
       const columnWidthPt = typeof a.column_width_pt === "number" && a.column_width_pt > 0 ? a.column_width_pt : COLUMN_WIDTH_PT;
       const result = renderSchematic({ spec, targetWidthPt: columnWidthPt });
@@ -28428,11 +28632,11 @@ recorded \u2192 ${v.path ?? ""}` : "";
           let planPath = "";
           if (a.plan !== void 0) {
             planPath = String(a.plan);
-            const full = isAbsolute11(planPath) ? planPath : join37(workspace, planPath);
-            if (!existsSync37(full)) {
+            const full = isAbsolute11(planPath) ? planPath : join38(workspace, planPath);
+            if (!existsSync38(full)) {
               return fail2(`Plan not found: ${planPath}`, { workspace });
             }
-            fromPlan = readFileSync30(full, "utf8");
+            fromPlan = readFileSync31(full, "utf8");
           }
           const fromText = a.text !== void 0 ? String(a.text) : "";
           const markdown = [fromPlan, fromText, fromActions].filter(Boolean).join("\n");
@@ -28855,10 +29059,10 @@ function parseBibEntries(text) {
   return { entries, numberToKey };
 }
 function readPaperMeta(paperDir2) {
-  const p = join37(paperDir2, PAPER_FILES.metadata);
-  if (!existsSync37(p))
+  const p = join38(paperDir2, PAPER_FILES.metadata);
+  if (!existsSync38(p))
     return {};
-  const fm = parseFrontmatter(readFileSync30(p, "utf8"));
+  const fm = parseFrontmatter(readFileSync31(p, "utf8"));
   const keywords = (fm.keywords ?? "").split(/[;,]/).map((s) => s.trim()).filter(Boolean);
   return {
     ...fm.authors ? { authors: fm.authors } : {},
@@ -28893,16 +29097,16 @@ function buildComposeInput(source, template, meta = {}) {
 }
 
 // lib/research/decision-assist.js
-import { createHash as createHash6 } from "node:crypto";
-import { existsSync as existsSync38 } from "node:fs";
-import { join as join38 } from "node:path";
+import { createHash as createHash7 } from "node:crypto";
+import { existsSync as existsSync39 } from "node:fs";
+import { join as join39 } from "node:path";
 var DECISION_TYPES2 = [
   "C1_next_action_selection",
   "B1_evidence_sufficiency",
   "B2_claim_evidence_consistency",
   "D1_direction_decision"
 ];
-var hash = (value) => createHash6("sha256").update(value).digest("hex");
+var hash = (value) => createHash7("sha256").update(value).digest("hex");
 var skipped = (reason) => ({ ok: true, status: "skipped", reason, instruction: "Continue the existing workflow without decision assistance." });
 function decisionState(workspace) {
   const state = loadResearchState(workspace);
@@ -28931,7 +29135,7 @@ function decisionState(workspace) {
       history: list("history", d.Decisions)
     },
     truncated_fields: truncated,
-    sources: ["project.md", "research-state.md"].filter((file) => existsSync38(join38(workspace, file))),
+    sources: ["project.md", "research-state.md"].filter((file) => existsSync39(join39(workspace, file))),
     state_version: state?.version ?? null
   };
 }
@@ -29098,8 +29302,8 @@ function buildHandoffText(doc) {
 }
 
 // scripts/convfusion-mcp.mjs
-var packageInfo = JSON.parse(readFileSync31(new URL("../package.json", new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href), "utf8"));
-var workbenchIcons = [{ src: `data:image/svg+xml;base64,${readFileSync31(new URL("../assets/sidebar-icon.svg", new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href)).toString("base64")}`, mimeType: "image/svg+xml", sizes: ["any"] }];
+var packageInfo = JSON.parse(readFileSync32(new URL("../package.json", new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href), "utf8"));
+var workbenchIcons = [{ src: `data:image/svg+xml;base64,${readFileSync32(new URL("../assets/sidebar-icon.svg", new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href)).toString("base64")}`, mimeType: "image/svg+xml", sizes: ["any"] }];
 if (typeof packageInfo.name !== "string" || typeof packageInfo.version !== "string") {
   throw new Error("package.json must define string name and version fields");
 }
@@ -29118,7 +29322,7 @@ function workspaceProperty() {
 function sessionRoot(value) {
   if (typeof value !== "string" || !value.trim()) throw new Error("workspace_root is required");
   if (!isAbsolute12(value)) throw new Error("workspace_root must be an absolute path");
-  return resolve11(value);
+  return resolve12(value);
 }
 function researchRoot(value) {
   return researchWorkspaceOf(sessionRoot(value));
@@ -29355,8 +29559,32 @@ var codexTools = [
     execute: (args) => uiHost.dispatchSession(args.ui_session, args.workspace_root, args.endpoint, args.payload)
   }
 ];
-var taskTools = /* @__PURE__ */ new Set([workspaceTool, planTool, ...codexTools]);
-var definitions = [workspaceTool, planTool, ...nativeTools, ...codexTools];
+var gpuTool = {
+  name: "research_gpu_hosts",
+  description: "List assigned GPU Docker workspaces, check current GPU usage, or prepare a pinned SSH connection. Before launching a GPU experiment, use activity. If busy, tell the user another workload is using this host and wait for their choice before launching. The user may choose to run concurrently. An unknown result means usage could not be checked. Connection returns ssh_argv without connecting or sending files.",
+  parameters: {
+    action: { type: "string", enum: ["list", "activity", "connection"] },
+    host_id: { type: "string", description: "Assigned host ID returned by list. Required for activity and connection." }
+  },
+  execute: async (args) => {
+    if (args.action !== void 0 && !["list", "activity", "connection"].includes(args.action)) return { ok: false, error: "Unknown GPU action." };
+    if (args.action === "connection") return uiHost.dispatch(void 0, "gpu/workspace-connection", { hostId: args.host_id });
+    if (args.action === "activity") return uiHost.dispatch(void 0, "gpu/workspace-activity", { hostId: args.host_id });
+    const result = await uiHost.dispatch(void 0, "gpu/workspaces", {});
+    if (!result.ok) return result;
+    return { ok: true, value: result.value.map(({ id, name, gpuModel, gpuCount, networkAccess, workspaceStatus, localIdentity }) => ({
+      id,
+      name,
+      gpuModel,
+      gpuCount,
+      networkAccess,
+      workspaceStatus,
+      localIdentity
+    })) };
+  }
+};
+var taskTools = /* @__PURE__ */ new Set([workspaceTool, planTool, gpuTool, ...codexTools]);
+var definitions = [workspaceTool, planTool, gpuTool, ...nativeTools, ...codexTools];
 var byName = new Map(definitions.map((tool) => [tool.name, tool]));
 function advertisedTool(tool) {
   return {
@@ -29481,7 +29709,7 @@ function serveStdio() {
     }
   });
 }
-if (process.argv[1] && new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href === pathToFileURL(resolve11(process.argv[1])).href) serveStdio();
+if (process.argv[1] && new URL("../scripts/convfusion-mcp.mjs", import.meta.url).href === pathToFileURL(resolve12(process.argv[1])).href) serveStdio();
 
 // codex-mcp.mjs-entry.mjs
 serveStdio();

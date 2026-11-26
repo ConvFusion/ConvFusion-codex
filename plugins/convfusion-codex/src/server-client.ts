@@ -998,8 +998,47 @@ export async function fetchAssignedGpuHosts(
       gpuModel: asString(host.gpu_model) || null,
       gpuCount: optionalNumber(host.gpu_count),
       networkAccess,
+      ...('workspace' in host ? { workspace: parseGpuWorkspace(host.workspace) } : {}),
     }
   })
+}
+
+function parseGpuWorkspace(value: unknown): NonNullable<import('./client/gpu-host-types.js').AssignedGpuHost['workspace']> | null {
+  if (value === null) return null
+  const workspace = asObject(value, 'GPU 实验环境')
+  const id = asString(workspace.id)
+  const status = workspace.status
+  const keyFingerprint = asString(workspace.key_fingerprint)
+  if (!id || !keyFingerprint || (status !== 'requested' && status !== 'ready')) {
+    throw new ServerError('bad-response', 'GPU 实验环境信息有误。')
+  }
+  return {
+    id, status, keyFingerprint,
+    sshPort: optionalNumber(workspace.ssh_port),
+    hostPublicKey: asString(workspace.host_public_key) || null,
+  }
+}
+
+export async function requestGpuWorkspace(
+  base: string, apiKey: string, hostId: string, publicKey: string, options: ServerRequestOptions = {},
+): Promise<void> {
+  await requestJson(base, `/gpu/hosts/${encodeURIComponent(hostId)}/workspace`, {
+    method: 'PUT', apiKey: requireKey(apiKey), body: { public_key: publicKey },
+  }, options, '申请 GPU 实验环境')
+}
+
+export async function fetchGpuActivity(
+  base: string, apiKey: string, hostId: string, options: ServerRequestOptions = {},
+): Promise<'busy' | 'idle' | 'unknown'> {
+  const label = '查询 GPU 使用情况'
+  try {
+    const data = asObject(await requestJson(base, `/gpu/hosts/${encodeURIComponent(hostId)}/activity`, {
+      method: 'GET', apiKey: requireKey(apiKey),
+    }, options, label), label)
+    return data.status === 'busy' || data.status === 'idle' ? data.status : 'unknown'
+  } catch {
+    return 'unknown'
+  }
 }
 
 /**

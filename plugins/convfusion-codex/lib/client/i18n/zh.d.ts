@@ -17,6 +17,14 @@ export declare const zh: {
     'gpu.network.account-mismatch': string;
     'gpu.network.unavailable': string;
     'gpu.network.preparing': string;
+    'gpu.workspace.unsupported': string;
+    'gpu.workspace.unrequested': string;
+    'gpu.workspace.requested': string;
+    'gpu.workspace.ready': string;
+    'gpu.workspace.keyMissing': string;
+    'gpu.workspace.request': string;
+    'gpu.workspace.connect': string;
+    'gpu.workspace.actionError': string;
     'workbench.settings.categories': string;
     'workbench.settings.category.user': string;
     'workbench.settings.category.server': string;

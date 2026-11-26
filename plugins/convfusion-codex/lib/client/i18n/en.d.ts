@@ -17,6 +17,14 @@ export declare const en: {
     readonly 'gpu.network.account-mismatch': "The Tailscale account that accepted the invitation does not match. Contact your administrator.";
     readonly 'gpu.network.unavailable': "Could not verify the Tailscale share status.";
     readonly 'gpu.network.preparing': "Waiting for your administrator to confirm the Tailscale invitation.";
+    readonly 'gpu.workspace.unsupported': "This server does not support Docker workspaces yet.";
+    readonly 'gpu.workspace.unrequested': "Your first request prepares an SSH key on this device and registers its public key.";
+    readonly 'gpu.workspace.requested': "Public key registered. Waiting for an administrator to provision the Docker workspace.";
+    readonly 'gpu.workspace.ready': "Docker workspace provisioned.";
+    readonly 'gpu.workspace.keyMissing': "This device does not have the registered key. Contact your administrator.";
+    readonly 'gpu.workspace.request': "Request Docker workspace";
+    readonly 'gpu.workspace.connect': "Show SSH command";
+    readonly 'gpu.workspace.actionError': "Could not complete the request. Try again.";
     readonly 'workbench.settings.categories': "Settings categories";
     readonly 'workbench.settings.category.user': "User preferences";
     readonly 'workbench.settings.category.server': "Server settings";

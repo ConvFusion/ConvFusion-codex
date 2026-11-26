@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, stat, rm, readdir, realpath, writeFile, symlink, rename } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -8,6 +9,7 @@ import { createCodexUiHost } from './codex-ui-server.mjs'
 import { compareVersions } from '../lib/settings-rpc.js'
 const temp = await realpath(await mkdtemp(join(tmpdir(), 'convfusion-codex-ui-')))
 const home = join(temp, 'home')
+const gpuSshHome = join(temp, 'shared-gpu-ssh')
 const first = join(temp, 'task-one')
 const second = join(temp, 'task-two')
 await mkdir(first); await mkdir(second)
@@ -17,19 +19,36 @@ let emailPreferences = { email_research_updates: true, email_new_work: false }
 let notificationsSupported = true
 let gpuHostsSupported = true
 let gpuRows = []
+let gpuActivity = 'busy'
+const gpuWorkspaceId = '7b9a8c51-4a1a-4ba1-8422-f8d445e372aa'
+let gpuPublicKey
 const gbBytes = 1024 ** 3
 let capacityBytes = gbBytes
 let available = 100
 let bytesPerToken = gbBytes
 let losePurchaseResponse = true
 const purchases = new Map()
-const host = createCodexUiHost({ home, env: { CONVFUSION_ENV: 'production' }, fetchImpl: async (url, options) => {
+const host = createCodexUiHost({ home, env: { CONVFUSION_ENV: 'production', CONVFUSION_GPU_SSH_HOME: gpuSshHome }, fetchImpl: async (url, options) => {
   calls.push({ url, method: options.method })
   assert.equal(options.headers.authorization, `Bearer ${key}`)
   if (url.endsWith('/auth/me')) return new Response(JSON.stringify({ id: 'offline-account', email: 'fixture@example.com', display_name: 'Offline fixture', status: 'ACTIVE', roles: ['RESEARCHER'] }), { status: 200 })
   if (url.endsWith('/gpu/hosts')) {
     assert.equal(options.method, 'GET')
     return gpuHostsSupported ? Response.json(gpuRows) : Response.json({}, { status: 404 })
+  }
+  if (url.endsWith('/activity') && url.includes('/gpu/hosts/')) {
+    return gpuActivity ? Response.json({ status: gpuActivity }) : Response.json({}, { status: 404 })
+  }
+  if (url.endsWith('/workspace') && url.includes('/gpu/hosts/')) {
+    assert.equal(options.method, 'PUT')
+    const payload = JSON.parse(options.body)
+    assert.deepEqual(Object.keys(payload), ['public_key'])
+    gpuPublicKey = payload.public_key
+    assert.match(gpuPublicKey, /^ssh-ed25519 [A-Za-z0-9+/]{68}$/)
+    const blob = Buffer.from(gpuPublicKey.split(' ')[1], 'base64')
+    const fingerprint = createHash('sha256').update(blob).digest('base64').replace(/=+$/, '')
+    gpuRows[0].workspace = { id: gpuWorkspaceId, status: 'requested', key_fingerprint: `SHA256:${fingerprint}` }
+    return Response.json(gpuRows[0].workspace)
   }
   if (url.endsWith('/tokens')) return Response.json({ available_balance: available, frozen_balance: 0, total_balance: available })
   if (url.endsWith('/usage')) {
@@ -146,6 +165,33 @@ try {
   }])
   gpuHostsSupported = false
   assert.equal((await globalCall('account/gpu-hosts')).error.code, 'gpu-hosts-unavailable')
+  gpuHostsSupported = true
+  const assignedHostId = '79c2bc27-8111-4a42-9f2c-e53f27b6fbfa'
+  gpuRows = [{ ...gpuRows[0], id: assignedHostId, workspace: null }]
+  const workspaceCall = (action, payload = {}) => globalCall(`gpu/${action}`, payload)
+  assert.equal((await workspaceCall('workspaces')).value[0].workspaceStatus, 'unrequested')
+  assert.equal((await workspaceCall('workspace-request', { hostId: assignedHostId })).ok, true)
+  assert.equal((await workspaceCall('workspace-request', { hostId: assignedHostId })).ok, true)
+  assert.equal((await workspaceCall('workspaces')).value[0].localIdentity, true)
+  assert.equal((await workspaceCall('workspace-connection', { hostId: assignedHostId })).error.code, 'gpu-network-pending')
+  gpuRows[0].network_access = 'accepted'
+  Object.assign(gpuRows[0].workspace, { status: 'ready', ssh_port: 2333, host_public_key: gpuPublicKey })
+  assert.deepEqual((await workspaceCall('workspace-activity', { hostId: assignedHostId })).value, { status: 'busy' })
+  gpuActivity = 'idle'
+  assert.deepEqual((await workspaceCall('workspace-activity', { hostId: assignedHostId })).value, { status: 'idle' })
+  gpuActivity = null
+  assert.deepEqual((await workspaceCall('workspace-activity', { hostId: assignedHostId })).value, { status: 'unknown' })
+  const connection = await workspaceCall('workspace-connection', { hostId: assignedHostId })
+  assert.equal(connection.ok, true)
+  const configuration = await readFile(connection.value.configPath, 'utf8')
+  assert.match(configuration, /User research\n/)
+  assert.match(configuration, /StrictHostKeyChecking yes\n/)
+  assert.equal(connection.value.remoteWorkspace, '/workspace')
+  const [ssh, ...sshArgs] = connection.value.sshArgv
+  assert.match(execFileSync(ssh, ['-T', '-G', ...sshArgs], { encoding: 'utf8' }), /hostname fixture.example.ts.net/)
+  const [keyDirectory] = await readdir(gpuSshHome)
+  assert.equal((await stat(join(gpuSshHome, keyDirectory, 'id_ed25519'))).mode & 0o777, 0o600)
+  assert.ok(!JSON.stringify(connection).includes(gpuPublicKey))
   assert.equal(login.ok, true)
   assert.ok(!JSON.stringify(login).includes(key), 'account response must not disclose a credential')
   assert.ok((await readFile(join(home, 'config.json'), 'utf8')).includes(key))

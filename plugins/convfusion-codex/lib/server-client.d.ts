@@ -461,6 +461,8 @@ export declare function acceptInvitation(base: string, input: {
  */
 export declare function fetchTokenBalance(base: string, apiKey: string, options?: ServerRequestOptions): Promise<TokenBalance>;
 export declare function fetchAssignedGpuHosts(base: string, apiKey: string, options?: ServerRequestOptions): Promise<import('./client/gpu-host-types.js').AssignedGpuHost[]>;
+export declare function requestGpuWorkspace(base: string, apiKey: string, hostId: string, publicKey: string, options?: ServerRequestOptions): Promise<void>;
+export declare function fetchGpuActivity(base: string, apiKey: string, hostId: string, options?: ServerRequestOptions): Promise<'busy' | 'idle' | 'unknown'>;
 /**
  * 续费申请的状态（与服务器 `RechargeRequestStatus` 对齐）。
  *

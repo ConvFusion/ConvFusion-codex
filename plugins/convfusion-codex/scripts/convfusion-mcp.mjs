@@ -310,8 +310,26 @@ const codexTools = [
     execute: (args) => uiHost.dispatchSession(args.ui_session, args.workspace_root, args.endpoint, args.payload),
   },
 ]
-const taskTools = new Set([workspaceTool, planTool, ...codexTools])
-const definitions = [workspaceTool, planTool, ...nativeTools, ...codexTools]
+const gpuTool = {
+  name: 'research_gpu_hosts',
+  description: 'List assigned GPU Docker workspaces, check current GPU usage, or prepare a pinned SSH connection. Before launching a GPU experiment, use activity. If busy, tell the user another workload is using this host and wait for their choice before launching. The user may choose to run concurrently. An unknown result means usage could not be checked. Connection returns ssh_argv without connecting or sending files.',
+  parameters: {
+    action: { type: 'string', enum: ['list', 'activity', 'connection'] },
+    host_id: { type: 'string', description: 'Assigned host ID returned by list. Required for activity and connection.' },
+  },
+  execute: async (args) => {
+    if (args.action !== undefined && !['list', 'activity', 'connection'].includes(args.action)) return { ok: false, error: 'Unknown GPU action.' }
+    if (args.action === 'connection') return uiHost.dispatch(undefined, 'gpu/workspace-connection', { hostId: args.host_id })
+    if (args.action === 'activity') return uiHost.dispatch(undefined, 'gpu/workspace-activity', { hostId: args.host_id })
+    const result = await uiHost.dispatch(undefined, 'gpu/workspaces', {})
+    if (!result.ok) return result
+    return { ok: true, value: result.value.map(({ id, name, gpuModel, gpuCount, networkAccess, workspaceStatus, localIdentity }) => ({
+      id, name, gpuModel, gpuCount, networkAccess, workspaceStatus, localIdentity,
+    })) }
+  },
+}
+const taskTools = new Set([workspaceTool, planTool, gpuTool, ...codexTools])
+const definitions = [workspaceTool, planTool, gpuTool, ...nativeTools, ...codexTools]
 const byName = new Map(definitions.map((tool) => [tool.name, tool]))
 
 function advertisedTool(tool) {

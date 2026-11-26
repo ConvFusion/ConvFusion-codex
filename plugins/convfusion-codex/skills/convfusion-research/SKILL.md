@@ -64,6 +64,7 @@ The references describe shared research methods. Translate DSH-specific host ins
 - `research_literature_search`, `research_paper_download`, `research_paper_latex`: literature, full text and LaTeX workflows.
 - `research_diagram`, `research_schematic`: validated Diagram IR and publication figures. For paper schematics, follow the paper-diagrams method's routing rather than inventing an unverified render/export result.
 - `research_action_construction`: inspect and evaluate candidate research actions/designs.
+- `research_gpu_hosts`: list assigned GPU Docker environments, check shared GPU usage, and prepare a pinned SSH connection for an authorized experiment.
 - `research_ir`: typed research designs, revisions, evidence coverage and state transitions.
 - `research_ui`: open the interactive workbench for methods, progress and ConvFusion.com accounts, publishing, finding mentors/students, proposals and file exchange. Pass the task workspace when opening it from a research conversation; the workbench binds to that directory automatically. The same tool accepts `{}` for global/sidebar and side-panel entrypoints, opening without a task directory for account access, research-network browsing and research methods. For project progress, open the workbench from the project conversation with its task workspace. This never initializes research. Show the returned local URL when the host does not render the MCP Apps resource.
 - `research_sync`: prepare synchronization of a downloaded research ZIP. This is read-only and does not extract or overwrite files.
@@ -98,6 +99,10 @@ When the user asks to synchronize a ZIP (including a request copied from the int
 5. Record actual file dispositions and backup location. Refresh context and workspace status afterward.
 
 ## Execute and verify
+
+When an authorized experiment requires CUDA and the current workspace is not already on a suitable GPU, call `research_gpu_hosts` with `action: list`. Use a ready environment with `localIdentity: true` and network access `existing` or `accepted`. If one environment matches, tell the user which one you will use and call `action: connection` with its host ID. When several match and the choice affects experiment validity, explain the choice. If setup is pending or the key is missing, direct the user to the GPU tab. Use only the returned SSH argument array and remote workspace, and keep host key verification enabled. Upload only files authorized for remote execution. Run a small GPU check before launching training, and retain the exact environment, logs and results. Only stop a process identified as belonging to the current experiment.
+
+Immediately before starting any GPU workload for the experiment, call `research_gpu_hosts` with `action: activity` and the selected host ID. If it reports `busy`, say that the host already has a GPU workload running and ask whether to run concurrently. Wait for the user's answer. If they choose to continue, launch in their own container and leave other workloads alone. If the check reports `unknown` or fails, say that current GPU usage could not be verified. An `idle` result is a point-in-time observation.
 
 Use Codex native capabilities for the approved research work. Inspect real artifacts, measurements, source pages and rendered outputs, then record Evidence/Claims/Decisions and reviewable updates. After authorized native file changes, use `research_state_propose` with `action: sync` to refresh artifact indexes and research definition before refreshing context. Do not run this write operation during a read-only audit. Re-read workspace status/context and report what changed, what remains unverified and the next evidence-bearing action.
 

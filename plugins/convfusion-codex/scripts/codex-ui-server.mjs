@@ -22,6 +22,8 @@ import { writeMethodsExport } from '../lib/research/methods-export.js'
 import { collectSyncFacts, buildSyncText, resolveZipReference } from '../lib/research/sync-request.js'
 import { createDownloadJobs } from '../lib/codex/downloads.js'
 import { pickDownloadFolder } from '../lib/codex/folder-picker.js'
+import { gpuWorkspaceAccess } from '../lib/codex/gpu-workspaces.js'
+import { ServerError } from '../lib/server-client.js'
 import { resolveConvFusionApiKey, resolveServerUrl } from '../lib/config.js'
 
 const pluginRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -184,6 +186,20 @@ export function createCodexUiHost(options = {}) {
     if (root) registerWorkspace(root)
     if (endpoint === 'codex/bootstrap') return { ok: true, value: bootstrap(root) }
     if (endpoint === 'version/check') return checkForUpdates(payload?.manual === true)
+    const gpuAction = { 'gpu/workspaces': 'list', 'gpu/workspace-request': 'request',
+      'gpu/workspace-connection': 'connection', 'gpu/workspace-activity': 'activity' }
+    if (Object.hasOwn(gpuAction, endpoint)) {
+      try {
+        return await gpuWorkspaceAccess(getConfig(), env, { fetchImpl: options.fetchImpl }, gpuAction[endpoint], payload?.hostId)
+      } catch (error) {
+        if (error instanceof ServerError) {
+          if (error.httpStatus === 404) return failure('gpu-hosts-unavailable', '当前服务器暂不支持此 GPU 功能。')
+          if (error.code === 'invalid-key') return failure('invalid-key', '请重新登录 ConvFusion.com。')
+          return failure(error.code, '无法完成 GPU 实验环境请求。')
+        }
+        return failure('gpu-local-error', error instanceof Error ? error.message : 'GPU 实验环境本机配置失败。')
+      }
+    }
     if (endpoint === 'codex/settings') {
       if (payload?.field === 'autoContinue' && typeof payload.value === 'boolean') await setConfig({ autoContinue: payload.value })
       else if (payload?.field === 'autoContinueMaxRounds' && Number.isInteger(payload.value) && payload.value >= 0 && payload.value <= 100) await setConfig({ autoContinueMaxRounds: payload.value })
